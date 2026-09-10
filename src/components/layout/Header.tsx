@@ -1,0 +1,382 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Menu,
+  Search,
+  Plus,
+  Bell,
+  Building2,
+  Coins,
+  Shield,
+  ChevronDown,
+  Car,
+  Wrench,
+  Receipt,
+  FileText,
+  DollarSign,
+  Droplet,
+  Disc,
+  AlertTriangle,
+  Upload,
+  UserCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+import { useFleet } from '../../context/FleetContext';
+import { useUI, QuickModalType } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
+
+interface HeaderProps {
+  onOpenMobileMenu: () => void;
+  onToggleSidebar: () => void;
+  isSidebarCollapsed: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSidebar, isSidebarCollapsed }) => {
+  const headerRef = useRef<HTMLElement>(null);
+  const { companies, selectedCompanyId, setSelectedCompanyId, currency, setCurrency, notifications } = useFleet();
+  const { setIsSearchOpen, setIsNotificationDrawerOpen, openQuickModal } = useUI();
+  const { currentUser, users, setCurrentUserId } = useAuth();
+
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const currentCompany = companies.find(c => c.id === selectedCompanyId);
+
+  useEffect(() => {
+    const closeMenus = () => {
+      setIsCompanyDropdownOpen(false);
+      setIsCurrencyDropdownOpen(false);
+      setIsQuickAddOpen(false);
+      setIsUserDropdownOpen(false);
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (headerRef.current && !headerRef.current.contains(event.target as Node)) closeMenus();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenus();
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleQuickAddSelect = (type: QuickModalType) => {
+    setIsQuickAddOpen(false);
+    openQuickModal(type);
+  };
+
+  return (
+    <header ref={headerRef} className="min-h-16 bg-white/90 border-b border-slate-700 backdrop-blur-xl px-2 sm:px-6 flex items-center justify-between gap-2 sm:gap-3 sticky top-0 z-30">
+      {/* Left: Mobile Toggle & Company Switcher */}
+      <div className="flex items-center gap-1 sm:gap-3">
+        <button
+          onClick={onOpenMobileMenu}
+          className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 lg:hidden cursor-pointer"
+          aria-label="Open Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={onToggleSidebar}
+          className="hidden lg:inline-flex items-center justify-center w-10 h-10 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-850"
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+        </button>
+
+        {/* Company Switcher */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setIsCompanyDropdownOpen(prev => !prev);
+              setIsCurrencyDropdownOpen(false);
+              setIsQuickAddOpen(false);
+              setIsUserDropdownOpen(false);
+            }}
+            aria-label="Select company"
+            aria-expanded={isCompanyDropdownOpen}
+            className="flex min-h-10 items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg bg-white hover:bg-slate-850 border border-slate-700 text-sm font-semibold text-slate-200 transition-colors cursor-pointer select-none"
+          >
+            <Building2 className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span className="hidden md:inline lg:hidden xl:inline max-w-[200px] truncate">
+              {selectedCompanyId === 'all' ? 'All Companies (Group View)' : currentCompany?.name || 'Company'}
+            </span>
+            <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-slate-400 shrink-0" />
+          </button>
+
+          {isCompanyDropdownOpen && (
+            <div className="absolute left-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 p-2 text-xs">
+              <p className="px-2 py-1 font-bold text-slate-400 uppercase text-[10px]">Filter by Entity</p>
+              <button
+                onClick={() => {
+                  setSelectedCompanyId('all');
+                  setIsCompanyDropdownOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors cursor-pointer ${
+                  selectedCompanyId === 'all' ? 'bg-indigo-600/20 text-indigo-300 font-semibold' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <div>
+                  <p className="font-semibold">All Entities (Consolidated)</p>
+                  <p className="text-[10px] text-slate-400">View entire enterprise fleet & accounts</p>
+                </div>
+                {selectedCompanyId === 'all' && <span className="text-indigo-400 font-bold">✓</span>}
+              </button>
+
+              <div className="my-1 border-t border-slate-800" />
+
+              {companies.map(comp => (
+                <button
+                  key={comp.id}
+                  onClick={() => {
+                    setSelectedCompanyId(comp.id);
+                    setIsCompanyDropdownOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors cursor-pointer ${
+                    selectedCompanyId === comp.id ? 'bg-indigo-600/20 text-indigo-300 font-semibold' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="min-w-0 pr-2">
+                    <p className="font-semibold truncate">{comp.name}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">{comp.code} | {comp.city}</p>
+                  </div>
+                  {selectedCompanyId === comp.id && <span className="text-indigo-400 font-bold shrink-0">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Center: Global Search Bar Trigger */}
+      <div className="hidden xl:flex flex-1 max-w-md mx-2">
+        <button
+          onClick={() => setIsSearchOpen(true)}
+          className="w-full min-h-10 flex items-center justify-between px-3.5 py-2 rounded-lg bg-slate-850 border border-slate-700 hover:border-indigo-300 text-sm text-slate-400 transition-all cursor-pointer group"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400" />
+            <span>Search vehicles, VIN, invoices, work orders...</span>
+          </div>
+          <kbd className="px-1.5 py-0.5 text-[10px] bg-slate-850 rounded border border-slate-700 text-slate-400 font-mono">
+            ⌘K
+          </kbd>
+        </button>
+      </div>
+
+      {/* Right: Actions, Currency, Notifications, User Switcher */}
+      <div className="flex items-center gap-1 sm:gap-2.5">
+        {/* Mobile Search Icon */}
+        <button
+          onClick={() => setIsSearchOpen(true)}
+          className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 xl:hidden cursor-pointer"
+          aria-label="Open global search"
+        >
+          <Search className="w-4 h-4" />
+        </button>
+
+        {/* Currency Switcher */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setIsCurrencyDropdownOpen(prev => !prev);
+              setIsCompanyDropdownOpen(false);
+              setIsQuickAddOpen(false);
+              setIsUserDropdownOpen(false);
+            }}
+            className="flex min-h-10 items-center gap-1.5 px-2 sm:px-2.5 py-2 rounded-lg bg-white hover:bg-slate-850 border border-slate-700 text-sm font-semibold text-slate-200 transition-colors cursor-pointer"
+            title="Switch Reporting Currency"
+            aria-label="Switch reporting currency"
+            aria-expanded={isCurrencyDropdownOpen}
+          >
+            <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>{currency}</span>
+            <ChevronDown className="hidden sm:block w-3 h-3 text-slate-400" />
+          </button>
+
+          {isCurrencyDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-36 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-40 p-1.5 text-xs">
+              <p className="px-2 py-1 font-semibold text-slate-400 uppercase text-[10px]">Currency</p>
+              {['OMR', 'USD', 'EUR', 'SAR', 'AED'].map(curr => (
+                <button
+                  key={curr}
+                  onClick={() => {
+                    setCurrency(curr);
+                    setIsCurrencyDropdownOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-left ${
+                    currency === curr ? 'bg-indigo-600/20 text-indigo-300 font-bold' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{curr}</span>
+                  {currency === curr && <span className="text-indigo-400">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Quick Add Menu */}
+        <div className="relative">
+          <Button
+            variant="primary"
+            size="sm"
+            className="px-2 sm:px-3.5"
+            aria-label="Open quick actions"
+            aria-expanded={isQuickAddOpen}
+            onClick={() => {
+              setIsQuickAddOpen(prev => !prev);
+              setIsCompanyDropdownOpen(false);
+              setIsCurrencyDropdownOpen(false);
+              setIsUserDropdownOpen(false);
+            }}
+            leftIcon={<Plus className="w-4 h-4" />}
+          >
+            <span className="hidden xl:inline">Quick Action</span>
+          </Button>
+
+          {isQuickAddOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 p-2 text-xs space-y-0.5">
+              <p className="px-2 py-1 font-bold text-slate-400 uppercase text-[10px]">Fleet & Workshop</p>
+              <button
+                onClick={() => handleQuickAddSelect('add-vehicle')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <Car className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>Add New Vehicle</span>
+              </button>
+              <button
+                onClick={() => handleQuickAddSelect('add-maintenance')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <Wrench className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>Record Maintenance</span>
+              </button>
+              <button
+                onClick={() => handleQuickAddSelect('add-work-order')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <Wrench className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Create Work Order</span>
+              </button>
+              <button
+                onClick={() => handleQuickAddSelect('add-oil-change')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <Droplet className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Record Oil Change</span>
+              </button>
+              <button
+                onClick={() => handleQuickAddSelect('add-accident')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Report Accident</span>
+              </button>
+
+              <div className="my-1 border-t border-slate-800" />
+              <p className="px-2 py-1 font-bold text-slate-400 uppercase text-[10px]">Finance & Docs</p>
+              <button
+                onClick={() => handleQuickAddSelect('add-expense')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <Receipt className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Add Vehicle Expense</span>
+              </button>
+              <button
+                onClick={() => handleQuickAddSelect('add-invoice')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>Create New Invoice</span>
+              </button>
+              <button
+                onClick={() => handleQuickAddSelect('upload-document')}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
+              >
+                <Upload className="w-4 h-4 text-blue-400 shrink-0" />
+                <span>Upload Document</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Notifications Bell */}
+        <button
+          onClick={() => setIsNotificationDrawerOpen(true)}
+          className="relative p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+          aria-label="Notifications"
+        >
+          <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-slate-900" />
+          )}
+        </button>
+
+        {/* User Role Switcher Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              setIsUserDropdownOpen(prev => !prev);
+              setIsCompanyDropdownOpen(false);
+              setIsCurrencyDropdownOpen(false);
+              setIsQuickAddOpen(false);
+            }}
+            className="flex min-h-10 items-center gap-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white hover:bg-slate-850 border border-slate-700 transition-colors cursor-pointer"
+            title="Switch User / Role for RBAC Testing"
+            aria-label="Open profile and role switcher"
+            aria-expanded={isUserDropdownOpen}
+          >
+            <div className="w-6 h-6 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
+              <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+            </div>
+            <div className="hidden xl:block text-left">
+              <p className="text-xs font-semibold text-slate-200 leading-none">{currentUser.name.split(' ')[0]}</p>
+              <p className="text-[10px] text-indigo-400 font-medium leading-tight mt-0.5">{currentUser.role}</p>
+            </div>
+            <ChevronDown className="w-3 h-3 text-slate-400 hidden xl:block" />
+          </button>
+
+          {isUserDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 p-2 text-xs">
+              <p className="px-2 py-1 font-bold text-slate-400 uppercase text-[10px]">Switch Role Profile (RBAC)</p>
+              <div className="max-h-60 overflow-y-auto space-y-1 mt-1">
+                {users.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      setCurrentUserId(u.id);
+                      setIsUserDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer ${
+                      currentUser.id === u.id ? 'bg-indigo-600/20 text-indigo-300 font-semibold' : 'text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
+                      <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-xs text-slate-100 truncate">{u.name}</p>
+                      <p className="text-[10px] text-indigo-400">{u.role} ({u.department})</p>
+                    </div>
+                    {currentUser.id === u.id && <span className="text-indigo-400 font-bold shrink-0">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+};
