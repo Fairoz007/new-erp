@@ -36,7 +36,7 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
       />
 
       {/* Main Content Area */}
-      <div className={`${isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'} min-w-0 flex flex-col min-h-screen transition-[padding] duration-200`}>
+      <div className={`${isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-64 xl:pl-68'} min-w-0 flex flex-col min-h-screen transition-[padding] duration-200`}>
         {/* Header */}
         <Header
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
@@ -45,7 +45,7 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         />
 
         {/* Page Content */}
-        <main className="flex-1 min-w-0 w-full px-4 py-5 sm:px-6 sm:py-6 xl:px-8 2xl:px-10 2xl:py-8 space-y-6">
+        <main className="flex-1 min-w-0 w-full px-4 py-4 sm:px-6 sm:py-5 xl:px-6 2xl:px-8 space-y-5">
           {children}
         </main>
       </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -19,21 +19,21 @@ import {
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
 
-const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#06b6d4', '#8b5cf6', '#ec4899', '#64748b'];
+const CHART_COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#F43F5E', '#06B6D4', '#8B5CF6', '#EC4899', '#64748B'];
 
-// Shared light-theme tooltip
+// Shared clean reference tooltip
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-slate-700 p-3 rounded-xl shadow-lg text-sm space-y-1">
-        <p className="font-bold text-slate-200">{label}</p>
+      <div className="bg-white border border-slate-700 p-2.5 rounded-xl shadow-elevated text-xs space-y-1 z-50">
+        <p className="font-semibold text-slate-100">{label}</p>
         {payload.map((entry: any, index: number) => (
-          <div key={`item-${index}`} className="flex items-center justify-between gap-4">
+          <div key={`item-${index}`} className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-1.5 text-slate-400">
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
               {entry.name}:
             </span>
-            <span className="font-semibold text-slate-100">
+            <span className="font-semibold text-slate-100 tabular-nums">
               {typeof entry.value === 'number' && entry.value > 10 ? formatCurrency(entry.value) : entry.value}
             </span>
           </div>
@@ -58,33 +58,33 @@ export const RevenueVsExpenseChart: React.FC = () => {
   ];
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-[260px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+              <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
             </linearGradient>
             <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.25} />
+              <stop offset="95%" stopColor="#4F46E5" stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-          <XAxis dataKey="month" stroke="#64748B" fontSize={12} tickLine={false} axisLine={{ stroke: '#E2E8F0' }} />
-          <YAxis stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
+          <XAxis dataKey="month" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
+          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px', color: '#475569' }} />
-          <Area type="monotone" dataKey="Revenue" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
-          <Area type="monotone" dataKey="Expenses" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#6B6B72' }} />
+          <Area type="monotone" dataKey="Revenue" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
+          <Area type="monotone" dataKey="Expenses" stroke="#4F46E5" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>
   );
 };
 
-// 2. Monthly Maintenance Cost Trend
+// 2. Monthly Maintenance Cost Trend with rounded reference bars
 export const MaintenanceTrendChart: React.FC = () => {
   const data = [
     { month: 'Jan', Routine: 420, Corrective: 310, Breakdown: 150 },
@@ -98,24 +98,70 @@ export const MaintenanceTrendChart: React.FC = () => {
   ];
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-[260px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-          <XAxis dataKey="month" stroke="#64748B" fontSize={12} tickLine={false} axisLine={{ stroke: '#E2E8F0' }} />
-          <YAxis stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
+          <XAxis dataKey="month" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
+          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px', color: '#475569' }} />
-          <Bar dataKey="Routine" stackId="a" fill="#06b6d4" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="Corrective" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="Breakdown" stackId="a" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#6B6B72' }} />
+          <Bar dataKey="Routine" stackId="a" fill="#06B6D4" radius={[0, 0, 0, 0]} barSize={22} />
+          <Bar dataKey="Corrective" stackId="a" fill="#F59E0B" radius={[0, 0, 0, 0]} barSize={22} />
+          <Bar dataKey="Breakdown" stackId="a" fill="#F43F5E" radius={[4, 4, 0, 0]} barSize={22} />
         </BarChart>
       </ResponsiveContainer>
     </div>
   );
 };
 
-// 3. Expense Distribution Pie Chart
+// 3. Reference-Style Fleet Operating Costs Monthly Bar Chart
+export const FleetMonthlyOperatingCostsChart: React.FC = () => {
+  const [activeIndex, setActiveIndex] = useState<number>(7); // default Aug is active
+
+  const data = [
+    { month: 'Jan', cost: 6800 },
+    { month: 'Feb', cost: 8900 },
+    { month: 'Mar', cost: 7400 },
+    { month: 'Apr', cost: 9500 },
+    { month: 'May', cost: 11200 },
+    { month: 'Jun', cost: 10400 },
+    { month: 'Jul', cost: 12800 },
+    { month: 'Aug', cost: 14600 },
+  ];
+
+  return (
+    <div className="h-[260px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+          onMouseMove={(state: any) => {
+            if (state && state.activeTooltipIndex !== undefined) {
+              setActiveIndex(state.activeTooltipIndex);
+            }
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
+          <XAxis dataKey="month" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
+          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="cost" name="Operating Cost" radius={[6, 6, 0, 0]} barSize={24}>
+            {data.map((_, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={index === activeIndex ? '#4F46E5' : '#DDD6FE'}
+                className="transition-colors duration-200 cursor-pointer"
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+// 4. Expense Distribution Pie Chart
 export const ExpenseCategoryPieChart: React.FC = () => {
   const data = [
     { name: 'Fuel', value: 24300 },
@@ -129,19 +175,19 @@ export const ExpenseCategoryPieChart: React.FC = () => {
   ];
 
   return (
-    <div className="h-64 w-full flex items-center justify-center">
+    <div className="h-60 w-full flex items-center justify-center">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={85}
+            innerRadius={55}
+            outerRadius={80}
             paddingAngle={3}
             dataKey="value"
           >
-            {data.map((entry, index) => (
+            {data.map((_, index) => (
               <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
             ))}
           </Pie>
@@ -153,7 +199,7 @@ export const ExpenseCategoryPieChart: React.FC = () => {
   );
 };
 
-// 4. Fleet Age & Status Charts
+// 5. Fleet Age & Status Charts
 export const FleetStatusChart: React.FC = () => {
   const { vehicles } = useFleet();
 
@@ -165,23 +211,23 @@ export const FleetStatusChart: React.FC = () => {
   const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
 
   const statusColors: Record<string, string> = {
-    Active: '#10b981',
-    'Under Maintenance': '#f59e0b',
-    Accident: '#f43f5e',
-    Inactive: '#64748b',
-    Sold: '#8b5cf6',
+    Active: '#10B981',
+    'Under Maintenance': '#F59E0B',
+    Accident: '#F43F5E',
+    Inactive: '#64748B',
+    Sold: '#8B5CF6',
   };
 
   return (
-    <div className="h-64 w-full flex items-center justify-center">
+    <div className="h-60 w-full flex items-center justify-center">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={55}
-            outerRadius={80}
+            innerRadius={52}
+            outerRadius={78}
             paddingAngle={4}
             dataKey="value"
             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -197,7 +243,7 @@ export const FleetStatusChart: React.FC = () => {
   );
 };
 
-// 5. Depreciation vs Book Value Schedule Chart
+// 6. Depreciation vs Book Value Schedule Chart
 export const AssetDepreciationChart: React.FC = () => {
   const data = [
     { year: '2022', PurchaseCost: 148300, BookValue: 148300, Depreciation: 0 },
@@ -209,17 +255,17 @@ export const AssetDepreciationChart: React.FC = () => {
   ];
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-[260px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-          <XAxis dataKey="year" stroke="#64748B" fontSize={12} tickLine={false} axisLine={{ stroke: '#E2E8F0' }} />
-          <YAxis stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
+          <XAxis dataKey="year" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
+          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px', color: '#475569' }} />
-          <Line type="monotone" dataKey="PurchaseCost" stroke="#64748b" strokeWidth={2} strokeDasharray="4 4" name="Initial Cost" dot={false} />
-          <Line type="monotone" dataKey="BookValue" stroke="#6366f1" strokeWidth={3} name="Net Book Value" />
-          <Line type="monotone" dataKey="Depreciation" stroke="#f43f5e" strokeWidth={2} name="Accumulated Depreciation" />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#6B6B72' }} />
+          <Line type="monotone" dataKey="PurchaseCost" stroke="#8E8E93" strokeWidth={1.5} strokeDasharray="4 4" name="Initial Cost" dot={false} />
+          <Line type="monotone" dataKey="BookValue" stroke="#4F46E5" strokeWidth={2.5} name="Net Book Value" />
+          <Line type="monotone" dataKey="Depreciation" stroke="#F43F5E" strokeWidth={2} name="Accumulated Depreciation" />
         </LineChart>
       </ResponsiveContainer>
     </div>

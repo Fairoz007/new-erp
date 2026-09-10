@@ -1,12 +1,22 @@
 import React from 'react';
-import { Building2, Plus, Phone, Mail, Globe, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
+import { Building2, Phone, Mail, MapPin, CreditCard, ShieldCheck, Users, Car, FileText, CheckCircle2, Layers } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useFleet } from '../../context/FleetContext';
-import { formatCurrency } from '../../utils/financial';
 
 export const CompaniesPage: React.FC = () => {
-  const { companies, vehicles, invoices, selectedCompanyId, setSelectedCompanyId, currency } = useFleet();
+  const { companies, vehicles, invoices, employees, selectedCompanyId, setSelectedCompanyId, resetToDefaultData } = useFleet();
+
+  // Auto-purge any stale legacy companies from prior sessions
+  React.useEffect(() => {
+    const hasLegacy = companies.some(c => !c.name.includes('Al Hakim') || c.id === 'comp-3') || companies.length !== 2;
+    if (hasLegacy) {
+      resetToDefaultData();
+    }
+  }, [companies, resetToDefaultData]);
+
+  // Restrict strictly to Head Office (comp-1) and Duqm Office (comp-2)
+  const activeOffices = companies.filter(c => c.id === 'comp-1' || c.id === 'comp-2');
 
   return (
     <div className="space-y-6">
@@ -15,25 +25,89 @@ export const CompaniesPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
             <Building2 className="w-6 h-6 text-indigo-400" />
-            <span>Multi-Company & Entity Management</span>
+            <span>Offices & Branches Management</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Manage subsidiary entities, tax numbers, commercial registration, corporate bank accounts, and financial years.
+            Corporate organizational structure for <strong className="text-slate-200">Al Hakim National LLC</strong> — segregated operational management for Head Office (Muscat) and Duqm Office (SEZAD).
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant={selectedCompanyId === 'all' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedCompanyId('all')}
+            className="cursor-pointer"
+          >
+            <Layers className="w-4 h-4 mr-1.5" />
+            {selectedCompanyId === 'all' ? 'Viewing Consolidated (All Offices)' : 'Switch to Consolidated View'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => resetToDefaultData()}
+            title="Re-synchronize Head Office and Duqm Office dataset"
+            className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+          >
+            Sync Dual Offices
+          </Button>
         </div>
       </div>
 
-      {/* Companies Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {companies.map(comp => {
+      {/* Enterprise Master Overview Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-700/80 rounded-2xl p-5 shadow-elevated">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-xl shadow-md shrink-0">
+              AHN
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white tracking-tight">Al Hakim National LLC</h2>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Active Enterprise
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Headquarters: Muscat, Sultanate of Oman • Commercial Fleet, Industrial Logistics & Technical Services
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="px-3 py-1.5 bg-slate-950/70 border border-slate-800 rounded-lg">
+              <span className="text-slate-400 block text-[10px]">Commercial Reg (CR)</span>
+              <span className="font-mono font-bold text-slate-200">CR-1384920</span>
+            </div>
+            <div className="px-3 py-1.5 bg-slate-950/70 border border-slate-800 rounded-lg">
+              <span className="text-slate-400 block text-[10px]">Corporate VAT Identification</span>
+              <span className="font-mono font-bold text-slate-200">OM1100482910</span>
+            </div>
+            <div className="px-3 py-1.5 bg-slate-950/70 border border-slate-800 rounded-lg">
+              <span className="text-slate-400 block text-[10px]">Tax Card Number</span>
+              <span className="font-mono font-bold text-slate-200">TAX-8849102</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Offices Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {activeOffices.map(comp => {
           const compVehicles = vehicles.filter(v => v.companyId === comp.id);
           const compInvoices = invoices.filter(i => i.companyId === comp.id);
+          const compStaff = employees.filter(e => e.companyId === comp.id);
           const isSelected = selectedCompanyId === comp.id;
+          const isHeadOffice = comp.id === 'comp-1';
 
           return (
             <Card
               key={comp.id}
-              className={`transition-all ${isSelected ? 'ring-2 ring-indigo-500 border-indigo-500/60 shadow-xl' : 'hover:border-slate-600'}`}
+              className={`transition-all ${
+                isSelected
+                  ? 'ring-2 ring-indigo-500 border-indigo-500/60 shadow-xl bg-slate-900/90'
+                  : 'hover:border-slate-600 bg-slate-900/50'
+              }`}
             >
               <CardHeader
                 action={
@@ -41,52 +115,71 @@ export const CompaniesPage: React.FC = () => {
                     variant={isSelected ? 'primary' : 'outline'}
                     size="xs"
                     onClick={() => setSelectedCompanyId(isSelected ? 'all' : comp.id)}
+                    className="cursor-pointer"
                   >
-                    {isSelected ? 'Active Filter' : 'Filter by Entity'}
+                    {isSelected ? 'Active Filter (Click to Reset)' : `Filter by ${isHeadOffice ? 'Head Office' : 'Duqm Office'}`}
                   </Button>
                 }
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm shrink-0">
-                    {comp.code.slice(0, 3)}
+                  <div className="w-11 h-11 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-base shrink-0">
+                    {isHeadOffice ? 'HO' : 'DQM'}
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-slate-100 line-clamp-1">{comp.name}</h3>
-                    <span className="text-[11px] text-slate-400 font-mono">{comp.code} • {comp.city}, {comp.country}</span>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base text-slate-100">{comp.name}</h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 font-semibold border border-indigo-500/20">
+                        {isHeadOffice ? 'Corporate HQ' : 'SEZAD Branch'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      Code: {comp.code} • {comp.city}, {comp.state}, {comp.country}
+                    </span>
                   </div>
                 </div>
               </CardHeader>
 
               <CardContent className="space-y-4 text-xs">
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 text-center">
+                {/* Office Role Description */}
+                <p className="text-xs text-slate-300 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/80 leading-relaxed">
+                  {comp.notes}
+                </p>
+
+                {/* Operational Stats Grid */}
+                <div className="grid grid-cols-3 gap-2 p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-center">
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase">Assigned Fleet</span>
-                    <span className="text-base font-bold text-slate-100">{compVehicles.length} Vehicles</span>
+                    <span className="text-slate-400 block text-[10px] uppercase font-medium flex items-center justify-center gap-1">
+                      <Car className="w-3 h-3 text-indigo-400" /> Assigned Fleet
+                    </span>
+                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{compVehicles.length} Vehicles</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase">Invoices Logged</span>
-                    <span className="text-base font-bold text-slate-100">{compInvoices.length} Invoices</span>
+                    <span className="text-slate-400 block text-[10px] uppercase font-medium flex items-center justify-center gap-1">
+                      <Users className="w-3 h-3 text-indigo-400" /> Office Staff
+                    </span>
+                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{compStaff.length} Employees</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-medium flex items-center justify-center gap-1">
+                      <FileText className="w-3 h-3 text-indigo-400" /> Invoices Logged
+                    </span>
+                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{compInvoices.length} Invoices</span>
                   </div>
                 </div>
 
                 {/* Tax & Registration Details */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">CR Number:</span>
+                <div className="space-y-2 pt-1 bg-slate-950/50 p-3 rounded-xl border border-slate-800/60">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Commercial Registration (CR):</span>
                     <span className="font-mono font-semibold text-slate-200">{comp.registrationNumber}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">VAT Number:</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">VAT Identification:</span>
                     <span className="font-mono font-semibold text-slate-200">{comp.vatNumber}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Tax File:</span>
-                    <span className="font-mono text-slate-300">{comp.taxNumber}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Financial Year:</span>
-                    <span className="text-slate-300">{comp.financialYear}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Financial Fiscal Period:</span>
+                    <span className="text-slate-300 font-medium">{comp.financialYear}</span>
                   </div>
                 </div>
 
@@ -94,18 +187,18 @@ export const CompaniesPage: React.FC = () => {
                 {comp.bankDetails && (
                   <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
                     <p className="font-semibold text-indigo-300 flex items-center gap-1.5 text-[11px]">
-                      <CreditCard className="w-3.5 h-3.5" /> {comp.bankDetails.bankName}
+                      <CreditCard className="w-3.5 h-3.5 text-indigo-400" /> {comp.bankDetails.bankName}
                     </p>
-                    <p className="text-[10px] text-slate-400 font-mono">IBAN: {comp.bankDetails.iban}</p>
-                    <p className="text-[10px] text-slate-400">Branch: {comp.bankDetails.branch}</p>
+                    <p className="text-[10px] text-slate-300 font-mono">IBAN: {comp.bankDetails.iban}</p>
+                    <p className="text-[10px] text-slate-400">Operating Branch: {comp.bankDetails.branch}</p>
                   </div>
                 )}
 
                 {/* Contact info */}
-                <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400 space-y-1.5">
                   <p className="flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="truncate">{comp.address}</span>
+                    <span className="truncate">{comp.address}, {comp.city}</span>
                   </p>
                   <p className="flex items-center gap-2">
                     <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />

@@ -717,7 +717,7 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Vehicle ID" value={vehicleForm.vehicleId} onChange={e => setVehicleForm({ ...vehicleForm, vehicleId: e.target.value })} required />
             <Input label="Plate Number" placeholder="e.g. 1234 ABC" value={vehicleForm.plateNumber} onChange={e => setVehicleForm({ ...vehicleForm, plateNumber: e.target.value })} required />
-            <Select label="Company" value={vehicleForm.companyId} onChange={e => setVehicleForm({ ...vehicleForm, companyId: e.target.value })}>
+            <Select label="Assigned Office / Branch" value={vehicleForm.companyId} onChange={e => setVehicleForm({ ...vehicleForm, companyId: e.target.value })}>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>
@@ -1026,7 +1026,7 @@ export const QuickActionModals: React.FC = () => {
               <option value="Purchase">Purchase Bill (Supplier)</option>
               <option value="Sales">Sales Invoice (Customer)</option>
             </Select>
-            <Select label="Company" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value })}>
+            <Select label="Assigned Office / Branch" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value })}>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
             <Select label={invoiceForm.invoiceType === 'Purchase' ? 'Supplier' : 'Customer'} value={invoiceForm.partyId} onChange={e => setInvoiceForm({ ...invoiceForm, partyId: e.target.value })}>

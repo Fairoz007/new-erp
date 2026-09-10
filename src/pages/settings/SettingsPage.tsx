@@ -159,8 +159,8 @@ export const SettingsPage: React.FC = () => {
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 space-y-4">
-            <h3 className="text-base font-bold text-slate-100">Import FleetX JSON Backup</h3>
-            <p className="text-xs text-slate-400">Paste your exported FleetX JSON state to restore all records into local cache.</p>
+            <h3 className="text-base font-bold text-slate-100">Import Al Hakim ERP JSON Backup</h3>
+            <p className="text-xs text-slate-400">Paste your exported Al Hakim ERP JSON state to restore all records into local cache.</p>
             <textarea
               rows={6}
               value={importJsonText}

@@ -22,23 +22,31 @@ export const Button: React.FC<ButtonProps> = ({
   rightIcon,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed select-none cursor-pointer';
+  const baseStyles =
+    'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed select-none cursor-pointer';
 
   const sizeStyles = {
-    xs: 'text-xs px-3 py-2 gap-1.5 min-h-9',
-    sm: 'text-sm px-3.5 py-2 gap-1.5 min-h-10',
-    md: 'text-sm px-4 py-2.5 gap-2 min-h-11',
-    lg: 'text-base px-5 py-3 gap-2.5 min-h-12',
+    xs: 'text-xs px-2.5 py-1 min-h-8 gap-1.5',
+    sm: 'text-xs sm:text-sm px-3 py-1.5 min-h-9 gap-1.5',
+    md: 'text-sm px-3.5 py-2 min-h-10 gap-2',
+    lg: 'text-sm sm:text-base px-4.5 py-2.5 min-h-11 gap-2.5',
   };
 
   const variantStyles = {
-    primary: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow focus:ring-indigo-600 border border-indigo-600',
-    secondary: 'bg-slate-850 hover:bg-slate-800 text-slate-200 border border-slate-700 focus:ring-slate-500',
-    navy: 'bg-slate-100 hover:bg-slate-200 text-white border border-slate-100 focus:ring-indigo-600',
-    outline: 'bg-white hover:bg-slate-850 text-slate-300 border border-slate-700 focus:ring-indigo-600',
-    danger: 'bg-rose-600 hover:bg-rose-500 text-white focus:ring-rose-500 border border-rose-500/30 shadow-sm',
-    success: 'bg-emerald-600 hover:bg-emerald-500 text-white focus:ring-emerald-500 border border-emerald-500/30 shadow-sm',
-    ghost: 'bg-transparent hover:bg-slate-850 text-slate-300 hover:text-slate-100 border-transparent focus:ring-indigo-600',
+    primary:
+      'bg-indigo-600 hover:bg-indigo-700 text-white border border-transparent shadow-[0_1px_2px_rgba(79,70,229,0.25)] active:translate-y-px',
+    secondary:
+      'bg-white hover:bg-slate-800 text-slate-100 border border-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] active:bg-slate-750',
+    navy:
+      'bg-slate-100 hover:bg-slate-200 text-white border border-slate-100 shadow-sm',
+    outline:
+      'bg-white hover:bg-slate-800 text-slate-100 border border-slate-700 active:bg-slate-750',
+    danger:
+      'bg-rose-600 hover:bg-rose-700 text-white border border-transparent shadow-xs',
+    success:
+      'bg-emerald-600 hover:bg-emerald-700 text-white border border-transparent shadow-xs',
+    ghost:
+      'bg-transparent hover:bg-slate-800 text-slate-400 hover:text-slate-100 border-transparent',
   };
 
   return (
@@ -48,11 +56,11 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading ? (
-        <Loader2 className="w-4 h-4 animate-spin text-current" />
+        <Loader2 className="w-3.5 h-3.5 animate-spin text-current shrink-0" />
       ) : (
         leftIcon && <span className="inline-flex shrink-0">{leftIcon}</span>
       )}
-      <span>{children}</span>
+      {children && <span>{children}</span>}
       {!isLoading && rightIcon && <span className="inline-flex shrink-0">{rightIcon}</span>}
     </button>
   );

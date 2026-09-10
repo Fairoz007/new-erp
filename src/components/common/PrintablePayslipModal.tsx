@@ -37,13 +37,13 @@ export const PrintablePayslipModal: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-lg">
-              AR
+              AHN
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-100">
-                {selectedCompany?.name || 'Al-Rawas Logistics & Fleet Operations LLC'}
+                {selectedCompany?.name || 'Al Hakim National LLC'}
               </h2>
-              <p className="text-xs text-slate-400">CR No: 1109283 • Sultanate of Oman (WPS Registered)</p>
+              <p className="text-xs text-slate-400">CR No: {selectedCompany?.registrationNumber || '1384920'} • Sultanate of Oman (WPS Registered)</p>
             </div>
           </div>
 
@@ -182,7 +182,7 @@ export const PrintablePayslipModal: React.FC = () => {
           <div>
             <div className="h-10 border-b border-dashed border-slate-700 mx-auto w-40 mb-1"></div>
             <p className="font-semibold text-slate-300">Prepared by: HR & Payroll Officer</p>
-            <p className="text-[10px] text-slate-500">Al-Rawas Logistics Operations</p>
+            <p className="text-[10px] text-slate-500">{selectedCompany?.name || 'Al Hakim National LLC'} Operations</p>
           </div>
           <div>
             <div className="h-10 border-b border-dashed border-slate-700 mx-auto w-40 mb-1"></div>

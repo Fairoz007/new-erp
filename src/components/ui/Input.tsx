@@ -1,6 +1,7 @@
 import React, { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode, forwardRef } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { ChevronDown } from 'lucide-react';
 
 interface InputWrapperProps {
   label?: string;
@@ -25,9 +26,9 @@ export const InputWrapper: React.FC<InputWrapperProps> = ({
 }) => (
   <div className={twMerge(clsx('flex flex-col gap-1.5', className))}>
     {label && (
-      <label className="text-sm font-semibold text-slate-300 flex items-center justify-between">
+      <label className="text-xs sm:text-sm font-medium text-slate-200 flex items-center justify-between">
         <span>
-          {label} {required && <span className="text-rose-400">*</span>}
+          {label} {required && <span className="text-rose-600 font-bold">*</span>}
         </span>
       </label>
     )}
@@ -37,7 +38,7 @@ export const InputWrapper: React.FC<InputWrapperProps> = ({
       {rightIcon && <div className="absolute right-3 text-slate-400 pointer-events-none shrink-0">{rightIcon}</div>}
     </div>
     {error ? (
-      <p className="text-xs text-rose-700 font-medium">{error}</p>
+      <p className="text-xs text-rose-600 font-medium">{error}</p>
     ) : hint ? (
       <p className="text-xs text-slate-400">{hint}</p>
     ) : null}
@@ -60,10 +61,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           className={twMerge(
             clsx(
-              'w-full min-h-11 bg-white border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 transition-colors disabled:opacity-60 disabled:bg-slate-850',
+              'w-full min-h-[40px] h-10 bg-white border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600/15 focus:border-indigo-600 transition-colors disabled:opacity-60 disabled:bg-slate-850',
               leftIcon && 'pl-9',
               rightIcon && 'pr-9',
-              error && 'border-rose-500 focus:ring-rose-500/50 focus:border-rose-500',
+              error && 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500',
               className
             )
           )}
@@ -87,20 +88,23 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, hint, leftIcon, options, children, className, required, ...props }, ref) => {
     return (
       <InputWrapper label={label} error={error} hint={hint} required={required} leftIcon={leftIcon}>
-        <select
-          ref={ref}
-          className={twMerge(
-            clsx(
-              'w-full min-h-11 bg-white border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 transition-colors disabled:opacity-60 appearance-none cursor-pointer',
-              leftIcon && 'pl-9',
-              error && 'border-rose-500 focus:ring-rose-500/50 focus:border-rose-500',
-              className
-            )
-          )}
-          {...props}
-        >
-          {options ? options.map(opt => <option key={opt.value} value={opt.value} disabled={opt.disabled} className="bg-white text-slate-100">{opt.label}</option>) : children}
-        </select>
+        <div className="relative w-full">
+          <select
+            ref={ref}
+            className={twMerge(
+              clsx(
+                'w-full min-h-[40px] h-10 bg-white border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600/15 focus:border-indigo-600 transition-colors disabled:opacity-60 appearance-none cursor-pointer pr-8',
+                leftIcon && 'pl-9',
+                error && 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500',
+                className
+              )
+            )}
+            {...props}
+          >
+            {options ? options.map(opt => <option key={opt.value} value={opt.value} disabled={opt.disabled} className="bg-white text-slate-100">{opt.label}</option>) : children}
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
       </InputWrapper>
     );
   }
@@ -122,8 +126,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           rows={rows}
           className={twMerge(
             clsx(
-              'w-full bg-white border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 transition-colors disabled:opacity-60 resize-y',
-              error && 'border-rose-500 focus:ring-rose-500/50 focus:border-rose-500',
+              'w-full bg-white border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600/15 focus:border-indigo-600 transition-colors disabled:opacity-60 resize-y',
+              error && 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500',
               className
             )
           )}

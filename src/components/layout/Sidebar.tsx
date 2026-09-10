@@ -17,7 +17,6 @@ import {
   BookOpen,
   TrendingUp,
   Scale,
-  Percent,
   FolderOpen,
   Bell,
   UserCheck,
@@ -27,7 +26,6 @@ import {
   Settings,
   Sparkles,
   ChevronRight,
-  Shield,
   Layers,
 } from 'lucide-react';
 import { AppPage, useUI } from '../../context/UIContext';
@@ -41,7 +39,6 @@ interface NavItem {
   icon: React.ElementType;
   badge?: number | string;
   badgeColor?: 'emerald' | 'amber' | 'rose' | 'blue' | 'indigo';
-  moduleRequired?: string;
 }
 
 interface NavGroup {
@@ -63,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { currentPage, setCurrentPage } = useUI();
   const { notifications, approvalRequests, workOrders, invoices } = useFleet();
-  const { hasPermission, currentUser } = useAuth();
+  const { currentUser } = useAuth();
 
   const unreadNotifs = notifications.filter(n => !n.read).length;
   const pendingApprovals = approvalRequests.filter(a => a.status === 'Pending').length;
@@ -75,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Executive & Overview',
       items: [
         { id: 'dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
-        { id: 'companies', label: 'Companies', icon: Building2 },
+        { id: 'companies', label: 'Offices & Branches', icon: Building2 },
         { id: 'profitability', label: 'Vehicle Profitability', icon: Sparkles },
       ],
     },
@@ -99,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'reconciliation', label: '3-Way Reconciliation', icon: GitCompare },
         { id: 'payments', label: 'Payments Register', icon: CreditCard },
         { id: 'trial-balance', label: 'Trial Balance', icon: Scale },
-        { id: 'general-ledger', label: 'General Ledger & Sub-Ledgers', icon: BookOpen },
+        { id: 'general-ledger', label: 'General Ledger & Sub-Ledger', icon: BookOpen },
         { id: 'accounting', label: 'Finance Control Center', icon: Layers },
         { id: 'profit-loss', label: 'Profit & Loss Statement', icon: TrendingUp },
         { id: 'balance-sheet', label: 'Balance Sheet', icon: Scale },
@@ -141,59 +138,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Mobile backdrop */}
       {isMobileOpen && (
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           aria-label="Close navigation"
-          className="fixed inset-0 min-h-0 bg-slate-100/30 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/20 backdrop-blur-xs z-40 lg:hidden"
           onClick={onCloseMobile}
+          onKeyDown={e => {
+            if (e.key === 'Escape') onCloseMobile?.();
+          }}
         />
       )}
 
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-40 ${isCollapsed ? 'lg:w-20' : 'lg:w-72'} w-72 bg-white border-r border-slate-700 flex flex-col transition-[width,transform] duration-200 lg:translate-x-0 ${
-          isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+        className={`fixed top-0 left-0 bottom-0 z-40 ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-64 xl:w-68'} w-68 bg-white border-r border-slate-700 flex flex-col transition-[width,transform] duration-200 lg:translate-x-0 ${
+          isMobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className={`h-16 border-b border-slate-700 flex items-center bg-white shrink-0 ${isCollapsed ? 'lg:justify-center lg:px-3' : 'px-5'}`}>
+        <div className={`h-14 border-b border-slate-700 flex items-center bg-white shrink-0 ${isCollapsed ? 'lg:justify-center lg:px-2' : 'px-4'}`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black text-lg shadow-md shadow-indigo-600/30 border border-indigo-400/30">
-              <Car className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs font-bold text-xs tracking-wider">
+              AHN
             </div>
             <div className={isCollapsed ? 'lg:hidden' : ''}>
               <div className="flex items-center gap-1.5">
-                <span className="text-base font-black text-slate-100 tracking-tight">FleetX</span>
-                <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded border border-indigo-100">ERP</span>
+                <span className="text-sm font-bold text-slate-100 tracking-tight leading-none">Al Hakim National</span>
+                <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-1.5 py-0.2 rounded border border-indigo-100">
+                  LLC
+                </span>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium">Enterprise Fleet & Finance</p>
+              <p className="text-[10px] text-slate-400 font-normal mt-0.5">Muscat HQ & Duqm Office</p>
             </div>
           </div>
         </div>
 
-        {/* User Active Role Pill */}
-        <div className={`px-4 py-3 bg-slate-850 border-b border-slate-700 flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
-              <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-            </div>
-            <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
-              <p className="text-xs font-semibold text-slate-200 truncate">{currentUser.name}</p>
-              <div className="flex items-center gap-1">
-                <Shield className="w-2.5 h-2.5 text-indigo-400" />
-                <p className="text-[11px] text-indigo-700 font-medium truncate">{currentUser.role}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Scrollable Navigation Groups */}
-        <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-600">
+        {/* Scrollable Navigation */}
+        <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4 scrollbar-thin">
           {navigationGroups.map((group, groupIdx) => (
-            <div key={groupIdx} className="space-y-1">
-              <h4 className={`px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${isCollapsed ? 'lg:sr-only' : ''}`}>
+            <div key={groupIdx} className="space-y-0.5">
+              <h4 className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400 ${isCollapsed ? 'lg:sr-only' : ''}`}>
                 {group.title}
               </h4>
-              <div className="space-y-0.5 mt-1">
+              <div className="space-y-0.5">
                 {group.items.map(item => {
                   const isActive = currentPage === item.id || (currentPage === 'vehicle-detail' && item.id === 'vehicles');
                   const Icon = item.icon;
@@ -204,16 +191,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onClick={() => handleNavClick(item.id)}
                       title={isCollapsed ? item.label : undefined}
                       aria-current={isActive ? 'page' : undefined}
-                      className={`w-full min-h-11 flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3'} py-2.5 rounded-xl text-sm font-medium transition-all group cursor-pointer ${
+                      className={`w-full h-10 flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-2.5'} rounded-lg text-[13px] transition-all group cursor-pointer ${
                         isActive
-                          ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850 border border-transparent'
+                          ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100/80 shadow-2xs'
+                          : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800 border border-transparent font-normal'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Icon
                           className={`w-4 h-4 shrink-0 transition-colors ${
-                            isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-300'
+                            isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-200'
                           }`}
                         />
                         <span className={`truncate ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
@@ -224,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           {item.badge}
                         </Badge>
                       ) : isActive && !isCollapsed ? (
-                        <ChevronRight className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <ChevronRight className="w-3.5 h-3.5 text-indigo-600/70 shrink-0" />
                       ) : null}
                     </button>
                   );
@@ -234,13 +221,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ))}
         </nav>
 
-        {/* Bottom Version Banner */}
-        <div className={`p-3 border-t border-slate-700 bg-slate-850 text-[11px] text-slate-400 items-center justify-between shrink-0 ${isCollapsed ? 'lg:hidden flex' : 'flex'}`}>
-          <span>Enterprise v2.4 (Oman GCC)</span>
-          <span className="text-emerald-700 font-mono flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Cached Live
-          </span>
+        {/* User Profile at bottom */}
+        <div className={`p-2.5 border-t border-slate-700 bg-white shrink-0 ${isCollapsed ? 'lg:px-1.5' : ''}`}>
+          <div className={`p-2 rounded-lg border border-slate-700/60 bg-slate-850 flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
+                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+              </div>
+              <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                <p className="text-xs font-semibold text-slate-100 truncate">{currentUser.name}</p>
+                <p className="text-[10px] text-slate-400 font-medium truncate">{currentUser.role}</p>
+              </div>
+            </div>
+            <div className={`w-2 h-2 rounded-full bg-emerald-500 shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="Online" />
+          </div>
+
+          <div className={`mt-2 px-1 text-[10px] text-slate-400 items-center justify-between ${isCollapsed ? 'lg:hidden flex' : 'flex'}`}>
+            <span>Enterprise v2.4 (Oman GCC)</span>
+            <span className="text-emerald-700 font-mono">● Live</span>
+          </div>
         </div>
       </aside>
     </>

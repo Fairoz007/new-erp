@@ -38,7 +38,23 @@ import {
 import { calculateDepreciationSchedule, calculateCurrentBookValue, calculateCostPerKm, roundToPrecision } from '../utils/financial';
 import { isDateOverdue, isDateExpiringSoon } from '../utils/date';
 
-const STORAGE_KEY = 'fleetx_erp_unified_cache_v1';
+const STORAGE_KEY = 'alhakim_erp_offices_v6';
+try {
+  if (typeof window !== 'undefined') {
+    [
+      'fleetx_erp_unified_cache_v1',
+      'alhakim_erp_unified_cache_v1',
+      'alhakim_erp_unified_cache_v2',
+      'alhakim_erp_unified_cache_v3',
+      'alhakim_erp_unified_cache_v4',
+      'alhakim_erp_unified_cache_v5',
+    ].forEach((k) => {
+      localStorage.removeItem(k);
+    });
+  }
+} catch {
+  // ignore storage errors
+}
 
 export interface FleetContextType {
   // Data
@@ -206,36 +222,61 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const cached = localStorage.getItem(STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.companies) setCompanies(parsed.companies);
-        if (parsed.vehicles) setVehicles(parsed.vehicles);
-        if (parsed.tyres) setTyres(parsed.tyres);
-        if (parsed.tyreEvents) setTyreEvents(parsed.tyreEvents);
-        if (parsed.oilChanges) setOilChanges(parsed.oilChanges);
-        if (parsed.maintenanceRecords) setMaintenanceRecords(parsed.maintenanceRecords);
-        if (parsed.workOrders) setWorkOrders(parsed.workOrders);
-        if (parsed.accidents) setAccidents(parsed.accidents);
-        if (parsed.expenses) setExpenses(parsed.expenses);
-        if (parsed.suppliers) setSuppliers(parsed.suppliers);
-        if (parsed.customers) setCustomers(parsed.customers);
-        if (parsed.invoices) setInvoices(parsed.invoices);
-        if (parsed.reconciliations) setReconciliations(parsed.reconciliations);
-        if (parsed.payments) setPayments(parsed.payments);
-        if (parsed.bankAccounts) setBankAccounts(parsed.bankAccounts);
-        if (parsed.chartOfAccounts) setChartOfAccounts(parsed.chartOfAccounts);
-        if (parsed.journalEntries) setJournalEntries(parsed.journalEntries);
-        if (parsed.fixedAssets) setFixedAssets(parsed.fixedAssets);
-        if (parsed.depreciationRuns) setDepreciationRuns(parsed.depreciationRuns);
-        if (parsed.employees) setEmployees(parsed.employees);
-        if (parsed.payrollRuns) setPayrollRuns(parsed.payrollRuns);
-        if (parsed.documents) setDocuments(parsed.documents);
-        if (parsed.timeline) setTimeline(parsed.timeline);
-        if (parsed.notifications) setNotifications(parsed.notifications);
-        if (parsed.approvalRules) setApprovalRules(parsed.approvalRules);
-        if (parsed.approvalRequests) setApprovalRequests(parsed.approvalRequests);
-        if (parsed.auditLogs) setAuditLogs(parsed.auditLogs);
+        const hasLegacyEntities =
+          !parsed.companies ||
+          parsed.companies.length !== 2 ||
+          parsed.companies.some((c: Company) => !c.name.includes('Al Hakim') || c.id === 'comp-3');
+
+        if (hasLegacyEntities) {
+          console.warn('Detected legacy company cache. Purging and applying Al Hakim National LLC structure.');
+          localStorage.removeItem(STORAGE_KEY);
+          setCompanies(INITIAL_COMPANIES);
+          setVehicles(INITIAL_VEHICLES);
+          setEmployees(INITIAL_EMPLOYEES);
+          setInvoices(INITIAL_INVOICES);
+          setBankAccounts(INITIAL_BANK_ACCOUNTS);
+          setFixedAssets(INITIAL_FIXED_ASSETS);
+          setPayrollRuns(INITIAL_PAYROLL_RUNS);
+          setMaintenanceRecords(INITIAL_MAINTENANCE_RECORDS);
+          setWorkOrders(INITIAL_WORK_ORDERS);
+          setAccidents(INITIAL_ACCIDENTS);
+          setExpenses(INITIAL_EXPENSES);
+          setDocuments(INITIAL_DOCUMENTS);
+        } else {
+          setCompanies(INITIAL_COMPANIES);
+          if (parsed.vehicles) setVehicles(parsed.vehicles);
+          if (parsed.tyres) setTyres(parsed.tyres);
+          if (parsed.tyreEvents) setTyreEvents(parsed.tyreEvents);
+          if (parsed.oilChanges) setOilChanges(parsed.oilChanges);
+          if (parsed.maintenanceRecords) setMaintenanceRecords(parsed.maintenanceRecords);
+          if (parsed.workOrders) setWorkOrders(parsed.workOrders);
+          if (parsed.accidents) setAccidents(parsed.accidents);
+          if (parsed.expenses) setExpenses(parsed.expenses);
+          if (parsed.suppliers) setSuppliers(parsed.suppliers);
+          if (parsed.customers) setCustomers(parsed.customers);
+          if (parsed.invoices) setInvoices(parsed.invoices);
+          if (parsed.reconciliations) setReconciliations(parsed.reconciliations);
+          if (parsed.payments) setPayments(parsed.payments);
+          if (parsed.bankAccounts) setBankAccounts(parsed.bankAccounts);
+          if (parsed.chartOfAccounts) setChartOfAccounts(parsed.chartOfAccounts);
+          if (parsed.journalEntries) setJournalEntries(parsed.journalEntries);
+          if (parsed.fixedAssets) setFixedAssets(parsed.fixedAssets);
+          if (parsed.depreciationRuns) setDepreciationRuns(parsed.depreciationRuns);
+          if (parsed.employees) setEmployees(parsed.employees);
+          if (parsed.payrollRuns) setPayrollRuns(parsed.payrollRuns);
+          if (parsed.documents) setDocuments(parsed.documents);
+          if (parsed.timeline) setTimeline(parsed.timeline);
+          if (parsed.notifications) setNotifications(parsed.notifications);
+          if (parsed.approvalRules) setApprovalRules(parsed.approvalRules);
+          if (parsed.approvalRequests) setApprovalRequests(parsed.approvalRequests);
+          if (parsed.auditLogs) setAuditLogs(parsed.auditLogs);
+        }
+      } else {
+        setCompanies(INITIAL_COMPANIES);
       }
     } catch (e) {
       console.error('Error loading state from localStorage:', e);
+      setCompanies(INITIAL_COMPANIES);
     } finally {
       setIsLoaded(true);
     }
@@ -1529,7 +1570,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       id: newRunId,
       payrollNumber,
       companyId: selectedCompanyId && selectedCompanyId !== 'all' ? selectedCompanyId : 'comp-1',
-      companyName: 'Al-Rawas Logistics & Fleet Operations LLC',
+      companyName: companies.find(c => c.id === (selectedCompanyId && selectedCompanyId !== 'all' ? selectedCompanyId : 'comp-1'))?.name || 'Al Hakim National LLC',
       month,
       year,
       periodLabel,
@@ -2100,7 +2141,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `FleetX_ERP_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `Al_Hakim_ERP_Backup_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

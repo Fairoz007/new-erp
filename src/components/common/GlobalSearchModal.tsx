@@ -90,7 +90,7 @@ export const GlobalSearchModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 p-4 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-xs transition-opacity duration-150"
+        className="fixed inset-0 bg-slate-100/35 backdrop-blur-sm transition-opacity duration-150"
         onClick={() => setIsSearchOpen(false)}
       />
 
