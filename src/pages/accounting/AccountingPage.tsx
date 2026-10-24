@@ -202,16 +202,15 @@ export const AccountingPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="page-title flex items-center gap-2.5">
-            <Landmark className="w-7 h-7 text-indigo-600" />
-            <span>Finance Control Center</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Finance Control Center
           </h1>
-          <p className="page-subtitle">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Financial position, period controls, accounts, and double-entry postings in one precise workspace.
           </p>
         </div>
 
-        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <Tabs
             variant="segmented"
             activeTab={activeTab}
@@ -223,14 +222,16 @@ export const AccountingPage: React.FC = () => {
             ]}
           />
 
-          {hasPermission('create', 'accounting') && <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsJournalModalOpen(true)}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Post Journal Entry
-          </Button>}
+          {hasPermission('create', 'accounting') && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsJournalModalOpen(true)}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Post Journal Entry
+            </Button>
+          )}
         </div>
       </div>
 

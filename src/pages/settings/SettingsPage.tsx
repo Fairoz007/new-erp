@@ -40,11 +40,10 @@ export const SettingsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <SettingsIcon className="w-6 h-6 text-indigo-400" />
-            <span>System Settings & Local Cache Controls</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            System Settings & Local Cache Controls
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             Manage system currency, regional thresholds, approval rules, and export/import persistent localStorage data.
           </p>
         </div>
@@ -52,7 +51,7 @@ export const SettingsPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* System & Financial Configuration */}
-        <Card>
+        <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
           <CardHeader>
             <CardTitle>Regional & Currency Configuration</CardTitle>
           </CardHeader>
@@ -79,22 +78,22 @@ export const SettingsPage: React.FC = () => {
         </Card>
 
         {/* Approval Rules Settings */}
-        <Card>
+        <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
           <CardHeader>
             <CardTitle>Automated Approval Threshold Rules</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
             {approvalRules.map(rule => (
-              <div key={rule.id} className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
+              <div key={rule.id} className="p-3.5 bg-slate-850/60 rounded-xl border border-slate-700/80 space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-200 uppercase text-[11px]">{rule.module} Threshold</span>
-                  <span className="px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 font-mono font-bold text-[10px]">
+                  <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-700 font-mono font-bold text-[10px]">
                     &gt; {rule.thresholdAmount.toFixed(3)} {rule.currency}
                   </span>
                 </div>
                 <p className="text-slate-400 text-[11px]">{rule.description}</p>
-                <p className="text-[10px] text-slate-500 font-semibold mt-1">
-                  Required Approvers: {rule.requiredRoles.join(' → ')}
+                <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                  Required Approvers: <span className="text-forest-600">{rule.requiredRoles.join(' → ')}</span>
                 </p>
               </div>
             ))}
@@ -103,10 +102,10 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* Local Storage & Cache Persistence Management */}
-      <Card className="border-indigo-800/40 bg-slate-900/90">
+      <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Database className="w-5 h-5 text-indigo-400" />
+            <Database className="w-5 h-5 text-forest-500" />
             <CardTitle>Browser Cache & Offline State Management</CardTitle>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -114,10 +113,10 @@ export const SettingsPage: React.FC = () => {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 bg-slate-850/60 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h4 className="text-xs font-bold text-slate-100 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <CheckCircle2 className="w-4 h-4 text-forest-500" />
                 Persistent Cache Active
               </h4>
               <p className="text-[11px] text-slate-400 mt-1">
@@ -129,14 +128,16 @@ export const SettingsPage: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
+                className="rounded-full"
                 onClick={exportAllDataJSON}
-                leftIcon={<Download className="w-4 h-4" />}
+                leftIcon={<Download className="w-4 h-4 text-forest-500" />}
               >
                 Export JSON Backup
               </Button>
               <Button
                 variant="secondary"
                 size="sm"
+                className="rounded-full"
                 onClick={() => setIsImportModalOpen(true)}
                 leftIcon={<Upload className="w-4 h-4" />}
               >
@@ -145,6 +146,7 @@ export const SettingsPage: React.FC = () => {
               <Button
                 variant="danger"
                 size="sm"
+                className="rounded-full"
                 onClick={handleReset}
                 leftIcon={<RotateCcw className="w-4 h-4" />}
               >

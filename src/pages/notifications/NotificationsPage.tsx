@@ -30,39 +30,56 @@ export const NotificationsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Bell className="w-6 h-6 text-rose-400" />
-            <span>Alerts & Notifications Center</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Alerts & Notifications Center
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             System generated alerts for oil service limits, expiring registrations, insurance renewals, and payment milestones.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={markAllNotificationsAsRead} leftIcon={<CheckCheck className="w-4 h-4" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={markAllNotificationsAsRead}
+            leftIcon={<CheckCheck className="w-4 h-4 text-forest-500" />}
+          >
             Mark All as Read
           </Button>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl w-fit">
+      {/* Segmented Filter Tabs */}
+      <div className="inline-flex items-center gap-1.5 p-1 bg-slate-850 border border-slate-700 rounded-full">
         <button
           onClick={() => setFilter('all')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${filter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+          className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
+            filter === 'all'
+              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
         >
           All ({notifications.length})
         </button>
         <button
           onClick={() => setFilter('unread')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${filter === 'unread' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+          className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
+            filter === 'unread'
+              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
         >
           Unread ({notifications.filter(n => !n.read).length})
         </button>
         <button
           onClick={() => setFilter('critical')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${filter === 'critical' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+          className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
+            filter === 'critical'
+              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
         >
           Critical ({notifications.filter(n => n.severity === 'critical').length})
         </button>
@@ -73,32 +90,34 @@ export const NotificationsPage: React.FC = () => {
         {filtered.map(item => (
           <Card
             key={item.id}
-            className={`p-4 sm:p-5 transition-all cursor-pointer ${
-              item.read ? 'opacity-80 hover:opacity-100' : 'border-indigo-500/50 bg-slate-900/90 shadow-md'
+            className={`p-4 sm:p-5 rounded-[20px] transition-all cursor-pointer border ${
+              item.read
+                ? 'bg-white border-slate-700 opacity-80 hover:opacity-100 shadow-card'
+                : 'bg-white border-forest-500/40 shadow-card ring-1 ring-forest-500/20'
             }`}
             onClick={() => handleAction(item)}
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
                 {item.severity === 'critical' ? (
-                  <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                 ) : item.severity === 'warning' ? (
-                  <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 ) : (
-                  <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                  <Info className="w-5 h-5 text-forest-500 shrink-0 mt-0.5" />
                 )}
 
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-slate-100">{item.title}</h3>
-                    {!item.read && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
+                    {!item.read && <span className="w-2 h-2 rounded-full bg-forest-500" />}
                   </div>
                   <p className="text-xs text-slate-300 mt-1 leading-relaxed">{item.message}</p>
-                  <p className="text-[10px] text-slate-500 mt-2 font-mono">{formatDateTime(item.date)}</p>
+                  <p className="text-[10px] text-slate-400 mt-2 font-mono">{formatDateTime(item.date)}</p>
                 </div>
               </div>
 
-              <Button variant="secondary" size="xs" onClick={() => handleAction(item)}>
+              <Button variant="secondary" size="xs" className="rounded-full" onClick={() => handleAction(item)}>
                 Inspect →
               </Button>
             </div>

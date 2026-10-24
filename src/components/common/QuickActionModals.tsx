@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Car, Wrench, Fuel, AlertTriangle, FileText, DollarSign, Upload, Disc, Droplet, Building2, BookOpen, Users, Calculator, Sparkles, Percent } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Car, Wrench, Fuel, AlertTriangle, FileText, DollarSign, Upload, Disc, Droplet, Building2, BookOpen, Users, Calculator, Sparkles, Percent, Tag, Truck } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, Select, Textarea } from '../ui/Input';
@@ -18,6 +18,7 @@ export const QuickActionModals: React.FC = () => {
     vehicles,
     suppliers,
     customers,
+    invoices,
     bankAccounts,
     chartOfAccounts,
     employees,
@@ -36,6 +37,7 @@ export const QuickActionModals: React.FC = () => {
     addJournalEntry,
     addDocument,
     addEmployee,
+    addFixedAsset,
     processPayrollRun,
     runAutoDepreciation,
   } = useFleet();
@@ -299,6 +301,58 @@ export const QuickActionModals: React.FC = () => {
     openingBalance: 0,
     status: 'Active' as const,
   });
+
+  // 15. ADD TYRE STATE
+  const [tyreForm, setTyreForm] = useState({
+    vehicleId: defaultVehicle?.id || '',
+    companyId: defaultVehicle?.companyId || 'comp-1',
+    serialNumber: '',
+    brand: 'Bridgestone',
+    model: 'R22.5 Heavy Haulage',
+    size: '295/80R22.5',
+    position: 'Front Left (Steer)',
+    dotNumber: 'DOT-2026',
+    treadDepthMm: 16.0,
+    psi: 120,
+    purchaseDate: new Date().toISOString().slice(0, 10),
+    purchaseCost: 150,
+    supplierId: suppliers[0]?.id || 'sup-5',
+    notes: '',
+  });
+
+  // 16. ADD FIXED ASSET STATE
+  const [assetForm, setAssetForm] = useState({
+    name: '',
+    category: 'Workshop Equipment' as import('../../types/finance').FixedAssetCategory,
+    companyId: companies[0]?.id || 'comp-1',
+    purchaseDate: new Date().toISOString().slice(0, 10),
+    purchaseCost: 5000,
+    salvageValue: 500,
+    depreciationMethod: 'Straight-Line' as const,
+    annualRatePercentage: 20,
+    usefulLifeYears: 5,
+    location: 'Muscat Central Workshop',
+    serialNumber: '',
+    assignedVehicleId: '',
+    notes: '',
+  });
+
+  // Sync modal form targets when selectedVehicleId changes
+  useEffect(() => {
+    if (selectedVehicleId && quickModal) {
+      const target = vehicles.find(v => v.id === selectedVehicleId);
+      if (target) {
+        setMntForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId, odometerReading: target.currentMileage }));
+        setWoForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
+        setOilForm(prev => ({ ...prev, vehicleId: target.id, odometer: target.currentMileage }));
+        setExpForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
+        setAccForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
+        setDocForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
+        setInvoiceForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
+        setTyreForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
+      }
+    }
+  }, [selectedVehicleId, quickModal, vehicles]);
 
   // Handlers
   const handleCreateVehicle = (e: React.FormEvent) => {
@@ -585,7 +639,7 @@ export const QuickActionModals: React.FC = () => {
   const handleCreatePayment = (e: React.FormEvent) => {
     e.preventDefault();
     // find invoice
-    const inv = useFleet().invoices.find(i => i.id === paymentForm.invoiceId);
+    const inv = invoices.find(i => i.id === paymentForm.invoiceId) || invoices[0];
     if (!inv) {
       addToast({ type: 'error', title: 'Select an invoice first' });
       return;
@@ -611,6 +665,134 @@ export const QuickActionModals: React.FC = () => {
     });
 
     addToast({ type: 'success', title: 'Payment Processed', message: `Recorded payment of ${Number(paymentForm.amount).toFixed(3)} OMR.` });
+    closeQuickModal();
+  };
+
+  const handleCreateSupplier = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supplierForm.name) {
+      addToast({ type: 'error', title: 'Validation Error', message: 'Supplier name is required.' });
+      return;
+    }
+    addSupplier({
+      name: supplierForm.name,
+      supplierType: supplierForm.supplierType,
+      contactPerson: supplierForm.contactPerson || 'Procurement',
+      phone: supplierForm.phone || '+968 2400 0000',
+      email: supplierForm.email || 'info@supplier.om',
+      address: supplierForm.address || 'Muscat, Oman',
+      city: supplierForm.city || 'Muscat',
+      country: supplierForm.country || 'Oman',
+      vatNumber: supplierForm.vatNumber || 'OM1100223344',
+      taxNumber: supplierForm.taxNumber || 'OM-TAX-9988',
+      paymentTermsDays: Number(supplierForm.paymentTermsDays) || 30,
+      creditLimit: Number(supplierForm.creditLimit) || 10000,
+      openingBalance: Number(supplierForm.openingBalance) || 0,
+      status: supplierForm.status,
+      bankDetails: {
+        bankName: 'Bank Muscat',
+        accountNumber: '0421000000000',
+        iban: 'OM68BMSC00000000000000',
+        swiftCode: 'BMSCOM2X',
+      },
+      notes: 'Registered via Quick Actions',
+    });
+    addToast({ type: 'success', title: 'Supplier Created', message: `Registered supplier ${supplierForm.name}.` });
+    closeQuickModal();
+  };
+
+  const handleCreateCustomer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerForm.name) {
+      addToast({ type: 'error', title: 'Validation Error', message: 'Customer name is required.' });
+      return;
+    }
+    addCustomer({
+      name: customerForm.name,
+      customerType: customerForm.customerType,
+      contactPerson: customerForm.contactPerson || 'Accounts Payable',
+      phone: customerForm.phone || '+968 2400 1111',
+      email: customerForm.email || 'billing@client.om',
+      address: customerForm.address || 'Muscat, Oman',
+      city: customerForm.city || 'Muscat',
+      country: customerForm.country || 'Oman',
+      vatNumber: customerForm.vatNumber || 'OM2200334455',
+      taxNumber: customerForm.taxNumber || 'OM-TAX-5544',
+      paymentTermsDays: Number(customerForm.paymentTermsDays) || 45,
+      creditLimit: Number(customerForm.creditLimit) || 50000,
+      openingBalance: Number(customerForm.openingBalance) || 0,
+      status: customerForm.status,
+    });
+    addToast({ type: 'success', title: 'Customer Created', message: `Registered customer ${customerForm.name}.` });
+    closeQuickModal();
+  };
+
+  const handleCreateTyre = (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = vehicles.find(veh => veh.id === tyreForm.vehicleId) || vehicles[0];
+    const sup = suppliers.find(s => s.id === tyreForm.supplierId);
+    addTyre({
+      vehicleId: v?.id || '',
+      brand: tyreForm.brand || 'Bridgestone',
+      model: tyreForm.model || 'R22.5 Heavy Haulage',
+      size: tyreForm.size || '295/80R22.5',
+      serialNumber: tyreForm.serialNumber || `TYR-${Date.now().toString().slice(-6)}`,
+      position: tyreForm.position as any,
+      purchaseDate: tyreForm.purchaseDate,
+      purchaseCost: Number(tyreForm.purchaseCost) || 150,
+      installationDate: tyreForm.purchaseDate,
+      installationMileage: v?.currentMileage || 0,
+      expectedLifeKm: 60000,
+      currentMileage: 0,
+      treadDepthMm: Number(tyreForm.treadDepthMm) || 16.0,
+      supplierId: tyreForm.supplierId,
+      supplierName: sup?.name,
+      status: 'Good',
+      notes: tyreForm.notes,
+    });
+    addToast({ type: 'success', title: 'Tyre Logged', message: `Added ${tyreForm.brand} tyre to vehicle ${v?.plateNumber || ''}.` });
+    closeQuickModal();
+  };
+
+  const handleCreateFixedAsset = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assetForm.name || !assetForm.purchaseCost) {
+      addToast({ type: 'error', title: 'Validation Error', message: 'Asset name and purchase cost are required.' });
+      return;
+    }
+    const cost = Number(assetForm.purchaseCost);
+    const salvage = Number(assetForm.salvageValue) || 0;
+    const lifeYears = Number(assetForm.usefulLifeYears) || 5;
+    const annualRate = Number(assetForm.annualRatePercentage) || (lifeYears > 0 ? 100 / lifeYears : 20);
+    const assignedVeh = vehicles.find(v => v.id === assetForm.assignedVehicleId);
+
+    const isVehicle = assetForm.category === 'Fleet Vehicle';
+    const isEquipment = assetForm.category === 'Workshop Equipment';
+
+    addFixedAsset({
+      name: assetForm.name,
+      category: assetForm.category,
+      companyId: assetForm.companyId || 'comp-1',
+      location: assetForm.location || 'Muscat HQ',
+      department: isVehicle ? 'Fleet Operations' : isEquipment ? 'Workshop' : 'Administration',
+      purchaseDate: assetForm.purchaseDate,
+      purchaseCost: cost,
+      salvageValue: salvage,
+      usefulLifeYears: lifeYears,
+      annualRatePercentage: annualRate,
+      depreciationMethod: assetForm.depreciationMethod,
+      accumulatedDepreciation: 0,
+      currentBookValue: cost,
+      glAssetAccount: isVehicle ? '1500' : isEquipment ? '1530' : '1550',
+      glDepreciationExpenseAccount: '5080',
+      glAccumulatedDepreciationAccount: '1520',
+      status: 'Active',
+      vehicleId: assetForm.assignedVehicleId || undefined,
+      serialNumber: assetForm.serialNumber || undefined,
+      serialOrPlateNumber: assignedVeh?.plateNumber || assetForm.serialNumber || undefined,
+      notes: assetForm.notes,
+    });
+    addToast({ type: 'success', title: 'Fixed Asset Registered', message: `Added ${assetForm.name} (${cost.toFixed(3)} OMR) to registry.` });
     closeQuickModal();
   };
 
@@ -1295,6 +1477,474 @@ export const QuickActionModals: React.FC = () => {
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
             <Button variant="primary" type="submit" leftIcon={<Sparkles className="w-4 h-4" />}>Execute Depreciation</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 12. ADD PAYMENT MODAL */}
+      <Modal
+        isOpen={quickModal === 'add-payment'}
+        onClose={closeQuickModal}
+        title="Record Payment / Settlement"
+        description="Record payment against an outstanding supplier bill or customer invoice"
+        size="lg"
+      >
+        <form onSubmit={handleCreatePayment} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Select Invoice / Bill"
+              value={paymentForm.invoiceId}
+              onChange={e => {
+                const inv = invoices.find(i => i.id === e.target.value);
+                setPaymentForm(prev => ({
+                  ...prev,
+                  invoiceId: e.target.value,
+                  amount: inv ? (inv.outstandingAmount ?? inv.grandTotal) : prev.amount,
+                }));
+              }}
+              required
+            >
+              <option value="">-- Choose Invoice to Settle --</option>
+              {invoices.map(inv => (
+                <option key={inv.id} value={inv.id}>
+                  {inv.invoiceNumber} - {inv.partyName} ({inv.grandTotal.toFixed(3)} OMR - Status: {inv.paymentStatus})
+                </option>
+              ))}
+            </Select>
+
+            <Input
+              label="Payment Date"
+              type="date"
+              value={paymentForm.paymentDate}
+              onChange={e => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Payment Amount (OMR)"
+              type="number"
+              step="0.001"
+              value={paymentForm.amount}
+              onChange={e => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
+              required
+            />
+            <Select
+              label="Payment Method"
+              value={paymentForm.paymentMethod}
+              onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value as PaymentMethod })}
+            >
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Cash">Cash</option>
+              <option value="Credit Card">Credit Card</option>
+            </Select>
+            <Select
+              label="Bank Account"
+              value={paymentForm.bankAccountId}
+              onChange={e => setPaymentForm({ ...paymentForm, bankAccountId: e.target.value })}
+            >
+              {bankAccounts.map(b => (
+                <option key={b.id} value={b.id}>{b.bankName} - {b.accountNumber}</option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Reference / Cheque #"
+              placeholder="e.g. TXN-998822 or CHQ-00123"
+              value={paymentForm.transactionReference}
+              onChange={e => setPaymentForm({ ...paymentForm, transactionReference: e.target.value })}
+            />
+            <Input
+              label="Notes"
+              placeholder="Settlement notes..."
+              value={paymentForm.notes}
+              onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+            <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
+            <Button variant="primary" type="submit" leftIcon={<DollarSign className="w-4 h-4" />}>Post Payment</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 13. ADD SUPPLIER MODAL */}
+      <Modal
+        isOpen={quickModal === 'add-supplier'}
+        onClose={closeQuickModal}
+        title="Add New Vendor / Supplier"
+        description="Register a new spare parts vendor, authorized workshop, fuel provider or equipment dealer"
+        size="lg"
+      >
+        <form onSubmit={handleCreateSupplier} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Supplier Company Name"
+              placeholder="e.g. Muscat Auto Spare Parts LLC"
+              value={supplierForm.name}
+              onChange={e => setSupplierForm({ ...supplierForm, name: e.target.value })}
+              required
+            />
+            <Select
+              label="Supplier Type"
+              value={supplierForm.supplierType}
+              onChange={e => setSupplierForm({ ...supplierForm, supplierType: e.target.value as any })}
+            >
+              <option value="Garage">Garage / Workshop</option>
+              <option value="Spare Parts">Spare Parts Vendor</option>
+              <option value="Fuel Station">Fuel Station</option>
+              <option value="Insurance Company">Insurance Company</option>
+              <option value="Tyre Dealer">Tyre Dealer</option>
+              <option value="Vehicle Dealership">Vehicle Dealership</option>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Contact Person"
+              placeholder="Key account manager"
+              value={supplierForm.contactPerson}
+              onChange={e => setSupplierForm({ ...supplierForm, contactPerson: e.target.value })}
+            />
+            <Input
+              label="Phone"
+              placeholder="+968 2400 0000"
+              value={supplierForm.phone}
+              onChange={e => setSupplierForm({ ...supplierForm, phone: e.target.value })}
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="procurement@vendor.om"
+              value={supplierForm.email}
+              onChange={e => setSupplierForm({ ...supplierForm, email: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Oman VAT Number"
+              placeholder="OM1100223344"
+              value={supplierForm.vatNumber}
+              onChange={e => setSupplierForm({ ...supplierForm, vatNumber: e.target.value })}
+            />
+            <Input
+              label="Payment Terms (Days)"
+              type="number"
+              value={supplierForm.paymentTermsDays}
+              onChange={e => setSupplierForm({ ...supplierForm, paymentTermsDays: Number(e.target.value) })}
+            />
+            <Input
+              label="Credit Limit (OMR)"
+              type="number"
+              value={supplierForm.creditLimit}
+              onChange={e => setSupplierForm({ ...supplierForm, creditLimit: Number(e.target.value) })}
+            />
+          </div>
+
+          <Input
+            label="Address / Location"
+            placeholder="Ghala Industrial Area, Muscat"
+            value={supplierForm.address}
+            onChange={e => setSupplierForm({ ...supplierForm, address: e.target.value })}
+          />
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+            <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
+            <Button variant="primary" type="submit" leftIcon={<Building2 className="w-4 h-4" />}>Save Supplier</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 14. ADD CUSTOMER MODAL */}
+      <Modal
+        isOpen={quickModal === 'add-customer'}
+        onClose={closeQuickModal}
+        title="Add New Customer / Client"
+        description="Register a corporate client or government entity for logistics and fleet contracts"
+        size="lg"
+      >
+        <form onSubmit={handleCreateCustomer} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Customer / Client Name"
+              placeholder="e.g. Petroleum Development Oman"
+              value={customerForm.name}
+              onChange={e => setCustomerForm({ ...customerForm, name: e.target.value })}
+              required
+            />
+            <Select
+              label="Customer Type"
+              value={customerForm.customerType}
+              onChange={e => setCustomerForm({ ...customerForm, customerType: e.target.value as any })}
+            >
+              <option value="Corporate">Corporate Enterprise</option>
+              <option value="Government">Government Entity</option>
+              <option value="Individual">Individual</option>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Contact Person"
+              placeholder="Accounts manager"
+              value={customerForm.contactPerson}
+              onChange={e => setCustomerForm({ ...customerForm, contactPerson: e.target.value })}
+            />
+            <Input
+              label="Phone"
+              placeholder="+968 2400 1111"
+              value={customerForm.phone}
+              onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })}
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="finance@client.om"
+              value={customerForm.email}
+              onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Oman VAT Number"
+              placeholder="OM2200334455"
+              value={customerForm.vatNumber}
+              onChange={e => setCustomerForm({ ...customerForm, vatNumber: e.target.value })}
+            />
+            <Input
+              label="Credit Terms (Days)"
+              type="number"
+              value={customerForm.paymentTermsDays}
+              onChange={e => setCustomerForm({ ...customerForm, paymentTermsDays: Number(e.target.value) })}
+            />
+            <Input
+              label="Credit Limit (OMR)"
+              type="number"
+              value={customerForm.creditLimit}
+              onChange={e => setCustomerForm({ ...customerForm, creditLimit: Number(e.target.value) })}
+            />
+          </div>
+
+          <Input
+            label="Head Office Address"
+            placeholder="Mina Al Fahal, Muscat"
+            value={customerForm.address}
+            onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })}
+          />
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+            <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
+            <Button variant="primary" type="submit" leftIcon={<Users className="w-4 h-4" />}>Save Customer</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 15. ADD TYRE MODAL */}
+      <Modal
+        isOpen={quickModal === 'add-tyre'}
+        onClose={closeQuickModal}
+        title="Register Fleet Tyre"
+        description="Add a new tyre, assign it to a vehicle position, and log tread depth & PSI"
+        size="lg"
+      >
+        <form onSubmit={handleCreateTyre} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Vehicle"
+              value={tyreForm.vehicleId}
+              onChange={e => setTyreForm({ ...tyreForm, vehicleId: e.target.value })}
+              required
+            >
+              {vehicles.map(v => (
+                <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>
+              ))}
+            </Select>
+
+            <Select
+              label="Wheel Position"
+              value={tyreForm.position}
+              onChange={e => setTyreForm({ ...tyreForm, position: e.target.value })}
+            >
+              <option value="Front Left (Steer)">Front Left (Steer)</option>
+              <option value="Front Right (Steer)">Front Right (Steer)</option>
+              <option value="Rear Left Outer">Rear Left Outer</option>
+              <option value="Rear Left Inner">Rear Left Inner</option>
+              <option value="Rear Right Outer">Rear Right Outer</option>
+              <option value="Rear Right Inner">Rear Right Inner</option>
+              <option value="Spare">Spare Tyre</option>
+            </Select>
+
+            <Input
+              label="Serial Number"
+              placeholder="e.g. BR-882910"
+              value={tyreForm.serialNumber}
+              onChange={e => setTyreForm({ ...tyreForm, serialNumber: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Brand"
+              value={tyreForm.brand}
+              onChange={e => setTyreForm({ ...tyreForm, brand: e.target.value })}
+              required
+            />
+            <Input
+              label="Model / Pattern"
+              value={tyreForm.model}
+              onChange={e => setTyreForm({ ...tyreForm, model: e.target.value })}
+            />
+            <Input
+              label="Tyre Size"
+              placeholder="e.g. 295/80R22.5"
+              value={tyreForm.size}
+              onChange={e => setTyreForm({ ...tyreForm, size: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Input
+              label="Tread Depth (mm)"
+              type="number"
+              step="0.1"
+              value={tyreForm.treadDepthMm}
+              onChange={e => setTyreForm({ ...tyreForm, treadDepthMm: Number(e.target.value) })}
+            />
+            <Input
+              label="Pressure (PSI)"
+              type="number"
+              value={tyreForm.psi}
+              onChange={e => setTyreForm({ ...tyreForm, psi: Number(e.target.value) })}
+            />
+            <Input
+              label="Purchase Cost (OMR)"
+              type="number"
+              step="0.001"
+              value={tyreForm.purchaseCost}
+              onChange={e => setTyreForm({ ...tyreForm, purchaseCost: Number(e.target.value) })}
+            />
+            <Select
+              label="Supplier"
+              value={tyreForm.supplierId}
+              onChange={e => setTyreForm({ ...tyreForm, supplierId: e.target.value })}
+            >
+              {suppliers.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+            <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
+            <Button variant="primary" type="submit" leftIcon={<Disc className="w-4 h-4" />}>Save Tyre</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 16. ADD FIXED ASSET MODAL */}
+      <Modal
+        isOpen={quickModal === 'add-fixed-asset'}
+        onClose={closeQuickModal}
+        title="Register Fixed Asset"
+        description="Add workshop machinery, office IT hardware, or specialized tools to asset register"
+        size="lg"
+      >
+        <form onSubmit={handleCreateFixedAsset} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Asset Name"
+                placeholder="e.g. 5-Ton Hydraulic 2-Post Vehicle Lift"
+                value={assetForm.name}
+                onChange={e => setAssetForm({ ...assetForm, name: e.target.value })}
+                required
+              />
+            </div>
+            <Select
+              label="Category"
+              value={assetForm.category}
+              onChange={e => setAssetForm({ ...assetForm, category: e.target.value as any })}
+            >
+              <option value="Workshop Equipment">Workshop Equipment</option>
+              <option value="IT & GPS Hardware">IT & GPS Hardware</option>
+              <option value="Fleet Vehicle">Fleet Vehicle</option>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Assigned Branch / Location"
+              value={assetForm.companyId}
+              onChange={e => setAssetForm({ ...assetForm, companyId: e.target.value })}
+            >
+              {companies.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+            <Input
+              label="Location"
+              placeholder="e.g. Central Workshop Bay 3"
+              value={assetForm.location}
+              onChange={e => setAssetForm({ ...assetForm, location: e.target.value })}
+            />
+            <Input
+              label="Serial Number"
+              placeholder="e.g. HYD-LIFT-2026-009"
+              value={assetForm.serialNumber}
+              onChange={e => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+            <Input
+              label="Purchase Date"
+              type="date"
+              value={assetForm.purchaseDate}
+              onChange={e => setAssetForm({ ...assetForm, purchaseDate: e.target.value })}
+              required
+            />
+            <Input
+              label="Cost (OMR)"
+              type="number"
+              step="0.001"
+              value={assetForm.purchaseCost}
+              onChange={e => setAssetForm({ ...assetForm, purchaseCost: Number(e.target.value) })}
+              required
+            />
+            <Input
+              label="Salvage Value (OMR)"
+              type="number"
+              step="0.001"
+              value={assetForm.salvageValue}
+              onChange={e => setAssetForm({ ...assetForm, salvageValue: Number(e.target.value) })}
+            />
+            <Input
+              label="Useful Life (Years)"
+              type="number"
+              value={assetForm.usefulLifeYears}
+              onChange={e => setAssetForm({ ...assetForm, usefulLifeYears: Number(e.target.value) })}
+              required
+            />
+          </div>
+
+          <Textarea
+            label="Asset Notes & Warranty Details"
+            placeholder="Warranty coverage, maintenance contracts, calibration dates..."
+            value={assetForm.notes}
+            onChange={e => setAssetForm({ ...assetForm, notes: e.target.value })}
+          />
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+            <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
+            <Button variant="primary" type="submit" leftIcon={<Sparkles className="w-4 h-4" />}>Register Asset</Button>
           </div>
         </form>
       </Modal>

@@ -39,7 +39,7 @@ export const PaymentsPage: React.FC = () => {
       render: (p) => (
         <button
           onClick={() => openInvoiceModal(p.invoiceId)}
-          className="font-mono text-indigo-400 font-semibold hover:underline cursor-pointer text-left"
+          className="font-mono text-[#086343] font-bold hover:underline cursor-pointer text-left"
         >
           {p.invoiceNumber}
         </button>
@@ -50,7 +50,7 @@ export const PaymentsPage: React.FC = () => {
       header: 'Beneficiary / Customer',
       render: (p) => (
         <div>
-          <span className="font-semibold text-slate-200">{p.partyName}</span>
+          <span className="font-bold text-slate-200">{p.partyName}</span>
           <p className="text-[10px] text-slate-400">{p.partyType}</p>
         </div>
       ),
@@ -58,25 +58,30 @@ export const PaymentsPage: React.FC = () => {
     {
       key: 'paymentDate',
       header: 'Payment Date',
-      render: (p) => <span className="text-slate-300">{formatDate(p.paymentDate)}</span>,
-    },
-    {
-      key: 'paymentMethod',
-      header: 'Method & Bank',
       render: (p) => (
         <div>
-          <p className="text-slate-200 font-medium">{p.paymentMethod}</p>
-          <p className="text-[10px] text-slate-400">{p.bankAccountName}</p>
+          <span className="text-slate-300 font-medium">{formatDate(p.paymentDate)}</span>
+          <p className="text-[10px] text-slate-400">{p.paymentMethod}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'bankAccount',
+      header: 'Settlement Account',
+      render: (p) => (
+        <div>
+          <span className="text-slate-200 font-semibold">{p.bankAccountName}</span>
+          <p className="text-[10px] text-slate-400 font-mono">Ledger Cleared</p>
         </div>
       ),
     },
     {
       key: 'amount',
-      header: 'Amount Paid',
+      header: 'Settled Amount',
       align: 'right',
       render: (p) => (
-        <div className="text-right">
-          <span className={`font-bold ${p.partyType === 'Supplier' ? 'text-rose-400' : 'text-emerald-400'}`}>
+        <div className="text-right font-mono">
+          <span className={`text-sm font-extrabold ${p.partyType === 'Supplier' ? 'text-rose-600' : 'text-[#086343]'}`}>
             {p.partyType === 'Supplier' ? '-' : '+'}{formatCurrency(p.amount, p.currency)}
           </span>
         </div>
@@ -89,20 +94,19 @@ export const PaymentsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <CreditCard className="w-6 h-6 text-emerald-400" />
-            <span>Payments & Treasury Register</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Payments & Treasury Register
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Track invoice payment settlements, partial payments, wire transfers, cheques, and corporate bank balances.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="primary"
-            size="sm"
-            onClick={() => openQuickModal('add-invoice')}
+            size="md"
+            onClick={() => openQuickModal('add-payment')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
             Record Payment
@@ -111,27 +115,24 @@ export const PaymentsPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <StatCard
           title="Total Cash & Bank Balance"
           value={formatCurrency(totalBankBalance, currency)}
           subValue={`${bankAccounts.length} Corporate Accounts`}
-          icon={<Banknote className="w-4 h-4" />}
-          variant="emerald"
+          isHero={true}
         />
         <StatCard
           title="Supplier Disbursals (AP Paid)"
           value={formatCurrency(totalDisbursed, currency)}
           subValue="Settled vendor claims"
-          icon={<CreditCard className="w-4 h-4" />}
-          variant="rose"
+          trend={{ value: 'Outgoing', direction: 'down' }}
         />
         <StatCard
           title="Customer Collections (AR Received)"
           value={formatCurrency(totalReceived, currency)}
           subValue="Client wire remittances"
-          icon={<CreditCard className="w-4 h-4" />}
-          variant="blue"
+          trend={{ value: 'Inflow', direction: 'up' }}
         />
       </div>
 

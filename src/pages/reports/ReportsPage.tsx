@@ -132,17 +132,22 @@ export const ReportsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <BarChart3 className="w-6 h-6 text-indigo-400" />
-            <span>Executive Reports & Analytical Export Suite</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Executive Reports & Analytical Export Suite
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             24+ pre-configured tabular and financial reports with date filtering, CSV export, and PDF printable format.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => window.print()}
+            leftIcon={<Printer className="w-4 h-4 text-forest-500" />}
+          >
             Print Report
           </Button>
         </div>
@@ -151,8 +156,8 @@ export const ReportsPage: React.FC = () => {
       {/* Reports Directory Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {reportCategories.map((cat, idx) => (
-          <Card key={idx} className="p-4 space-y-2">
-            <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider pb-2 border-b border-slate-800">
+          <Card key={idx} className="p-4 sm:p-5 rounded-[20px] bg-white border border-slate-700 shadow-card space-y-2">
+            <h3 className="text-xs font-bold text-forest-600 uppercase tracking-wider pb-2 border-b border-slate-750">
               {cat.group}
             </h3>
             <div className="space-y-1">
@@ -162,10 +167,10 @@ export const ReportsPage: React.FC = () => {
                   <button
                     key={item.id}
                     onClick={() => setSelectedReport(item.id)}
-                    className={`w-full text-left p-2.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                    className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-indigo-600/20 text-indigo-300 font-semibold border border-indigo-500/40 shadow-xs'
-                        : 'text-slate-300 hover:bg-slate-800/60'
+                        ? 'bg-forest-100 text-forest-700 font-semibold border border-forest-500/30 shadow-xs'
+                        : 'text-slate-300 hover:bg-slate-850/60'
                     }`}
                   >
                     <p className="font-semibold">{item.name}</p>
@@ -181,7 +186,7 @@ export const ReportsPage: React.FC = () => {
       {/* Report Results */}
       <div className="space-y-3">
         <h2 className="text-sm font-bold text-slate-200">
-          Generated Report Output: <span className="text-indigo-400">{reportCategories.flatMap(c => c.items).find(i => i.id === selectedReport)?.name}</span>
+          Generated Report Output: <span className="text-forest-600">{reportCategories.flatMap(c => c.items).find(i => i.id === selectedReport)?.name}</span>
         </h2>
         {renderReportTable()}
       </div>

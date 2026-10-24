@@ -33,13 +33,15 @@ export const OilManagementPage: React.FC = () => {
       render: (o) => {
         const v = vehicles.find(veh => veh.id === o.vehicleId);
         return (
-          <div className="cursor-pointer" onClick={() => openVehicleDetail(o.vehicleId, 'oil')}>
-            <span className="font-bold text-slate-100">{v?.brand} {v?.model}</span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
+          <div className="cursor-pointer group" onClick={() => openVehicleDetail(o.vehicleId, 'oil')}>
+            <span className="font-bold text-slate-100 text-sm group-hover:text-[#086343] transition-colors">
+              {v?.brand} {v?.model}
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-xs">
                 {v?.plateNumber}
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">Cur: {v?.currentMileage.toLocaleString()} KM</span>
+              <span className="text-xs text-slate-400 font-mono">Cur: {v?.currentMileage.toLocaleString()} KM</span>
             </div>
           </div>
         );
@@ -50,8 +52,8 @@ export const OilManagementPage: React.FC = () => {
       header: 'Oil Brand & Grade',
       render: (o) => (
         <div>
-          <p className="font-semibold text-slate-200">{o.oilBrand}</p>
-          <p className="text-[11px] text-slate-400 font-mono">{o.oilGrade} • {o.quantityLitres} Litres</p>
+          <p className="font-bold text-slate-200 text-sm">{o.oilBrand}</p>
+          <p className="text-xs text-slate-400 font-mono mt-0.5">{o.oilGrade} • {o.quantityLitres} Litres</p>
         </div>
       ),
     },
@@ -60,48 +62,36 @@ export const OilManagementPage: React.FC = () => {
       header: 'Service Date',
       render: (o) => (
         <div>
-          <span className="text-slate-300">{formatDate(o.date)}</span>
-          <p className="text-[10px] text-slate-400 font-mono">At {o.odometer.toLocaleString()} KM</p>
+          <span className="text-slate-200 font-semibold text-sm">{formatDate(o.date)}</span>
+          <p className="text-xs text-slate-400 font-mono mt-0.5">{o.odometer.toLocaleString()} KM</p>
         </div>
       ),
     },
     {
-      key: 'nextDue',
-      header: 'Next Service Due',
+      key: 'nextService',
+      header: 'Next Target',
       render: (o) => (
         <div>
-          <span className="font-mono font-bold text-indigo-300">{o.nextOilChangeMileage.toLocaleString()} KM</span>
-          <p className="text-[10px] text-slate-400">Target: {formatDate(o.nextOilChangeDate)}</p>
+          <span className="font-mono font-bold text-slate-100 text-sm">{o.nextOilChangeMileage.toLocaleString()} KM</span>
+          <p className="text-xs text-slate-400 mt-0.5">Target Odometer</p>
         </div>
       ),
     },
     {
       key: 'totalCost',
-      header: 'Total Cost',
+      header: 'Cost',
       align: 'right',
       render: (o) => (
         <div className="text-right">
-          <span className="font-bold text-slate-100">{formatCurrency(o.totalCost, currency)}</span>
-          <p className="text-[10px] text-slate-400">Oil: {formatCurrency(o.oilCost, currency)}</p>
+          <span className="font-bold text-slate-100 text-sm font-mono">{formatCurrency(o.totalCost, currency)}</span>
         </div>
       ),
     },
     {
       key: 'status',
-      header: 'Warning Status',
+      header: 'Health Status',
       align: 'center',
       render: (o) => <StatusBadge status={o.status} size="sm" />,
-    },
-    {
-      key: 'actions',
-      header: 'Action',
-      align: 'right',
-      sortable: false,
-      render: (o) => (
-        <Button variant="ghost" size="xs" onClick={() => openVehicleDetail(o.vehicleId, 'oil')}>
-          History
-        </Button>
-      ),
     },
   ];
 
@@ -110,19 +100,18 @@ export const OilManagementPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Droplet className="w-6 h-6 text-amber-400" />
-            <span>Oil Service & Lubrication Tracker</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Oil Service & Lubrication Tracker
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Track engine oil grades, intervals, and automatic next service calculations with warning levels.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-oil-change')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -132,34 +121,29 @@ export const OilManagementPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Oil Services Logged"
           value={oilChanges.length}
           subValue="Total historical jobs"
-          icon={<Droplet className="w-4 h-4" />}
-          variant="indigo"
+          isHero={true}
         />
         <StatCard
           title="Overdue Oil Changes"
           value={overdueCount}
           subValue="Exceeded KM interval limit"
-          icon={<AlertTriangle className="w-4 h-4" />}
-          variant="rose"
+          trend={{ value: `${overdueCount} Critical`, direction: 'down' }}
         />
         <StatCard
           title="Due Soon (< 1,000 KM)"
           value={dueSoonCount}
           subValue="Approaching threshold"
-          icon={<Clock className="w-4 h-4" />}
-          variant="amber"
+          trend={{ value: `${dueSoonCount} Due`, direction: 'neutral' }}
         />
         <StatCard
           title="Cumulative Oil Cost"
           value={formatCurrency(totalCost, currency)}
           subValue="Lubricants & filters"
-          icon={<Droplet className="w-4 h-4" />}
-          variant="emerald"
         />
       </div>
 
@@ -175,7 +159,7 @@ export const OilManagementPage: React.FC = () => {
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Warning Levels</option>
             <option value="Overdue">Overdue Only</option>

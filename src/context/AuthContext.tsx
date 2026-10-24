@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User, UserRole, Permission } from '../types/system';
+import { AppPage } from './UIContext';
 import { INITIAL_USERS } from '../data/initialSeedData';
 
 interface AuthContextType {
@@ -7,6 +8,7 @@ interface AuthContextType {
   users: User[];
   setCurrentUserId: (id: string) => void;
   hasPermission: (permission: Permission, moduleName?: string) => boolean;
+  canAccessPage: (page: AppPage, role?: UserRole) => boolean;
   canApprove: (module: 'maintenance' | 'invoice' | 'expense', amount: number) => boolean;
 }
 
@@ -56,9 +58,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const canAccessPage = (page: AppPage, role?: UserRole): boolean => {
+    const currentRole = role || currentUser.role;
+    if (currentRole === 'Super Admin' || currentRole === 'Company Admin') return true;
+
+    switch (page) {
+      case 'users-roles':
+      case 'settings':
+        return false;
+      case 'accounting':
+      case 'trial-balance':
+      case 'general-ledger':
+      case 'profit-loss':
+      case 'balance-sheet':
+      case 'depreciation':
+      case 'fixed-assets':
+        return ['Finance Manager', 'Accountant', 'Management'].includes(currentRole);
+      case 'payroll':
+        return ['Finance Manager', 'Accountant', 'Management'].includes(currentRole);
+      case 'approvals':
+        return ['Finance Manager', 'Fleet Manager', 'Accountant'].includes(currentRole);
+      case 'invoices':
+      case 'reconciliation':
+      case 'payments':
+        return ['Finance Manager', 'Accountant', 'Procurement', 'Management'].includes(currentRole);
+      case 'suppliers':
+      case 'customers':
+        return ['Finance Manager', 'Accountant', 'Procurement', 'Fleet Manager', 'Management'].includes(currentRole);
+      default:
+        return true;
+    }
+  };
+
   const canApprove = (module: 'maintenance' | 'invoice' | 'expense', amount: number): boolean => {
     const role = currentUser.role;
-    if (role === 'Super Admin') return true;
+    if (role === 'Super Admin' || role === 'Company Admin') return true;
     if (role === 'Finance Manager') return true;
     if (role === 'Fleet Manager' && module === 'maintenance' && amount <= 500) return true;
     if (role === 'Accountant' && module === 'invoice' && amount <= 500) return true;
@@ -72,6 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         users,
         setCurrentUserId,
         hasPermission,
+        canAccessPage,
         canApprove,
       }}
     >

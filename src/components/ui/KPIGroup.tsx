@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { clsx } from 'clsx';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpRight } from 'lucide-react';
 
 export interface KPIMetricItem {
   id?: string;
@@ -45,10 +45,10 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
   }[colCount] || 'sm:grid-cols-3';
 
   return (
-    <div className={clsx('bg-white border border-slate-700 rounded-[14px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden', className)}>
+    <div className={clsx('bg-white border border-slate-700 rounded-[20px] shadow-card overflow-hidden', className)}>
       {(title || action) && (
-        <div className="px-5 py-3 border-b border-slate-700 flex items-center justify-between gap-3 bg-white">
-          {title && <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</h3>}
+        <div className="px-5 py-3.5 border-b border-slate-700 flex items-center justify-between gap-3 bg-white">
+          {title && <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">{title}</h3>}
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
@@ -59,25 +59,23 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
             key={metric.id || index}
             onClick={metric.onClick}
             className={clsx(
-              'p-4 sm:p-5 flex flex-col justify-between transition-colors',
-              metric.onClick && 'cursor-pointer hover:bg-slate-850/60 group'
+              'p-5 sm:p-6 flex flex-col justify-between transition-colors',
+              metric.onClick && 'cursor-pointer hover:bg-slate-850/70 group'
             )}
           >
-            {/* Top row: Label + optional icon */}
+            {/* Top row: Label + action arrow */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-slate-400 truncate group-hover:text-slate-200 transition-colors">
+              <span className="text-xs sm:text-sm font-semibold text-slate-400 group-hover:text-slate-100 transition-colors truncate">
                 {metric.title}
               </span>
-              {metric.icon && (
-                <span className="text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0">
-                  {metric.icon}
-                </span>
-              )}
+              <div className="w-6 h-6 rounded-full border border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-forest-500 group-hover:border-forest-500/40 transition-colors shrink-0">
+                {metric.icon || <ArrowUpRight className="w-3.5 h-3.5" />}
+              </div>
             </div>
 
             {/* Middle: Big Metric Value */}
-            <div className="mt-2.5 mb-1.5">
-              <span className="text-2xl sm:text-[28px] lg:text-[30px] font-semibold text-slate-100 tracking-tight tabular-nums leading-none block">
+            <div className="mt-3 mb-2">
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight tabular-nums leading-tight block">
                 {metric.value}
               </span>
             </div>
@@ -87,20 +85,20 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
               {metric.trend && (
                 <span
                   className={clsx(
-                    'inline-flex items-center gap-1 font-medium',
+                    'inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-full text-xs',
                     metric.trend.direction === 'up'
-                      ? 'text-emerald-700'
+                      ? 'bg-[#DCEFE5] text-[#06452F]'
                       : metric.trend.direction === 'down'
-                      ? 'text-rose-700'
-                      : 'text-slate-400'
+                      ? 'bg-rose-50 text-rose-700'
+                      : 'bg-slate-800 text-slate-400'
                   )}
                 >
                   {metric.trend.direction === 'up' ? (
-                    <TrendingUp className="w-3 h-3 text-emerald-600" />
+                    <TrendingUp className="w-3.5 h-3.5 text-forest-500" />
                   ) : metric.trend.direction === 'down' ? (
-                    <TrendingDown className="w-3 h-3 text-rose-600" />
+                    <TrendingDown className="w-3.5 h-3.5 text-rose-600" />
                   ) : (
-                    <Minus className="w-3 h-3 text-slate-400" />
+                    <Minus className="w-3.5 h-3.5 text-slate-400" />
                   )}
                   <span>{metric.trend.value}</span>
                   {metric.trend.label && (
@@ -112,20 +110,20 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
               {metric.statusBadge && (
                 <span
                   className={clsx(
-                    'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium',
-                    metric.statusVariant === 'emerald' && 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+                    'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold',
+                    metric.statusVariant === 'emerald' && 'bg-[#DCEFE5] text-[#06452F]',
                     metric.statusVariant === 'amber' && 'bg-amber-50 text-amber-700 border border-amber-200',
                     metric.statusVariant === 'rose' && 'bg-rose-50 text-rose-700 border border-rose-200',
-                    metric.statusVariant === 'indigo' && 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-                    (!metric.statusVariant || metric.statusVariant === 'slate') && 'bg-slate-800 text-slate-300 border border-slate-700'
+                    metric.statusVariant === 'indigo' && 'bg-[#DCEFE5] text-[#06452F]',
+                    (!metric.statusVariant || metric.statusVariant === 'slate') && 'bg-slate-800 text-slate-400'
                   )}
                 >
                   {metric.statusBadge}
                 </span>
               )}
 
-              {metric.subValue && !metric.trend && (
-                <span className="text-slate-400 text-xs font-normal truncate">
+              {metric.subValue && (
+                <span className="text-xs text-slate-400 font-medium truncate">
                   {metric.subValue}
                 </span>
               )}

@@ -32,7 +32,7 @@ export const PrintablePayslipModal: React.FC = () => {
       description={`Confidential salary disbursal statement for ${viewingPayslip.employeeName} (${viewingPayslip.employeeCode})`}
       size="lg"
     >
-      <div className="space-y-6 text-slate-200 printable-payslip-content">
+      <div id="printable-payslip" className="space-y-6 text-slate-200 printable-payslip-content">
         {/* Company Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">

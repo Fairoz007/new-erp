@@ -5,8 +5,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -16,24 +14,23 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
 
-const CHART_COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#F43F5E', '#06B6D4', '#8B5CF6', '#EC4899', '#64748B'];
+const CHART_COLORS = ['#086343', '#4CAE88', '#D9A441', '#D94B4B', '#2563EB', '#8ACDB0', '#06452F', '#7B8581'];
 
 // Shared clean reference tooltip
-const CustomTooltip = ({ active, payload, label }: any) => {
+export const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-slate-700 p-2.5 rounded-xl shadow-elevated text-xs space-y-1 z-50">
-        <p className="font-semibold text-slate-100">{label}</p>
+      <div className="bg-white border border-slate-700 p-3 rounded-2xl shadow-elevated text-xs space-y-1.5 z-50">
+        <p className="font-bold text-slate-100">{label}</p>
         {payload.map((entry: any, index: number) => (
-          <div key={`item-${index}`} className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-1.5 text-slate-400">
+          <div key={`item-${index}`} className="flex items-center justify-between gap-4">
+            <span className="flex items-center gap-1.5 text-slate-400 font-medium">
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
               {entry.name}:
             </span>
-            <span className="font-semibold text-slate-100 tabular-nums">
+            <span className="font-bold text-slate-100 tabular-nums">
               {typeof entry.value === 'number' && entry.value > 10 ? formatCurrency(entry.value) : entry.value}
             </span>
           </div>
@@ -58,33 +55,110 @@ export const RevenueVsExpenseChart: React.FC = () => {
   ];
 
   return (
-    <div className="h-[260px] w-full">
+    <div className="h-[250px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
-              <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#086343" stopOpacity={0.25} />
+              <stop offset="95%" stopColor="#086343" stopOpacity={0.0} />
             </linearGradient>
             <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.25} />
-              <stop offset="95%" stopColor="#4F46E5" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#7B8581" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#7B8581" stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
-          <XAxis dataKey="month" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
-          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
+          <XAxis dataKey="month" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
+          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#6B6B72' }} />
-          <Area type="monotone" dataKey="Revenue" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
-          <Area type="monotone" dataKey="Expenses" stroke="#4F46E5" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
+          <Area type="monotone" dataKey="Revenue" stroke="#086343" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
+          <Area type="monotone" dataKey="Expenses" stroke="#7B8581" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>
   );
 };
 
-// 2. Monthly Maintenance Cost Trend with rounded reference bars
+// 2. Reference-Style Capsule/Pill Bar Chart (Exact replica of "Project Analytics" in Reference Image)
+export const ReferencePillBarChart: React.FC = () => {
+  const days = [
+    { day: 'S', value: 45, status: 'striped', cost: '420 OMR' },
+    { day: 'M', value: 75, status: 'medium', cost: '780 OMR' },
+    { day: 'T', value: 65, status: 'light', cost: '620 OMR', badge: '74%' },
+    { day: 'W', value: 92, status: 'dark', cost: '920 OMR' },
+    { day: 'T', value: 48, status: 'striped', cost: '460 OMR' },
+    { day: 'F', value: 38, status: 'striped', cost: '380 OMR' },
+    { day: 'S', value: 50, status: 'striped', cost: '510 OMR' },
+  ];
+
+  return (
+    <div className="w-full flex flex-col justify-between h-[230px] pt-4">
+      {/* SVG Definitions for Stripes Pattern */}
+      <svg className="w-0 h-0 absolute">
+        <defs>
+          <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="6" height="6">
+            <path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="#CBD5E1" strokeWidth="1.5" />
+          </pattern>
+        </defs>
+      </svg>
+
+      <div className="flex items-end justify-between gap-2.5 h-[170px] px-2 sm:px-4">
+        {days.map((item, index) => {
+          const heightPercent = item.value;
+          const isDark = item.status === 'dark';
+          const isLight = item.status === 'light';
+          const isMedium = item.status === 'medium';
+          const isStriped = item.status === 'striped';
+
+          return (
+            <div key={index} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+              {/* Badge if present (like the 74% badge in screenshot) */}
+              {item.badge && (
+                <div className="absolute -top-7 z-10 bg-white border border-slate-700 shadow-sm text-[10px] font-bold text-slate-100 px-1.5 py-0.5 rounded-md">
+                  {item.badge}
+                </div>
+              )}
+
+              {/* Tooltip on hover */}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-slate-100 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md shadow-md pointer-events-none whitespace-nowrap z-20">
+                {item.cost}
+              </div>
+
+              {/* Capsule Pill Bar */}
+              <div
+                style={{ height: `${heightPercent}%` }}
+                className={`w-full max-w-[34px] rounded-full transition-all duration-300 transform group-hover:scale-y-105 ${
+                  isDark
+                    ? 'bg-[#086343] shadow-sm'
+                    : isMedium
+                    ? 'bg-[#06452F]'
+                    : isLight
+                    ? 'bg-[#4CAE88]'
+                    : 'border-2 border-slate-700'
+                }`}
+              >
+                {isStriped && (
+                  <svg className="w-full h-full rounded-full">
+                    <rect width="100%" height="100%" fill="url(#diagonalHatch)" rx="17" />
+                  </svg>
+                )}
+              </div>
+
+              {/* Day Label */}
+              <span className="mt-3 text-xs font-semibold text-slate-400 group-hover:text-slate-100 transition-colors">
+                {item.day}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// 3. Maintenance Cost Trend
 export const MaintenanceTrendChart: React.FC = () => {
   const data = [
     { month: 'Jan', Routine: 420, Corrective: 310, Breakdown: 150 },
@@ -98,175 +172,56 @@ export const MaintenanceTrendChart: React.FC = () => {
   ];
 
   return (
-    <div className="h-[260px] w-full">
+    <div className="h-[250px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
-          <XAxis dataKey="month" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
-          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
+          <XAxis dataKey="month" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
+          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#6B6B72' }} />
-          <Bar dataKey="Routine" stackId="a" fill="#06B6D4" radius={[0, 0, 0, 0]} barSize={22} />
-          <Bar dataKey="Corrective" stackId="a" fill="#F59E0B" radius={[0, 0, 0, 0]} barSize={22} />
-          <Bar dataKey="Breakdown" stackId="a" fill="#F43F5E" radius={[4, 4, 0, 0]} barSize={22} />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
+          <Bar dataKey="Routine" stackId="a" fill="#086343" radius={[0, 0, 0, 0]} barSize={20} />
+          <Bar dataKey="Corrective" stackId="a" fill="#D9A441" radius={[0, 0, 0, 0]} barSize={20} />
+          <Bar dataKey="Breakdown" stackId="a" fill="#D94B4B" radius={[6, 6, 0, 0]} barSize={20} />
         </BarChart>
       </ResponsiveContainer>
     </div>
   );
 };
 
-// 3. Reference-Style Fleet Operating Costs Monthly Bar Chart
-export const FleetMonthlyOperatingCostsChart: React.FC = () => {
-  const [activeIndex, setActiveIndex] = useState<number>(7); // default Aug is active
-
-  const data = [
-    { month: 'Jan', cost: 6800 },
-    { month: 'Feb', cost: 8900 },
-    { month: 'Mar', cost: 7400 },
-    { month: 'Apr', cost: 9500 },
-    { month: 'May', cost: 11200 },
-    { month: 'Jun', cost: 10400 },
-    { month: 'Jul', cost: 12800 },
-    { month: 'Aug', cost: 14600 },
-  ];
-
-  return (
-    <div className="h-[260px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-          onMouseMove={(state: any) => {
-            if (state && state.activeTooltipIndex !== undefined) {
-              setActiveIndex(state.activeTooltipIndex);
-            }
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
-          <XAxis dataKey="month" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
-          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="cost" name="Operating Cost" radius={[6, 6, 0, 0]} barSize={24}>
-            {data.map((_, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={index === activeIndex ? '#4F46E5' : '#DDD6FE'}
-                className="transition-colors duration-200 cursor-pointer"
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
-
-// 4. Expense Distribution Pie Chart
-export const ExpenseCategoryPieChart: React.FC = () => {
-  const data = [
-    { name: 'Fuel', value: 24300 },
-    { name: 'Maintenance', value: 12480 },
-    { name: 'Insurance', value: 5400 },
-    { name: 'Tyres', value: 4820 },
-    { name: 'Oil Changes', value: 2150 },
-    { name: 'Registration', value: 1650 },
-    { name: 'Accidents', value: 750 },
-    { name: 'Tolls & Other', value: 890 },
-  ];
-
-  return (
-    <div className="h-60 w-full flex items-center justify-center">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={55}
-            outerRadius={80}
-            paddingAngle={3}
-            dataKey="value"
-          >
-            {data.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
-
-// 5. Fleet Age & Status Charts
-export const FleetStatusChart: React.FC = () => {
-  const { vehicles } = useFleet();
-
-  const counts = vehicles.reduce((acc, v) => {
-    acc[v.status] = (acc[v.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
-
-  const statusColors: Record<string, string> = {
-    Active: '#10B981',
-    'Under Maintenance': '#F59E0B',
-    Accident: '#F43F5E',
-    Inactive: '#64748B',
-    Sold: '#8B5CF6',
-  };
-
-  return (
-    <div className="h-60 w-full flex items-center justify-center">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={52}
-            outerRadius={78}
-            paddingAngle={4}
-            dataKey="value"
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={statusColors[entry.name] || CHART_COLORS[index]} stroke="#ffffff" strokeWidth={2} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
-
-// 6. Depreciation vs Book Value Schedule Chart
+// 4. Asset Depreciation Chart
 export const AssetDepreciationChart: React.FC = () => {
   const data = [
-    { year: '2022', PurchaseCost: 148300, BookValue: 148300, Depreciation: 0 },
-    { year: '2023', PurchaseCost: 148300, BookValue: 123700, Depreciation: 24600 },
-    { year: '2024', PurchaseCost: 148300, BookValue: 99100, Depreciation: 49200 },
-    { year: '2025', PurchaseCost: 148300, BookValue: 74500, Depreciation: 73800 },
-    { year: '2026 (Now)', PurchaseCost: 148300, BookValue: 49900, Depreciation: 98400 },
-    { year: '2027 (Est)', PurchaseCost: 148300, BookValue: 25300, Depreciation: 123000 },
+    { year: '2021', Cost: 180000, BookValue: 180000 },
+    { year: '2022', Cost: 180000, BookValue: 144000 },
+    { year: '2023', Cost: 240000, BookValue: 172000 },
+    { year: '2024', Cost: 240000, BookValue: 148000 },
+    { year: '2025', Cost: 310000, BookValue: 210000 },
+    { year: '2026', Cost: 310000, BookValue: 185000 },
   ];
 
   return (
-    <div className="h-[260px] w-full">
+    <div className="h-[250px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E7E7EA" vertical={false} />
-          <XAxis dataKey="year" stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7E7EA' }} />
-          <YAxis stroke="#8E8E93" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
+        <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#7B8581" stopOpacity={0.15} />
+              <stop offset="95%" stopColor="#7B8581" stopOpacity={0.0} />
+            </linearGradient>
+            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#086343" stopOpacity={0.25} />
+              <stop offset="95%" stopColor="#086343" stopOpacity={0.0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
+          <XAxis dataKey="year" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
+          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#6B6B72' }} />
-          <Line type="monotone" dataKey="PurchaseCost" stroke="#8E8E93" strokeWidth={1.5} strokeDasharray="4 4" name="Initial Cost" dot={false} />
-          <Line type="monotone" dataKey="BookValue" stroke="#4F46E5" strokeWidth={2.5} name="Net Book Value" />
-          <Line type="monotone" dataKey="Depreciation" stroke="#F43F5E" strokeWidth={2} name="Accumulated Depreciation" />
-        </LineChart>
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
+          <Area type="monotone" dataKey="Cost" name="Historical Cost" stroke="#7B8581" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />
+          <Area type="monotone" dataKey="BookValue" name="Net Book Value" stroke="#086343" strokeWidth={2.5} fillOpacity={1} fill="url(#colorValue)" />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );

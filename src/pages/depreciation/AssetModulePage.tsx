@@ -133,28 +133,29 @@ export const AssetModulePage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Sparkles className="w-6 h-6 text-amber-400" />
-            <span>Asset Module & Automatic Depreciation</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Asset Module & Automatic Depreciation
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             Enterprise fixed asset register with automatic monthly depreciation calculations and direct GL journal posting (Dr 5080 / Cr 1520).
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="outline"
             size="sm"
+            className="rounded-full"
             onClick={() => openQuickModal('run-depreciation')}
-            leftIcon={<Play className="w-4 h-4 text-emerald-400" />}
+            leftIcon={<Play className="w-4 h-4 text-forest-500" />}
           >
             Run Auto-Depreciation
           </Button>
           <Button
             variant="primary"
             size="sm"
-            onClick={() => openQuickModal('add-vehicle')}
+            className="rounded-full shadow-sm"
+            onClick={() => openQuickModal('add-fixed-asset')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
             Add Fixed Asset
@@ -163,13 +164,14 @@ export const AssetModulePage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
           title="Gross Fixed Assets (At Cost)"
           value={formatCurrency(totalCost, currency)}
           subValue={`${totalAssetsCount} Registered Assets`}
           icon={<Layers className="w-4 h-4" />}
           variant="indigo"
+          isHero={true}
         />
         <StatCard
           title="Accumulated Depreciation"
@@ -194,29 +196,29 @@ export const AssetModulePage: React.FC = () => {
         />
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+      {/* Segmented Pill Tabs */}
+      <div className="inline-flex items-center gap-1.5 p-1 bg-slate-850 border border-slate-700 rounded-full">
         <button
           onClick={() => setActiveTab('register')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'register'
-              ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
-              : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Layers className="w-4 h-4" />
+          <Layers className="w-3.5 h-3.5" />
           <span>Fixed Asset Register</span>
         </button>
 
         <button
           onClick={() => setActiveTab('runs')}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'runs'
-              ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
-              : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <History className="w-4 h-4" />
+          <History className="w-3.5 h-3.5" />
           <span>Depreciation History & GL Postings ({depreciationRuns.length})</span>
         </button>
       </div>
@@ -234,7 +236,7 @@ export const AssetModulePage: React.FC = () => {
             <select
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+              className="bg-white border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer shadow-sm"
             >
               <option value="all">All Asset Categories</option>
               <option value="Fleet Vehicle">Fleet Vehicles</option>
@@ -247,8 +249,8 @@ export const AssetModulePage: React.FC = () => {
       ) : (
         /* Depreciation Runs Log */
         <div className="space-y-4">
-          <Card className="overflow-hidden border border-slate-800 shadow-xl">
-            <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+          <Card className="overflow-hidden border border-slate-700 bg-white shadow-card rounded-[20px]">
+            <div className="p-4 sm:p-5 bg-white border-b border-slate-700 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
                   Automatic Depreciation Batch Runs
@@ -262,7 +264,7 @@ export const AssetModulePage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 text-[11px] uppercase tracking-wider">
+                  <tr className="bg-slate-850 border-b border-slate-700 text-slate-400 text-[11px] uppercase tracking-wider">
                     <th className="py-3 px-4 font-semibold">Batch #</th>
                     <th className="py-3 px-4 font-semibold">Period</th>
                     <th className="py-3 px-4 font-semibold">Execution Date</th>
@@ -273,7 +275,7 @@ export const AssetModulePage: React.FC = () => {
                     <th className="py-3 px-4 font-semibold text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-slate-700/60 bg-white">
                   {depreciationRuns.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-6 text-center text-slate-500 italic">

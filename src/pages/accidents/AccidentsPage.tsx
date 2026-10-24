@@ -35,11 +35,11 @@ export const AccidentsPage: React.FC = () => {
       render: (a) => (
         <div className="cursor-pointer" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
           <span className="font-mono font-bold text-slate-100">{a.accidentNumber}</span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
               {a.vehiclePlate}
             </span>
-            <span className="text-[10px] text-slate-400">Driver: {a.driverName}</span>
+            <span className="text-[10px] text-slate-400 font-medium">Driver: {a.driverName}</span>
           </div>
         </div>
       ),
@@ -49,7 +49,7 @@ export const AccidentsPage: React.FC = () => {
       header: 'Type & Location',
       render: (a) => (
         <div>
-          <span className="font-semibold text-slate-200">{a.accidentType}</span>
+          <span className="font-bold text-slate-200">{a.accidentType}</span>
           <p className="text-[11px] text-slate-400 truncate max-w-xs">{a.location}</p>
         </div>
       ),
@@ -59,8 +59,8 @@ export const AccidentsPage: React.FC = () => {
       header: 'Police & Claim #',
       render: (a) => (
         <div>
-          <p className="text-[11px] font-mono text-slate-300">ROP: {a.policeReportNumber}</p>
-          <p className="text-[10px] font-mono text-indigo-400">Claim: {a.insuranceClaimNumber || 'Pending'}</p>
+          <span className="font-mono text-xs text-slate-300">Police: {a.policeReportNumber}</span>
+          <p className="text-[10px] text-slate-400">Claim: {a.insuranceClaimNumber || 'Pending'}</p>
         </div>
       ),
     },
@@ -69,30 +69,30 @@ export const AccidentsPage: React.FC = () => {
       header: 'Date & Downtime',
       render: (a) => (
         <div>
-          <span className="text-slate-300">{formatDate(a.accidentDate)}</span>
-          <p className="text-[10px] text-amber-400 font-semibold">{a.vehicleDowntimeDays} Days Downtime</p>
+          <span className="text-slate-300 font-medium">{formatDate(a.accidentDate)}</span>
+          <p className="text-[10px] text-rose-600 font-semibold">{a.vehicleDowntimeDays} Days Inactive</p>
         </div>
       ),
     },
     {
-      key: 'actualRepairCost',
+      key: 'repairCost',
       header: 'Repair Cost',
       align: 'right',
       render: (a) => (
         <div className="text-right">
           <span className="font-bold text-slate-100">{formatCurrency(a.actualRepairCost, currency)}</span>
-          <p className="text-[10px] text-emerald-400">Ins: {formatCurrency(a.insuranceContribution, currency)}</p>
+          <p className="text-[10px] text-[#086343] font-semibold">Recov: {formatCurrency(a.insuranceContribution, currency)}</p>
         </div>
       ),
     },
     {
-      key: 'netAccidentCostToCompany',
-      header: 'Net Company Cost',
+      key: 'netCost',
+      header: 'Net Co. Cost',
       align: 'right',
       render: (a) => (
         <div className="text-right">
-          <span className="font-bold text-rose-400">{formatCurrency(a.netAccidentCostToCompany, currency)}</span>
-          <p className="text-[9px] text-slate-500">Deductible</p>
+          <span className="font-bold text-rose-600">{formatCurrency(a.netAccidentCostToCompany, currency)}</span>
+          <p className="text-[10px] text-slate-400">Deductible</p>
         </div>
       ),
     },
@@ -102,6 +102,17 @@ export const AccidentsPage: React.FC = () => {
       align: 'center',
       render: (a) => <StatusBadge status={a.status} size="sm" />,
     },
+    {
+      key: 'actions',
+      header: 'Action',
+      align: 'right',
+      sortable: false,
+      render: (a) => (
+        <Button variant="ghost" size="xs" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
+          Claim File
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -109,19 +120,18 @@ export const AccidentsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <AlertTriangle className="w-6 h-6 text-rose-400" />
-            <span>Accident & Insurance Claims Management</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Accident & Insurance Claims Management
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Track collision reports, police documentation, third-party liabilities, insurance recoveries, downtime days, and net costs.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="danger"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-accident')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -131,34 +141,29 @@ export const AccidentsPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Total Collision Cases"
           value={totalAccidents}
           subValue={`${activeCases} Active Claims`}
-          icon={<AlertTriangle className="w-4 h-4" />}
-          variant="rose"
+          isHero={true}
         />
         <StatCard
           title="Gross Repair Cost"
           value={formatCurrency(totalRepairCost, currency)}
           subValue="Bodyshop estimates"
-          icon={<AlertTriangle className="w-4 h-4" />}
-          variant="amber"
         />
         <StatCard
           title="Insurance Recovery"
           value={formatCurrency(totalInsuranceRecovered, currency)}
           subValue="Settled by underwriters"
-          icon={<ShieldCheck className="w-4 h-4" />}
-          variant="emerald"
+          trend={{ value: `${totalInsuranceRecovered > 0 ? '+78%' : '0%'} Covered`, direction: 'up' }}
         />
         <StatCard
           title="Net Cost to Company"
           value={formatCurrency(netCompanyCost, currency)}
           subValue="Policy deductibles & excesses"
-          icon={<AlertTriangle className="w-4 h-4" />}
-          variant="purple"
+          trend={{ value: 'Liability', direction: 'down' }}
         />
       </div>
 
@@ -174,7 +179,7 @@ export const AccidentsPage: React.FC = () => {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Claim Statuses</option>
             <option value="Under Repair">Under Repair</option>

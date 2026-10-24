@@ -27,6 +27,9 @@ import {
   Sparkles,
   ChevronRight,
   Layers,
+  Lock,
+  Smartphone,
+  Shield,
 } from 'lucide-react';
 import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
@@ -60,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { currentPage, setCurrentPage } = useUI();
   const { notifications, approvalRequests, workOrders, invoices } = useFleet();
-  const { currentUser } = useAuth();
+  const { currentUser, canAccessPage } = useAuth();
 
   const unreadNotifs = notifications.filter(n => !n.read).length;
   const pendingApprovals = approvalRequests.filter(a => a.status === 'Pending').length;
@@ -69,15 +72,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navigationGroups: NavGroup[] = [
     {
-      title: 'Executive & Overview',
+      title: 'MENU',
       items: [
-        { id: 'dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'companies', label: 'Offices & Branches', icon: Building2 },
-        { id: 'profitability', label: 'Vehicle Profitability', icon: Sparkles },
+        { id: 'profitability', label: 'Fleet Profitability', icon: Sparkles },
       ],
     },
     {
-      title: 'Fleet & Workshop',
+      title: 'FLEET & WORKSHOP',
       items: [
         { id: 'vehicles', label: 'Vehicles Fleet', icon: Car },
         { id: 'maintenance', label: 'Maintenance Records', icon: Wrench },
@@ -90,41 +93,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      title: 'Finance & Accounting',
+      title: 'FINANCE & ACCOUNTS',
       items: [
-        { id: 'invoices', label: 'Invoices & Bills (AP / AR)', icon: FileText, badge: overdueInvoices > 0 ? `${overdueInvoices} Overdue` : undefined, badgeColor: 'rose' },
+        { id: 'invoices', label: 'Invoices & Bills', icon: FileText, badge: overdueInvoices > 0 ? `${overdueInvoices}` : undefined, badgeColor: 'rose' },
         { id: 'reconciliation', label: '3-Way Reconciliation', icon: GitCompare },
         { id: 'payments', label: 'Payments Register', icon: CreditCard },
         { id: 'trial-balance', label: 'Trial Balance', icon: Scale },
-        { id: 'general-ledger', label: 'General Ledger & Sub-Ledger', icon: BookOpen },
-        { id: 'accounting', label: 'Finance Control Center', icon: Layers },
-        { id: 'profit-loss', label: 'Profit & Loss Statement', icon: TrendingUp },
+        { id: 'general-ledger', label: 'General Ledger', icon: BookOpen },
+        { id: 'accounting', label: 'Finance Control', icon: Layers },
+        { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
         { id: 'balance-sheet', label: 'Balance Sheet', icon: Scale },
-        { id: 'fixed-assets', label: 'Asset Module & Auto-Depr', icon: Sparkles },
+        { id: 'fixed-assets', label: 'Fixed Assets & Depr', icon: Sparkles },
       ],
     },
     {
-      title: 'Human Resources & Payroll',
+      title: 'HUMAN RESOURCES',
       items: [
-        { id: 'payroll', label: 'HR & Payroll Disbursals', icon: Users },
+        { id: 'payroll', label: 'HR & Payroll Disbursal', icon: Users },
       ],
     },
     {
-      title: 'Partners & Directory',
+      title: 'DIRECTORIES',
       items: [
         { id: 'suppliers', label: 'Suppliers & Vendors', icon: Truck },
         { id: 'customers', label: 'Customer Accounts', icon: Users },
       ],
     },
     {
-      title: 'Governance & Analytics',
+      title: 'GENERAL & SETTINGS',
       items: [
         { id: 'approvals', label: 'Approvals Queue', icon: CheckSquare, badge: pendingApprovals > 0 ? pendingApprovals : undefined, badgeColor: 'rose' },
-        { id: 'notifications', label: 'Notification Center', icon: Bell, badge: unreadNotifs > 0 ? unreadNotifs : undefined, badgeColor: 'rose' },
-        { id: 'reports', label: 'Executive Reports Suite', icon: BarChart3 },
+        { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotifs > 0 ? unreadNotifs : undefined, badgeColor: 'rose' },
+        { id: 'reports', label: 'Reports Suite', icon: BarChart3 },
         { id: 'audit-logs', label: 'Audit Trail Logs', icon: History },
         { id: 'users-roles', label: 'Users & Roles (RBAC)', icon: UserCheck },
-        { id: 'settings', label: 'System Settings', icon: Settings },
+        { id: 'settings', label: 'Settings', icon: Settings },
       ],
     },
   ];
@@ -142,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           role="button"
           tabIndex={0}
           aria-label="Close navigation"
-          className="fixed inset-0 bg-black/20 backdrop-blur-xs z-40 lg:hidden"
+          className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 lg:hidden"
           onClick={onCloseMobile}
           onKeyDown={e => {
             if (e.key === 'Escape') onCloseMobile?.();
@@ -151,94 +154,133 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed top-0 left-0 bottom-0 z-40 ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-64 xl:w-68'} w-68 bg-white border-r border-slate-700 flex flex-col transition-[width,transform] duration-200 lg:translate-x-0 ${
-          isMobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'
+        className={`fixed lg:sticky top-0 left-0 h-screen z-40 ${
+          isCollapsed ? 'lg:w-[76px]' : 'lg:w-64 xl:w-72'
+        } w-72 bg-surface-secondary border-r border-slate-700 flex flex-col shrink-0 transition-[width,transform] duration-200 lg:translate-x-0 ${
+          isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className={`h-14 border-b border-slate-700 flex items-center bg-white shrink-0 ${isCollapsed ? 'lg:justify-center lg:px-2' : 'px-4'}`}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs font-bold text-xs tracking-wider">
-              AHN
+        <div className={`h-[72px] px-5 border-b border-slate-700/80 flex items-center bg-surface-secondary shrink-0 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#086343] flex items-center justify-center text-white shrink-0 shadow-sm font-bold">
+              <Shield className="w-5 h-5 text-white stroke-[2.2]" />
             </div>
             <div className={isCollapsed ? 'lg:hidden' : ''}>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-slate-100 tracking-tight leading-none">Al Hakim National</span>
-                <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-1.5 py-0.2 rounded border border-indigo-100">
-                  LLC
+                <span className="text-base font-extrabold text-slate-100 tracking-tight leading-none">FleetX</span>
+                <span className="text-[10px] bg-[#DCEFE5] text-[#06452F] font-bold px-1.5 py-0.5 rounded-full">
+                  ERP
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 font-normal mt-0.5">Muscat HQ & Duqm Office</p>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Al Hakim National LLC</p>
             </div>
           </div>
         </div>
 
         {/* Scrollable Navigation */}
-        <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4 scrollbar-thin">
+        <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-thin">
           {navigationGroups.map((group, groupIdx) => (
-            <div key={groupIdx} className="space-y-0.5">
-              <h4 className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400 ${isCollapsed ? 'lg:sr-only' : ''}`}>
+            <div key={groupIdx} className="space-y-1">
+              <h4 className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${isCollapsed ? 'lg:sr-only' : ''}`}>
                 {group.title}
               </h4>
               <div className="space-y-0.5">
                 {group.items.map(item => {
                   const isActive = currentPage === item.id || (currentPage === 'vehicle-detail' && item.id === 'vehicles');
+                  const isAllowed = canAccessPage(item.id);
                   const Icon = item.icon;
 
                   return (
                     <button
                       key={item.id}
                       onClick={() => handleNavClick(item.id)}
-                      title={isCollapsed ? item.label : undefined}
+                      title={isCollapsed ? `${item.label}${!isAllowed ? ' (Restricted)' : ''}` : !isAllowed ? 'Restricted Access' : undefined}
                       aria-current={isActive ? 'page' : undefined}
-                      className={`w-full h-10 flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-2.5'} rounded-lg text-[13px] transition-all group cursor-pointer ${
+                      className={`w-full min-h-[42px] relative flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3'} rounded-xl text-xs sm:text-[13px] transition-all group cursor-pointer ${
                         isActive
-                          ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100/80 shadow-2xs'
-                          : 'text-slate-300 hover:text-slate-100 hover:bg-slate-800 border border-transparent font-normal'
+                          ? 'bg-white text-slate-100 font-bold shadow-2xs'
+                          : isAllowed
+                          ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 font-medium'
+                          : 'text-slate-400/60 hover:text-slate-300 hover:bg-slate-800/40 font-normal'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Active green vertical indicator bar on left edge */}
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#086343] rounded-r-full" />
+                      )}
+
+                      <div className="flex items-center gap-3 min-w-0">
                         <Icon
                           className={`w-4 h-4 shrink-0 transition-colors ${
-                            isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-200'
+                            isActive ? 'text-[#086343]' : isAllowed ? 'text-slate-400 group-hover:text-slate-100' : 'text-slate-500'
                           }`}
                         />
                         <span className={`truncate ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
                       </div>
 
-                      {item.badge !== undefined && !isCollapsed ? (
-                        <Badge variant={item.badgeColor || 'indigo'} size="sm">
-                          {item.badge}
-                        </Badge>
-                      ) : isActive && !isCollapsed ? (
-                        <ChevronRight className="w-3.5 h-3.5 text-indigo-600/70 shrink-0" />
-                      ) : null}
+                      <div className={`flex items-center gap-1.5 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                        {!isAllowed && (
+                          <span title="Restricted role access">
+                            <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                          </span>
+                        )}
+                        {item.badge !== undefined ? (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isActive ? 'bg-[#086343] text-white' : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        ) : null}
+                      </div>
                     </button>
                   );
                 })}
               </div>
             </div>
           ))}
+
+          {/* Reference-Inspired Bottom Promotional / App Card */}
+          <div className={`pt-2 ${isCollapsed ? 'lg:hidden' : ''}`}>
+            <div className="rounded-2xl bg-gradient-to-br from-[#06452F] via-[#086343] to-[#03261a] p-4 text-white shadow-card relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
+              <div className="relative z-10 space-y-2">
+                <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-white">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <div>
+                  <h5 className="text-xs font-bold text-white tracking-tight leading-snug">Download Driver App</h5>
+                  <p className="text-[10px] text-white/75 mt-0.5">Mobile dispatch, mileage logs & fuel sync</p>
+                </div>
+                <button
+                  onClick={() => handleNavClick('documents')}
+                  className="w-full bg-[#03261a]/60 hover:bg-[#03261a] text-white border border-white/20 text-[11px] font-semibold py-1.5 px-3 rounded-full transition-all text-center block cursor-pointer"
+                >
+                  Get Driver Portal
+                </button>
+              </div>
+            </div>
+          </div>
         </nav>
 
         {/* User Profile at bottom */}
-        <div className={`p-2.5 border-t border-slate-700 bg-white shrink-0 ${isCollapsed ? 'lg:px-1.5' : ''}`}>
-          <div className={`p-2 rounded-lg border border-slate-700/60 bg-slate-850 flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
+        <div className={`p-3 border-t border-slate-700/80 bg-surface-secondary shrink-0 ${isCollapsed ? 'lg:px-2' : ''}`}>
+          <div className={`p-2 rounded-xl bg-white border border-slate-700/80 shadow-2xs flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
                 <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
               </div>
               <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                <p className="text-xs font-semibold text-slate-100 truncate">{currentUser.name}</p>
+                <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
                 <p className="text-[10px] text-slate-400 font-medium truncate">{currentUser.role}</p>
               </div>
             </div>
-            <div className={`w-2 h-2 rounded-full bg-emerald-500 shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="Online" />
+            <div className={`w-2 h-2 rounded-full bg-[#21865B] shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="System Online" />
           </div>
 
           <div className={`mt-2 px-1 text-[10px] text-slate-400 items-center justify-between ${isCollapsed ? 'lg:hidden flex' : 'flex'}`}>
-            <span>Enterprise v2.4 (Oman GCC)</span>
-            <span className="text-emerald-700 font-mono">● Live</span>
+            <span>Enterprise v2.4</span>
+            <span className="text-[#086343] font-semibold">● Active GCC</span>
           </div>
         </div>
       </aside>

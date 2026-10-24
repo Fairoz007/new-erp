@@ -26,8 +26,8 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [isMobileMenuOpen]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Sidebar */}
+    <div className="min-h-screen w-full bg-white text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-[#DCEFE5] selection:text-[#06452F]">
+      {/* Sidebar - Flush to left edge of screen */}
       <Sidebar
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
@@ -35,17 +35,17 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         onToggleCollapsed={() => setIsSidebarCollapsed(value => !value)}
       />
 
-      {/* Main Content Area */}
-      <div className={`${isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-64 xl:pl-68'} min-w-0 flex flex-col min-h-screen transition-[padding] duration-200`}>
-        {/* Header */}
+      {/* Main Content Workspace Area - Occupies full remaining width and height */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen bg-white">
+        {/* Header - Stretches from sidebar to right viewport edge */}
         <Header
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           onToggleSidebar={() => setIsSidebarCollapsed(value => !value)}
           isSidebarCollapsed={isSidebarCollapsed}
         />
 
-        {/* Page Content */}
-        <main className="flex-1 min-w-0 w-full px-4 py-4 sm:px-6 sm:py-5 xl:px-6 2xl:px-8 space-y-5">
+        {/* Page Content - Full width with balanced internal padding */}
+        <main className="flex-1 min-w-0 w-full px-5 py-6 sm:px-8 sm:py-8 space-y-6 bg-white">
           {children}
         </main>
       </div>

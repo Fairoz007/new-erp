@@ -34,7 +34,7 @@ export const DepreciationPage: React.FC = () => {
         <div className="cursor-pointer" onClick={() => openVehicleDetail(v.id, 'depreciation')}>
           <span className="font-bold text-slate-100">{v.brand} {v.model}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
+            <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-[10px] font-semibold">
               {v.plateNumber}
             </span>
             <span className="text-[10px] text-slate-400">Year {v.manufacturingYear}</span>
@@ -106,24 +106,24 @@ export const DepreciationPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Percent className="w-6 h-6 text-purple-400" />
-            <span>Vehicle Asset Depreciation Engine</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Vehicle Asset Depreciation Engine
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             Amortize fleet asset values using Straight-Line and Reducing Balance methods to track accurate book vs market values.
           </p>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
           title="Total Acquisition Cost"
           value={formatCurrency(totalCost, currency)}
           subValue={`${vehicles.length} Fleet assets`}
           icon={<Car className="w-4 h-4" />}
           variant="indigo"
+          isHero={true}
         />
         <StatCard
           title="Accumulated Depreciation"

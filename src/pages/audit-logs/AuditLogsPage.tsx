@@ -36,13 +36,13 @@ export const AuditLogsPage: React.FC = () => {
       key: 'action',
       header: 'Action',
       render: (l) => (
-        <span className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
-          l.action === 'CREATE' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-          l.action === 'UPDATE' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
-          l.action === 'DELETE' ? 'bg-rose-950 text-rose-400 border border-rose-800' :
-          l.action === 'APPROVE' ? 'bg-purple-950 text-purple-400 border border-purple-800' :
-          l.action === 'PAYMENT' ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' :
-          'bg-slate-800 text-slate-300'
+        <span className={`px-2.5 py-0.5 rounded-full font-mono font-bold text-[10px] border ${
+          l.action === 'CREATE' ? 'bg-forest-100 text-forest-700 border-forest-200' :
+          l.action === 'UPDATE' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+          l.action === 'DELETE' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+          l.action === 'APPROVE' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+          l.action === 'PAYMENT' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+          'bg-slate-850 text-slate-300 border-slate-700'
         }`}>
           {l.action}
         </span>
@@ -75,11 +75,10 @@ export const AuditLogsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <History className="w-6 h-6 text-indigo-400" />
-            <span>Immutable Audit Trail & Activity Logs</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Immutable Audit Trail & Activity Logs
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             Non-repudiable audit logs recording all vehicle additions, mileage modifications, work order approvals, payments, and ledger entries.
           </p>
         </div>
@@ -97,7 +96,7 @@ export const AuditLogsPage: React.FC = () => {
           <select
             value={actionFilter}
             onChange={e => setActionFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className="bg-white border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer shadow-sm"
           >
             <option value="all">All Action Types</option>
             <option value="CREATE">CREATE</option>

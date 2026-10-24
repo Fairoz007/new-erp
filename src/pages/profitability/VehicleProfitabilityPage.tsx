@@ -63,7 +63,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
         <div className="cursor-pointer" onClick={() => openVehicleDetail(row.vehicle.id)}>
           <span className="font-bold text-slate-100">{row.vehicle.brand} {row.vehicle.model}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
+            <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-[10px] font-semibold">
               {row.vehicle.plateNumber}
             </span>
             <span className="text-[10px] text-slate-400">{row.vehicle.vehicleCategory}</span>
@@ -122,9 +122,9 @@ export const VehicleProfitabilityPage: React.FC = () => {
       align: 'center',
       render: (row) => (
         <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-          row.recommendation === 'Retain & Maintain' ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60' :
-          row.recommendation === 'Monitor Costs' ? 'bg-amber-950/80 text-amber-300 border-amber-800/60' :
-          'bg-rose-950/80 text-rose-400 border-rose-800/60'
+          row.recommendation === 'Retain & Maintain' ? 'bg-forest-100 text-forest-700 border-forest-200' :
+          row.recommendation === 'Monitor Costs' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+          'bg-rose-50 text-rose-700 border-rose-200'
         }`}>
           {row.recommendation}
         </span>
@@ -137,11 +137,10 @@ export const VehicleProfitabilityPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Sparkles className="w-6 h-6 text-indigo-400" />
-            <span>Vehicle Profitability & ROI Intelligence</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Vehicle Profitability & ROI Intelligence
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             Identify high-cost underperforming units, cost-per-kilometer metrics, and AI replacement vs maintenance recommendations.
           </p>
         </div>
@@ -155,6 +154,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
           subValue="Revenue minus all operating costs"
           icon={<TrendingUp className="w-4 h-4" />}
           variant="emerald"
+          isHero={true}
         />
         <StatCard
           title="Average Cost per KM"

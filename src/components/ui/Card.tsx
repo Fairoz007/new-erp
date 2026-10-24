@@ -4,7 +4,7 @@ import { twMerge } from 'tailwind-merge';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
-  variant?: 'default' | 'glass' | 'subtle' | 'flat';
+  variant?: 'default' | 'glass' | 'subtle' | 'flat' | 'hero';
   noPadding?: boolean;
 }
 
@@ -16,17 +16,18 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    default: 'bg-white border border-slate-700 shadow-[0_1px_3px_rgba(0,0,0,0.02)]',
-    glass: 'bg-white border border-slate-700 shadow-[0_1px_3px_rgba(0,0,0,0.02)]',
+    default: 'bg-white border border-slate-700 shadow-card',
+    glass: 'bg-white/95 backdrop-blur-sm border border-slate-700 shadow-card',
     subtle: 'bg-slate-850 border border-slate-700',
     flat: 'bg-white border border-slate-700',
+    hero: 'bg-[#086343] text-white border border-[#06452F] shadow-elevated',
   };
 
   return (
     <div
       className={twMerge(
         clsx(
-          'rounded-[14px] overflow-hidden transition-all duration-150',
+          'rounded-[20px] overflow-hidden transition-all duration-150',
           variantStyles[variant],
           className
         )
@@ -47,7 +48,7 @@ export const CardHeader: React.FC<HTMLAttributes<HTMLDivElement> & { action?: Re
   <div
     className={twMerge(
       clsx(
-        'px-5 py-3.5 sm:px-5 sm:py-4 border-b border-slate-700 flex items-center justify-between gap-3 bg-white',
+        'px-5 py-4 sm:px-6 sm:py-4.5 border-b border-slate-700 flex items-center justify-between gap-3 bg-white',
         className
       )
     )}
@@ -61,7 +62,7 @@ export const CardHeader: React.FC<HTMLAttributes<HTMLDivElement> & { action?: Re
 export const CardTitle: React.FC<HTMLAttributes<HTMLHeadingElement>> = ({ children, className, ...props }) => (
   <h3
     className={twMerge(
-      clsx('text-sm sm:text-base font-semibold text-slate-100 flex items-center gap-2 tracking-tight', className))
+      clsx('text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2 tracking-tight', className))
     }
     {...props}
   >
@@ -79,7 +80,7 @@ export const CardDescription: React.FC<HTMLAttributes<HTMLParagraphElement>> = (
 );
 
 export const CardContent: React.FC<HTMLAttributes<HTMLDivElement>> = ({ children, className, ...props }) => (
-  <div className={twMerge(clsx('p-4 sm:p-5', className))} {...props}>
+  <div className={twMerge(clsx('p-5 sm:p-6', className))} {...props}>
     {children}
   </div>
 );
@@ -88,7 +89,7 @@ export const CardFooter: React.FC<HTMLAttributes<HTMLDivElement>> = ({ children,
   <div
     className={twMerge(
       clsx(
-        'px-5 py-3 border-t border-slate-700 bg-slate-850 flex items-center justify-between text-xs text-slate-400',
+        'px-5 py-3.5 sm:px-6 border-t border-slate-700 bg-slate-850 flex items-center justify-between text-xs text-slate-400',
         className
       )
     )}

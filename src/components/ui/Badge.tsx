@@ -31,41 +31,41 @@ export const Badge: React.FC<BadgeProps> = ({
 }) => {
   const variantStyles = {
     default: 'bg-slate-800 text-slate-300 border-slate-700',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-    rose: 'bg-rose-50 text-rose-700 border-rose-200',
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    violet: 'bg-purple-50 text-purple-700 border-purple-200',
-    cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-    slate: 'bg-slate-800 text-slate-400 border-slate-700',
-    outline: 'bg-white text-slate-400 border-slate-700',
+    emerald: 'bg-[#DCEFE5] text-[#06452F] border-transparent font-semibold',
+    amber: 'bg-[#FEF3C7] text-[#92400E] border-transparent font-semibold',
+    rose: 'bg-[#FFE4E6] text-[#9F1239] border-transparent font-semibold',
+    blue: 'bg-[#DBEAFE] text-[#1E40AF] border-transparent font-semibold',
+    indigo: 'bg-[#DCEFE5] text-[#086343] border-transparent font-semibold',
+    violet: 'bg-[#F3E8FF] text-[#6B21A8] border-transparent font-semibold',
+    cyan: 'bg-[#CFFAFE] text-[#155E75] border-transparent font-semibold',
+    slate: 'bg-slate-800 text-slate-400 border-transparent font-medium',
+    outline: 'bg-white text-slate-400 border-slate-700 font-medium',
   };
 
   const dotColors = {
     default: 'bg-slate-400',
-    emerald: 'bg-emerald-500',
-    amber: 'bg-amber-500',
-    rose: 'bg-rose-500',
-    blue: 'bg-blue-500',
-    indigo: 'bg-indigo-500',
-    violet: 'bg-purple-500',
-    cyan: 'bg-cyan-500',
+    emerald: 'bg-[#086343]',
+    amber: 'bg-[#D9A441]',
+    rose: 'bg-[#D94B4B]',
+    blue: 'bg-[#2563EB]',
+    indigo: 'bg-[#086343]',
+    violet: 'bg-[#7C3AED]',
+    cyan: 'bg-[#0891B2]',
     slate: 'bg-slate-400',
     outline: 'bg-slate-400',
   };
 
   const sizeStyles = {
-    sm: 'text-[11px] px-2 py-0.5 font-medium leading-normal',
-    md: 'text-xs px-2.5 py-0.5 font-medium leading-normal',
-    lg: 'text-xs sm:text-sm px-3 py-1 font-semibold leading-normal',
+    sm: 'text-[11px] px-2.5 py-0.5 font-medium leading-normal',
+    md: 'text-xs px-3 py-1 font-medium leading-normal',
+    lg: 'text-sm px-3.5 py-1.5 font-medium leading-normal',
   };
 
   return (
     <span
       className={twMerge(
         clsx(
-          'inline-flex items-center gap-1.5 rounded-full border shadow-2xs select-none whitespace-nowrap',
+          'inline-flex items-center gap-1.5 rounded-full border select-none tracking-tight',
           variantStyles[variant],
           sizeStyles[size],
           className
@@ -73,8 +73,13 @@ export const Badge: React.FC<BadgeProps> = ({
       )}
       {...props}
     >
-      {dot && <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', dotColors[variant])} />}
-      {children}
+      {dot && (
+        <span
+          className={clsx('w-1.5 h-1.5 rounded-full shrink-0', dotColors[variant])}
+          aria-hidden="true"
+        />
+      )}
+      <span>{children}</span>
     </span>
   );
 };

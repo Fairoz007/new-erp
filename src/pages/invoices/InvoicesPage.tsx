@@ -38,12 +38,12 @@ export const InvoicesPage: React.FC = () => {
       header: 'Invoice # / Ref',
       render: (inv) => (
         <div className="cursor-pointer" onClick={() => openInvoiceModal(inv.id)}>
-          <span className="font-mono font-bold text-slate-100 hover:text-indigo-400 transition-colors">{inv.invoiceNumber}</span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${inv.invoiceType === 'Sales' ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/60' : 'bg-indigo-950/70 text-indigo-300 border border-indigo-800/60'}`}>
+          <span className="font-mono font-bold text-slate-100 hover:text-[#086343] transition-colors">{inv.invoiceNumber}</span>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${inv.invoiceType === 'Sales' ? 'bg-[#DCEFE5] text-[#06452F]' : 'bg-[#DBEAFE] text-[#1E40AF]'}`}>
               {inv.invoiceType}
             </span>
-            {inv.isCreditNote && <span className="text-[10px] text-rose-400 font-semibold">Credit Note</span>}
+            {inv.isCreditNote && <span className="text-[10px] text-rose-600 font-bold">Credit Note</span>}
             {inv.referenceNumber && <span className="text-[10px] text-slate-400 font-mono">Ref: {inv.referenceNumber}</span>}
           </div>
         </div>
@@ -54,8 +54,8 @@ export const InvoicesPage: React.FC = () => {
       header: 'Billed To / From',
       render: (inv) => (
         <div>
-          <p className="font-semibold text-slate-200">{inv.partyName}</p>
-          <p className="text-[10px] text-slate-400">{inv.partyType} • {inv.paymentTermsDays} Days</p>
+          <p className="font-bold text-slate-200">{inv.partyName}</p>
+          <p className="text-[10px] text-slate-400 font-medium">{inv.partyType} • {inv.paymentTermsDays} Days</p>
         </div>
       ),
     },
@@ -64,19 +64,18 @@ export const InvoicesPage: React.FC = () => {
       header: 'Date & Due',
       render: (inv) => (
         <div>
-          <span className="text-slate-300">{formatDate(inv.invoiceDate)}</span>
-          <p className={`text-[10px] ${inv.paymentStatus === 'Overdue' ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
+          <span className="text-slate-300 font-medium">{formatDate(inv.invoiceDate)}</span>
+          <p className={`text-[10px] font-semibold ${inv.paymentStatus === 'Overdue' ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
             Due: {formatDate(inv.dueDate)}
           </p>
         </div>
       ),
     },
     {
-      key: 'attachment',
-      header: 'Uploaded Bill',
-      align: 'center',
+      key: 'attachmentUrl',
+      header: 'Bill Document',
       render: (inv) => {
-        const hasDoc = !!inv.attachmentUrl || !!inv.attachmentName || inv.invoiceType === 'Purchase';
+        const hasDoc = inv.attachmentUrl || inv.attachmentName || inv.invoiceType === 'Purchase';
         const docUrl = inv.attachmentUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&auto=format&fit=crop&q=80';
         const docName = inv.attachmentName || `${inv.invoiceNumber}_Scanned_Supplier_Bill.pdf`;
 
@@ -86,14 +85,14 @@ export const InvoicesPage: React.FC = () => {
               e.stopPropagation();
               openBillModal(docUrl, docName, inv.attachmentType || 'application/pdf', inv.attachmentSize || '1.4 MB');
             }}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-900 text-[10px] font-semibold transition-colors cursor-pointer group"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCEFE5] text-[#06452F] hover:bg-[#bde2d0] text-[10px] font-bold transition-colors cursor-pointer group"
             title="View Scanned Purchase Bill"
           >
-            <Paperclip className="w-3 h-3 text-indigo-400 group-hover:scale-110 transition-transform" />
+            <Paperclip className="w-3 h-3 text-[#086343] group-hover:scale-110 transition-transform" />
             <span>View Bill</span>
           </button>
         ) : (
-          <span className="text-[10px] text-slate-500 italic">None</span>
+          <span className="text-[10px] text-slate-400 italic">None</span>
         );
       },
     },
@@ -104,7 +103,7 @@ export const InvoicesPage: React.FC = () => {
       render: (inv) => (
         <div className="text-right">
           <span className="font-bold text-slate-100">{formatCurrency(inv.grandTotal, inv.currency)}</span>
-          <p className="text-[10px] text-slate-400">VAT (5%): {formatCurrency(inv.taxTotal, inv.currency)}</p>
+          <p className="text-[10px] text-slate-400 font-medium">VAT (5%): {formatCurrency(inv.taxTotal, inv.currency)}</p>
         </div>
       ),
     },
@@ -114,7 +113,7 @@ export const InvoicesPage: React.FC = () => {
       align: 'right',
       render: (inv) => (
         <div className="text-right">
-          <span className={`font-bold ${inv.outstandingAmount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+          <span className={`font-bold ${inv.outstandingAmount > 0 ? 'text-[#D9A441]' : 'text-[#086343]'}`}>
             {formatCurrency(inv.outstandingAmount, inv.currency)}
           </span>
           {inv.amountPaid > 0 && <p className="text-[10px] text-slate-400">Paid: {formatCurrency(inv.amountPaid, inv.currency)}</p>}
@@ -159,27 +158,26 @@ export const InvoicesPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <FileText className="w-6 h-6 text-indigo-400" />
-            <span>Invoice & Purchase Bill Management</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Invoice & Purchase Bill Management
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Supplier purchase bills with document scan upload, customer invoicing, 5% VAT calculations, and interactive bill preview.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="md"
             onClick={() => openQuickModal('add-invoice')}
-            leftIcon={<UploadCloud className="w-4 h-4 text-indigo-400" />}
+            leftIcon={<UploadCloud className="w-4 h-4 text-[#086343]" />}
           >
-            Upload Purchase Bill
+            Upload Bill
           </Button>
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-invoice')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -189,34 +187,28 @@ export const InvoicesPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Supplier Payables (AP)"
           value={formatCurrency(totalOutstandingAP, currency)}
           subValue={`Total Invoiced: ${formatCurrency(totalPurchaseAmount, currency)}`}
-          icon={<FileText className="w-4 h-4" />}
-          variant="amber"
+          isHero={true}
         />
         <StatCard
           title="Customer Receivables (AR)"
           value={formatCurrency(totalOutstandingAR, currency)}
           subValue={`Total Billed: ${formatCurrency(totalSalesAmount, currency)}`}
-          icon={<FileText className="w-4 h-4" />}
-          variant="emerald"
         />
         <StatCard
           title="Overdue Invoices"
           value={invoices.filter(i => i.paymentStatus === 'Overdue').length}
-          subValue="Action required"
-          icon={<AlertTriangle className="w-4 h-4" />}
-          variant="rose"
+          subValue="Immediate collection required"
+          trend={{ value: 'Critical', direction: 'down' }}
         />
         <StatCard
           title="Scanned Bills Attached"
           value={totalWithBills}
-          subValue={`${invoices.length} total records`}
-          icon={<Paperclip className="w-4 h-4" />}
-          variant="indigo"
+          subValue={`${invoices.length} total register entries`}
         />
       </div>
 
@@ -234,7 +226,7 @@ export const InvoicesPage: React.FC = () => {
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Types (AP & AR)</option>
               <option value="Purchase">Purchase Bills (Suppliers)</option>
@@ -243,7 +235,7 @@ export const InvoicesPage: React.FC = () => {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Payment Statuses</option>
               <option value="Unpaid">Unpaid</option>
@@ -254,7 +246,7 @@ export const InvoicesPage: React.FC = () => {
             <select
               value={attachmentFilter}
               onChange={e => setAttachmentFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Attachments</option>
               <option value="with-attachment">Attached Bill Scans</option>

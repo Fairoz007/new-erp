@@ -4,6 +4,7 @@ import {
   Search,
   Plus,
   Bell,
+  Mail,
   Building2,
   Coins,
   ChevronDown,
@@ -31,7 +32,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSidebar, isSidebarCollapsed }) => {
   const headerRef = useRef<HTMLElement>(null);
   const { companies, selectedCompanyId, setSelectedCompanyId, currency, setCurrency, notifications } = useFleet();
-  const { setIsSearchOpen, setIsNotificationDrawerOpen, openQuickModal } = useUI();
+  const { setIsSearchOpen, setIsNotificationDrawerOpen, openQuickModal, setCurrentPage } = useUI();
   const { currentUser, users, setCurrentUserId } = useAuth();
 
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
@@ -71,13 +72,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
   return (
     <header
       ref={headerRef}
-      className="h-14 bg-white border-b border-slate-700 px-3 sm:px-5 flex items-center justify-between gap-2.5 sticky top-0 z-30"
+      className="h-[72px] px-5 sm:px-8 bg-white border-b border-slate-700/80 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0 w-full"
     >
-      {/* Left: Mobile Toggle, Collapse Toggle, Company Switcher */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      {/* Left Area: Toggle & Search or Branch */}
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-xl">
         <button
           onClick={onOpenMobileMenu}
-          className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 lg:hidden cursor-pointer"
+          className="w-10 h-10 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-500 hover:text-slate-900 lg:hidden cursor-pointer"
           aria-label="Open Menu"
         >
           <Menu className="w-5 h-5" />
@@ -85,15 +86,34 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
 
         <button
           onClick={onToggleSidebar}
-          className="hidden lg:inline-flex items-center justify-center w-8 h-8 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors"
+          className="hidden lg:inline-flex items-center justify-center w-10 h-10 rounded-full border border-slate-700 bg-white hover:bg-slate-850 text-slate-500 hover:text-slate-900 transition-colors"
           aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
 
+        {/* Global Search Pill Bar (Exact Reference Match) */}
+        <div className="flex-1 max-w-md">
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="w-full h-11 px-4 rounded-full bg-slate-850 border border-slate-700 hover:border-forest-500/40 hover:bg-white text-xs sm:text-sm text-slate-400 flex items-center justify-between transition-all cursor-pointer group shadow-2xs"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Search className="w-4 h-4 text-slate-400 group-hover:text-[#086343] transition-colors shrink-0" />
+              <span className="truncate text-slate-400">Search vehicles, VIN, accounts...</span>
+            </div>
+            <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-bold bg-white rounded-md border border-slate-700 text-slate-400 font-mono shadow-2xs">
+              ⌘F
+            </kbd>
+          </button>
+        </div>
+      </div>
+
+      {/* Right Area: Actions, Branch Switcher, Currency, Notifications, Profile */}
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Office / Branch Switcher */}
-        <div className="relative">
+        <div className="relative hidden md:block">
           <button
             onClick={() => {
               setIsCompanyDropdownOpen(prev => !prev);
@@ -103,24 +123,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
             }}
             aria-label="Select office or branch"
             aria-expanded={isCompanyDropdownOpen}
-            className="flex h-9 items-center gap-1.5 px-2.5 rounded-lg bg-white hover:bg-slate-850 border border-slate-700 text-xs sm:text-sm font-medium text-slate-100 transition-colors cursor-pointer select-none"
+            className="flex h-10 items-center gap-2 px-3.5 rounded-full bg-white hover:bg-slate-850 border border-slate-700 text-xs font-semibold text-slate-100 transition-all cursor-pointer select-none shadow-2xs"
           >
-            <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            <span className="hidden md:inline lg:hidden xl:inline max-w-[210px] truncate">
+            <Building2 className="w-3.5 h-3.5 text-[#086343] shrink-0" />
+            <span className="max-w-[160px] truncate">
               {selectedCompanyId === 'all'
-                ? 'Al Hakim National LLC (All Offices)'
+                ? 'All Offices'
                 : currentCompany?.id === 'comp-1'
-                ? 'Head Office (Muscat)'
+                ? 'Muscat HQ'
                 : currentCompany?.id === 'comp-2'
-                ? 'Duqm Office (SEZAD)'
+                ? 'Duqm Branch'
                 : currentCompany?.name || 'Office'}
             </span>
             <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
           </button>
 
           {isCompanyDropdownOpen && (
-            <div className="absolute left-0 mt-1.5 w-80 bg-white border border-slate-700 rounded-xl shadow-elevated z-40 p-1.5 text-xs">
-              <div className="px-2.5 py-1.5 border-b border-slate-700 mb-1">
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
+              <div className="px-3 py-2 border-b border-slate-700 mb-1">
                 <p className="font-bold text-slate-100 text-xs">Al Hakim National LLC</p>
                 <p className="text-[10px] text-slate-400">Select active office or consolidated group view</p>
               </div>
@@ -129,17 +149,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                   setSelectedCompanyId('all');
                   setIsCompanyDropdownOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer ${
-                  selectedCompanyId === 'all' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-200 hover:bg-slate-850'
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                  selectedCompanyId === 'all' ? 'bg-[#DCEFE5] text-[#06452F] font-bold' : 'text-slate-200 hover:bg-slate-850'
                 }`}
               >
                 <div>
                   <p className="font-semibold flex items-center gap-1.5">
                     <span>🏢</span> All Offices (Consolidated)
                   </p>
-                  <p className="text-[10px] text-slate-400">View entire fleet, accounts & operations across both offices</p>
+                  <p className="text-[10px] text-slate-400">View entire fleet, accounts & operations across GCC</p>
                 </div>
-                {selectedCompanyId === 'all' && <span className="text-indigo-600 font-bold">✓</span>}
+                {selectedCompanyId === 'all' && <span className="text-[#086343] font-bold">✓</span>}
               </button>
 
               <div className="my-1 border-t border-slate-700" />
@@ -151,8 +171,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                     setSelectedCompanyId(comp.id);
                     setIsCompanyDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer ${
-                    selectedCompanyId === comp.id ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-200 hover:bg-slate-850'
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                    selectedCompanyId === comp.id ? 'bg-[#DCEFE5] text-[#06452F] font-bold' : 'text-slate-200 hover:bg-slate-850'
                   }`}
                 >
                   <div className="min-w-0 pr-2">
@@ -161,43 +181,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                       <span>{comp.id === 'comp-1' ? 'Head Office (Muscat)' : comp.id === 'comp-2' ? 'Duqm Office (SEZAD)' : comp.name}</span>
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      {comp.id === 'comp-1' ? 'Corporate Headquarters • Executive & Central Fleet' : 'Port of Duqm Hub • Heavy Haulage & Industrial Fleet'}
+                      {comp.id === 'comp-1' ? 'Corporate Headquarters • Executive Fleet' : 'Port of Duqm Hub • Heavy Haulage Fleet'}
                     </p>
                   </div>
-                  {selectedCompanyId === comp.id && <span className="text-indigo-600 font-bold shrink-0">✓</span>}
+                  {selectedCompanyId === comp.id && <span className="text-[#086343] font-bold shrink-0">✓</span>}
                 </button>
               ))}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Center: Global Search Bar */}
-      <div className="hidden lg:flex flex-1 max-w-md mx-2">
-        <button
-          onClick={() => setIsSearchOpen(true)}
-          className="w-full h-9 flex items-center justify-between px-3 rounded-lg bg-slate-850 border border-slate-700 hover:border-indigo-300 text-xs text-slate-400 transition-all cursor-pointer group"
-        >
-          <div className="flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-            <span className="text-slate-400">Search vehicles, VIN, invoices, work orders...</span>
-          </div>
-          <kbd className="px-1.5 py-0.5 text-[10px] bg-white rounded border border-slate-700 text-slate-400 font-mono">
-            ⌘K
-          </kbd>
-        </button>
-      </div>
-
-      {/* Right: Actions, Currency, Notifications, User Switcher */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Mobile Search Icon */}
-        <button
-          onClick={() => setIsSearchOpen(true)}
-          className="p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 lg:hidden cursor-pointer"
-          aria-label="Open global search"
-        >
-          <Search className="w-4 h-4" />
-        </button>
 
         {/* Currency Switcher */}
         <div className="relative">
@@ -208,19 +200,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
               setIsQuickAddOpen(false);
               setIsUserDropdownOpen(false);
             }}
-            className="flex h-9 items-center gap-1.5 px-2.5 rounded-lg bg-white hover:bg-slate-850 border border-slate-700 text-xs font-semibold text-slate-100 transition-colors cursor-pointer"
-            title="Switch Reporting Currency"
-            aria-label="Switch reporting currency"
-            aria-expanded={isCurrencyDropdownOpen}
+            className="flex h-10 items-center gap-1.5 px-3 rounded-full bg-white hover:bg-slate-850 border border-slate-700 text-xs font-bold text-slate-100 transition-all cursor-pointer shadow-2xs"
+            title="Switch Currency"
           >
-            <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <Coins className="w-3.5 h-3.5 text-[#D9A441] shrink-0" />
             <span>{currency}</span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
           {isCurrencyDropdownOpen && (
-            <div className="absolute right-0 mt-1.5 w-32 bg-white border border-slate-700 rounded-xl shadow-elevated z-40 p-1 text-xs">
-              <p className="px-2 py-1 font-semibold text-slate-400 uppercase text-[10px]">Currency</p>
+            <div className="absolute right-0 mt-2 w-36 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-1.5 text-xs">
+              <p className="px-2.5 py-1 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Currency</p>
               {['OMR', 'USD', 'EUR', 'SAR', 'AED'].map(curr => (
                 <button
                   key={curr}
@@ -228,116 +218,126 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                     setCurrency(curr);
                     setIsCurrencyDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left ${
-                    currency === curr ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-200 hover:bg-slate-850'
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left ${
+                    currency === curr ? 'bg-[#DCEFE5] text-[#06452F] font-bold' : 'text-slate-200 hover:bg-slate-850'
                   }`}
                 >
                   <span>{curr}</span>
-                  {currency === curr && <span className="text-indigo-600 font-bold">✓</span>}
+                  {currency === curr && <span className="text-[#086343] font-bold">✓</span>}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Quick Add Menu */}
+        {/* Primary Green Quick Action Button */}
         <div className="relative">
           <Button
             variant="primary"
             size="sm"
-            className="h-9 px-3"
+            className="h-10 px-4"
             aria-label="Open quick actions"
-            aria-expanded={isQuickAddOpen}
             onClick={() => {
               setIsQuickAddOpen(prev => !prev);
               setIsCompanyDropdownOpen(false);
               setIsCurrencyDropdownOpen(false);
               setIsUserDropdownOpen(false);
             }}
-            leftIcon={<Plus className="w-3.5 h-3.5" />}
+            leftIcon={<Plus className="w-4 h-4" />}
           >
-            <span className="hidden sm:inline">Quick Action</span>
+            <span className="hidden sm:inline">Add Entry</span>
           </Button>
 
           {isQuickAddOpen && (
-            <div className="absolute right-0 mt-1.5 w-56 bg-white border border-slate-700 rounded-xl shadow-elevated z-40 p-1.5 text-xs space-y-0.5">
-              <p className="px-2 py-1 font-semibold text-slate-400 uppercase text-[10px]">Fleet & Workshop</p>
+            <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs space-y-0.5">
+              <p className="px-2.5 py-1.5 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Fleet & Workshop</p>
               <button
                 onClick={() => handleQuickAddSelect('add-vehicle')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <Car className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <Car className="w-4 h-4 text-[#086343] shrink-0" />
                 <span>Add New Vehicle</span>
               </button>
               <button
                 onClick={() => handleQuickAddSelect('add-maintenance')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <Wrench className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                <Wrench className="w-4 h-4 text-[#086343] shrink-0" />
                 <span>Record Maintenance</span>
               </button>
               <button
                 onClick={() => handleQuickAddSelect('add-work-order')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <Wrench className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <Wrench className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>Create Work Order</span>
               </button>
               <button
                 onClick={() => handleQuickAddSelect('add-oil-change')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <Droplet className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <Droplet className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>Record Oil Change</span>
               </button>
               <button
                 onClick={() => handleQuickAddSelect('add-accident')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                 <span>Report Accident</span>
               </button>
 
               <div className="my-1 border-t border-slate-700" />
-              <p className="px-2 py-1 font-semibold text-slate-400 uppercase text-[10px]">Finance & Docs</p>
+              <p className="px-2.5 py-1.5 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Finance & Docs</p>
               <button
                 onClick={() => handleQuickAddSelect('add-expense')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <Receipt className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <Receipt className="w-4 h-4 text-[#086343] shrink-0" />
                 <span>Add Vehicle Expense</span>
               </button>
               <button
                 onClick={() => handleQuickAddSelect('add-invoice')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <FileText className="w-4 h-4 text-[#086343] shrink-0" />
                 <span>Create New Invoice</span>
               </button>
               <button
                 onClick={() => handleQuickAddSelect('upload-document')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
               >
-                <Upload className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <Upload className="w-4 h-4 text-blue-500 shrink-0" />
                 <span>Upload Document</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* Notifications Bell */}
+        {/* Circular Mail Icon Button (From Reference) */}
+        <button
+          onClick={() => setCurrentPage('notifications')}
+          className="w-10 h-10 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-2xs"
+          aria-label="Messages"
+          title="Messages & Inbox"
+        >
+          <Mail className="w-4 h-4" />
+        </button>
+
+        {/* Circular Notification Bell Icon Button (From Reference) */}
         <button
           onClick={() => setIsNotificationDrawerOpen(true)}
-          className="relative p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+          className="relative w-10 h-10 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-2xs"
           aria-label="Notifications"
+          title="System Notifications"
         >
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+            <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
           )}
         </button>
 
-        {/* User Switcher */}
+        {/* User Profile Area (Exact Reference Style: Avatar + Name + Email) */}
         <div className="relative">
           <button
             onClick={() => {
@@ -346,25 +346,29 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
               setIsCurrencyDropdownOpen(false);
               setIsQuickAddOpen(false);
             }}
-            className="flex h-9 items-center gap-2 p-1 sm:px-2 rounded-lg bg-white hover:bg-slate-850 border border-slate-700 transition-colors cursor-pointer"
-            title="Switch User / Role for RBAC Testing"
+            className="flex h-11 items-center gap-3 pl-1 pr-2 rounded-full bg-white hover:bg-slate-850 border border-slate-700 transition-all cursor-pointer shadow-2xs"
+            title="Switch User / Role (RBAC)"
             aria-label="Open profile and role switcher"
-            aria-expanded={isUserDropdownOpen}
           >
-            <div className="w-6 h-6 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
+            <div className="w-8 h-8 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700 ring-1 ring-slate-700/60">
               <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
             </div>
-            <div className="hidden xl:block text-left">
-              <p className="text-xs font-semibold text-slate-100 leading-none">{currentUser.name.split(' ')[0]}</p>
-              <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">{currentUser.role}</p>
+            <div className="hidden lg:block text-left pr-1">
+              <p className="text-xs font-extrabold text-slate-100 leading-none">{currentUser.name}</p>
+              <p className="text-[10px] text-slate-400 font-medium leading-tight mt-1 truncate max-w-[140px]">{currentUser.email}</p>
             </div>
-            <ChevronDown className="w-3 h-3 text-slate-400 hidden xl:block" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden lg:block" />
           </button>
 
           {isUserDropdownOpen && (
-            <div className="absolute right-0 mt-1.5 w-64 bg-white border border-slate-700 rounded-xl shadow-elevated z-40 p-1.5 text-xs">
-              <p className="px-2 py-1 font-semibold text-slate-400 uppercase text-[10px]">Switch Role Profile (RBAC)</p>
-              <div className="max-h-60 overflow-y-auto space-y-0.5 mt-1">
+            <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
+              <div className="px-3 py-2 border-b border-slate-700 mb-1">
+                <p className="font-bold text-slate-100 text-xs">{currentUser.name}</p>
+                <p className="text-[10px] text-slate-400">{currentUser.role} • {currentUser.department}</p>
+              </div>
+
+              <p className="px-3 py-1 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Switch Role Profile (RBAC)</p>
+              <div className="max-h-64 overflow-y-auto space-y-0.5 mt-1">
                 {users.map(u => (
                   <button
                     key={u.id}
@@ -372,18 +376,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                       setCurrentUserId(u.id);
                       setIsUserDropdownOpen(false);
                     }}
-                    className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
-                      currentUser.id === u.id ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-200 hover:bg-slate-850'
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
+                      currentUser.id === u.id ? 'bg-[#DCEFE5] text-[#06452F] font-bold' : 'text-slate-200 hover:bg-slate-850'
                     }`}
                   >
-                    <div className="w-6 h-6 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
+                    <div className="w-7 h-7 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
                       <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-xs text-slate-100 truncate">{u.name}</p>
                       <p className="text-[10px] text-slate-400">{u.role} ({u.department})</p>
                     </div>
-                    {currentUser.id === u.id && <span className="text-indigo-600 font-bold shrink-0">✓</span>}
+                    {currentUser.id === u.id && <span className="text-[#086343] font-bold shrink-0">✓</span>}
                   </button>
                 ))}
               </div>

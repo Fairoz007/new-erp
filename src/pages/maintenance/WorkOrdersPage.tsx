@@ -31,10 +31,10 @@ export const WorkOrdersPage: React.FC = () => {
   };
 
   const priorityColors = {
-    Low: 'text-slate-400 bg-slate-800 border-slate-700',
-    Medium: 'text-blue-300 bg-blue-950/70 border-blue-800/60',
-    High: 'text-amber-300 bg-amber-950/70 border-amber-800/60',
-    Critical: 'text-rose-300 bg-rose-950/70 border-rose-800/60 animate-pulse',
+    Low: 'text-slate-400 bg-slate-800 border-transparent',
+    Medium: 'text-[#1E40AF] bg-[#DBEAFE] border-transparent',
+    High: 'text-[#92400E] bg-[#FEF3C7] border-transparent',
+    Critical: 'text-[#9F1239] bg-[#FFE4E6] border-transparent animate-pulse',
   };
 
   return (
@@ -42,29 +42,28 @@ export const WorkOrdersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <ClipboardList className="w-6 h-6 text-amber-400" />
-            <span>Maintenance Work Orders</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Maintenance Work Orders
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Dispatch, track workshop jobs, approve multi-tier repair estimates, and mark completed jobs to trigger automated AP cascade.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-lg">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full">
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3 py-1 text-xs rounded font-medium cursor-pointer ${
-                viewMode === 'list' ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`px-3.5 py-1.5 text-xs rounded-full font-bold cursor-pointer transition-all ${
+                viewMode === 'list' ? 'bg-white text-slate-100 shadow-2xs' : 'text-slate-400 hover:text-slate-100'
               }`}
             >
               List View
             </button>
             <button
               onClick={() => setViewMode('kanban')}
-              className={`px-3 py-1 text-xs rounded font-medium cursor-pointer ${
-                viewMode === 'kanban' ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
+              className={`px-3.5 py-1.5 text-xs rounded-full font-bold cursor-pointer transition-all ${
+                viewMode === 'kanban' ? 'bg-white text-slate-100 shadow-2xs' : 'text-slate-400 hover:text-slate-100'
               }`}
             >
               Kanban Board
@@ -73,7 +72,7 @@ export const WorkOrdersPage: React.FC = () => {
 
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-work-order')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -84,45 +83,45 @@ export const WorkOrdersPage: React.FC = () => {
 
       {/* LIST VIEW */}
       {viewMode === 'list' && (
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {filteredOrders.map(wo => (
-            <Card key={wo.id} className="p-4 sm:p-5">
+            <Card key={wo.id} className="p-5 sm:p-6 bg-white border-slate-700">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-2 flex-1">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="font-mono font-bold text-sm text-slate-100">{wo.workOrderNumber}</span>
                     <button
                       onClick={() => openVehicleDetail(wo.vehicleId)}
-                      className="px-2 py-0.5 rounded bg-slate-950 border border-slate-700 text-indigo-300 font-mono text-xs font-bold hover:border-indigo-500 cursor-pointer"
+                      className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono text-xs font-bold hover:border-[#086343] cursor-pointer"
                     >
                       {wo.vehiclePlate}
                     </button>
-                    <span className={`px-2 py-0.5 rounded border text-[11px] font-bold ${priorityColors[wo.priority]}`}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${priorityColors[wo.priority]}`}>
                       {wo.priority} Priority
                     </span>
                     <StatusBadge status={wo.status} size="sm" />
                     {wo.approvalStatus !== 'Not Required' && (
-                      <span className="text-[10px] text-amber-400 font-medium">
-                        (Approval: {wo.approvalStatus})
+                      <span className="text-[10px] text-amber-700 font-bold px-2 py-0.5 rounded-full bg-amber-50">
+                        Approval: {wo.approvalStatus}
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-200 leading-relaxed font-medium">{wo.problemDescription}</p>
+                  <p className="text-xs text-slate-300 leading-relaxed font-semibold">{wo.problemDescription}</p>
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
-                    <span>Workshop: <strong>{wo.workshop}</strong></span>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-400 font-medium">
+                    <span>Workshop: <strong className="text-slate-200">{wo.workshop}</strong></span>
                     <span>Requested: {formatDate(wo.reportedDate)} by {wo.requestedByName}</span>
-                    {wo.expectedCompletion && <span>Target Date: {formatDate(wo.expectedCompletion)}</span>}
+                    {wo.expectedCompletion && <span>Target: {formatDate(wo.expectedCompletion)}</span>}
                     {wo.partsRequired && <span>Parts: {wo.partsRequired}</span>}
                   </div>
                 </div>
 
                 {/* Right Cost & Status Action Buttons */}
-                <div className="flex flex-row lg:flex-col items-end justify-between lg:justify-center gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-800">
+                <div className="flex flex-row lg:flex-col items-end justify-between lg:justify-center gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-700">
                   <div className="text-left lg:text-right">
-                    <p className="text-[10px] text-slate-400 uppercase">Estimated / Final</p>
-                    <p className="text-sm font-bold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Estimated / Final</p>
+                    <p className="text-sm font-extrabold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</p>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -168,36 +167,36 @@ export const WorkOrdersPage: React.FC = () => {
             const stageOrders = filteredOrders.filter(w => w.status === stage);
 
             return (
-              <div key={stage} className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col gap-3 min-w-[260px]">
-                <div className="flex items-center justify-between px-1 py-1 border-b border-slate-800">
+              <div key={stage} className="bg-slate-850 border border-slate-700 rounded-[20px] p-4 flex flex-col gap-3 min-w-[270px]">
+                <div className="flex items-center justify-between px-1 py-1 border-b border-slate-700">
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">{stage}</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-white border border-slate-700 text-slate-300 text-[10px] font-bold">
                     {stageOrders.length}
                   </span>
                 </div>
 
-                <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh]">
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[70vh]">
                   {stageOrders.map(wo => (
                     <div
                       key={wo.id}
-                      className="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-lg shadow-xs space-y-2"
+                      className="p-4 bg-white border border-slate-700 hover:border-forest-500/40 rounded-2xl shadow-card space-y-2.5 transition-all"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="font-mono text-xs font-bold text-slate-200">{wo.workOrderNumber}</span>
-                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${priorityColors[wo.priority]}`}>
+                        <span className="font-mono text-xs font-bold text-slate-100">{wo.workOrderNumber}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${priorityColors[wo.priority]}`}>
                           {wo.priority}
                         </span>
                       </div>
 
-                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">{wo.problemDescription}</p>
+                      <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed font-semibold">{wo.problemDescription}</p>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
-                        <span className="font-mono text-indigo-400 font-semibold">{wo.vehiclePlate}</span>
-                        <span className="font-bold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-700">
+                        <span className="font-mono text-[#086343] font-bold">{wo.vehiclePlate}</span>
+                        <span className="font-extrabold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</span>
                       </div>
 
                       {stage !== 'Completed' && (
-                        <div className="pt-2 border-t border-slate-800 flex justify-end">
+                        <div className="pt-2 border-t border-slate-700 flex justify-end">
                           <Button
                             variant="secondary"
                             size="xs"
@@ -211,7 +210,7 @@ export const WorkOrdersPage: React.FC = () => {
                   ))}
 
                   {stageOrders.length === 0 && (
-                    <p className="text-center text-[11px] text-slate-500 py-6">No jobs in {stage}</p>
+                    <p className="text-center text-[11px] text-slate-400 py-6">No jobs in {stage}</p>
                   )}
                 </div>
               </div>

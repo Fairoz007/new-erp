@@ -35,11 +35,11 @@ export const TyreManagementPage: React.FC = () => {
         return (
           <div className="cursor-pointer" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
             <span className="font-bold text-slate-100">{v?.brand} {v?.model}</span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
                 {v?.plateNumber}
               </span>
-              <span className="text-[10px] text-amber-300 font-semibold">{t.position}</span>
+              <span className="text-[10px] text-amber-700 font-bold px-2 py-0.5 rounded-full bg-amber-50">{t.position}</span>
             </div>
           </div>
         );
@@ -50,7 +50,7 @@ export const TyreManagementPage: React.FC = () => {
       header: 'Brand, Model & Size',
       render: (t) => (
         <div>
-          <p className="font-semibold text-slate-200">{t.brand} {t.model}</p>
+          <p className="font-bold text-slate-200">{t.brand} {t.model}</p>
           <p className="text-[11px] text-slate-400 font-mono">{t.size} • SN: {t.serialNumber}</p>
         </div>
       ),
@@ -61,40 +61,40 @@ export const TyreManagementPage: React.FC = () => {
       align: 'center',
       render: (t) => (
         <div className="text-center">
-          <span className={`font-mono font-bold text-sm ${t.treadDepthMm <= 2.0 ? 'text-rose-400' : t.treadDepthMm <= 3.0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+          <span className={`font-mono font-bold text-sm ${t.treadDepthMm <= 2.0 ? 'text-rose-600' : t.treadDepthMm <= 3.0 ? 'text-amber-700' : 'text-[#086343]'}`}>
             {t.treadDepthMm} mm
           </span>
-          <p className="text-[9px] text-slate-500">Min 2.0 mm</p>
-        </div>
-      ),
-    },
-    {
-      key: 'mileage',
-      header: 'Mileage Run',
-      align: 'right',
-      render: (t) => (
-        <div className="text-right">
-          <span className="font-mono text-slate-200">{t.currentMileage.toLocaleString()} KM</span>
-          <p className="text-[10px] text-slate-500">Exp: {t.expectedLifeKm.toLocaleString()} KM</p>
+          <p className="text-[9px] text-slate-400 font-medium">Min 2.0 mm</p>
         </div>
       ),
     },
     {
       key: 'purchaseCost',
-      header: 'Purchase Cost',
+      header: 'Cost',
       align: 'right',
       render: (t) => (
         <div className="text-right">
-          <span className="font-semibold text-slate-200">{formatCurrency(t.purchaseCost, currency)}</span>
-          <p className="text-[10px] text-slate-400">{formatDate(t.purchaseDate)}</p>
+          <span className="font-bold text-slate-100">{formatCurrency(t.purchaseCost, currency)}</span>
+          <p className="text-[10px] text-slate-400">{formatDate(t.installationDate)}</p>
         </div>
       ),
     },
     {
       key: 'status',
-      header: 'Condition',
+      header: 'Wear Status',
       align: 'center',
       render: (t) => <StatusBadge status={t.status} size="sm" />,
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      align: 'right',
+      sortable: false,
+      render: (t) => (
+        <Button variant="ghost" size="xs" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
+          Lifecycle
+        </Button>
+      ),
     },
   ];
 
@@ -103,19 +103,18 @@ export const TyreManagementPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Disc className="w-6 h-6 text-blue-400" />
-            <span>Tyre Lifecycle & Tread Management</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Tyre Inventory & Lifecycle Management
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Track individual tyres by wheel position (FL, FR, RL, RR, Spare), tread wear depths, rotations, and replacement schedules.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-work-order')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -125,34 +124,29 @@ export const TyreManagementPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Monitored Tyres"
           value={totalTyres}
           subValue="Active wheel positions"
-          icon={<Disc className="w-4 h-4" />}
-          variant="indigo"
+          isHero={true}
         />
         <StatCard
           title="Critical Wear (< 2.0 mm)"
           value={criticalTyres}
           subValue="High blowout hazard"
-          icon={<AlertTriangle className="w-4 h-4" />}
-          variant="rose"
+          trend={{ value: `${criticalTyres} Hazards`, direction: 'down' }}
         />
         <StatCard
           title="Due Soon (< 3.0 mm)"
           value={dueSoonTyres}
           subValue="Scheduled for renewal"
-          icon={<Activity className="w-4 h-4" />}
-          variant="amber"
+          trend={{ value: `${dueSoonTyres} Tyres`, direction: 'neutral' }}
         />
         <StatCard
           title="Cumulative Tyre Spend"
           value={formatCurrency(totalTyreInvestment, currency)}
           subValue="New sets & wheel alignments"
-          icon={<Disc className="w-4 h-4" />}
-          variant="emerald"
         />
       </div>
 
@@ -168,7 +162,7 @@ export const TyreManagementPage: React.FC = () => {
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Conditions</option>
             <option value="Critical">Critical Wear Only</option>

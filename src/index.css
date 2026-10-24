@@ -4,29 +4,32 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 antialiased font-sans;
+    @apply antialiased font-sans;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.5;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
+    background-color: #FFFFFF;
+    color: #111827;
   }
 
   html {
     color-scheme: light;
   }
 
-  button,
-  [role='button'],
-  input,
-  select,
-  textarea {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+  button:focus-visible,
+  [role='button']:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(8, 99, 67, 0.25);
   }
 
   button,
   [role='button'] {
-    min-height: 40px;
+    min-height: 38px;
   }
 
   /* Custom sleek scrollbar */
@@ -35,7 +38,7 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #F1F5F9;
+    background: #F1F3F2;
   }
   ::-webkit-scrollbar-thumb {
     background: #CBD5E1;
@@ -44,12 +47,17 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #94A3B8;
   }
+
+  ::selection {
+    background-color: #DCEFE5;
+    color: #06452F;
+  }
 }
 
 .finance-hero {
   background:
-    radial-gradient(circle at 92% 8%, rgba(79, 70, 229, 0.09), transparent 35%),
-    linear-gradient(145deg, #FFFFFF 0%, #FFFFFF 58%, #F8FAFC 100%);
+    radial-gradient(circle at 92% 8%, rgba(8, 99, 67, 0.08), transparent 40%),
+    linear-gradient(145deg, #FFFFFF 0%, #FFFFFF 58%, #F7F8F7 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -63,7 +71,7 @@
 
 @layer components {
   .page-title {
-    @apply text-2xl font-semibold tracking-tight text-slate-100;
+    @apply text-2xl font-bold tracking-tight text-slate-100;
   }
 
   .page-subtitle {
@@ -71,30 +79,35 @@
   }
 
   .section-label {
-    @apply mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400;
+    @apply mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400;
+  }
+
+  .pill-button {
+    @apply rounded-full px-4 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center gap-2;
   }
 }
 
-/* Color normalizations for semantic tags */
+/* Color normalizations for reference design palette */
 .text-indigo-300,
-.text-indigo-400 { color: #4F46E5; }
+.text-indigo-400 { color: #086343; }
 .text-emerald-300,
-.text-emerald-400 { color: #059669; }
+.text-emerald-400 { color: #086343; }
 .text-amber-300,
-.text-amber-400 { color: #D97706; }
+.text-amber-400 { color: #B45309; }
 .text-rose-300,
-.text-rose-400 { color: #E11D48; }
+.text-rose-400 { color: #D94B4B; }
 .text-blue-300,
 .text-blue-400 { color: #2563EB; }
 .text-cyan-300,
 .text-cyan-400 { color: #0891B2; }
 .text-purple-300,
-.text-purple-400 { color: #7C3AED; }
-.hover\:text-white:hover { color: #111111; }
+.text-purple-400 { color: #086343; }
+.hover\:text-white:hover { color: #111827; }
 
-.border-indigo-800\/60 { border-color: #E0E7FF; }
+.border-indigo-800\/60,
+.border-indigo-800\/50 { border-color: #DCEFE5; }
 .border-emerald-800\/60,
-.border-emerald-800\/50 { border-color: #D1FAE5; }
+.border-emerald-800\/50 { border-color: #DCEFE5; }
 .border-amber-800\/60,
 .border-amber-800\/50 { border-color: #FEF3C7; }
 .border-rose-800\/60,
@@ -102,15 +115,15 @@
 
 /* Soft semantic backgrounds */
 .bg-indigo-950\/70,
-.bg-indigo-950\/80 { background-color: #EEF2FF; }
+.bg-indigo-950\/80 { background-color: #F0F8F4; }
 .bg-emerald-950\/70,
-.bg-emerald-950\/80 { background-color: #ECFDF5; }
+.bg-emerald-950\/80 { background-color: #F0F8F4; }
 .bg-amber-950\/70,
 .bg-amber-950\/80 { background-color: #FFFBEB; }
 .bg-rose-950\/70,
 .bg-rose-950\/80 { background-color: #FFF1F2; }
 .bg-blue-950\/70 { background-color: #EFF6FF; }
-.bg-purple-950\/70 { background-color: #FAF5FF; }
+.bg-purple-950\/70 { background-color: #F0F8F4; }
 .bg-cyan-950\/70 { background-color: #ECFEFF; }
 
 @media (max-width: 640px) {
@@ -122,10 +135,12 @@
   body * {
     visibility: hidden;
   }
-  #printable-invoice, #printable-invoice * {
+  #printable-invoice, #printable-invoice *,
+  #printable-payslip, #printable-payslip * {
     visibility: visible;
   }
-  #printable-invoice {
+  #printable-invoice,
+  #printable-payslip {
     position: absolute;
     left: 0;
     top: 0;
@@ -137,7 +152,7 @@
     background: white !important;
     color: black !important;
   }
-  aside, header, button, .no-print {
+  aside, header, button, .no-print, [role='dialog'] > div:first-child {
     display: none !important;
   }
 }

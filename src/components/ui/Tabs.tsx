@@ -27,7 +27,7 @@ export const Tabs: React.FC<TabsProps> = ({
 }) => {
   if (variant === 'segmented') {
     return (
-      <div className={twMerge(clsx('flex items-center p-1 bg-slate-850 border border-slate-700 rounded-xl gap-1 overflow-x-auto', className))}>
+      <div className={twMerge(clsx('flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full gap-1 overflow-x-auto', className))}>
         {tabs.map(tab => {
           const isActive = tab.id === activeTab;
           return (
@@ -36,10 +36,10 @@ export const Tabs: React.FC<TabsProps> = ({
               onClick={() => !tab.disabled && onChange(tab.id)}
               disabled={tab.disabled}
               className={clsx(
-                'flex min-h-10 items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer select-none',
+                'flex min-h-[36px] items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
                 isActive
-                  ? 'bg-white text-indigo-700 shadow-sm border border-slate-700 font-semibold'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-white',
+                  ? 'bg-white text-[#086343] shadow-sm border border-slate-700'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-white/60',
                 tab.disabled && 'opacity-40 cursor-not-allowed'
               )}
             >
@@ -48,8 +48,8 @@ export const Tabs: React.FC<TabsProps> = ({
               {tab.count !== undefined && (
                 <span
                   className={clsx(
-                    'px-1.5 py-0.2 rounded-full text-[10px] font-semibold',
-                    isActive ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-800 text-slate-400'
+                    'px-2 py-0.5 rounded-full text-[10px] font-bold',
+                    isActive ? 'bg-[#DCEFE5] text-[#06452F]' : 'bg-slate-800 text-slate-400'
                   )}
                 >
                   {tab.count}
@@ -64,7 +64,7 @@ export const Tabs: React.FC<TabsProps> = ({
 
   if (variant === 'pills') {
     return (
-      <div className={twMerge(clsx('flex items-center gap-1.5 overflow-x-auto pb-1', className))}>
+      <div className={twMerge(clsx('flex items-center gap-2 overflow-x-auto pb-1', className))}>
         {tabs.map(tab => {
           const isActive = tab.id === activeTab;
           return (
@@ -73,10 +73,10 @@ export const Tabs: React.FC<TabsProps> = ({
               onClick={() => !tab.disabled && onChange(tab.id)}
               disabled={tab.disabled}
               className={clsx(
-                'flex min-h-10 items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer select-none border',
+                'flex min-h-[38px] items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
                 isActive
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold'
-                  : 'bg-white border-slate-700 text-slate-400 hover:text-slate-100 hover:bg-slate-850',
+                  ? 'bg-[#086343] text-white shadow-xs'
+                  : 'bg-white border border-slate-700 text-slate-400 hover:text-slate-100 hover:bg-slate-850',
                 tab.disabled && 'opacity-40 cursor-not-allowed'
               )}
             >
@@ -85,8 +85,8 @@ export const Tabs: React.FC<TabsProps> = ({
               {tab.count !== undefined && (
                 <span
                   className={clsx(
-                    'px-1.5 py-0.2 rounded-full text-[10px] font-semibold',
-                    isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-800 text-slate-400'
+                    'px-2 py-0.5 rounded-full text-[10px] font-bold',
+                    isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
                   )}
                 >
                   {tab.count}
@@ -99,9 +99,9 @@ export const Tabs: React.FC<TabsProps> = ({
     );
   }
 
-  // Underline default
+  // Underline
   return (
-    <div className={twMerge(clsx('flex items-center gap-6 border-b border-slate-800 overflow-x-auto', className))}>
+    <div className={twMerge(clsx('flex items-center border-b border-slate-700 gap-6 overflow-x-auto', className))}>
       {tabs.map(tab => {
         const isActive = tab.id === activeTab;
         return (
@@ -110,10 +110,10 @@ export const Tabs: React.FC<TabsProps> = ({
             onClick={() => !tab.disabled && onChange(tab.id)}
             disabled={tab.disabled}
             className={clsx(
-              'flex items-center gap-2 py-3 px-1 text-sm font-medium border-b-2 transition-all whitespace-nowrap cursor-pointer select-none',
+              'flex items-center gap-2 py-3 border-b-2 text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
               isActive
-                ? 'border-indigo-600 text-indigo-700 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-100 hover:border-slate-600',
+                ? 'border-[#086343] text-[#086343]'
+                : 'border-transparent text-slate-400 hover:text-slate-100 hover:border-slate-400',
               tab.disabled && 'opacity-40 cursor-not-allowed'
             )}
           >
@@ -122,8 +122,8 @@ export const Tabs: React.FC<TabsProps> = ({
             {tab.count !== undefined && (
               <span
                 className={clsx(
-                  'px-1.5 py-0.5 rounded-full text-[10px] font-semibold',
-                isActive ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-800 text-slate-400'
+                  'px-2 py-0.5 rounded-full text-[10px] font-bold',
+                  isActive ? 'bg-[#DCEFE5] text-[#06452F]' : 'bg-slate-800 text-slate-400'
                 )}
               >
                 {tab.count}

@@ -25,7 +25,9 @@ export const SuppliersPage: React.FC = () => {
         <div>
           <span className="font-bold text-slate-100">{s.name}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] font-mono text-indigo-400 font-semibold">{s.supplierId}</span>
+            <span className="text-[10px] font-mono text-forest-700 font-semibold px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700">
+              {s.supplierId}
+            </span>
             <span className="text-[10px] text-slate-400">• {s.supplierType}</span>
           </div>
         </div>
@@ -87,13 +89,24 @@ export const SuppliersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Truck className="w-6 h-6 text-indigo-400" />
-            <span>Suppliers & Vendors Directory</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Suppliers & Vendors Directory
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             Manage authorized vehicle dealers, workshops, tyre suppliers, oil companies, and spare parts vendors with AP balances.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            className="rounded-full shadow-sm"
+            onClick={() => openQuickModal('add-supplier')}
+            leftIcon={<Plus className="w-4 h-4" />}
+          >
+            Add Supplier
+          </Button>
         </div>
       </div>
 
@@ -105,6 +118,7 @@ export const SuppliersPage: React.FC = () => {
           subValue="Registered vendor partners"
           icon={<Truck className="w-4 h-4" />}
           variant="indigo"
+          isHero={true}
         />
         <StatCard
           title="Cumulative Purchases YTD"

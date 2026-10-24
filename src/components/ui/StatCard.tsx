@@ -1,19 +1,21 @@
 import React, { ReactNode } from 'react';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ArrowUpRight } from 'lucide-react';
 import { clsx } from 'clsx';
 
-interface StatCardProps {
+export interface StatCardProps {
   title: string;
   value: string | number;
   subValue?: string;
-  icon: ReactNode;
+  icon?: ReactNode;
   trend?: {
     value: string | number;
     direction: 'up' | 'down' | 'neutral';
     label?: string;
   };
-  variant?: 'indigo' | 'emerald' | 'amber' | 'rose' | 'blue' | 'purple' | 'slate';
+  variant?: 'forest' | 'indigo' | 'emerald' | 'amber' | 'rose' | 'blue' | 'purple' | 'slate';
+  isHero?: boolean;
   onClick?: () => void;
+  actionIcon?: ReactNode;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -22,69 +24,103 @@ export const StatCard: React.FC<StatCardProps> = ({
   subValue,
   icon,
   trend,
-  variant = 'indigo',
+  variant = 'slate',
+  isHero = false,
   onClick,
+  actionIcon,
 }) => {
-  const iconVariants = {
-    indigo: 'bg-indigo-50 text-indigo-600 border border-indigo-100',
-    emerald: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-    amber: 'bg-amber-50 text-amber-700 border border-amber-100',
-    rose: 'bg-rose-50 text-rose-700 border border-rose-100',
-    blue: 'bg-blue-50 text-blue-700 border border-blue-100',
-    purple: 'bg-purple-50 text-purple-700 border border-purple-100',
-    slate: 'bg-slate-800 text-slate-400 border border-slate-700',
-  };
+  const isDarkHero = isHero || variant === 'forest';
 
   return (
     <div
       onClick={onClick}
       className={clsx(
-        'min-w-0 bg-white border border-slate-700 rounded-[14px] p-4 sm:p-5 flex flex-col justify-between transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] relative overflow-hidden',
-        onClick && 'cursor-pointer hover:border-indigo-200 hover:bg-slate-850/40 hover:shadow-xs'
+        'min-w-0 rounded-[20px] p-5 sm:p-6 flex flex-col justify-between transition-all relative overflow-hidden',
+        isDarkHero
+          ? 'bg-[#086343] text-white shadow-card hover:bg-[#06452F]'
+          : 'bg-white border border-slate-700 text-slate-100 shadow-card hover:border-forest-500/40 hover:shadow-elevated',
+        onClick && 'cursor-pointer'
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-400 leading-tight truncate">{title}</p>
-          <h4 className="mt-2 text-xl sm:text-2xl font-semibold text-slate-100 tracking-tight tabular-nums break-words">
-            {value}
-          </h4>
-        </div>
-        <div className={clsx('p-2 rounded-lg shrink-0', iconVariants[variant])}>
-          {icon}
+      {/* Top Header: Title + Arrow Action Button */}
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={clsx(
+            'text-xs sm:text-sm font-semibold truncate',
+            isDarkHero ? 'text-white/90' : 'text-slate-100'
+          )}
+        >
+          {title}
+        </span>
+
+        <div
+          className={clsx(
+            'w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105',
+            isDarkHero
+              ? 'bg-white/15 text-white hover:bg-white/25'
+              : 'border border-slate-700 bg-white text-slate-600 hover:bg-slate-800'
+          )}
+        >
+          {actionIcon || <ArrowUpRight className="w-4 h-4 stroke-[2.2]" />}
         </div>
       </div>
 
+      {/* Main Metric Value */}
+      <div className="my-4">
+        <h4
+          className={clsx(
+            'text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums break-words',
+            isDarkHero ? 'text-white' : 'text-slate-100'
+          )}
+        >
+          {value}
+        </h4>
+      </div>
+
+      {/* Bottom Subvalue / Pill Badge */}
       {(subValue || trend) && (
-        <div className="mt-3 pt-2.5 border-t border-slate-700 flex flex-wrap items-center justify-between gap-1.5 text-xs text-slate-400">
+        <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
           {trend ? (
-            <div className="flex items-center gap-1 font-medium">
-              <span
-                className={clsx(
-                  'inline-flex items-center gap-0.5 text-xs',
-                  trend.direction === 'up'
-                    ? 'text-emerald-700'
-                    : trend.direction === 'down'
-                    ? 'text-rose-700'
-                    : 'text-slate-400'
-                )}
-              >
+            <div
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold',
+                isDarkHero
+                  ? 'bg-white/15 text-white/95'
+                  : trend.direction === 'up'
+                  ? 'bg-[#DCEFE5] text-[#06452F]'
+                  : trend.direction === 'down'
+                  ? 'bg-rose-50 text-rose-700'
+                  : 'bg-slate-800 text-slate-400'
+              )}
+            >
+              <span className="inline-flex items-center">
                 {trend.direction === 'up' ? (
-                  <TrendingUp className="w-3 h-3 text-emerald-600" />
+                  <TrendingUp className="w-3.5 h-3.5 mr-0.5" />
                 ) : trend.direction === 'down' ? (
-                  <TrendingDown className="w-3 h-3 text-rose-600" />
+                  <TrendingDown className="w-3.5 h-3.5 mr-0.5" />
                 ) : (
-                  <Minus className="w-3 h-3 text-slate-400" />
+                  <Minus className="w-3 h-3 mr-0.5" />
                 )}
                 <span>{trend.value}</span>
               </span>
-              {trend.label && <span className="text-slate-400 text-[11px]">{trend.label}</span>}
+              {trend.label && (
+                <span className={isDarkHero ? 'text-white/80' : 'text-slate-400'}>
+                  {trend.label}
+                </span>
+              )}
             </div>
-          ) : (
-            <div />
-          )}
+          ) : null}
 
-          {subValue && <span className="text-[11px] font-normal text-slate-400 truncate">{subValue}</span>}
+          {subValue && (
+            <span
+              className={clsx(
+                'text-[11px] font-medium truncate',
+                isDarkHero ? 'text-white/75' : 'text-slate-400'
+              )}
+            >
+              {subValue}
+            </span>
+          )}
         </div>
       )}
     </div>

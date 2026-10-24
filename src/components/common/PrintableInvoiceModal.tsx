@@ -13,8 +13,21 @@ export const PrintableInvoiceModal: React.FC = () => {
   const { viewingInvoiceId, closeInvoiceModal, addToast } = useUI();
   const printableRef = useRef<HTMLDivElement>(null);
 
+  if (!viewingInvoiceId) return null;
+
   const invoice = invoices.find(inv => inv.id === viewingInvoiceId);
-  if (!invoice) return null;
+  if (!invoice) {
+    return (
+      <Modal isOpen={true} onClose={closeInvoiceModal} title="Invoice Not Found" size="sm">
+        <div className="p-4 text-center space-y-4">
+          <p className="text-xs text-slate-300">The requested invoice ID ({viewingInvoiceId}) could not be located in the current company registry.</p>
+          <Button variant="secondary" size="sm" onClick={closeInvoiceModal}>
+            Close
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
 
   const company = companies.find(c => c.id === invoice.companyId) || companies[0];
 

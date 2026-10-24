@@ -35,12 +35,12 @@ export const ExpensesPage: React.FC = () => {
       header: 'Expense # / Plate',
       render: (e) => (
         <div className="cursor-pointer" onClick={() => openVehicleDetail(e.vehicleId, 'expenses')}>
-          <span className="font-mono font-bold text-slate-100 hover:text-indigo-400 transition-colors">{e.expenseNumber}</span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
+          <span className="font-mono font-bold text-slate-100 hover:text-[#086343] transition-colors">{e.expenseNumber}</span>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
               {e.vehiclePlate}
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">{e.costCentre}</span>
+            <span className="text-[10px] text-slate-400 font-mono font-medium">{e.costCentre}</span>
           </div>
         </div>
       ),
@@ -49,7 +49,7 @@ export const ExpensesPage: React.FC = () => {
       key: 'category',
       header: 'Category',
       render: (e) => (
-        <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-[11px]">
+        <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-slate-200 font-bold text-[10px]">
           {e.category}
         </span>
       ),
@@ -58,51 +58,55 @@ export const ExpensesPage: React.FC = () => {
       key: 'description',
       header: 'Description',
       render: (e) => (
-        <div>
-          <p className="text-slate-200 font-medium">{e.description}</p>
-          <p className="text-[10px] text-slate-400">Supplier: {e.supplierName || 'Authorized Merchant'}</p>
+        <div className="max-w-md">
+          <p className="text-slate-200 font-medium line-clamp-1">{e.description}</p>
+          <p className="text-[10px] text-slate-400">Supplier: {e.supplierName || 'Fleet Operations'}</p>
         </div>
       ),
     },
     {
       key: 'date',
-      header: 'Date',
-      render: (e) => <span className="text-slate-300">{formatDate(e.date)}</span>,
+      header: 'Date & Cost Centre',
+      render: (e) => (
+        <div>
+          <span className="text-slate-300 font-medium">{formatDate(e.date)}</span>
+          {e.costCentre && <p className="text-[10px] text-slate-400 font-mono">{e.costCentre}</p>}
+        </div>
+      ),
     },
     {
-      key: 'attachment',
-      header: 'Entry Bill / Receipt',
-      align: 'center',
+      key: 'receiptDocument',
+      header: 'Receipt / Bill Scan',
       render: (e) => {
-        const hasReceipt = !!e.attachmentUrl || !!e.attachmentName || ['Fuel', 'Insurance', 'Registration'].includes(e.category);
+        const hasDoc = e.attachmentUrl || e.attachmentName || ['Fuel', 'Insurance', 'Registration'].includes(e.category);
         const receiptUrl = e.attachmentUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&auto=format&fit=crop&q=80';
         const receiptTitle = e.attachmentName || `${e.expenseNumber}_${e.category}_Receipt.pdf`;
 
-        return hasReceipt ? (
+        return hasDoc ? (
           <button
             onClick={(ev) => {
               ev.stopPropagation();
-              openBillModal(receiptUrl, receiptTitle, 'application/pdf', e.attachmentSize || '890 KB');
+              openBillModal(receiptUrl, receiptTitle, 'application/pdf', '890 KB');
             }}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900 text-[10px] font-semibold transition-colors cursor-pointer group"
-            title="View Attached Entry Bill Receipt"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCEFE5] text-[#06452F] hover:bg-[#bde2d0] text-[10px] font-bold transition-colors cursor-pointer group"
+            title="View Scanned Receipt / Entry Bill"
           >
-            <Paperclip className="w-3 h-3 text-emerald-400 group-hover:scale-110 transition-transform" />
-            <span>View Receipt</span>
+            <Paperclip className="w-3 h-3 text-[#086343] group-hover:scale-110 transition-transform" />
+            <span>View Voucher</span>
           </button>
         ) : (
-          <span className="text-[10px] text-slate-500 italic">No File</span>
+          <span className="text-[10px] text-slate-400 italic">None</span>
         );
       },
     },
     {
       key: 'total',
-      header: 'Total Cost',
+      header: 'Amount',
       align: 'right',
       render: (e) => (
         <div className="text-right">
           <span className="font-bold text-slate-100">{formatCurrency(e.total, currency)}</span>
-          <p className="text-[10px] text-slate-500">Tax: {formatCurrency(e.tax, currency)}</p>
+          <p className="text-[10px] text-slate-400">VAT: {formatCurrency(e.tax, currency)}</p>
         </div>
       ),
     },
@@ -135,27 +139,26 @@ export const ExpensesPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Receipt className="w-6 h-6 text-emerald-400" />
-            <span>Vehicle Expenses & Entry Bills Ledger</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Vehicle Expenses & Entry Bills Ledger
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Track categorized fuel, insurance, registrations, permits, and entry bill vouchers with scanned receipt document uploads.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="md"
             onClick={() => openQuickModal('add-expense')}
-            leftIcon={<UploadCloud className="w-4 h-4 text-emerald-400" />}
+            leftIcon={<UploadCloud className="w-4 h-4 text-[#086343]" />}
           >
             Upload Entry Bill
           </Button>
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-expense')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -165,34 +168,27 @@ export const ExpensesPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Total Fuel Spend"
           value={formatCurrency(totalFuel, currency)}
           subValue="Fleet card consumption"
-          icon={<Fuel className="w-4 h-4" />}
-          variant="indigo"
+          isHero={true}
         />
         <StatCard
           title="Insurance Premiums"
           value={formatCurrency(totalInsurance, currency)}
           subValue="Annual policies"
-          icon={<Shield className="w-4 h-4" />}
-          variant="blue"
         />
         <StatCard
-          title="Registration / Mulkiya"
+          title="Mulkiya Registration"
           value={formatCurrency(totalReg, currency)}
-          subValue="ROP road tax fees"
-          icon={<Receipt className="w-4 h-4" />}
-          variant="amber"
+          subValue="Royal Oman Police fees"
         />
         <StatCard
-          title="Receipts Attached"
-          value={totalReceiptsAttached}
-          subValue={`Out of ${expenses.length} vouchers`}
-          icon={<Paperclip className="w-4 h-4" />}
-          variant="emerald"
+          title="Total Fleet Expenses"
+          value={formatCurrency(totalExpenses, currency)}
+          subValue={`${totalReceiptsAttached} receipts uploaded`}
         />
       </div>
 
@@ -201,34 +197,33 @@ export const ExpensesPage: React.FC = () => {
         data={filteredExpenses}
         columns={columns}
         keyExtractor={e => e.id}
-        title="Fleet Expense & Entry Bill Records"
-        searchPlaceholder="Search by expense number, plate, category, description, supplier..."
-        searchFields={['expenseNumber', 'vehiclePlate', 'category', 'description', 'supplierName']}
-        exportFilename="FleetX_Expenses_Ledger"
+        title="Vehicle Operational Expenses Registry"
+        searchPlaceholder="Search expenses by expense number, plate, category, vendor or cost centre..."
+        searchFields={['expenseNumber', 'vehiclePlate', 'category', 'description', 'vendorName', 'costCentre']}
+        exportFilename="FleetX_Expenses_Register"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Expense Categories</option>
-              <option value="Fuel">Fuel</option>
-              <option value="Insurance">Insurance</option>
-              <option value="Registration">Registration / Mulkiya</option>
-              <option value="Toll">Tolls</option>
-              <option value="Cleaning">Cleaning</option>
-              <option value="Fines">Traffic Fines</option>
-              <option value="Driver Expense">Driver Allowances</option>
+              <option value="Fuel">Fuel (M91 / M95 / Diesel)</option>
+              <option value="Insurance">Insurance Policies</option>
+              <option value="Registration">Mulkiya & ROP Fees</option>
+              <option value="Tolls">Tolls & Salik</option>
+              <option value="Cleaning">Washing & Detailing</option>
+              <option value="Other">Other Operational</option>
             </select>
             <select
               value={receiptFilter}
               onChange={e => setReceiptFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
-              <option value="all">All Receipts</option>
-              <option value="with-receipt">With Attached Receipt</option>
-              <option value="no-receipt">No Receipt</option>
+              <option value="all">All Vouchers</option>
+              <option value="with-receipt">With Attached Bill Scan</option>
+              <option value="no-receipt">Without Receipt</option>
             </select>
           </div>
         }

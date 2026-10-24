@@ -27,8 +27,8 @@ export const MaintenancePage: React.FC = () => {
       render: (m) => (
         <div>
           <span className="font-mono font-bold text-slate-100">{m.recordNumber}</span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
               {m.vehiclePlate}
             </span>
             <span className="text-[10px] text-slate-400 font-mono">{m.odometerReading.toLocaleString()} KM</span>
@@ -41,7 +41,7 @@ export const MaintenancePage: React.FC = () => {
       header: 'Category & Type',
       render: (m) => (
         <div>
-          <span className="font-semibold text-slate-200">{m.category}</span>
+          <span className="font-bold text-slate-200">{m.category}</span>
           <p className="text-[11px] text-slate-400">{m.maintenanceType}</p>
         </div>
       ),
@@ -61,8 +61,8 @@ export const MaintenancePage: React.FC = () => {
       header: 'Service Date',
       render: (m) => (
         <div>
-          <span className="text-slate-300">{formatDate(m.maintenanceDate)}</span>
-          {m.nextServiceMileage && <p className="text-[10px] text-indigo-400">Next: {m.nextServiceMileage.toLocaleString()} KM</p>}
+          <span className="text-slate-300 font-medium">{formatDate(m.maintenanceDate)}</span>
+          {m.nextServiceMileage && <p className="text-[10px] text-[#086343] font-semibold">Next: {m.nextServiceMileage.toLocaleString()} KM</p>}
         </div>
       ),
     },
@@ -101,19 +101,18 @@ export const MaintenancePage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Wrench className="w-6 h-6 text-indigo-400" />
-            <span>Vehicle Maintenance & Workshop Records</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Vehicle Maintenance & Workshop Records
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Complete log of preventive maintenance, emergency breakdown repairs, replacement parts, labour costs, and warranty tracking.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-maintenance')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -134,7 +133,7 @@ export const MaintenancePage: React.FC = () => {
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Service Categories</option>
             <option value="General Service">General Service</option>

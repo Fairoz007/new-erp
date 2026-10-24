@@ -60,66 +60,66 @@ export const ReconciliationPage: React.FC = () => {
 
   const columns: Column<InvoiceReconciliation>[] = [
     {
-      key: 'reconciliationNumber',
-      header: 'Reconciliation # / Ref',
+      key: 'invoiceNumber',
+      header: 'Invoice # / Party',
       render: (r) => (
         <div>
-          <span className="font-mono font-bold text-slate-100">{r.reconciliationNumber}</span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="px-1.5 py-0.2 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-[10px]">
-              {r.matchingType} Match
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">Inv: {r.invoiceNumber}</span>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'party',
-      header: 'Party / Reference',
-      render: (r) => (
-        <div>
-          <p className="font-semibold text-slate-200">{r.supplierOrCustomerName}</p>
-          <p className="text-[10px] text-slate-400 font-mono">PO: {r.purchaseOrderNumber || '-'} • WO: {r.workOrderNumber || '-'}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'invoiceAmount',
-      header: 'Invoice Amount',
-      align: 'right',
-      render: (r) => <span className="font-bold text-slate-100">{formatCurrency(r.invoiceAmount, currency)}</span>,
-    },
-    {
-      key: 'expectedAmount',
-      header: 'Expected (PO/WO)',
-      align: 'right',
-      render: (r) => (
-        <span className="font-mono text-slate-300">
-          {formatCurrency(r.goodsServiceReceivedAmount || r.workOrderAmount || r.purchaseOrderAmount, currency)}
-        </span>
-      ),
-    },
-    {
-      key: 'variancePercentage',
-      header: 'Variance %',
-      align: 'center',
-      render: (r) => (
-        <div className="text-center">
-          <span className={`font-mono font-bold text-xs ${r.variancePercentage === 0 ? 'text-emerald-400' : r.variancePercentage <= 5 ? 'text-amber-400' : 'text-rose-400'}`}>
-            {r.variancePercentage.toFixed(2)}%
+          <span className="font-mono font-bold text-slate-100">{r.invoiceNumber}</span>
+          <p className="font-semibold text-slate-300 text-xs">{r.supplierOrCustomerName}</p>
+          <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-bold text-[10px] mt-1 inline-block">
+            {r.matchingType} Match
           </span>
-          {r.differenceAmount !== 0 && (
-            <p className="text-[10px] text-slate-400">Diff: {formatCurrency(r.differenceAmount, currency)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'poWo',
+      header: 'P.O. & Work Order Link',
+      render: (r) => (
+        <div className="space-y-0.5 font-mono text-xs">
+          <p className="text-slate-300">
+            PO: <span className="font-semibold text-slate-100">{r.purchaseOrderNumber || 'N/A'}</span>
+          </p>
+          {r.workOrderNumber && (
+            <p className="text-slate-400">
+              WO: <span className="text-[#086343] font-semibold">{r.workOrderNumber}</span>
+            </p>
           )}
         </div>
       ),
     },
     {
+      key: 'amounts',
+      header: 'PO ↔ Inv Variance',
+      align: 'right',
+      render: (r) => {
+        const poAmt = r.purchaseOrderAmount || 0;
+        const invAmt = r.invoiceAmount || 0;
+        const diff = Math.abs(poAmt - invAmt);
+        const hasVariance = diff > 0.05;
+
+        return (
+          <div className="text-right font-mono">
+            <span className="font-bold text-slate-100">{formatCurrency(invAmt, currency)}</span>
+            <p className={`text-[10px] ${hasVariance ? 'text-amber-700 font-bold' : 'text-[#086343]'}`}>
+              {hasVariance ? `Diff: ${formatCurrency(diff, currency)}` : 'Exact Match (0.00)'}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
       key: 'status',
-      header: 'Match Status',
+      header: 'Audit Result',
       align: 'center',
       render: (r) => <StatusBadge status={r.status} size="sm" />,
+    },
+    {
+      key: 'notes',
+      header: 'Audit Notes',
+      render: (r) => (
+        <p className="text-xs text-slate-400 line-clamp-1 max-w-xs">{r.notes || 'Automated three-way parity verified.'}</p>
+      ),
     },
   ];
 
@@ -128,19 +128,18 @@ export const ReconciliationPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <GitCompare className="w-6 h-6 text-indigo-400" />
-            <span>Invoice Reconciliation (2-Way & 3-Way Matching)</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            3-Way Invoice Reconciliation
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Audit and verify purchase orders, work orders, service completion slips, and supplier invoices to prevent overbilling.
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
+            Strict enterprise internal control matching Purchase Orders ↔ Work Orders ↔ Vendor Invoices with automated variance audits.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => setIsModalOpen(true)}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -150,27 +149,24 @@ export const ReconciliationPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <StatCard
           title="Total Reconciliations"
           value={reconciliations.length}
           subValue="Audited invoice batches"
-          icon={<GitCompare className="w-4 h-4" />}
-          variant="indigo"
+          isHero={true}
         />
         <StatCard
           title="Exact Matches (0.0% Variance)"
           value={matchedCount}
           subValue="Fully cleared for payment"
-          icon={<CheckCircle2 className="w-4 h-4" />}
-          variant="emerald"
+          trend={{ value: '100% Verified', direction: 'up' }}
         />
         <StatCard
           title="Discrepancies / Mismatches"
           value={mismatchCount}
           subValue="Requires management audit"
-          icon={<AlertTriangle className="w-4 h-4" />}
-          variant="rose"
+          trend={{ value: `${mismatchCount} Open`, direction: 'neutral' }}
         />
       </div>
 
@@ -219,46 +215,47 @@ export const ReconciliationPage: React.FC = () => {
               label="Purchase Order Number"
               value={recForm.purchaseOrderNumber}
               onChange={e => setRecForm({ ...recForm, purchaseOrderNumber: e.target.value })}
+              required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
-              label="PO Amount (OMR)"
+              label={`PO Amount (${currency})`}
               type="number"
-              step="0.001"
+              step="0.01"
               value={recForm.purchaseOrderAmount}
               onChange={e => setRecForm({ ...recForm, purchaseOrderAmount: Number(e.target.value) })}
+              required
             />
             <Input
-              label="Work Order Amount (OMR)"
+              label="Work Order Number"
+              value={recForm.workOrderNumber}
+              onChange={e => setRecForm({ ...recForm, workOrderNumber: e.target.value })}
+            />
+            <Input
+              label={`WO Amount (${currency})`}
               type="number"
-              step="0.001"
+              step="0.01"
               value={recForm.workOrderAmount}
               onChange={e => setRecForm({ ...recForm, workOrderAmount: Number(e.target.value) })}
-            />
-            <Input
-              label="Actual Delivered (OMR)"
-              type="number"
-              step="0.001"
-              value={recForm.goodsServiceReceivedAmount}
-              onChange={e => setRecForm({ ...recForm, goodsServiceReceivedAmount: Number(e.target.value) })}
             />
           </div>
 
           <Textarea
-            label="Reconciliation Notes / Discrepancy Justification"
-            placeholder="Document variance reasons if applicable..."
+            label="Audit Notes & Remarks"
             value={recForm.notes}
             onChange={e => setRecForm({ ...recForm, notes: e.target.value })}
+            placeholder="Document any minor tolerance variances, exchange rate differences, or approval notes..."
+            rows={3}
           />
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={() => setIsModalOpen(false)}>
+          <div className="flex justify-end gap-3 pt-3">
+            <Button variant="secondary" size="md" type="button" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" leftIcon={<GitCompare className="w-4 h-4" />}>
-              Save Match Result
+            <Button variant="primary" size="md" type="submit">
+              Complete Reconciliation
             </Button>
           </div>
         </form>

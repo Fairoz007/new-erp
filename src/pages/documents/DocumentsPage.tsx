@@ -38,7 +38,7 @@ export const DocumentsPage: React.FC = () => {
       key: 'category',
       header: 'Category',
       render: (d) => (
-        <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-indigo-300 font-semibold text-[11px]">
+        <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-semibold text-[11px]">
           {d.category}
         </span>
       ),
@@ -50,7 +50,7 @@ export const DocumentsPage: React.FC = () => {
         d.vehiclePlate ? (
           <button
             onClick={() => d.vehicleId && openVehicleDetail(d.vehicleId, 'documents')}
-            className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-indigo-300 font-mono text-xs font-bold hover:underline cursor-pointer"
+            className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-xs font-bold hover:underline cursor-pointer"
           >
             {d.vehiclePlate}
           </button>
@@ -98,10 +98,13 @@ export const DocumentsPage: React.FC = () => {
           </Button>
           <button
             onClick={() => {
-              deleteDocument(d.id);
-              addToast({ type: 'success', title: 'Document Removed' });
+              if (window.confirm(`Are you sure you want to permanently remove "${d.documentName}"?`)) {
+                deleteDocument(d.id);
+                addToast({ type: 'success', title: 'Document Removed' });
+              }
             }}
             className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
+            title="Delete document"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -115,11 +118,10 @@ export const DocumentsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <FolderOpen className="w-6 h-6 text-indigo-400" />
-            <span>Digital Document & Compliance Repository</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Digital Document & Compliance Repository
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
             Store and monitor Mulkiya registration cards, commercial vehicle insurance policies, road permits, and warranties.
           </p>
         </div>
@@ -128,6 +130,7 @@ export const DocumentsPage: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
+            className="rounded-full shadow-sm"
             onClick={() => openQuickModal('upload-document')}
             leftIcon={<Upload className="w-4 h-4" />}
           >
@@ -148,7 +151,7 @@ export const DocumentsPage: React.FC = () => {
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className="bg-white border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer shadow-sm"
           >
             <option value="all">All Document Categories</option>
             <option value="Registration">Registration (Mulkiya)</option>

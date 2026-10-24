@@ -60,6 +60,7 @@ export type QuickModalType =
   | 'add-invoice'
   | 'add-payment'
   | 'add-journal-entry'
+  | 'add-fixed-asset'
   | 'upload-document'
   | 'add-employee'
   | 'run-payroll'
@@ -111,12 +112,42 @@ interface UIContextType {
   removeToast: (id: string) => void;
 }
 
+const VALID_PAGES: AppPage[] = [
+  'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'maintenance',
+  'work-orders', 'oil-management', 'tyre-management', 'accidents', 'expenses',
+  'suppliers', 'customers', 'invoices', 'reconciliation', 'payments',
+  'accounting', 'trial-balance', 'general-ledger', 'profit-loss', 'balance-sheet',
+  'depreciation', 'fixed-assets', 'payroll', 'profitability', 'documents',
+  'notifications', 'users-roles', 'approvals', 'audit-logs', 'reports', 'settings',
+];
+
+const parseLocationHash = (): { page: AppPage; vehicleId?: string; tab?: VehicleTab } => {
+  if (typeof window === 'undefined') return { page: 'dashboard' };
+  const rawHash = window.location.hash.replace(/^#\/?/, '');
+  if (!rawHash) return { page: 'dashboard' };
+
+  const [pagePart, queryPart] = rawHash.split('?');
+  const matchedPage = VALID_PAGES.includes(pagePart as AppPage) ? (pagePart as AppPage) : 'dashboard';
+
+  let vehicleId: string | undefined;
+  let tab: VehicleTab | undefined;
+
+  if (queryPart) {
+    const params = new URLSearchParams(queryPart);
+    vehicleId = params.get('id') || undefined;
+    tab = (params.get('tab') as VehicleTab) || undefined;
+  }
+
+  return { page: matchedPage, vehicleId, tab };
+};
+
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
 export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentPage, setCurrentPage] = useState<AppPage>('dashboard');
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-  const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleTab>('overview');
+  const initialNav = parseLocationHash();
+  const [currentPage, setCurrentPageState] = useState<AppPage>(initialNav.page);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(initialNav.vehicleId || null);
+  const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleTab>(initialNav.tab || 'overview');
   
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
@@ -130,6 +161,19 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [viewingPayslip, setViewingPayslip] = useState<PayslipModalData | null>(null);
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Hash-based router listener
+  useEffect(() => {
+    const handleHashChange = () => {
+      const parsed = parseLocationHash();
+      setCurrentPageState(parsed.page);
+      if (parsed.vehicleId) setSelectedVehicleId(parsed.vehicleId);
+      if (parsed.tab) setSelectedVehicleTab(parsed.tab);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Keyboard shortcut for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -151,10 +195,24 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const setCurrentPage = (page: AppPage) => {
+    setCurrentPageState(page);
+    if (typeof window !== 'undefined') {
+      if (page === 'vehicle-detail' && selectedVehicleId) {
+        window.location.hash = `#vehicle-detail?id=${selectedVehicleId}&tab=${selectedVehicleTab}`;
+      } else {
+        window.location.hash = `#${page}`;
+      }
+    }
+  };
+
   const openVehicleDetail = (vehicleId: string, tab: VehicleTab = 'overview') => {
     setSelectedVehicleId(vehicleId);
     setSelectedVehicleTab(tab);
-    setCurrentPage('vehicle-detail');
+    setCurrentPageState('vehicle-detail');
+    if (typeof window !== 'undefined') {
+      window.location.hash = `#vehicle-detail?id=${vehicleId}&tab=${tab}`;
+    }
   };
 
   const openQuickModal = (type: QuickModalType) => setQuickModal(type);

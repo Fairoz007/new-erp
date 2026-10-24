@@ -30,7 +30,7 @@ export const VehiclesPage: React.FC = () => {
       header: 'Vehicle / ID',
       render: (v) => (
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-lg overflow-hidden bg-slate-800 shrink-0 border border-slate-700">
+          <div className="w-11 h-11 rounded-2xl overflow-hidden bg-slate-800 shrink-0 border border-slate-700 shadow-2xs">
             <img src={v.photoUrl} alt={v.model} className="w-full h-full object-cover" />
           </div>
           <div>
@@ -45,10 +45,10 @@ export const VehiclesPage: React.FC = () => {
       header: 'Plate / Reg No',
       render: (v) => (
         <div>
-          <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-slate-200 font-bold text-xs">
+          <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 font-mono text-slate-100 font-bold text-xs">
             {v.plateNumber}
           </span>
-          <p className="text-[10px] text-slate-400 font-mono mt-0.5">VIN: {v.vin.slice(0, 10)}...</p>
+          <p className="text-[10px] text-slate-400 font-mono mt-1">VIN: {v.vin.slice(0, 10)}...</p>
         </div>
       ),
     },
@@ -57,7 +57,7 @@ export const VehiclesPage: React.FC = () => {
       header: 'Type & Category',
       render: (v) => (
         <div>
-          <p className="font-semibold text-slate-200">{v.vehicleType}</p>
+          <p className="font-bold text-slate-200">{v.vehicleType}</p>
           <p className="text-[11px] text-slate-400">{v.vehicleCategory} • {v.fuelType}</p>
         </div>
       ),
@@ -79,7 +79,7 @@ export const VehiclesPage: React.FC = () => {
       align: 'right',
       render: (v) => (
         <div className="text-right">
-          <span className="font-medium text-slate-300">{formatCurrency(v.purchase.purchaseValue, currency)}</span>
+          <span className="font-semibold text-slate-300">{formatCurrency(v.purchase.purchaseValue, currency)}</span>
           <p className="text-[10px] text-slate-400">{formatDate(v.purchase.purchaseDate)}</p>
         </div>
       ),
@@ -90,7 +90,7 @@ export const VehiclesPage: React.FC = () => {
       align: 'right',
       render: (v) => (
         <div className="text-right">
-          <span className="font-bold text-indigo-300">{formatCurrency(v.currentMarketValue, currency)}</span>
+          <span className="font-bold text-[#086343]">{formatCurrency(v.currentMarketValue, currency)}</span>
           <p className="text-[10px] text-slate-400">Est. Resale</p>
         </div>
       ),
@@ -126,19 +126,18 @@ export const VehiclesPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <Car className="w-6 h-6 text-indigo-400" />
-            <span>Vehicles Fleet Master Database</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Vehicles Fleet Master Database
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
             Manage company vehicles, operational assignments, mileage records, financial summaries, and life cycles.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="primary"
-            size="sm"
+            size="md"
             onClick={() => openQuickModal('add-vehicle')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
@@ -163,7 +162,7 @@ export const VehiclesPage: React.FC = () => {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Fleet Statuses</option>
               <option value="Active">Active Only</option>

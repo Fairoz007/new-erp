@@ -130,62 +130,62 @@ export const VehicleDetailPage: React.FC = () => {
       </div>
 
       {/* Profile Header Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-white border border-slate-700 rounded-[24px] p-6 sm:p-7 shadow-card relative overflow-hidden">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4 sm:gap-6">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-800 border-2 border-slate-700 shrink-0 shadow-lg">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-800 border-2 border-slate-700 shrink-0 shadow-sm">
               <img src={vehicle.photoUrl} alt={vehicle.model} className="w-full h-full object-cover" />
             </div>
 
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-100 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-slate-100 tracking-tight">
                   {vehicle.brand} {vehicle.model}
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-md bg-slate-950 border border-slate-700 font-mono font-bold text-sm text-indigo-300">
+                <span className="px-3 py-1 rounded-full bg-slate-850 border border-slate-700 font-mono font-bold text-xs text-[#086343]">
                   {vehicle.plateNumber}
                 </span>
                 <StatusBadge status={vehicle.status} />
               </div>
 
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-400 mt-1 font-medium">
                 {vehicle.variant} • {vehicle.manufacturingYear} • {vehicle.companyName}
               </p>
 
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-300">
-                <span className="flex items-center gap-1">
-                  <span className="text-slate-500">Mileage:</span>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3.5 text-xs text-slate-300">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Mileage:</span>
                   <strong className="font-mono text-slate-100">{vehicle.currentMileage.toLocaleString()} KM</strong>
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="text-slate-500">Purchase:</span>
-                  <strong>{formatCurrency(vehicle.purchase.purchaseValue, currency)}</strong>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Purchase:</span>
+                  <strong className="text-slate-100">{formatCurrency(vehicle.purchase.purchaseValue, currency)}</strong>
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="text-slate-500">Book Value:</span>
-                  <strong className="text-indigo-400">{formatCurrency(financialSummary.currentBookValue, currency)}</strong>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Book Value:</span>
+                  <strong className="text-[#086343]">{formatCurrency(financialSummary.currentBookValue, currency)}</strong>
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="text-slate-500">Driver:</span>
-                  <span>{vehicle.assignedDriver || 'Pool Fleet'}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Driver:</span>
+                  <span className="text-slate-200 font-medium">{vehicle.assignedDriver || 'Pool Fleet'}</span>
                 </span>
               </div>
             </div>
           </div>
 
           {/* Quick Valuation Badges */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full lg:w-auto shrink-0 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full lg:w-auto shrink-0 bg-slate-850 p-4 rounded-2xl border border-slate-700">
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-semibold">Total Lifetime Cost</p>
-              <p className="text-sm font-bold text-slate-100 mt-0.5">{formatCurrency(financialSummary.totalLifetimeVehicleCost, currency)}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Total Lifetime Cost</p>
+              <p className="text-sm font-extrabold text-slate-100 mt-0.5">{formatCurrency(financialSummary.totalLifetimeVehicleCost, currency)}</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-semibold">Cost per KM</p>
-              <p className="text-sm font-bold text-amber-400 mt-0.5">{financialSummary.costPerKilometer.toFixed(3)} {currency}/KM</p>
+              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Cost per KM</p>
+              <p className="text-sm font-extrabold text-[#D9A441] mt-0.5">{financialSummary.costPerKilometer.toFixed(3)} {currency}/KM</p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-semibold">Net Profitability</p>
-              <p className={`text-sm font-bold mt-0.5 ${financialSummary.netVehicleProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Net Profitability</p>
+              <p className={`text-sm font-extrabold mt-0.5 ${financialSummary.netVehicleProfit >= 0 ? 'text-[#086343]' : 'text-rose-600'}`}>
                 {formatCurrency(financialSummary.netVehicleProfit, currency)}
               </p>
             </div>

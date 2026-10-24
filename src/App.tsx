@@ -1,8 +1,10 @@
 import React from 'react';
+import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { FleetProvider } from './context/FleetContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { UIProvider, useUI } from './context/UIContext';
 import { AppLayout } from './components/layout/AppLayout';
+import { Button } from './components/ui/Button';
 
 // Page Imports
 import { DashboardPage } from './pages/dashboard/DashboardPage';
@@ -38,7 +40,36 @@ import { ReportsPage } from './pages/reports/ReportsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 
 const PageRenderer: React.FC = () => {
-  const { currentPage } = useUI();
+  const { currentPage, setCurrentPage } = useUI();
+  const { canAccessPage, currentUser } = useAuth();
+
+  if (!canAccessPage(currentPage)) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white border border-slate-700 rounded-2xl p-6 sm:p-8 text-center shadow-card space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto text-rose-600">
+            <ShieldAlert className="w-7 h-7" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-100">Access Restricted</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Your active role profile (<span className="font-semibold text-slate-200">{currentUser.role}</span>) does not have authorization to view or manage the requested section (<span className="font-mono text-indigo-600">#{currentPage}</span>).
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setCurrentPage('dashboard')}
+              leftIcon={<ArrowLeft className="w-4 h-4" />}
+            >
+              Return to Executive Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   switch (currentPage) {
     case 'dashboard':

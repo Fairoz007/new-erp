@@ -38,7 +38,7 @@ import {
 import { calculateDepreciationSchedule, calculateCurrentBookValue, calculateCostPerKm, roundToPrecision } from '../utils/financial';
 import { isDateOverdue, isDateExpiringSoon } from '../utils/date';
 
-const STORAGE_KEY = 'alhakim_erp_offices_v6';
+const STORAGE_KEY = 'alhakim_erp_offices_v7';
 try {
   if (typeof window !== 'undefined') {
     [
@@ -48,6 +48,7 @@ try {
       'alhakim_erp_unified_cache_v3',
       'alhakim_erp_unified_cache_v4',
       'alhakim_erp_unified_cache_v5',
+      'alhakim_erp_offices_v6',
     ].forEach((k) => {
       localStorage.removeItem(k);
     });
@@ -1242,14 +1243,27 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             },
           ];
 
-          // If linked to Work Order, update Work Order approvalStatus
+          // If linked to Work Order or Invoice, update target entity approvalStatus
           if (req.referenceType === 'WorkOrder' && isFinal) {
             setWorkOrders(wPrev =>
               wPrev.map(wo => (wo.id === req.referenceId ? { ...wo, approvalStatus: nextStatus, status: nextStatus === 'Approved' ? 'Approved' : 'Cancelled' } : wo))
             );
+          } else if (req.referenceType === 'Invoice' && isFinal) {
+            setInvoices(iPrev =>
+              iPrev.map(inv =>
+                inv.id === req.referenceId
+                  ? {
+                      ...inv,
+                      approvalStatus: nextStatus === 'Approved' ? 'Approved' : 'Rejected',
+                      approvalDate: nextStatus === 'Approved' ? new Date().toISOString() : undefined,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : inv
+              )
+            );
           }
 
-          logAudit('APPROVE', 'WorkOrder', requestId, req.referenceNumber, `${action} approval level ${req.currentLevel}/${req.totalLevels}`);
+          logAudit('APPROVE', (req.referenceType === 'Invoice' ? 'Invoice' : 'WorkOrder') as any, requestId, req.referenceNumber, `${action} approval level ${req.currentLevel}/${req.totalLevels}`);
 
           return {
             ...req,
@@ -2011,9 +2025,16 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const fixedAssetsList = toStatementItems('Asset', 'Fixed Assets');
     const currentLiabilities = toStatementItems('Liability', 'Current Liabilities');
     const longTermLiabilities = toStatementItems('Liability', 'Long Term Liabilities');
+    
+    // Sourced dynamically from P&L and posted equity accounts
+    const pnl = getCompanyProfitLoss(cid);
+    const netIncome = pnl.netProfit;
     const equityItems = chartOfAccounts
       .filter(account => account.category === 'Equity')
-      .map(account => ({ name: account.name, amount: roundToPrecision(account.balance, 3) }));
+      .map(account => ({
+        name: account.name,
+        amount: roundToPrecision(account.code === '3030' ? (account.balance || netIncome) : account.balance, 3),
+      }));
 
     const totalCurrentAssets = currentAssets.reduce((sum, item) => sum + item.amount, 0);
     const totalFixedAssets = fixedAssetsList.reduce((sum, item) => sum + item.amount, 0);
@@ -2033,7 +2054,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const vehicleLoans = byCode('2510');
     const shareCapital = byCode('3010');
     const retainedEarnings = byCode('3020');
-    const currentPeriodProfit = byCode('3030');
+    const currentPeriodProfit = roundToPrecision(byCode('3030') || netIncome, 3);
 
     return {
       companyId: cid || 'all',
