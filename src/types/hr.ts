@@ -75,6 +75,7 @@ export interface PayrollLineItem {
   
   // Deductions
   pasiEmployeeDeduction: number; // 7%
+  pasiEmployerContribution?: number; // employer share (company cost, not deducted)
   unpaidLeaveDeduction: number;
   loanAdvanceDeduction: number;
   otherDeductions: number;
@@ -106,6 +107,7 @@ export interface PayrollRun {
   totalOtherDeductions: number;
   totalDeductions: number;
   totalNetPayout: number;
+  totalEmployerPasi?: number; // employer PASI share booked to expense / PASI payable
   
   items: PayrollLineItem[];
   status: PayrollStatus;

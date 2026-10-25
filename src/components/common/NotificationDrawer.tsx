@@ -9,7 +9,8 @@ import { formatDateTime } from '../../utils/date';
 
 export const NotificationDrawer: React.FC = () => {
   const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useFleet();
-  const { isNotificationDrawerOpen, setIsNotificationDrawerOpen, openVehicleDetail, openInvoiceModal, setCurrentPage } = useUI();
+  const { isNotificationDrawerOpen, setIsNotificationDrawerOpen, openVehicleDetail, openInvoiceModal, setCurrentPage, addToast } = useUI();
+  const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
 
   const filteredNotifications = notifications.filter(n => {
@@ -20,16 +21,34 @@ export const NotificationDrawer: React.FC = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleAction = (n: typeof notifications[0]) => {
-    markNotificationAsRead(n.id);
+  const handleAction = async (n: typeof notifications[0]) => {
     setIsNotificationDrawerOpen(false);
 
-    if (n.vehicleId) {
+    if (n.type === 'approval_required') {
+      setCurrentPage('approvals');
+    } else if (n.vehicleId) {
       openVehicleDetail(n.vehicleId);
     } else if (n.type.includes('invoice') && n.referenceId) {
       openInvoiceModal(n.referenceId);
-    } else if (n.type === 'approval_required') {
-      setCurrentPage('approvals');
+    }
+
+    if (n.read) return;
+    try {
+      await markNotificationAsRead(n.id);
+    } catch (e) {
+      addToast({ type: 'error', title: 'Could not mark as read', message: (e as Error).message });
+    }
+  };
+
+  const handleMarkAll = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await markAllNotificationsAsRead();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Could not mark all as read', message: (e as Error).message });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -57,14 +76,14 @@ export const NotificationDrawer: React.FC = () => {
           {unreadCount > 0 && <Badge variant="rose" size="sm">{unreadCount} Unread</Badge>}
         </div>
       }
-      description="Real-time operational, maintenance, expiry, and financial alerts"
+      description="Approval, expiry and payment alerts for the offices you can access"
       footer={
         <div className="flex items-center justify-between w-full">
           <Button
             variant="outline"
             size="sm"
-            onClick={markAllNotificationsAsRead}
-            disabled={unreadCount === 0}
+            onClick={handleMarkAll}
+            disabled={unreadCount === 0 || busy}
             leftIcon={<CheckCheck className="w-4 h-4" />}
           >
             Mark All as Read
@@ -134,8 +153,8 @@ export const NotificationDrawer: React.FC = () => {
         ) : (
           <div className="py-12 text-center text-slate-400 text-xs">
             <CheckCheck className="w-8 h-8 mx-auto text-emerald-400 stroke-[1.5] mb-2" />
-            <p className="font-semibold text-slate-300">All caught up!</p>
-            <p className="text-slate-400 mt-0.5">No notifications matching the selected filter.</p>
+            <p className="font-semibold text-slate-300">{notifications.length === 0 ? 'No notifications yet' : 'Nothing here'}</p>
+            <p className="text-slate-400 mt-0.5">{notifications.length === 0 ? 'Alerts will appear when something needs your attention.' : 'No notifications matching the selected filter.'}</p>
           </div>
         )}
       </div>

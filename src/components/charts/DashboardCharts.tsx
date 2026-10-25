@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
   Area,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,8 +12,31 @@ import {
   Legend,
 } from 'recharts';
 import { formatCurrency } from '../../utils/financial';
+import { useFleet } from '../../context/FleetContext';
+import type { Invoice } from '../../types/finance';
+import type { MaintenanceRecord } from '../../types/maintenance';
+import type { VehicleExpense } from '../../types/operations';
 
-const CHART_COLORS = ['#086343', '#4CAE88', '#D9A441', '#D94B4B', '#2563EB', '#8ACDB0', '#06452F', '#7B8581'];
+// Every chart below is computed from loaded ERP data. With no data they render an explicit empty state,
+// never placeholder figures.
+const EmptyChart: React.FC<{ message: string; height?: number }> = ({ message, height = 250 }) => (
+  <div style={{ height }} className="w-full flex items-center justify-center text-xs text-slate-400 text-center px-6">
+    {message}
+  </div>
+);
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// last n calendar months ending with the current one
+const lastMonths = (n: number) => {
+  const out: { key: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: MONTHS[d.getMonth()] });
+  }
+  return out;
+};
+const ym = (d?: string) => (d ? d.slice(0, 7) : '');
 
 // Shared clean reference tooltip
 export const CustomTooltip = ({ active, payload, label }: any) => {
@@ -31,7 +51,7 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
               {entry.name}:
             </span>
             <span className="font-bold text-slate-100 tabular-nums">
-              {typeof entry.value === 'number' && entry.value > 10 ? formatCurrency(entry.value) : entry.value}
+              {typeof entry.value === 'number' ? formatCurrency(entry.value) : entry.value}
             </span>
           </div>
         ))}
@@ -41,18 +61,27 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// 1. Revenue vs Expense Chart
-export const RevenueVsExpenseChart: React.FC = () => {
-  const data = [
-    { month: 'Jan', Revenue: 18500, Expenses: 11200, Profit: 7300 },
-    { month: 'Feb', Revenue: 21000, Expenses: 13400, Profit: 7600 },
-    { month: 'Mar', Revenue: 19800, Expenses: 12100, Profit: 7700 },
-    { month: 'Apr', Revenue: 24500, Expenses: 15600, Profit: 8900 },
-    { month: 'May', Revenue: 26000, Expenses: 14800, Profit: 11200 },
-    { month: 'Jun', Revenue: 28200, Expenses: 16900, Profit: 11300 },
-    { month: 'Jul', Revenue: 25400, Expenses: 15300, Profit: 10100 },
-    { month: 'Aug', Revenue: 29800, Expenses: 17200, Profit: 12600 },
-  ];
+const kFormat = (val: number) => (Math.abs(val) >= 1000 ? `${val / 1000}k` : `${val}`);
+
+// 1. Revenue vs operating cost (last 6 months). Revenue = sales invoices (credit notes deducted);
+//    cost = vehicle expenses + maintenance records.
+export const RevenueVsExpenseChart: React.FC<{
+  invoices: Invoice[];
+  expenses: VehicleExpense[];
+  maintenanceRecords: MaintenanceRecord[];
+}> = ({ invoices, expenses, maintenanceRecords }) => {
+  const data = lastMonths(6).map(m => {
+    const Revenue = invoices
+      .filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Cancelled' && ym(i.invoiceDate) === m.key)
+      .reduce((s, i) => s + (i.isCreditNote ? -i.subtotal : i.subtotal), 0);
+    const Expenses =
+      expenses.filter(e => ym(e.date) === m.key).reduce((s, e) => s + e.total, 0) +
+      maintenanceRecords.filter(r => ym(r.maintenanceDate) === m.key).reduce((s, r) => s + r.totalCost, 0);
+    return { month: m.label, Revenue, Expenses };
+  });
+  if (data.every(d => d.Revenue === 0 && d.Expenses === 0)) {
+    return <EmptyChart message="No revenue or operating cost recorded in the last 6 months." />;
+  }
 
   return (
     <div className="h-[250px] w-full">
@@ -70,7 +99,7 @@ export const RevenueVsExpenseChart: React.FC = () => {
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
           <XAxis dataKey="month" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
+          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
           <Area type="monotone" dataKey="Revenue" stroke="#086343" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
@@ -81,73 +110,43 @@ export const RevenueVsExpenseChart: React.FC = () => {
   );
 };
 
-// 2. Reference-Style Capsule/Pill Bar Chart (Exact replica of "Project Analytics" in Reference Image)
-export const ReferencePillBarChart: React.FC = () => {
-  const days = [
-    { day: 'S', value: 45, status: 'striped', cost: '420 OMR' },
-    { day: 'M', value: 75, status: 'medium', cost: '780 OMR' },
-    { day: 'T', value: 65, status: 'light', cost: '620 OMR', badge: '74%' },
-    { day: 'W', value: 92, status: 'dark', cost: '920 OMR' },
-    { day: 'T', value: 48, status: 'striped', cost: '460 OMR' },
-    { day: 'F', value: 38, status: 'striped', cost: '380 OMR' },
-    { day: 'S', value: 50, status: 'striped', cost: '510 OMR' },
-  ];
+// 2. Capsule bar chart: operating spend (expenses + maintenance) per day for the last 7 days.
+export const ReferencePillBarChart: React.FC<{
+  expenses: VehicleExpense[];
+  maintenanceRecords: MaintenanceRecord[];
+  currency?: string;
+}> = ({ expenses, maintenanceRecords, currency = 'OMR' }) => {
+  const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const today = new Date();
+  const days = Array.from({ length: 7 }, (_, idx) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - idx));
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const amount =
+      expenses.filter(e => (e.date || '').slice(0, 10) === key).reduce((s, e) => s + e.total, 0) +
+      maintenanceRecords.filter(r => (r.maintenanceDate || '').slice(0, 10) === key).reduce((s, r) => s + r.totalCost, 0);
+    return { day: DAY_LABELS[d.getDay()], key, amount };
+  });
+  const max = Math.max(...days.map(d => d.amount));
+  if (max <= 0) return <EmptyChart height={230} message="No expenses or maintenance recorded in the last 7 days." />;
 
   return (
     <div className="w-full flex flex-col justify-between h-[230px] pt-4">
-      {/* SVG Definitions for Stripes Pattern */}
-      <svg className="w-0 h-0 absolute">
-        <defs>
-          <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="6" height="6">
-            <path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="#CBD5E1" strokeWidth="1.5" />
-          </pattern>
-        </defs>
-      </svg>
-
       <div className="flex items-end justify-between gap-2.5 h-[170px] px-2 sm:px-4">
         {days.map((item, index) => {
-          const heightPercent = item.value;
-          const isDark = item.status === 'dark';
-          const isLight = item.status === 'light';
-          const isMedium = item.status === 'medium';
-          const isStriped = item.status === 'striped';
-
+          const heightPercent = item.amount > 0 ? Math.max(6, Math.round((item.amount / max) * 100)) : 2;
+          const isPeak = item.amount === max;
           return (
             <div key={index} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-              {/* Badge if present (like the 74% badge in screenshot) */}
-              {item.badge && (
-                <div className="absolute -top-7 z-10 bg-white border border-slate-700 shadow-sm text-[10px] font-bold text-slate-100 px-1.5 py-0.5 rounded-md">
-                  {item.badge}
-                </div>
-              )}
-
-              {/* Tooltip on hover */}
               <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-slate-100 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md shadow-md pointer-events-none whitespace-nowrap z-20">
-                {item.cost}
+                {formatCurrency(item.amount, currency)}
               </div>
-
-              {/* Capsule Pill Bar */}
               <div
                 style={{ height: `${heightPercent}%` }}
                 className={`w-full max-w-[34px] rounded-full transition-all duration-300 transform group-hover:scale-y-105 ${
-                  isDark
-                    ? 'bg-[#086343] shadow-sm'
-                    : isMedium
-                    ? 'bg-[#06452F]'
-                    : isLight
-                    ? 'bg-[#4CAE88]'
-                    : 'border-2 border-slate-700'
+                  isPeak ? 'bg-[#086343] shadow-sm' : item.amount > 0 ? 'bg-[#4CAE88]' : 'bg-slate-200'
                 }`}
-              >
-                {isStriped && (
-                  <svg className="w-full h-full rounded-full">
-                    <rect width="100%" height="100%" fill="url(#diagonalHatch)" rx="17" />
-                  </svg>
-                )}
-              </div>
-
-              {/* Day Label */}
-              <span className="mt-3 text-xs font-semibold text-slate-400 group-hover:text-slate-100 transition-colors">
+              />
+              <span className="mt-3 text-xs font-semibold text-slate-400 group-hover:text-slate-100 transition-colors" title={item.key}>
                 {item.day}
               </span>
             </div>
@@ -158,18 +157,23 @@ export const ReferencePillBarChart: React.FC = () => {
   );
 };
 
-// 3. Maintenance Cost Trend
-export const MaintenanceTrendChart: React.FC = () => {
-  const data = [
-    { month: 'Jan', Routine: 420, Corrective: 310, Breakdown: 150 },
-    { month: 'Feb', Routine: 550, Corrective: 200, Breakdown: 0 },
-    { month: 'Mar', Routine: 380, Corrective: 680, Breakdown: 250 },
-    { month: 'Apr', Routine: 620, Corrective: 410, Breakdown: 0 },
-    { month: 'May', Routine: 490, Corrective: 520, Breakdown: 180 },
-    { month: 'Jun', Routine: 710, Corrective: 340, Breakdown: 0 },
-    { month: 'Jul', Routine: 580, Corrective: 490, Breakdown: 120 },
-    { month: 'Aug', Routine: 640, Corrective: 780, Breakdown: 350 },
-  ];
+// 3. Maintenance cost by month, split Routine / Corrective / Breakdown (last 6 months)
+const ROUTINE = new Set(['General Service', 'Preventive Maintenance']);
+const BREAKDOWN = new Set(['Engine Repair', 'Transmission Repair']);
+export const MaintenanceTrendChart: React.FC<{ maintenanceRecords: MaintenanceRecord[] }> = ({ maintenanceRecords }) => {
+  const data = lastMonths(6).map(m => {
+    const rows = maintenanceRecords.filter(r => ym(r.maintenanceDate) === m.key);
+    const sum = (f: (c: string) => boolean) => rows.filter(r => f(r.category)).reduce((s, r) => s + r.totalCost, 0);
+    return {
+      month: m.label,
+      Routine: sum(c => ROUTINE.has(c)),
+      Breakdown: sum(c => BREAKDOWN.has(c)),
+      Corrective: sum(c => !ROUTINE.has(c) && !BREAKDOWN.has(c)),
+    };
+  });
+  if (data.every(d => d.Routine + d.Corrective + d.Breakdown === 0)) {
+    return <EmptyChart message="No maintenance cost recorded in the last 6 months." />;
+  }
 
   return (
     <div className="h-[250px] w-full">
@@ -189,16 +193,20 @@ export const MaintenanceTrendChart: React.FC = () => {
   );
 };
 
-// 4. Asset Depreciation Chart
+// 4. Fixed-asset cohorts: historical cost vs current net book value, grouped by purchase year.
+//    Reads fixedAssets from the context so existing call sites (<AssetDepreciationChart />) keep working.
 export const AssetDepreciationChart: React.FC = () => {
-  const data = [
-    { year: '2021', Cost: 180000, BookValue: 180000 },
-    { year: '2022', Cost: 180000, BookValue: 144000 },
-    { year: '2023', Cost: 240000, BookValue: 172000 },
-    { year: '2024', Cost: 240000, BookValue: 148000 },
-    { year: '2025', Cost: 310000, BookValue: 210000 },
-    { year: '2026', Cost: 310000, BookValue: 185000 },
-  ];
+  const { fixedAssets } = useFleet();
+  const byYear = new Map<string, { year: string; Cost: number; BookValue: number }>();
+  fixedAssets.forEach(a => {
+    const year = (a.purchaseDate || '').slice(0, 4) || 'n/a';
+    const row = byYear.get(year) ?? { year, Cost: 0, BookValue: 0 };
+    row.Cost += a.purchaseCost;
+    row.BookValue += a.currentBookValue;
+    byYear.set(year, row);
+  });
+  const data = [...byYear.values()].sort((a, b) => a.year.localeCompare(b.year));
+  if (data.length === 0) return <EmptyChart message="No fixed assets registered yet." />;
 
   return (
     <div className="h-[250px] w-full">
@@ -216,7 +224,7 @@ export const AssetDepreciationChart: React.FC = () => {
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
           <XAxis dataKey="year" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={val => `${val / 1000}k`} />
+          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
           <Area type="monotone" dataKey="Cost" name="Historical Cost" stroke="#7B8581" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />

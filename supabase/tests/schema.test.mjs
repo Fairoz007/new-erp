@@ -1,69 +1,18 @@
-import { PGlite } from '@electric-sql/pglite';
-import { readFileSync, readdirSync } from 'fs';
-import { join } from 'path';
+// Core schema tests (migrations 000000-000200) and the entry point for .
+// After its own checks this file runs every other supabase/tests/*.test.mjs in a child
+// process (fresh in-memory DB each) and fails if any of them fails.
+// Run a single file: node supabase/tests/<file>.test.mjs supabase/migrations
+// Only some files:   TEST_ONLY=platform,finance npm run test:db
+import { spawnSync } from 'child_process';
+import { readdirSync } from 'fs';
+import { dirname, join, basename } from 'path';
+import { fileURLToPath } from 'url';
+import { setup, seedFixtures, IDS } from './harness.mjs';
 
-const dir = process.argv[2];
-const db = new PGlite();
-
-// Minimal Supabase stand-ins
-await db.exec(`
-  create role anon nologin; create role authenticated nologin;
-  create schema auth; create schema storage;
-  create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb default '{}');
-  create function auth.uid() returns uuid language sql stable as
-    $$ select nullif(current_setting('request.uid', true), '')::uuid $$;
-  create table storage.buckets (id text primary key, name text, public bool, file_size_limit bigint, allowed_mime_types text[]);
-  create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
-  alter table storage.objects enable row level security;
-  grant usage on schema public, auth to authenticated;
-  grant execute on function auth.uid() to authenticated;
-`);
-
-for (const f of readdirSync(dir).filter(f => f.endsWith('.sql')).sort()) {
-  try { await db.exec(readFileSync(join(dir, f), 'utf8')); console.log('OK   migration', f); }
-  catch (e) { console.log('FAIL migration', f, '\n  ', e.message); process.exit(1); }
-}
-
-const results = [];
-const check = async (name, fn, expectError) => {
-  try { const r = await fn(); results.push([expectError ? 'FAIL' : 'PASS', name, expectError ? 'expected error, got success' : (r ?? '')]); }
-  catch (e) { results.push([expectError && (expectError === true || e.message.includes(expectError)) ? 'PASS' : 'FAIL', name, e.message]); }
-};
-const as = async (uid, sql, params) => {
-  await db.exec(`set role authenticated; select set_config('request.uid', '${uid}', false);`);
-  try { return await db.query(sql, params); } finally { await db.exec('reset role;'); }
-};
-const tx = async (uid, sql) => {   // run in a transaction so deferred constraints fire at commit
-  await db.exec(`set role authenticated; select set_config('request.uid', '${uid}', false);`);
-  try { await db.exec(`begin; ${sql}; commit;`); } catch (e) { await db.exec('rollback'); throw e; } finally { await db.exec('reset role;'); }
-};
-
-// Seed as owner
-const ADMIN = '00000000-0000-0000-0000-00000000000a', VIEWER = '00000000-0000-0000-0000-00000000000b',
-      FLEET = '00000000-0000-0000-0000-00000000000c', OTHER = '00000000-0000-0000-0000-00000000000d';
-await db.exec(`
-  insert into auth.users (id, email) values ('${ADMIN}','a@x'),('${VIEWER}','v@x'),('${FLEET}','f@x'),('${OTHER}','o@x');
-  update public.profiles set role = 'Super Admin' where id = '${ADMIN}';
-  update public.profiles set role = 'Viewer' where id = '${VIEWER}';
-  update public.profiles set role = 'Fleet Manager' where id in ('${FLEET}','${OTHER}');
-  insert into public.companies (id, name, code) values
-    ('11111111-1111-1111-1111-111111111111','Head Office','HO'), ('22222222-2222-2222-2222-222222222222','Duqm','DQ');
-  insert into public.company_members values ('${VIEWER}','11111111-1111-1111-1111-111111111111'),
-    ('${FLEET}','11111111-1111-1111-1111-111111111111'), ('${OTHER}','22222222-2222-2222-2222-222222222222');
-  insert into public.accounts (company_id, code, name, category, subcategory) values
-    ('11111111-1111-1111-1111-111111111111','1010','Bank','Asset','Cash'),
-    ('11111111-1111-1111-1111-111111111111','1100','AR','Asset','Receivables'),
-    ('11111111-1111-1111-1111-111111111111','1300','Input VAT','Asset','Tax'),
-    ('11111111-1111-1111-1111-111111111111','2010','AP','Liability','Payables'),
-    ('11111111-1111-1111-1111-111111111111','2100','Output VAT','Liability','Tax'),
-    ('11111111-1111-1111-1111-111111111111','5000','Maintenance','Expense','Direct');
-  insert into public.suppliers (id, supplier_code, name, supplier_type) values ('33333333-3333-3333-3333-333333333333','SUP-001','Zubair','Garage');
-  insert into public.bank_accounts (id, company_id, bank_name, account_name, account_number, account_type)
-    values ('44444444-4444-4444-4444-444444444444','11111111-1111-1111-1111-111111111111','BM','Ops','001','Current');
-  insert into public.vehicles (id, company_id, vehicle_code, plate_number, vehicle_type, vehicle_category, brand, model, fuel_type, transmission)
-    values ('55555555-5555-5555-5555-555555555555','11111111-1111-1111-1111-111111111111','VH-001','1234 AB','SUV','Operations','Toyota','LC','Diesel','Automatic');
-`);
-const HO = '11111111-1111-1111-1111-111111111111';
+const dir = process.argv[2] || 'supabase/migrations';
+const { db, check, as, tx, report: printReport, results } = await setup(dir);
+await seedFixtures(db);
+const { ADMIN, VIEWER, FLEET, OTHER, HO } = IDS;
 
 // --- Permission matrix
 await check('matrix: Viewer cannot create vehicles', async () =>
@@ -172,7 +121,25 @@ await check('anon has no table access', async () => {
   try { await db.query('select * from vehicles'); } finally { await db.exec('reset role'); }
 }, 'permission denied');
 
+
+// ---------------------------------------------------------------------
+// Print own results, then run the other test files
+// ---------------------------------------------------------------------
 for (const [s, n, d] of results) console.log(s.padEnd(5), n, d ? '— ' + String(d).slice(0, 160) : '');
-const fails = results.filter(r => r[0] === 'FAIL').length;
-console.log(`\n${results.length - fails}/${results.length} passed`);
-process.exit(fails ? 1 : 0);
+const ownFails = results.filter(r => r[0] === 'FAIL').length;
+console.log();
+
+const here = dirname(fileURLToPath(import.meta.url));
+const only = (process.env.TEST_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
+const files = readdirSync(here).filter(f => f.endsWith('.test.mjs') && f !== basename(fileURLToPath(import.meta.url)))
+  .filter(f => !only.length || only.some(o => f.startsWith(o))).sort();
+const summary = [['schema.test.mjs', ownFails ? 'FAIL' : 'PASS']];
+for (const f of files) {
+  console.log();
+  const r = spawnSync(process.execPath, [join(here, f), dir], { stdio: 'inherit' });
+  summary.push([f, r.status === 0 ? 'PASS' : 'FAIL']);
+}
+console.log('
+===== test:db summary =====');
+for (const [f, s] of summary) console.log(s.padEnd(5), f);
+process.exit(summary.some(([, s]) => s === 'FAIL') ? 1 : 0);

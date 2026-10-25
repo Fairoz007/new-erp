@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Car, Plus, Download, Filter, Wrench, Receipt, Droplet, Disc, AlertTriangle, FileText, ArrowRight } from 'lucide-react';
+import { Plus, ArrowRight, Pencil } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -8,11 +8,19 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
+import { VehiclePhoto, useVehiclePhotoUrls } from './VehiclePhoto';
+import { VehicleEditModal } from './VehicleEditModal';
 
 export const VehiclesPage: React.FC = () => {
-  const { vehicles, selectedCompanyId, currency } = useFleet();
-  const { openVehicleDetail, openQuickModal } = useUI();
+  const { vehicles, selectedCompanyId, currency, updateVehicle } = useFleet();
+  const { openVehicleDetail, openQuickModal, addToast } = useUI();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('edit', 'vehicles');
+  const canCreate = hasPermission('create', 'vehicles');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [editing, setEditing] = useState<Vehicle | null>(null);
+  const photoUrl = useVehiclePhotoUrls(vehicles.map(v => v.photoUrl));
 
   const filteredVehicles = vehicles.filter(v => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && v.companyId !== selectedCompanyId) {
@@ -31,7 +39,7 @@ export const VehiclesPage: React.FC = () => {
       render: (v) => (
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl overflow-hidden bg-slate-800 shrink-0 border border-slate-700 shadow-2xs">
-            <img src={v.photoUrl} alt={v.model} className="w-full h-full object-cover" />
+            <VehiclePhoto src={photoUrl(v.photoUrl)} alt={v.model} />
           </div>
           <div>
             <p className="font-bold text-slate-100">{v.brand} {v.model}</p>
@@ -48,7 +56,7 @@ export const VehiclesPage: React.FC = () => {
           <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 font-mono text-slate-100 font-bold text-xs">
             {v.plateNumber}
           </span>
-          <p className="text-[10px] text-slate-400 font-mono mt-1">VIN: {v.vin.slice(0, 10)}...</p>
+          <p className="text-[10px] text-slate-400 font-mono mt-1">VIN: {v.vin ? `${v.vin.slice(0, 10)}...` : 'n/a'}</p>
         </div>
       ),
     },
@@ -108,6 +116,11 @@ export const VehiclesPage: React.FC = () => {
       sortable: false,
       render: (v) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+          {canEdit && (
+            <Button variant="ghost" size="xs" onClick={() => setEditing(v)} leftIcon={<Pencil className="w-3.5 h-3.5" />}>
+              Edit
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="xs"
@@ -135,14 +148,16 @@ export const VehiclesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-vehicle')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Add New Vehicle
-          </Button>
+          {canCreate && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => openQuickModal('add-vehicle')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Add New Vehicle
+            </Button>
+          )}
         </div>
       </div>
 
@@ -176,6 +191,18 @@ export const VehiclesPage: React.FC = () => {
           </div>
         }
       />
+
+      {editing && (
+        <VehicleEditModal
+          isOpen
+          vehicle={editing}
+          onClose={() => setEditing(null)}
+          onSubmit={async updates => {
+            await updateVehicle(editing.id, updates);
+            addToast({ type: 'success', title: 'Vehicle Updated', message: `${editing.brand} ${editing.model} (${updates.plateNumber ?? editing.plateNumber}) was saved.` });
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -25,11 +25,9 @@ import {
   RevenueVsExpenseChart,
   MaintenanceTrendChart,
   ReferencePillBarChart,
-  AssetDepreciationChart,
 } from '../../components/charts/DashboardCharts';
 import {
   FleetAvailabilityGaugeCard,
-  OperationalShiftTrackerCard,
   OperatingCostBreakdownCard,
   AttentionRequiredCard,
   AttentionItem,
@@ -92,10 +90,42 @@ export const DashboardPage: React.FC = () => {
   const insuranceCost = expenses.filter(e => e.category === 'Insurance').reduce((s, e) => s + e.total, 0) + vehicles.reduce((s, v) => s + (v.insurancePremiumAnnual || 0), 0);
   const totalExpensesLifetime = expenses.reduce((s, e) => s + e.total, 0) + lifetimeMaintenanceCost;
 
-  const amountPayable = suppliers.reduce((s, sup) => s + sup.currentBalance, 0);
-  const amountReceivable = customers.reduce((s, c) => s + c.currentBalance, 0);
-  const outstandingSupplierInvoices = invoices.filter(i => i.invoiceType === 'Purchase' && i.paymentStatus !== 'Paid').length;
-  const outstandingCustomerInvoices = invoices.filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Paid').length;
+  const openPurchase = invoices.filter(i => i.invoiceType === 'Purchase' && !i.isCreditNote && i.paymentStatus !== 'Paid' && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0);
+  const amountPayable = openPurchase.reduce((s, i) => s + i.outstandingAmount, 0);
+  const outstandingSupplierInvoices = openPurchase.length;
+
+  // Revenue trend: this month vs previous month, from sales invoices (credit notes deducted). Null when there is no basis.
+  const monthKey = (offset: number) => {
+    const d = new Date(new Date().getFullYear(), new Date().getMonth() + offset, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  const salesIn = (key: string) =>
+    invoices
+      .filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Cancelled' && (i.invoiceDate || '').slice(0, 7) === key)
+      .reduce((s, i) => s + (i.isCreditNote ? -i.subtotal : i.subtotal), 0);
+  const salesThisMonth = salesIn(monthKey(0));
+  const salesLastMonth = salesIn(monthKey(-1));
+  const revenueTrend =
+    salesLastMonth > 0
+      ? {
+          value: `${salesThisMonth >= salesLastMonth ? '+' : ''}${(((salesThisMonth - salesLastMonth) / salesLastMonth) * 100).toFixed(1)}%`,
+          direction: (salesThisMonth >= salesLastMonth ? 'up' : 'down') as 'up' | 'down',
+          label: 'Sales this month vs last month',
+        }
+      : { value: formatCurrency(salesThisMonth, currency), direction: 'neutral' as const, label: 'Sales invoiced this month' };
+
+  // Next scheduled service: earliest open work order, else the soonest oil service that is due
+  const openStatuses = ['Draft', 'Requested', 'Approved', 'Scheduled', 'In Progress', 'Waiting for Parts'];
+  const upcomingWorkOrder = workOrders
+    .filter(w => openStatuses.includes(w.status))
+    .sort((a, b) => (a.expectedCompletion || a.reportedDate || '').localeCompare(b.expectedCompletion || b.reportedDate || ''))[0];
+  const upcomingOil = !upcomingWorkOrder
+    ? oilChanges
+        .filter(o => o.status !== 'Normal')
+        .sort((a, b) => (a.nextOilChangeDate || '').localeCompare(b.nextOilChangeDate || ''))[0]
+    : undefined;
+  const upcomingOilVehicle = upcomingOil ? vehicles.find(v => v.id === upcomingOil.vehicleId) : undefined;
+  const upcomingWoVehicle = upcomingWorkOrder ? vehicles.find(v => v.id === upcomingWorkOrder.vehicleId) : undefined;
 
   // Real ERP Attention Items
   const attentionItems: AttentionItem[] = [];
@@ -201,7 +231,7 @@ export const DashboardPage: React.FC = () => {
             size="md"
             onClick={() => setCurrentPage('reports')}
           >
-            Export Data
+            Reports & Export
           </Button>
         </div>
       </div>
@@ -226,14 +256,14 @@ export const DashboardPage: React.FC = () => {
         <StatCard
           title="Revenue YTD"
           value={formatCurrency(pnl.totalRevenue, currency)}
-          trend={{ value: '+14.2%', direction: 'up', label: 'Increased from last month' }}
+          trend={revenueTrend}
           onClick={() => setCurrentPage('profit-loss')}
         />
 
         <StatCard
           title="Pending Invoices (AP)"
           value={formatCurrency(amountPayable, currency)}
-          trend={{ value: `${outstandingSupplierInvoices}`, direction: 'neutral', label: 'Bills On Discuss' }}
+          trend={{ value: `${outstandingSupplierInvoices}`, direction: 'neutral', label: 'Unpaid supplier bills' }}
           onClick={() => setCurrentPage('invoices')}
         />
       </div>
@@ -248,10 +278,10 @@ export const DashboardPage: React.FC = () => {
             <Card className="md:col-span-7 bg-white">
               <CardHeader className="py-4 px-5">
                 <CardTitle className="text-sm font-bold text-slate-100">Fleet Cost Analytics</CardTitle>
-                <p className="text-xs text-slate-400">Weekly operational dispatch expenditure</p>
+                <p className="text-xs text-slate-400">Expenses and maintenance, last 7 days</p>
               </CardHeader>
               <div className="p-4">
-                <ReferencePillBarChart />
+                <ReferencePillBarChart expenses={expenses} maintenanceRecords={maintenanceRecords} currency={currency} />
               </div>
             </Card>
 
@@ -261,18 +291,37 @@ export const DashboardPage: React.FC = () => {
                 <CardTitle className="text-sm font-bold text-slate-100">Reminders</CardTitle>
               </CardHeader>
               <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  <h4 className="text-base font-bold text-slate-100 leading-snug">
-                    Mandatory PM Service: Volvo FH16
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-1 font-medium">
-                    Time : 02.00 pm - 04.00 pm • Bay 3
-                  </p>
-                  <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-850 border border-slate-700 text-xs font-semibold text-slate-400">
-                    <Calendar className="w-3.5 h-3.5 text-[#086343]" />
-                    <span>Plate 4421-AA • Duqm Main Depot</span>
+                {upcomingWorkOrder ? (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-100 leading-snug">
+                      {upcomingWorkOrder.problemDescription || upcomingWorkOrder.workOrderNumber}
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">
+                      {upcomingWorkOrder.workOrderNumber} - {upcomingWorkOrder.status}
+                      {upcomingWorkOrder.expectedCompletion ? ` - due ${formatDate(upcomingWorkOrder.expectedCompletion)}` : ''}
+                    </p>
+                    <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-850 border border-slate-700 text-xs font-semibold text-slate-400">
+                      <Calendar className="w-3.5 h-3.5 text-[#086343]" />
+                      <span>{upcomingWorkOrder.vehiclePlate}{upcomingWoVehicle ? ` - ${upcomingWoVehicle.companyName}` : ''}</span>
+                    </div>
                   </div>
-                </div>
+                ) : upcomingOil && upcomingOilVehicle ? (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-100 leading-snug">
+                      Oil service {upcomingOil.status.toLowerCase()}: {upcomingOilVehicle.brand} {upcomingOilVehicle.model}
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">
+                      Target {upcomingOil.nextOilChangeMileage.toLocaleString()} KM
+                      {upcomingOil.nextOilChangeDate ? ` / ${formatDate(upcomingOil.nextOilChangeDate)}` : ''}
+                    </p>
+                    <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-850 border border-slate-700 text-xs font-semibold text-slate-400">
+                      <Calendar className="w-3.5 h-3.5 text-[#086343]" />
+                      <span>{upcomingOilVehicle.plateNumber} - {upcomingOilVehicle.companyName}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 py-4 text-center">No open work orders or services due.</p>
+                )}
 
                 <div className="pt-2">
                   <Button
@@ -302,46 +351,43 @@ export const DashboardPage: React.FC = () => {
                     onClick={() => setCurrentPage('vehicles')}
                     leftIcon={<Plus className="w-3.5 h-3.5" />}
                   >
-                    Assign Driver
+                    Manage Vehicles
                   </Button>
                 }
               >
-                <CardTitle className="text-sm font-bold text-slate-100">Team Collaboration</CardTitle>
+                <CardTitle className="text-sm font-bold text-slate-100">Driver Assignments</CardTitle>
               </CardHeader>
               <div className="p-5 space-y-3.5">
-                {vehicles.slice(0, 4).map((veh, idx) => (
-                  <div
-                    key={veh.id}
-                    onClick={() => openVehicleDetail(veh.id)}
-                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-850/60 transition-colors cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
-                        <img src={veh.photoUrl} alt={veh.model} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-100 group-hover:text-[#086343] transition-colors truncate">
-                          {veh.assignedDriver || `Operator Lead #0${idx + 1}`}
-                        </p>
-                        <p className="text-[11px] text-slate-400 truncate">
-                          Working on <span className="font-semibold text-slate-300">{veh.brand} {veh.model}</span> ({veh.plateNumber})
-                        </p>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
-                        veh.status === 'Active'
-                          ? 'bg-[#DCEFE5] text-[#06452F]'
-                          : veh.status === 'Under Maintenance'
-                          ? 'bg-[#FEF3C7] text-[#92400E]'
-                          : 'bg-[#FFE4E6] text-[#9F1239]'
-                      }`}
+                {vehicles.length === 0 && <p className="text-xs text-slate-400 py-4 text-center">No vehicles registered yet.</p>}
+                {[...vehicles]
+                  .sort((x, y) => Number(!!y.assignedDriver) - Number(!!x.assignedDriver))
+                  .slice(0, 4)
+                  .map(veh => (
+                    <div
+                      key={veh.id}
+                      onClick={() => openVehicleDetail(veh.id)}
+                      className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-850/60 transition-colors cursor-pointer group"
                     >
-                      {veh.status === 'Active' ? 'Completed' : veh.status === 'Under Maintenance' ? 'In Progress' : 'Pending'}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700 flex items-center justify-center">
+                          {veh.photoUrl ? (
+                            <img src={veh.photoUrl} alt={veh.model} className="w-full h-full object-cover" />
+                          ) : (
+                            <Car className="w-4 h-4 text-slate-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-100 group-hover:text-[#086343] transition-colors truncate">
+                            {veh.assignedDriver || 'No driver assigned'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 truncate">
+                            <span className="font-semibold text-slate-300">{veh.brand} {veh.model}</span> ({veh.plateNumber})
+                          </p>
+                        </div>
+                      </div>
+                      <StatusBadge status={veh.status} size="sm" />
+                    </div>
+                  ))}
               </div>
             </Card>
 
@@ -362,20 +408,20 @@ export const DashboardPage: React.FC = () => {
             <Card className="bg-white">
               <CardHeader className="py-4 px-5">
                 <CardTitle className="text-sm font-bold text-slate-100">Revenue vs. Operating Cost</CardTitle>
-                <p className="text-xs text-slate-400">Monthly financial performance ({currency})</p>
+                <p className="text-xs text-slate-400">Last 6 months, invoiced sales vs expenses + maintenance ({currency})</p>
               </CardHeader>
               <div className="p-4">
-                <RevenueVsExpenseChart />
+                <RevenueVsExpenseChart invoices={invoices} expenses={expenses} maintenanceRecords={maintenanceRecords} />
               </div>
             </Card>
 
             <Card className="bg-white">
               <CardHeader className="py-4 px-5">
                 <CardTitle className="text-sm font-bold text-slate-100">Maintenance by Category</CardTitle>
-                <p className="text-xs text-slate-400">Routine service vs corrective vs breakdown</p>
+                <p className="text-xs text-slate-400">Routine vs corrective vs breakdown, last 6 months</p>
               </CardHeader>
               <div className="p-4">
-                <MaintenanceTrendChart />
+                <MaintenanceTrendChart maintenanceRecords={maintenanceRecords} />
               </div>
             </Card>
           </div>
@@ -411,6 +457,9 @@ export const DashboardPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/80 bg-white">
+                  {vehicles.length === 0 && (
+                    <tr><td colSpan={6} className="px-5 py-8 text-center text-xs text-slate-400">No vehicles registered yet.</td></tr>
+                  )}
                   {vehicles.slice(0, 5).map(v => (
                     <tr
                       key={v.id}
@@ -420,7 +469,7 @@ export const DashboardPage: React.FC = () => {
                       <td className="px-5 py-3.5 font-bold text-slate-100">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-slate-700">
-                            <img src={v.photoUrl} alt={v.model} className="w-full h-full object-cover" />
+                            {v.photoUrl && <img src={v.photoUrl} alt={v.model} className="w-full h-full object-cover" />}
                           </div>
                           <div>
                             <p className="text-xs font-bold text-slate-100">{v.brand} {v.model}</p>
@@ -471,6 +520,7 @@ export const DashboardPage: React.FC = () => {
               <CardTitle className="text-sm font-bold text-slate-100">Work Orders</CardTitle>
             </CardHeader>
             <div className="p-4 space-y-3">
+              {workOrders.length === 0 && <p className="text-xs text-slate-400 py-4 text-center">No work orders yet.</p>}
               {workOrders.slice(0, 5).map((wo) => (
                 <div
                   key={wo.id}
@@ -486,7 +536,7 @@ export const DashboardPage: React.FC = () => {
                         {wo.problemDescription || wo.workOrderNumber}
                       </p>
                       <p className="text-[11px] text-slate-400">
-                        {wo.vehiclePlate} • Due: {wo.expectedCompletion ? formatDate(wo.expectedCompletion) : formatDate(wo.reportedDate)}
+                        {wo.vehiclePlate} - {wo.expectedCompletion ? `Due ${formatDate(wo.expectedCompletion)}` : `Reported ${formatDate(wo.reportedDate)}`}
                       </p>
                     </div>
                   </div>
@@ -495,9 +545,6 @@ export const DashboardPage: React.FC = () => {
               ))}
             </div>
           </Card>
-
-          {/* Section 2: Time Tracker (Operational Shift & Odometer Telemetry) */}
-          <OperationalShiftTrackerCard />
 
           {/* Section 3: Operating Cost Allocation */}
           <OperatingCostBreakdownCard

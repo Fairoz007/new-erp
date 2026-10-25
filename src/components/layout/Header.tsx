@@ -17,11 +17,43 @@ import {
   Upload,
   PanelLeftClose,
   PanelLeftOpen,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useFleet } from '../../context/FleetContext';
-import { useUI, QuickModalType } from '../../context/UIContext';
+import { useUI, QuickModalType, AppPage } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
+import { UserAvatar } from './UserAvatar';
+
+interface QuickAddItem {
+  type: Exclude<QuickModalType, null>;
+  label: string;
+  icon: React.ElementType;
+  iconClass: string;
+  page: AppPage;
+  module: string;
+}
+
+const QUICK_ADD_GROUPS: { title: string; items: QuickAddItem[] }[] = [
+  {
+    title: 'Fleet & Workshop',
+    items: [
+      { type: 'add-vehicle', label: 'Add New Vehicle', icon: Car, iconClass: 'text-[#086343]', page: 'vehicles', module: 'vehicles' },
+      { type: 'add-maintenance', label: 'Record Maintenance', icon: Wrench, iconClass: 'text-[#086343]', page: 'maintenance', module: 'maintenance' },
+      { type: 'add-work-order', label: 'Create Work Order', icon: Wrench, iconClass: 'text-amber-500', page: 'work-orders', module: 'work-orders' },
+      { type: 'add-oil-change', label: 'Record Oil Change', icon: Droplet, iconClass: 'text-amber-500', page: 'oil-management', module: 'oil' },
+      { type: 'add-accident', label: 'Report Accident', icon: AlertTriangle, iconClass: 'text-rose-500', page: 'accidents', module: 'accidents' },
+    ],
+  },
+  {
+    title: 'Finance & Docs',
+    items: [
+      { type: 'add-expense', label: 'Add Vehicle Expense', icon: Receipt, iconClass: 'text-[#086343]', page: 'expenses', module: 'expenses' },
+      { type: 'add-invoice', label: 'Create New Invoice', icon: FileText, iconClass: 'text-[#086343]', page: 'invoices', module: 'invoices' },
+      { type: 'upload-document', label: 'Upload Document', icon: Upload, iconClass: 'text-blue-500', page: 'documents', module: 'documents' },
+    ],
+  },
+];
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
@@ -33,7 +65,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
   const headerRef = useRef<HTMLElement>(null);
   const { companies, selectedCompanyId, setSelectedCompanyId, currency, setCurrency, notifications } = useFleet();
   const { setIsSearchOpen, setIsNotificationDrawerOpen, openQuickModal, setCurrentPage } = useUI();
-  const { currentUser, users, setCurrentUserId } = useAuth();
+  const { currentUser, signOut, canAccessPage, hasPermission } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
@@ -63,6 +97,22 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    setSignOutError(null);
+    try {
+      await signOut();
+    } catch (e) {
+      setSignOutError((e as Error).message);
+      setIsSigningOut(false);
+    }
+  };
+
+  // Quick-add entries only for modules the user can create in (UIContext re-checks on open).
+  const canQuickAdd = (page: AppPage, module: string) =>
+    canAccessPage(page) && hasPermission('create', module);
 
   const handleQuickAddSelect = (type: QuickModalType) => {
     setIsQuickAddOpen(false);
@@ -127,13 +177,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           >
             <Building2 className="w-3.5 h-3.5 text-[#086343] shrink-0" />
             <span className="max-w-[160px] truncate">
-              {selectedCompanyId === 'all'
-                ? 'All Offices'
-                : currentCompany?.id === 'comp-1'
-                ? 'Muscat HQ'
-                : currentCompany?.id === 'comp-2'
-                ? 'Duqm Branch'
-                : currentCompany?.name || 'Office'}
+              {selectedCompanyId === 'all' ? 'All Offices' : currentCompany?.name || 'Office'}
             </span>
             <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
           </button>
@@ -141,8 +185,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           {isCompanyDropdownOpen && (
             <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
               <div className="px-3 py-2 border-b border-slate-700 mb-1">
-                <p className="font-bold text-slate-100 text-xs">Al Hakim National LLC</p>
-                <p className="text-[10px] text-slate-400">Select active office or consolidated group view</p>
+                <p className="font-bold text-slate-100 text-xs">Offices</p>
+                <p className="text-[10px] text-slate-400">Offices you have access to, or the consolidated view</p>
               </div>
               <button
                 onClick={() => {
@@ -157,14 +201,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                   <p className="font-semibold flex items-center gap-1.5">
                     <span>🏢</span> All Offices (Consolidated)
                   </p>
-                  <p className="text-[10px] text-slate-400">View entire fleet, accounts & operations across GCC</p>
+                  <p className="text-[10px] text-slate-400">All offices you have access to</p>
                 </div>
                 {selectedCompanyId === 'all' && <span className="text-[#086343] font-bold">✓</span>}
               </button>
 
               <div className="my-1 border-t border-slate-700" />
 
-              {companies.filter(comp => comp.id === 'comp-1' || comp.id === 'comp-2').map(comp => (
+              {companies.length === 0 && (
+                <p className="px-3 py-2.5 text-[11px] text-slate-400">No offices assigned to your account yet.</p>
+              )}
+              {companies.map(comp => (
                 <button
                   key={comp.id}
                   onClick={() => {
@@ -178,10 +225,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                   <div className="min-w-0 pr-2">
                     <p className="font-semibold truncate flex items-center gap-1.5">
                       <span>📍</span>
-                      <span>{comp.id === 'comp-1' ? 'Head Office (Muscat)' : comp.id === 'comp-2' ? 'Duqm Office (SEZAD)' : comp.name}</span>
+                      <span>{comp.name}</span>
                     </p>
-                    <p className="text-[10px] text-slate-400">
-                      {comp.id === 'comp-1' ? 'Corporate Headquarters • Executive Fleet' : 'Port of Duqm Hub • Heavy Haulage Fleet'}
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {[comp.code, comp.city].filter(Boolean).join(' • ')}
                     </p>
                   </div>
                   {selectedCompanyId === comp.id && <span className="text-[#086343] font-bold shrink-0">✓</span>}
@@ -250,66 +297,32 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
 
           {isQuickAddOpen && (
             <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs space-y-0.5">
-              <p className="px-2.5 py-1.5 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Fleet & Workshop</p>
-              <button
-                onClick={() => handleQuickAddSelect('add-vehicle')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <Car className="w-4 h-4 text-[#086343] shrink-0" />
-                <span>Add New Vehicle</span>
-              </button>
-              <button
-                onClick={() => handleQuickAddSelect('add-maintenance')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <Wrench className="w-4 h-4 text-[#086343] shrink-0" />
-                <span>Record Maintenance</span>
-              </button>
-              <button
-                onClick={() => handleQuickAddSelect('add-work-order')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <Wrench className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>Create Work Order</span>
-              </button>
-              <button
-                onClick={() => handleQuickAddSelect('add-oil-change')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <Droplet className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>Record Oil Change</span>
-              </button>
-              <button
-                onClick={() => handleQuickAddSelect('add-accident')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>Report Accident</span>
-              </button>
-
-              <div className="my-1 border-t border-slate-700" />
-              <p className="px-2.5 py-1.5 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Finance & Docs</p>
-              <button
-                onClick={() => handleQuickAddSelect('add-expense')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <Receipt className="w-4 h-4 text-[#086343] shrink-0" />
-                <span>Add Vehicle Expense</span>
-              </button>
-              <button
-                onClick={() => handleQuickAddSelect('add-invoice')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <FileText className="w-4 h-4 text-[#086343] shrink-0" />
-                <span>Create New Invoice</span>
-              </button>
-              <button
-                onClick={() => handleQuickAddSelect('upload-document')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
-              >
-                <Upload className="w-4 h-4 text-blue-500 shrink-0" />
-                <span>Upload Document</span>
-              </button>
+              {QUICK_ADD_GROUPS.map((group, gi) => {
+                const items = group.items.filter(item => canQuickAdd(item.page, item.module));
+                if (items.length === 0) return null;
+                return (
+                  <React.Fragment key={group.title}>
+                    {gi > 0 && <div className="my-1 border-t border-slate-700" />}
+                    <p className="px-2.5 py-1.5 font-bold text-slate-400 uppercase text-[10px] tracking-wider">{group.title}</p>
+                    {items.map(item => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.type}
+                          onClick={() => handleQuickAddSelect(item.type)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                        >
+                          <Icon className={`w-4 h-4 shrink-0 ${item.iconClass}`} />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
+              {QUICK_ADD_GROUPS.every(g => g.items.every(item => !canQuickAdd(item.page, item.module))) && (
+                <p className="px-3 py-2 text-[11px] text-slate-400">Your role cannot create records.</p>
+              )}
             </div>
           )}
         </div>
@@ -337,7 +350,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           )}
         </button>
 
-        {/* User Profile Area (Exact Reference Style: Avatar + Name + Email) */}
+        {/* Signed-in user: name, role, sign out */}
         <div className="relative">
           <button
             onClick={() => {
@@ -347,50 +360,40 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
               setIsQuickAddOpen(false);
             }}
             className="flex h-11 items-center gap-3 pl-1 pr-2 rounded-full bg-white hover:bg-slate-850 border border-slate-700 transition-all cursor-pointer shadow-2xs"
-            title="Switch User / Role (RBAC)"
-            aria-label="Open profile and role switcher"
+            title="Account"
+            aria-label="Open account menu"
+            aria-expanded={isUserDropdownOpen}
           >
-            <div className="w-8 h-8 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700 ring-1 ring-slate-700/60">
-              <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-            </div>
+            <UserAvatar name={currentUser.name} src={currentUser.avatar} className="ring-1 ring-slate-700/60" />
             <div className="hidden lg:block text-left pr-1">
-              <p className="text-xs font-extrabold text-slate-100 leading-none">{currentUser.name}</p>
-              <p className="text-[10px] text-slate-400 font-medium leading-tight mt-1 truncate max-w-[140px]">{currentUser.email}</p>
+              <p className="text-xs font-extrabold text-slate-100 leading-none truncate max-w-[140px]">{currentUser.name}</p>
+              <p className="text-[10px] text-slate-400 font-medium leading-tight mt-1 truncate max-w-[140px]">{currentUser.role}</p>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden lg:block" />
           </button>
 
           {isUserDropdownOpen && (
             <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
-              <div className="px-3 py-2 border-b border-slate-700 mb-1">
-                <p className="font-bold text-slate-100 text-xs">{currentUser.name}</p>
-                <p className="text-[10px] text-slate-400">{currentUser.role} • {currentUser.department}</p>
+              <div className="px-3 py-2 border-b border-slate-700 mb-1 flex items-center gap-2.5">
+                <UserAvatar name={currentUser.name} src={currentUser.avatar} />
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-100 text-xs truncate">{currentUser.name}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
+                  <p className="text-[10px] text-[#086343] font-semibold truncate">
+                    {currentUser.role}
+                    {currentUser.department ? ` • ${currentUser.department}` : ''}
+                  </p>
+                </div>
               </div>
-
-              <p className="px-3 py-1 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Switch Role Profile (RBAC)</p>
-              <div className="max-h-64 overflow-y-auto space-y-0.5 mt-1">
-                {users.map(u => (
-                  <button
-                    key={u.id}
-                    onClick={() => {
-                      setCurrentUserId(u.id);
-                      setIsUserDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
-                      currentUser.id === u.id ? 'bg-[#DCEFE5] text-[#06452F] font-bold' : 'text-slate-200 hover:bg-slate-850'
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
-                      <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-xs text-slate-100 truncate">{u.name}</p>
-                      <p className="text-[10px] text-slate-400">{u.role} ({u.department})</p>
-                    </div>
-                    {currentUser.id === u.id && <span className="text-[#086343] font-bold shrink-0">✓</span>}
-                  </button>
-                ))}
-              </div>
+              {signOutError && <p className="px-3 py-1.5 text-[11px] text-rose-600">{signOutError}</p>}
+              <button
+                onClick={() => void handleSignOut()}
+                disabled={isSigningOut}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <LogOut className="w-4 h-4 text-rose-500 shrink-0" />
+                <span>{isSigningOut ? 'Signing out…' : 'Sign out'}</span>
+              </button>
             </div>
           )}
         </div>

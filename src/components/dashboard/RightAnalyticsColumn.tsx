@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { formatCurrency } from '../../utils/financial';
-import { AlertCircle, ArrowRight, Pause, Play, Square } from 'lucide-react';
+import { AlertCircle, ArrowRight } from 'lucide-react';
 
 interface FleetAvailabilityProps {
   totalVehicles: number;
@@ -113,73 +113,6 @@ export const FleetAvailabilityGaugeCard: React.FC<FleetAvailabilityProps> = ({
   );
 };
 
-// 2. Operational Shift Tracker (Exact Reference Match for "Time Tracker")
-export const OperationalShiftTrackerCard: React.FC = () => {
-  const [seconds, setSeconds] = useState(5048); // default ~01:24:08 like in screenshot
-  const [isRunning, setIsRunning] = useState(true);
-
-  useEffect(() => {
-    let interval: any = null;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setSeconds(s => s + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning]);
-
-  const formatTime = (totalSecs: number) => {
-    const hrs = Math.floor(totalSecs / 3600);
-    const mins = Math.floor((totalSecs % 3600) / 60);
-    const secs = totalSecs % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  return (
-    <div className="rounded-[20px] bg-gradient-to-br from-[#06452F] via-[#086343] to-[#021a12] p-5 text-white shadow-card relative overflow-hidden">
-      {/* Background wave graphics */}
-      <svg className="absolute inset-0 w-full h-full opacity-15 pointer-events-none" viewBox="0 0 300 150" preserveAspectRatio="none">
-        <path d="M0,60 C80,120 150,0 230,80 C270,120 300,50 300,90 L300,150 L0,150 Z" fill="#4CAE88" />
-        <path d="M0,90 C60,40 120,110 200,60 C260,20 280,110 300,70 L300,150 L0,150 Z" fill="#FFFFFF" />
-      </svg>
-
-      <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
-        <div>
-          <span className="text-xs font-semibold text-white/80">Shift & Odometer Tracker</span>
-          <p className="text-[11px] text-white/60">Live Driver Dispatch Shift</p>
-        </div>
-
-        <div className="text-center py-1">
-          <span className="text-4xl font-extrabold text-white tracking-wider font-mono">
-            {formatTime(seconds)}
-          </span>
-        </div>
-
-        {/* Circular Action Control Buttons */}
-        <div className="flex items-center justify-center gap-3">
-          <button
-            onClick={() => setIsRunning(r => !r)}
-            className="w-10 h-10 rounded-full bg-white text-[#086343] flex items-center justify-center hover:bg-slate-100 transition-transform active:scale-95 shadow-md cursor-pointer"
-            title={isRunning ? 'Pause Shift' : 'Resume Shift'}
-          >
-            {isRunning ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-          </button>
-          <button
-            onClick={() => {
-              setIsRunning(false);
-              setSeconds(0);
-            }}
-            className="w-10 h-10 rounded-full bg-[#D94B4B] text-white flex items-center justify-center hover:bg-rose-700 transition-transform active:scale-95 shadow-md cursor-pointer"
-            title="Reset Shift Timer"
-          >
-            <Square className="w-4 h-4 fill-current" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 interface CostBreakdownProps {
   maintenanceCost: number;
   oilCost: number;
@@ -211,7 +144,7 @@ export const OperatingCostBreakdownCard: React.FC<CostBreakdownProps> = ({
     { label: 'Oil Service', value: oilCost, color: '#D9A441' },
     { label: 'Tyres', value: tyreCost, color: '#4CAE88' },
     { label: 'Accidents', value: accidentCost, color: '#D94B4B' },
-    { label: 'Insurance & Other', value: otherCost || insuranceCost, color: '#7B8581' },
+    { label: 'Other expenses', value: otherCost, color: '#7B8581' },
   ];
 
   return (

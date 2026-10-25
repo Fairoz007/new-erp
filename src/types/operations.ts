@@ -92,6 +92,7 @@ export interface Accident {
     name: string;
     type: 'Accident Photo' | 'Police Report' | 'Insurance Document' | 'Quotation' | 'Repair Invoice' | 'Document';
     url: string;
+    storagePath?: string; // object path in the 'documents' storage bucket
   }[];
   notes?: string;
   createdAt: string;

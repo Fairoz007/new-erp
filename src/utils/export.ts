@@ -1,4 +1,16 @@
 /**
+ * Neutralise spreadsheet formula injection: a text cell that starts with = + - @ (or tab / CR)
+ * is prefixed with an apostrophe so Excel/Sheets treat it as text. Real numbers and plain numeric
+ * strings (e.g. "-12.500") are left untouched.
+ */
+export function csvSafeCell(val: unknown): string {
+  const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
+  if (typeof val === 'number') return str;
+  if (/^[-+]?\d+(\.\d+)?$/.test(str)) return str;
+  return /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+}
+
+/**
  * CSV Exporter utility
  */
 export function exportToCSV<T extends Record<string, any>>(
@@ -14,7 +26,7 @@ export function exportToCSV<T extends Record<string, any>>(
   let csvContent = '';
 
   if (headers && headers.length) {
-    const headerRow = headers.map(h => `"${h.label}"`).join(',');
+    const headerRow = headers.map(h => `"${csvSafeCell(h.label).replace(/"/g, '""')}"`).join(',');
     csvContent += headerRow + '\r\n';
 
     data.forEach(item => {
@@ -22,7 +34,7 @@ export function exportToCSV<T extends Record<string, any>>(
         .map(h => {
           const val = item[h.key];
           if (val === null || val === undefined) return '""';
-          const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+          const stringVal = csvSafeCell(val);
           return `"${stringVal.replace(/"/g, '""')}"`;
         })
         .join(',');
@@ -30,7 +42,7 @@ export function exportToCSV<T extends Record<string, any>>(
     });
   } else {
     const keys = Object.keys(data[0]);
-    const headerRow = keys.map(k => `"${k}"`).join(',');
+    const headerRow = keys.map(k => `"${csvSafeCell(k).replace(/"/g, '""')}"`).join(',');
     csvContent += headerRow + '\r\n';
 
     data.forEach(item => {
@@ -38,7 +50,7 @@ export function exportToCSV<T extends Record<string, any>>(
         .map(k => {
           const val = item[k];
           if (val === null || val === undefined) return '""';
-          const stringVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+          const stringVal = csvSafeCell(val);
           return `"${stringVal.replace(/"/g, '""')}"`;
         })
         .join(',');

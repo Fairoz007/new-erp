@@ -5,11 +5,16 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatDateTime } from '../../utils/date';
 
 export const NotificationsPage: React.FC = () => {
-  const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useFleet();
-  const { openVehicleDetail, openInvoiceModal, setCurrentPage } = useUI();
+  // refreshExpiryNotifications: new FleetContext function (wraps services/system.refreshExpiryNotifications, affects ['notifications'])
+  const { notifications, markNotificationAsRead, markAllNotificationsAsRead, refreshExpiryNotifications } = useFleet();
+  const { openVehicleDetail, openInvoiceModal, setCurrentPage, addToast } = useUI();
+  const { currentUser } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const canRefresh = currentUser.role === 'Super Admin' || currentUser.role === 'Company Admin';
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
 
   const filtered = notifications.filter(n => {
@@ -18,11 +23,42 @@ export const NotificationsPage: React.FC = () => {
     return true;
   });
 
-  const handleAction = (n: typeof notifications[0]) => {
-    markNotificationAsRead(n.id);
-    if (n.vehicleId) openVehicleDetail(n.vehicleId);
+  const handleAction = async (n: typeof notifications[0]) => {
+    // Navigate first: a failed read-receipt must not block the user from opening the item.
+    if (n.type === 'approval_required') setCurrentPage('approvals');
+    else if (n.vehicleId) openVehicleDetail(n.vehicleId);
     else if (n.type.includes('invoice') && n.referenceId) openInvoiceModal(n.referenceId);
-    else if (n.type === 'approval_required') setCurrentPage('approvals');
+    if (n.read) return;
+    try {
+      await markNotificationAsRead(n.id);
+    } catch (e) {
+      addToast({ type: 'error', title: 'Could not mark as read', message: (e as Error).message });
+    }
+  };
+
+  const handleMarkAll = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await markAllNotificationsAsRead();
+    } catch (e) {
+      addToast({ type: 'error', title: 'Could not mark all as read', message: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const created = await refreshExpiryNotifications();
+      addToast({ type: 'success', title: 'Alerts refreshed', message: `${created} new alert${created === 1 ? '' : 's'} generated.` });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Refresh failed', message: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -34,16 +70,22 @@ export const NotificationsPage: React.FC = () => {
             Alerts & Notifications Center
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            System generated alerts for oil service limits, expiring registrations, insurance renewals, and payment milestones.
+            System generated alerts for approvals, expiring registrations, insurance and documents, and overdue invoices.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {canRefresh && (
+            <Button variant="secondary" size="sm" className="rounded-full" onClick={handleRefresh} disabled={busy}>
+              Refresh expiry alerts
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
             className="rounded-full"
-            onClick={markAllNotificationsAsRead}
+            disabled={busy || notifications.every(n => n.read)}
+            onClick={handleMarkAll}
             leftIcon={<CheckCheck className="w-4 h-4 text-forest-500" />}
           >
             Mark All as Read
@@ -87,6 +129,13 @@ export const NotificationsPage: React.FC = () => {
 
       {/* Notifications List */}
       <div className="space-y-3">
+        {filtered.length === 0 && (
+          <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
+            <p className="text-sm font-semibold text-slate-200">
+              {notifications.length === 0 ? 'No notifications yet' : 'No notifications match this filter'}
+            </p>
+          </Card>
+        )}
         {filtered.map(item => (
           <Card
             key={item.id}
@@ -117,7 +166,7 @@ export const NotificationsPage: React.FC = () => {
                 </div>
               </div>
 
-              <Button variant="secondary" size="xs" className="rounded-full" onClick={() => handleAction(item)}>
+              <Button variant="secondary" size="xs" className="rounded-full" onClick={e => { e.stopPropagation(); handleAction(item); }}>
                 Inspect →
               </Button>
             </div>

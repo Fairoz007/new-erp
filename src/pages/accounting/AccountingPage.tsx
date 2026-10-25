@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Scale, Landmark, Trash2 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { Plus, Scale, Trash2 } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -13,38 +12,60 @@ import { formatDate } from '../../utils/date';
 import { Tabs } from '../../components/ui/Tabs';
 import { FinanceOverview } from './FinanceOverview';
 import { useAuth } from '../../context/AuthContext';
+import { consolidateAccounts } from '../../services/accounting';
+
+type FormLine = { id: string; accountCode: string; debit: number; credit: number; description: string };
+
+const blankLines = (): FormLine[] => [
+  { id: `${Date.now()}-1`, accountCode: '', debit: 0, credit: 0, description: '' },
+  { id: `${Date.now()}-2`, accountCode: '', debit: 0, credit: 0, description: '' },
+];
 
 export const AccountingPage: React.FC = () => {
-  const { chartOfAccounts, journalEntries, addJournalEntry, currency, selectedCompanyId } = useFleet();
+  const { chartOfAccounts, journalEntries, addJournalEntry, currency, selectedCompanyId, companies } = useFleet();
   const { addToast } = useUI();
-  const { hasPermission, currentUser } = useAuth();
+  const { hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'coa' | 'journal'>('overview');
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
 
-  // Journal Entry Form State with balanced Debit/Credit lines
+  // The chart of accounts is per company: one row per code here (balances summed across offices for 'all').
+  const scopedAccounts = consolidateAccounts(chartOfAccounts, selectedCompanyId);
+
+  // A journal always belongs to ONE company; with the 'all' filter the user picks it in the form.
+  const defaultPostingCompany = selectedCompanyId && selectedCompanyId !== 'all' ? selectedCompanyId : '';
   const [journalForm, setJournalForm] = useState({
+    companyId: defaultPostingCompany,
     date: new Date().toISOString().slice(0, 10),
     description: '',
     reference: '',
-    lines: [
-      { id: '1', accountCode: '5000', debit: 0, credit: 0, description: '' },
-      { id: '2', accountCode: '2010', debit: 0, credit: 0, description: '' },
-    ],
+    lines: blankLines(),
   });
+  const postingAccounts = journalForm.companyId ? consolidateAccounts(chartOfAccounts, journalForm.companyId) : [];
 
   const totalDebit = journalForm.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
   const totalCredit = journalForm.lines.reduce((s, l) => s + Number(l.credit || 0), 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.001 && totalDebit > 0;
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.0005 && totalDebit > 0;
 
-  const handleCreateJournal = (e: React.FormEvent) => {
+  const openJournalModal = () => {
+    setJournalForm({ companyId: defaultPostingCompany, date: new Date().toISOString().slice(0, 10), description: '', reference: '', lines: blankLines() });
+    setIsJournalModalOpen(true);
+  };
+
+  const handleCreateJournal = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPosting) return;
     if (!hasPermission('create', 'accounting')) {
       addToast({ type: 'error', title: 'Permission Denied', message: 'You do not have permission to post journal entries.' });
       return;
     }
+    if (!journalForm.companyId) {
+      addToast({ type: 'error', title: 'Company Required', message: 'Choose the company (office) this journal belongs to.' });
+      return;
+    }
     const activeLines = journalForm.lines.filter(l => Number(l.debit || 0) !== 0 || Number(l.credit || 0) !== 0);
-    if (activeLines.some(l => Number(l.debit) < 0 || Number(l.credit) < 0 || !chartOfAccounts.some(a => a.code === l.accountCode))) {
-      addToast({ type: 'error', title: 'Invalid Line', message: 'Amounts must be non-negative and every line needs a valid account.' });
+    if (activeLines.some(l => Number(l.debit) < 0 || Number(l.credit) < 0 || !postingAccounts.some(a => a.code === l.accountCode))) {
+      addToast({ type: 'error', title: 'Invalid Line', message: "Amounts must be non-negative and every line needs an account from this company's chart." });
       return;
     }
     if (activeLines.length < 2 || !activeLines.some(l => Number(l.debit) > 0) || !activeLines.some(l => Number(l.credit) > 0)) {
@@ -56,60 +77,48 @@ export const AccountingPage: React.FC = () => {
       return;
     }
 
-    const linesWithNames = activeLines.map(line => {
-      const acc = chartOfAccounts.find(a => a.code === line.accountCode);
-      return {
-        id: `jl-${Date.now()}-${Math.random()}`,
-        accountCode: line.accountCode,
-        accountName: acc?.name || 'General Account',
-        debit: Number(line.debit || 0),
-        credit: Number(line.credit || 0),
-        description: line.description || journalForm.description,
-      };
-    });
-
+    setIsPosting(true);
     try {
-    addJournalEntry({
-      companyId: selectedCompanyId === 'all' ? 'comp-1' : selectedCompanyId,
-      date: journalForm.date,
-      description: journalForm.description,
-      reference: journalForm.reference,
-      lines: linesWithNames,
-      totalDebit: Math.round(totalDebit * 1000) / 1000,
-      totalCredit: Math.round(totalCredit * 1000) / 1000,
-      postedBy: currentUser.name,
-      status: 'Posted',
-      sourceModule: 'Manual',
-    });
+      // Entry number, poster and balance are assigned/verified by the database (post_journal_entry RPC).
+      const entry = await addJournalEntry({
+        companyId: journalForm.companyId,
+        date: journalForm.date,
+        description: journalForm.description,
+        reference: journalForm.reference,
+        lines: activeLines.map(line => ({
+          id: line.id,
+          accountCode: line.accountCode,
+          accountName: postingAccounts.find(a => a.code === line.accountCode)?.name || line.accountCode,
+          debit: Number(line.debit || 0),
+          credit: Number(line.credit || 0),
+          description: line.description || journalForm.description,
+        })),
+        totalDebit: Math.round(totalDebit * 1000) / 1000,
+        totalCredit: Math.round(totalCredit * 1000) / 1000,
+        postedBy: '',
+        status: 'Posted',
+        sourceModule: 'Manual',
+      });
+      addToast({ type: 'success', title: 'Journal Entry Posted', message: `Posted ${entry?.entryNumber ?? 'entry'} for ${totalDebit.toFixed(3)} ${currency}.` });
+      setIsJournalModalOpen(false);
     } catch (err) {
       addToast({ type: 'error', title: 'Journal Rejected', message: (err as Error).message });
-      return;
+    } finally {
+      setIsPosting(false);
     }
-
-    addToast({ type: 'success', title: 'Journal Entry Posted', message: `Posted entry for ${totalDebit.toFixed(3)} OMR.` });
-    setIsJournalModalOpen(false);
-    setJournalForm({
-      date: new Date().toISOString().slice(0, 10),
-      description: '',
-      reference: '',
-      lines: [
-        { id: `${Date.now()}-1`, accountCode: '5000', debit: 0, credit: 0, description: '' },
-        { id: `${Date.now()}-2`, accountCode: '2010', debit: 0, credit: 0, description: '' },
-      ],
-    });
   };
 
   const scopedJournalEntries = selectedCompanyId === 'all'
     ? journalEntries
     : journalEntries.filter(entry => entry.companyId === selectedCompanyId);
 
+  const updateLine = (idx: number, patch: Partial<FormLine>) =>
+    setJournalForm(prev => ({ ...prev, lines: prev.lines.map((l, i) => (i === idx ? { ...l, ...patch } : l)) }));
+
   const addJournalLine = () => {
     setJournalForm(previous => ({
       ...previous,
-      lines: [
-        ...previous.lines,
-        { id: `${Date.now()}-${previous.lines.length}`, accountCode: chartOfAccounts[0]?.code || '', debit: 0, credit: 0, description: '' },
-      ],
+      lines: [...previous.lines, { id: `${Date.now()}-${previous.lines.length}`, accountCode: '', debit: 0, credit: 0, description: '' }],
     }));
   };
 
@@ -208,7 +217,11 @@ export const AccountingPage: React.FC = () => {
       header: 'Status',
       align: 'center',
       render: (j) => (
-        <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold">
+        <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+          j.status === 'Posted' ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+            : j.status === 'Void' ? 'bg-rose-950 text-rose-400 border-rose-800'
+            : 'bg-amber-950 text-amber-400 border-amber-800'
+        }`}>
           {j.status}
         </span>
       ),
@@ -244,7 +257,7 @@ export const AccountingPage: React.FC = () => {
             <Button
               variant="primary"
               size="md"
-              onClick={() => setIsJournalModalOpen(true)}
+              onClick={openJournalModal}
               leftIcon={<Plus className="w-4 h-4" />}
             >
               Post Journal Entry
@@ -258,13 +271,15 @@ export const AccountingPage: React.FC = () => {
       {/* View: Chart of Accounts */}
       {activeTab === 'coa' && (
         <DataTable
-          data={chartOfAccounts}
+          data={scopedAccounts}
           columns={coaColumns}
           keyExtractor={a => a.code}
           title="Chart of Accounts Master"
+          description={selectedCompanyId === 'all' ? 'Balances summed by account code across your companies.' : undefined}
           searchPlaceholder="Search accounts by code, name, category..."
           searchFields={['code', 'name', 'category', 'subcategory']}
           exportFilename="FleetX_Chart_of_Accounts"
+          emptyMessage="No chart of accounts is set up for this company yet."
         />
       )}
 
@@ -278,19 +293,30 @@ export const AccountingPage: React.FC = () => {
           searchPlaceholder="Search journal entries by number, description, reference..."
           searchFields={['entryNumber', 'description', 'reference', 'sourceModule']}
           exportFilename="FleetX_Journal_Entries"
+          emptyMessage="No journal entries have been posted yet."
         />
       )}
 
       {/* Post Journal Entry Modal */}
       <Modal
         isOpen={isJournalModalOpen}
-        onClose={() => setIsJournalModalOpen(false)}
+        onClose={() => !isPosting && setIsJournalModalOpen(false)}
         title="Post Manual Journal Voucher"
         description="Double-entry debit and credit allocation with real-time balance validation"
         size="xl"
       >
         <form onSubmit={handleCreateJournal} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Company"
+              value={journalForm.companyId}
+              onChange={e => setJournalForm({ ...journalForm, companyId: e.target.value, lines: blankLines() })}
+              disabled={!!defaultPostingCompany}
+              required
+            >
+              <option value="">-- Select company --</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
             <Input label="Posting Date" type="date" value={journalForm.date} onChange={e => setJournalForm({ ...journalForm, date: e.target.value })} required />
             <Input label="Reference" placeholder="e.g. MNT-JV-0042" value={journalForm.reference} onChange={e => setJournalForm({ ...journalForm, reference: e.target.value })} />
           </div>
@@ -306,49 +332,43 @@ export const AccountingPage: React.FC = () => {
               </Button>
             </div>
 
+            {journalForm.companyId && postingAccounts.length === 0 && (
+              <p className="text-xs text-amber-400">This company has no chart of accounts yet, so nothing can be posted.</p>
+            )}
+
             {journalForm.lines.map((line, idx) => (
               <div key={line.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                 <div className="md:col-span-5">
                   <Select
                     label={idx === 0 ? 'Account' : undefined}
                     value={line.accountCode}
-                    onChange={e => {
-                      const lines = [...journalForm.lines];
-                      lines[idx].accountCode = e.target.value;
-                      setJournalForm({ ...journalForm, lines });
-                    }}
+                    onChange={e => updateLine(idx, { accountCode: e.target.value })}
+                    disabled={!journalForm.companyId}
                   >
-                    {chartOfAccounts.map(a => (
+                    <option value="">-- Account --</option>
+                    {postingAccounts.map(a => (
                       <option key={a.code} value={a.code}>{a.code} - {a.name} ({a.category})</option>
                     ))}
                   </Select>
                 </div>
                 <div className="md:col-span-3">
                   <Input
-                    label={idx === 0 ? 'Debit (OMR)' : undefined}
+                    label={idx === 0 ? `Debit (${currency})` : undefined}
                     type="number"
                     step="0.001"
+                    min="0"
                     value={line.debit}
-                    onChange={e => {
-                      const lines = [...journalForm.lines];
-                      lines[idx].debit = Number(e.target.value);
-                      if (Number(e.target.value) > 0) lines[idx].credit = 0;
-                      setJournalForm({ ...journalForm, lines });
-                    }}
+                    onChange={e => updateLine(idx, Number(e.target.value) > 0 ? { debit: Number(e.target.value), credit: 0 } : { debit: Number(e.target.value) })}
                   />
                 </div>
                 <div className="md:col-span-3">
                   <Input
-                    label={idx === 0 ? 'Credit (OMR)' : undefined}
+                    label={idx === 0 ? `Credit (${currency})` : undefined}
                     type="number"
                     step="0.001"
+                    min="0"
                     value={line.credit}
-                    onChange={e => {
-                      const lines = [...journalForm.lines];
-                      lines[idx].credit = Number(e.target.value);
-                      if (Number(e.target.value) > 0) lines[idx].debit = 0;
-                      setJournalForm({ ...journalForm, lines });
-                    }}
+                    onChange={e => updateLine(idx, Number(e.target.value) > 0 ? { credit: Number(e.target.value), debit: 0 } : { credit: Number(e.target.value) })}
                   />
                 </div>
                 <div className="md:col-span-1 md:self-end">
@@ -371,7 +391,7 @@ export const AccountingPage: React.FC = () => {
             {/* Balancing Indicator */}
             <div className="flex justify-between items-center pt-3 border-t border-slate-800 text-xs font-bold">
               <span className={isBalanced ? 'text-emerald-400' : 'text-rose-400'}>
-                {isBalanced ? '✓ Journal is Balanced' : `✗ Out of Balance: Diff ${Math.abs(totalDebit - totalCredit).toFixed(3)} OMR`}
+                {isBalanced ? '✓ Journal is Balanced' : `✗ Out of Balance: Diff ${Math.abs(totalDebit - totalCredit).toFixed(3)} ${currency}`}
               </span>
               <div className="flex gap-6">
                 <span>Total Debit: {totalDebit.toFixed(3)}</span>
@@ -381,9 +401,9 @@ export const AccountingPage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={() => setIsJournalModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" type="submit" disabled={!isBalanced} leftIcon={<Scale className="w-4 h-4" />}>
-              Post to Ledger
+            <Button variant="secondary" type="button" onClick={() => setIsJournalModalOpen(false)} disabled={isPosting}>Cancel</Button>
+            <Button variant="primary" type="submit" disabled={!isBalanced || isPosting || !journalForm.companyId} leftIcon={<Scale className="w-4 h-4" />}>
+              {isPosting ? 'Posting…' : 'Post to Ledger'}
             </Button>
           </div>
         </form>

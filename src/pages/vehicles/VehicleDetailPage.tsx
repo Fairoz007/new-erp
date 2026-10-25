@@ -34,6 +34,10 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI, VehicleTab } from '../../context/UIContext';
 import { formatCurrency, calculateDepreciationSchedule, calculateCostPerKm } from '../../utils/financial';
 import { formatDate, isDateOverdue, isDateExpiringSoon } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
+import { downloadDocument } from '../../services/documents';
+import { VehiclePhoto, useVehiclePhotoUrls } from './VehiclePhoto';
+import { VehicleEditModal } from './VehicleEditModal';
 
 export const VehicleDetailPage: React.FC = () => {
   const {
@@ -50,11 +54,34 @@ export const VehicleDetailPage: React.FC = () => {
     currency,
     getVehicleFinancialSummary,
     updateVehicle,
+    deleteVehicle,
   } = useFleet();
 
   const { selectedVehicleId, selectedVehicleTab, setSelectedVehicleTab, setCurrentPage, openQuickModal, openInvoiceModal, addToast } = useUI();
 
+  const { hasPermission } = useAuth();
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const vehicle = vehicles.find(v => v.id === selectedVehicleId) || (selectedVehicleId ? undefined : vehicles[0]);
+  const photoUrl = useVehiclePhotoUrls([vehicle?.photoUrl]);
+  const canEdit = hasPermission('edit', 'vehicles');
+  const canDelete = hasPermission('delete', 'vehicles');
+
+  const handleDelete = async () => {
+    if (!vehicle || deleting) return;
+    if (!window.confirm(`Delete ${vehicle.brand} ${vehicle.model} (${vehicle.plateNumber})? This cannot be undone. Vehicles with linked records cannot be deleted: set them to Inactive instead.`)) return;
+    setDeleting(true);
+    try {
+      await deleteVehicle(vehicle.id);
+      addToast({ type: 'success', title: 'Vehicle Deleted', message: `${vehicle.plateNumber} was removed from the fleet.` });
+      setCurrentPage('vehicles');
+    } catch (e) {
+      addToast({ type: 'error', title: 'Could not delete vehicle', message: (e as Error).message });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (!vehicle) {
     return (
@@ -130,6 +157,16 @@ export const VehicleDetailPage: React.FC = () => {
           <Button variant="secondary" size="xs" onClick={() => openQuickModal('upload-document')} leftIcon={<Upload className="w-3.5 h-3.5" />}>
             Upload Doc
           </Button>
+          {canEdit && (
+            <Button variant="outline" size="xs" onClick={() => setEditOpen(true)} leftIcon={<Edit className="w-3.5 h-3.5" />}>
+              Edit Vehicle
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="danger" size="xs" onClick={handleDelete} isLoading={deleting} leftIcon={<Trash2 className="w-3.5 h-3.5" />}>
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 
@@ -138,7 +175,7 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-4 sm:gap-6">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-800 border-2 border-slate-700 shrink-0 shadow-sm">
-              <img src={vehicle.photoUrl} alt={vehicle.model} className="w-full h-full object-cover" />
+              <VehiclePhoto src={photoUrl(vehicle.photoUrl)} alt={vehicle.model} />
             </div>
 
             <div>
@@ -278,7 +315,7 @@ export const VehicleDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-slate-400 block">Department / Yard</span>
-                    <span className="font-semibold text-slate-200">{vehicle.department} ({vehicle.location})</span>
+                    <span className="font-semibold text-slate-200">{[vehicle.department, vehicle.location].filter(Boolean).join(' / ') || 'Not recorded'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block">Registration (Mulkiya) Expiry</span>
@@ -541,9 +578,14 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-200">Tyre Lifecycle & Position Health</h3>
-            <Button variant="primary" size="sm" onClick={() => openQuickModal('add-work-order')} leftIcon={<Disc className="w-4 h-4" />}>
-              Replace / Service Tyres
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => openQuickModal('add-tyre')} leftIcon={<Plus className="w-4 h-4" />}>
+                Add Tyre
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => openQuickModal('add-work-order')} leftIcon={<Disc className="w-4 h-4" />}>
+                Replace / Service Tyres
+              </Button>
+            </div>
           </div>
 
           {/* Interactive Visual Tyre Placement Diagram */}
@@ -555,7 +597,7 @@ export const VehicleDetailPage: React.FC = () => {
               {['Front Left', 'Front Right', 'Rear Left', 'Rear Right'].map(pos => {
                 const tyre = vehicleTyres.find(t => t.position === pos);
                 const tread = tyre ? tyre.treadDepthMm : null;
-                const status = tyre?.status || 'Good';
+                const status = tyre?.status ?? 'Good';
 
                 return (
                   <div key={pos} className="flex flex-col items-center p-4 bg-slate-950 border border-slate-800 rounded-xl text-center shadow-md">
@@ -563,11 +605,13 @@ export const VehicleDetailPage: React.FC = () => {
                     <div className="w-12 h-12 rounded-full border-4 border-slate-700 bg-slate-900 flex items-center justify-center my-2 text-xs font-black text-slate-100 shadow-inner">
                       {tread !== null ? `${tread} mm` : 'N/A'}
                     </div>
-                    <p className="text-xs font-semibold text-slate-200">{tyre?.brand || 'Standard'}</p>
-                    <p className="text-[10px] text-slate-400">{tyre?.size || 'Factory'}</p>
-                    <div className="mt-2">
-                      <StatusBadge status={status} size="sm" />
-                    </div>
+                    <p className="text-xs font-semibold text-slate-200">{tyre ? tyre.brand : 'Not recorded'}</p>
+                    <p className="text-[10px] text-slate-400">{tyre?.size || '-'}</p>
+                    {tyre && (
+                      <div className="mt-2">
+                        <StatusBadge status={status} size="sm" />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -724,7 +768,7 @@ export const VehicleDetailPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-200 font-medium">{exp.description}</td>
-                      <td className="px-4 py-3 text-slate-400">{exp.supplierName || 'Merchant'}</td>
+                      <td className="px-4 py-3 text-slate-400">{exp.supplierName || '-'}</td>
                       <td className="px-4 py-3 text-slate-400">{exp.paymentMethod}</td>
                       <td className="px-4 py-3 text-right font-bold text-slate-100">{formatCurrency(exp.total, currency)}</td>
                     </tr>
@@ -899,12 +943,15 @@ export const VehicleDetailPage: React.FC = () => {
                 <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
                   <span>Expiry: {formatDate(doc.expiryDate)}</span>
                   <button
-                    onClick={() => {
-                      const href = doc.documentUrl || doc.url;
-                      if (href) {
-                        window.open(href, '_blank', 'noopener,noreferrer');
-                      } else {
+                    onClick={async () => {
+                      if (!(doc.documentUrl || doc.url)) {
                         addToast({ type: 'warning', title: 'No File Attached', message: `${doc.documentName} has no downloadable file on record.` });
+                        return;
+                      }
+                      try {
+                        await downloadDocument(doc);
+                      } catch (e) {
+                        addToast({ type: 'error', title: 'Download failed', message: (e as Error).message });
                       }
                     }}
                     className="text-indigo-400 hover:underline font-semibold cursor-pointer"
@@ -916,6 +963,18 @@ export const VehicleDetailPage: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {editOpen && (
+        <VehicleEditModal
+          isOpen
+          vehicle={vehicle}
+          onClose={() => setEditOpen(false)}
+          onSubmit={async updates => {
+            await updateVehicle(vehicle.id, updates);
+            addToast({ type: 'success', title: 'Vehicle Updated', message: `${vehicle.brand} ${vehicle.model} was saved.` });
+          }}
+        />
       )}
 
       {/* TAB 10: TIMELINE */}
@@ -937,9 +996,9 @@ export const VehicleDetailPage: React.FC = () => {
                     <span className="text-[11px] font-mono text-slate-400">{formatDate(item.date)}</span>
                   </div>
                   <p className="text-xs text-slate-300 mt-1 leading-relaxed">{item.description}</p>
-                  {item.amount && (
+                  {item.amount ? (
                     <p className="text-xs font-semibold text-indigo-400 mt-2">Amount: {formatCurrency(item.amount, currency)}</p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             ))}

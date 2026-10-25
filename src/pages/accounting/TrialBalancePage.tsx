@@ -13,6 +13,8 @@ export const TrialBalancePage: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
   const tbData = getTrialBalance(asOfDate);
+  // An empty ledger is trivially balanced; show that truthfully instead of a "perfect balance" banner.
+  const hasLedger = tbData.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 
   const filteredRows = tbData.rows.filter(r => {
     if (filterCategory !== 'all' && r.category !== filterCategory) return false;
@@ -75,10 +77,10 @@ export const TrialBalancePage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Audited Trial Balance Statement
+            Trial Balance Statement
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Real-time double-entry trial balance verifying mathematical debit/credit equilibrium across opening, movements, and closing positions.
+            Opening = account opening balances; movements = posted journal lines dated on or before the as-of date; closing = opening + movements.
           </p>
         </div>
 
@@ -109,24 +111,27 @@ export const TrialBalancePage: React.FC = () => {
           title="Equilibrium Status"
           value={tbData.isBalanced ? 'Balanced' : 'Discrepancy'}
           subValue={tbData.isBalanced ? '∑(Debits) === ∑(Credits)' : `Variance: ${tbData.difference.toFixed(3)} ${currency}`}
-          trend={{ value: tbData.isBalanced ? '100% Parity' : 'Audit Required', direction: tbData.isBalanced ? 'up' : 'down' }}
         />
         <StatCard
-          title="Accounts Audited"
+          title="Accounts Listed"
           value={tbData.rows.length}
-          subValue="Active Chart of Accounts"
+          subValue={selectedCompanyId === 'all' ? 'Summed by code across companies' : 'Company chart of accounts'}
         />
       </div>
 
       {/* Balance Verification Banner */}
-      {tbData.isBalanced ? (
+      {!hasLedger ? (
+        <div className="p-4 bg-slate-850 border border-slate-700 rounded-2xl text-xs text-slate-400">
+          No opening balances or posted journal entries exist up to {formatDate(asOfDate)}. The trial balance is empty.
+        </div>
+      ) : tbData.isBalanced ? (
         <div className="p-4 bg-[#DCEFE5] border border-[#BDE2D0] rounded-2xl flex items-center justify-between text-[#06452F]">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-[#086343] shrink-0" />
             <div>
-              <p className="text-xs font-bold text-[#06452F]">General Ledger Books in Perfect Balance</p>
+              <p className="text-xs font-bold text-[#06452F]">Debits equal credits</p>
               <p className="text-[11px] text-[#086343] mt-0.5">
-                Total audited debits match total credits at {formatCurrency(tbData.totalClosingDebit, currency)} with zero discrepancy.
+                Total closing debits match total closing credits at {formatCurrency(tbData.totalClosingDebit, currency)} with zero discrepancy.
               </p>
             </div>
           </div>
@@ -141,7 +146,7 @@ export const TrialBalancePage: React.FC = () => {
             <div>
               <p className="text-xs font-bold text-[#991B1B]">Audit Discrepancy Detected</p>
               <p className="text-[11px] text-rose-700 mt-0.5">
-                Closing Debits differ from Closing Credits by {tbData.difference.toFixed(3)} {currency}. Please review draft journal entries.
+                Closing Debits differ from Closing Credits by {tbData.difference.toFixed(3)} {currency}. Check account opening balances.
               </p>
             </div>
           </div>
@@ -219,6 +224,11 @@ export const TrialBalancePage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/80 bg-white">
+              {filteredRows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-slate-400 italic">No accounts to show.</td>
+                </tr>
+              )}
               {filteredRows.map(row => (
                 <tr key={row.accountCode} className="hover:bg-slate-850/60 transition-colors">
                   <td className="py-3 px-4 font-mono font-bold text-slate-100">{row.accountCode}</td>
@@ -267,7 +277,7 @@ export const TrialBalancePage: React.FC = () => {
             <tfoot>
               <tr className="bg-slate-850 font-bold border-t-2 border-slate-700 text-slate-100 text-xs">
                 <td colSpan={3} className="py-3.5 px-4 uppercase tracking-wider text-right font-mono">
-                  Audited Totals:
+                  Totals:
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono border-l border-slate-700 text-slate-300">
                   {formatCurrency(shown.totalOpeningDebit, currency)}

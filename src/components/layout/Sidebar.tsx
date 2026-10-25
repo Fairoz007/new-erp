@@ -27,14 +27,12 @@ import {
   Sparkles,
   ChevronRight,
   Layers,
-  Lock,
-  Smartphone,
   Shield,
 } from 'lucide-react';
 import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
-import { Badge } from '../ui/Badge';
+import { UserAvatar } from './UserAvatar';
 
 interface NavItem {
   id: AppPage;
@@ -132,6 +130,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
+  // Only show pages the role can open (canAccessPage reads role_permissions); RLS still enforces data access.
+  const visibleGroups = navigationGroups
+    .map(group => ({ ...group, items: group.items.filter(item => canAccessPage(item.id)) }))
+    .filter(group => group.items.length > 0);
+
   const handleNavClick = (pageId: AppPage) => {
     setCurrentPage(pageId);
     if (onCloseMobile) onCloseMobile();
@@ -180,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Scrollable Navigation */}
         <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-thin">
-          {navigationGroups.map((group, groupIdx) => (
+          {visibleGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-1">
               <h4 className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${isCollapsed ? 'lg:sr-only' : ''}`}>
                 {group.title}
@@ -188,21 +191,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="space-y-0.5">
                 {group.items.map(item => {
                   const isActive = currentPage === item.id || (currentPage === 'vehicle-detail' && item.id === 'vehicles');
-                  const isAllowed = canAccessPage(item.id);
                   const Icon = item.icon;
 
                   return (
                     <button
                       key={item.id}
                       onClick={() => handleNavClick(item.id)}
-                      title={isCollapsed ? `${item.label}${!isAllowed ? ' (Restricted)' : ''}` : !isAllowed ? 'Restricted Access' : undefined}
+                      title={isCollapsed ? item.label : undefined}
                       aria-current={isActive ? 'page' : undefined}
                       className={`w-full min-h-[42px] relative flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3'} rounded-xl text-xs sm:text-[13px] transition-all group cursor-pointer ${
                         isActive
                           ? 'bg-white text-slate-100 font-bold shadow-2xs'
-                          : isAllowed
-                          ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 font-medium'
-                          : 'text-slate-400/60 hover:text-slate-300 hover:bg-slate-800/40 font-normal'
+                          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 font-medium'
                       }`}
                     >
                       {/* Active green vertical indicator bar on left edge */}
@@ -213,18 +213,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center gap-3 min-w-0">
                         <Icon
                           className={`w-4 h-4 shrink-0 transition-colors ${
-                            isActive ? 'text-[#086343]' : isAllowed ? 'text-slate-400 group-hover:text-slate-100' : 'text-slate-500'
+                            isActive ? 'text-[#086343]' : 'text-slate-400 group-hover:text-slate-100'
                           }`}
                         />
                         <span className={`truncate ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
                       </div>
 
                       <div className={`flex items-center gap-1.5 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                        {!isAllowed && (
-                          <span title="Restricted role access">
-                            <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-                          </span>
-                        )}
                         {item.badge !== undefined ? (
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             isActive ? 'bg-[#086343] text-white' : 'bg-slate-800 text-slate-400'
@@ -240,42 +235,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           ))}
 
-          {/* Reference-Inspired Bottom Promotional / App Card */}
-          <div className={`pt-2 ${isCollapsed ? 'lg:hidden' : ''}`}>
-            <div className="rounded-2xl bg-gradient-to-br from-[#06452F] via-[#086343] to-[#03261a] p-4 text-white shadow-card relative overflow-hidden group">
-              <div className="absolute -right-4 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
-              <div className="relative z-10 space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-white">
-                  <Smartphone className="w-4 h-4" />
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-white tracking-tight leading-snug">Download Driver App</h5>
-                  <p className="text-[10px] text-white/75 mt-0.5">Mobile dispatch, mileage logs & fuel sync</p>
-                </div>
-                <button
-                  onClick={() => handleNavClick('documents')}
-                  className="w-full bg-[#03261a]/60 hover:bg-[#03261a] text-white border border-white/20 text-[11px] font-semibold py-1.5 px-3 rounded-full transition-all text-center block cursor-pointer"
-                >
-                  Get Driver Portal
-                </button>
-              </div>
-            </div>
-          </div>
         </nav>
 
         {/* User Profile at bottom */}
         <div className={`p-3 border-t border-slate-700/80 bg-surface-secondary shrink-0 ${isCollapsed ? 'lg:px-2' : ''}`}>
           <div className={`p-2 rounded-xl bg-white border border-slate-700/80 shadow-2xs flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
-                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-              </div>
+              <UserAvatar name={currentUser.name} src={currentUser.avatar} />
               <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
                 <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
                 <p className="text-[10px] text-slate-400 font-medium truncate">{currentUser.role}</p>
               </div>
             </div>
-            <div className={`w-2 h-2 rounded-full bg-[#21865B] shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="System Online" />
+            <div className={`w-2 h-2 rounded-full bg-[#21865B] shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="Signed in" />
           </div>
 
           <div className={`mt-2 px-1 text-[10px] text-slate-400 items-center justify-between ${isCollapsed ? 'lg:hidden flex' : 'flex'}`}>

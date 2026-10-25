@@ -1,15 +1,33 @@
-import React from 'react';
-import { Building2, Phone, Mail, MapPin, CreditCard, ShieldCheck, Users, Car, FileText, CheckCircle2, Layers } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import React, { useState } from 'react';
+import { Phone, Mail, MapPin, CreditCard, Users, Car, FileText, Layers, Plus, Pencil } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useFleet } from '../../context/FleetContext';
+import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
+import { Company } from '../../types/system';
+import { CompanyFormModal } from './CompanyFormModal';
 
 export const CompaniesPage: React.FC = () => {
-  const { companies, vehicles, invoices, employees, selectedCompanyId, setSelectedCompanyId, resetToDefaultData } = useFleet();
+  const { companies, vehicles, invoices, employees, selectedCompanyId, setSelectedCompanyId, addCompany, updateCompany } = useFleet();
+  const { addToast } = useUI();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('edit', 'companies');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Company | undefined>(undefined);
 
+  const openCreate = () => { setEditing(undefined); setFormOpen(true); };
+  const openEdit = (c: Company) => { setEditing(c); setFormOpen(true); };
 
-  // Restrict strictly to Head Office (comp-1) and Duqm Office (comp-2)
-  const activeOffices = companies.filter(c => c.id === 'comp-1' || c.id === 'comp-2');
+  const saveCompany = async (data: Omit<Company, 'id'>) => {
+    if (editing) {
+      await updateCompany(editing.id, data);
+      addToast({ type: 'success', title: 'Office Updated', message: `${data.name} was saved.` });
+    } else {
+      await addCompany(data);
+      addToast({ type: 'success', title: 'Office Created', message: `${data.name} was added.` });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -20,7 +38,7 @@ export const CompaniesPage: React.FC = () => {
             Offices & Branches Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Corporate organizational structure for <strong className="text-slate-100">Al Hakim National LLC</strong> — segregated operational management for Head Office (Muscat) and Duqm Office (SEZAD).
+            Corporate organizational structure: each office keeps its own fleet, records, chart of accounts and document numbering.
           </p>
         </div>
 
@@ -34,63 +52,43 @@ export const CompaniesPage: React.FC = () => {
             <Layers className="w-4 h-4 mr-1.5" />
             {selectedCompanyId === 'all' ? 'Viewing Consolidated (All Offices)' : 'Switch to Consolidated View'}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { if (window.confirm('Reset ALL data to the default dataset? Unsaved records will be lost.')) resetToDefaultData(); }}
-            title="Re-synchronize Head Office and Duqm Office dataset"
-            className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer rounded-full"
-          >
-            Sync Dual Offices
-          </Button>
+          {canEdit && (
+            <Button variant="primary" size="sm" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />}>
+              Add Office
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Enterprise Master Overview Banner */}
-      <div className="bg-white border border-slate-700 rounded-[20px] p-5 sm:p-6 shadow-card">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-forest-500 flex items-center justify-center font-bold text-white text-xl shadow-md shrink-0">
-              AHN
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-slate-100 tracking-tight">Al Hakim National LLC</h2>
-                <span className="text-[10px] bg-forest-100 text-forest-700 font-semibold px-2.5 py-0.5 rounded-full border border-forest-500/20 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-forest-600" /> Active Enterprise
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Headquarters: Muscat, Sultanate of Oman • Commercial Fleet, Industrial Logistics & Technical Services
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <div className="px-3 py-1.5 bg-slate-850/80 border border-slate-700 rounded-xl">
-              <span className="text-slate-400 block text-[10px]">Commercial Reg (CR)</span>
-              <span className="font-mono font-bold text-slate-200">CR-1384920</span>
-            </div>
-            <div className="px-3 py-1.5 bg-slate-850/80 border border-slate-700 rounded-xl">
-              <span className="text-slate-400 block text-[10px]">Corporate VAT Identification</span>
-              <span className="font-mono font-bold text-slate-200">OM1100482910</span>
-            </div>
-            <div className="px-3 py-1.5 bg-slate-850/80 border border-slate-700 rounded-xl">
-              <span className="text-slate-400 block text-[10px]">Tax Card Number</span>
-              <span className="font-mono font-bold text-slate-200">TAX-8849102</span>
-            </div>
-          </div>
+      {/* Group totals (computed from the loaded records) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-700 rounded-[20px] p-5 shadow-card">
+          <span className="text-slate-400 block text-[10px] uppercase font-medium">Offices</span>
+          <span className="text-2xl font-bold text-slate-100">{companies.length}</span>
+        </div>
+        <div className="bg-white border border-slate-700 rounded-[20px] p-5 shadow-card">
+          <span className="text-slate-400 block text-[10px] uppercase font-medium">Vehicles (all offices)</span>
+          <span className="text-2xl font-bold text-slate-100">{vehicles.length}</span>
+        </div>
+        <div className="bg-white border border-slate-700 rounded-[20px] p-5 shadow-card">
+          <span className="text-slate-400 block text-[10px] uppercase font-medium">Employees (all offices)</span>
+          <span className="text-2xl font-bold text-slate-100">{employees.length}</span>
         </div>
       </div>
+
+      {companies.length === 0 && (
+        <div className="bg-white border border-slate-700 rounded-[20px] p-10 text-center text-sm text-slate-400">
+          No offices are visible to your account yet.{canEdit ? ' Use "Add Office" to create the first one.' : ''}
+        </div>
+      )}
 
       {/* Offices Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {activeOffices.map(comp => {
+        {companies.map(comp => {
           const compVehicles = vehicles.filter(v => v.companyId === comp.id);
           const compInvoices = invoices.filter(i => i.companyId === comp.id);
           const compStaff = employees.filter(e => e.companyId === comp.id);
           const isSelected = selectedCompanyId === comp.id;
-          const isHeadOffice = comp.id === 'comp-1';
 
           return (
             <Card
@@ -103,26 +101,35 @@ export const CompaniesPage: React.FC = () => {
             >
               <CardHeader
                 action={
-                  <Button
-                    variant={isSelected ? 'primary' : 'outline'}
-                    size="xs"
-                    onClick={() => setSelectedCompanyId(isSelected ? 'all' : comp.id)}
-                    className="cursor-pointer rounded-full"
-                  >
-                    {isSelected ? 'Active Filter (Click to Reset)' : `Filter by ${isHeadOffice ? 'Head Office' : 'Duqm Office'}`}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {canEdit && (
+                      <Button variant="ghost" size="xs" onClick={() => openEdit(comp)} leftIcon={<Pencil className="w-3.5 h-3.5" />}>
+                        Edit
+                      </Button>
+                    )}
+                    <Button
+                      variant={isSelected ? 'primary' : 'outline'}
+                      size="xs"
+                      onClick={() => setSelectedCompanyId(isSelected ? 'all' : comp.id)}
+                      className="cursor-pointer rounded-full"
+                    >
+                      {isSelected ? 'Active Filter (Click to Reset)' : 'Filter by this office'}
+                    </Button>
+                  </div>
                 }
               >
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-2xl bg-forest-100 text-forest-700 border border-forest-500/20 flex items-center justify-center font-bold text-base shrink-0">
-                    {isHeadOffice ? 'HO' : 'DQM'}
+                    {comp.code.slice(0, 3)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-base text-slate-100">{comp.name}</h3>
-                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-850 text-forest-700 font-semibold border border-slate-700">
-                        {isHeadOffice ? 'Corporate HQ' : 'SEZAD Branch'}
-                      </span>
+                      {!comp.active && (
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-850 text-slate-400 font-semibold border border-slate-700">
+                          Inactive
+                        </span>
+                      )}
                     </div>
                     <span className="text-[11px] text-slate-400 font-mono">
                       Code: {comp.code} • {comp.city}, {comp.state}, {comp.country}
@@ -134,7 +141,7 @@ export const CompaniesPage: React.FC = () => {
               <CardContent className="space-y-4 text-xs">
                 {/* Office Role Description */}
                 <p className="text-xs text-slate-300 bg-slate-850/60 p-3 rounded-xl border border-slate-700/80 leading-relaxed">
-                  {comp.notes}
+                  {comp.notes || 'No description recorded.'}
                 </p>
 
                 {/* Operational Stats Grid */}
@@ -176,7 +183,7 @@ export const CompaniesPage: React.FC = () => {
                 </div>
 
                 {/* Bank Account */}
-                {comp.bankDetails && (
+                {comp.bankDetails?.bankName && (
                   <div className="p-3 bg-slate-850/60 rounded-xl border border-slate-700/80 space-y-1">
                     <p className="font-semibold text-forest-700 flex items-center gap-1.5 text-[11px]">
                       <CreditCard className="w-3.5 h-3.5 text-forest-500" /> {comp.bankDetails.bankName}
@@ -206,6 +213,8 @@ export const CompaniesPage: React.FC = () => {
           );
         })}
       </div>
+
+      <CompanyFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} company={editing} onSubmit={saveCompany} />
     </div>
   );
 };

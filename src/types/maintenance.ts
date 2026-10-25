@@ -92,6 +92,7 @@ export interface MaintenanceRecord {
     name: string;
     type: 'Invoice' | 'Receipt' | 'Quotation' | 'Work Order' | 'Before Photo' | 'After Photo' | 'Document';
     url: string;
+    storagePath?: string; // object path in the 'documents' storage bucket
     uploadedAt: string;
   }[];
   

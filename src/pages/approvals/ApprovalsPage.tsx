@@ -19,6 +19,7 @@ export const ApprovalsPage: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<typeof approvalRequests[0] | null>(null);
   const [actionType, setActionType] = useState<'Approved' | 'Rejected'>('Approved');
   const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleOpenActionModal = (req: typeof approvalRequests[0], action: 'Approved' | 'Rejected') => {
     setSelectedRequest(req);
@@ -26,14 +27,14 @@ export const ApprovalsPage: React.FC = () => {
     setComment('');
   };
 
-  const handleConfirmAction = () => {
-    if (!selectedRequest) return;
+  const handleConfirmAction = async () => {
+    if (!selectedRequest || submitting) return;
     const reqModule = selectedRequest.referenceType === 'WorkOrder' ? 'maintenance' : selectedRequest.referenceType === 'Invoice' ? 'invoice' : 'expense';
     if (!canApprove(reqModule, selectedRequest.amount)) {
       addToast({
         type: 'error',
         title: 'Authorization Required',
-        message: `Your active role (${currentUser.role}) does not have signing authority for ${selectedRequest.referenceType} of ${selectedRequest.amount} OMR.`,
+        message: `Your active role (${currentUser.role}) does not have signing authority for ${selectedRequest.referenceType} of ${formatCurrency(selectedRequest.amount, currency)}.`,
       });
       return;
     }
@@ -43,13 +44,21 @@ export const ApprovalsPage: React.FC = () => {
       return;
     }
 
-    processApproval(selectedRequest.id, actionType, comment.trim(), currentUser);
-    addToast({
-      type: actionType === 'Approved' ? 'success' : 'warning',
-      title: `Request ${actionType}`,
-      message: `${selectedRequest.referenceNumber} has been ${actionType.toLowerCase()} by ${currentUser.name}.`,
-    });
-    setSelectedRequest(null);
+    setSubmitting(true);
+    try {
+      // The database re-checks role, company and threshold and records the signer.
+      await processApproval(selectedRequest.id, actionType, comment.trim(), currentUser);
+      addToast({
+        type: actionType === 'Approved' ? 'success' : 'warning',
+        title: `Request ${actionType}`,
+        message: `${selectedRequest.referenceNumber} has been ${actionType.toLowerCase()}.`,
+      });
+      setSelectedRequest(null);
+    } catch (e) {
+      addToast({ type: 'error', title: 'Approval failed', message: (e as Error).message });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -61,13 +70,19 @@ export const ApprovalsPage: React.FC = () => {
             Multi-Tier Authorization & Approval Queue
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Sign off on maintenance work orders exceeding OMR 100/500 limits, high-value supplier invoices, and asset expenses.
+            Sign off on work orders, invoices and expenses that exceed the approval thresholds configured in Settings.
           </p>
         </div>
       </div>
 
       {/* Approval Requests List */}
       <div className="space-y-4">
+        {approvalRequests.length === 0 && (
+          <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
+            <p className="text-sm font-semibold text-slate-200">No approval requests</p>
+            <p className="text-xs text-slate-400 mt-1">Requests appear here when a work order, invoice or expense exceeds an approval threshold.</p>
+          </Card>
+        )}
         {approvalRequests.map(req => {
           const reqModule = req.referenceType === 'WorkOrder' ? 'maintenance' : req.referenceType === 'Invoice' ? 'invoice' : 'expense';
           const userCanSign = canApprove(reqModule, req.amount);
@@ -174,15 +189,16 @@ export const ApprovalsPage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-            <Button variant="secondary" size="sm" onClick={() => setSelectedRequest(null)}>
+            <Button variant="secondary" size="sm" onClick={() => setSelectedRequest(null)} disabled={submitting}>
               Cancel
             </Button>
             <Button
               variant={actionType === 'Approved' ? 'success' : 'danger'}
               size="sm"
               onClick={handleConfirmAction}
+              disabled={submitting}
             >
-              Confirm {actionType}
+              {submitting ? 'Saving...' : `Confirm ${actionType}`}
             </Button>
           </div>
         </div>

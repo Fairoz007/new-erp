@@ -6,6 +6,7 @@ import { StatCard } from '../../components/ui/StatCard';
 import { AuditLog } from '../../types/system';
 import { useFleet } from '../../context/FleetContext';
 import { formatDateTime } from '../../utils/date';
+import { AUDIT_LOG_LIMIT } from '../../services/system';
 
 export const AuditLogsPage: React.FC = () => {
   const { auditLogs } = useFleet();
@@ -40,6 +41,7 @@ export const AuditLogsPage: React.FC = () => {
           l.action === 'CREATE' ? 'bg-forest-100 text-forest-700 border-forest-200' :
           l.action === 'UPDATE' ? 'bg-blue-50 text-blue-700 border-blue-200' :
           l.action === 'DELETE' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+          l.action === 'REJECT' ? 'bg-amber-50 text-amber-700 border-amber-200' :
           l.action === 'APPROVE' ? 'bg-purple-50 text-purple-700 border-purple-200' :
           l.action === 'PAYMENT' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
           'bg-slate-850 text-slate-300 border-slate-700'
@@ -63,11 +65,6 @@ export const AuditLogsPage: React.FC = () => {
       header: 'Audit Event Details',
       render: (l) => <span className="text-slate-300 text-xs">{l.details}</span>,
     },
-    {
-      key: 'ipAddress',
-      header: 'IP Address',
-      render: (l) => <span className="font-mono text-slate-500 text-[11px]">{l.ipAddress || 'N/A'}</span>,
-    },
   ];
 
   return (
@@ -79,9 +76,12 @@ export const AuditLogsPage: React.FC = () => {
             Immutable Audit Trail & Activity Logs
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Non-repudiable audit logs recording all vehicle additions, mileage modifications, work order approvals, payments, and ledger entries.
+            Append-only record of every create, update and delete captured by database triggers, including approvals, payments and ledger entries.
           </p>
         </div>
+        {auditLogs.length >= AUDIT_LOG_LIMIT && (
+          <p className="text-[11px] text-amber-600 font-medium">Showing the latest {AUDIT_LOG_LIMIT} events only.</p>
+        )}
       </div>
 
       <DataTable
@@ -90,7 +90,7 @@ export const AuditLogsPage: React.FC = () => {
         keyExtractor={l => l.id}
         title="System Security & Change Ledger"
         searchPlaceholder="Search audit logs by user, action, entity, plate or details..."
-        searchFields={['userName', 'userRole', 'action', 'entityType', 'entityName', 'details', 'ipAddress']}
+        searchFields={['userName', 'userRole', 'action', 'entityType', 'entityName', 'details']}
         exportFilename="FleetX_Audit_Logs"
         filterComponent={
           <select
@@ -103,6 +103,7 @@ export const AuditLogsPage: React.FC = () => {
             <option value="UPDATE">UPDATE</option>
             <option value="DELETE">DELETE</option>
             <option value="APPROVE">APPROVE</option>
+            <option value="REJECT">REJECT</option>
             <option value="PAYMENT">PAYMENT</option>
             <option value="RECONCILE">RECONCILE</option>
           </select>

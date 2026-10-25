@@ -76,6 +76,8 @@ export const FinanceOverview: React.FC = () => {
   const pnl = getCompanyProfitLoss();
   const balanceSheet = getCompanyBalanceSheet();
   const trialBalance = getTrialBalance(new Date().toISOString().slice(0, 10));
+  // An empty ledger is trivially "balanced"; say so instead of claiming the books were checked.
+  const hasLedger = trialBalance.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 
   const cashBalance = scopedBankAccounts.reduce((sum, account) => sum + account.currentBalance, 0);
   const receivables = scopedInvoices
@@ -91,7 +93,7 @@ export const FinanceOverview: React.FC = () => {
   const openReconciliations = scopedReconciliations.filter(item => !['Matched', 'Reconciled'].includes(item.status));
 
   const closeChecks = [
-    { label: 'Trial balance', detail: trialBalance.isBalanced ? 'Debit and credit totals agree' : `${formatCurrency(trialBalance.difference, currency)} variance`, passed: trialBalance.isBalanced },
+    { label: 'Trial balance', detail: !hasLedger ? 'No balances posted yet' : trialBalance.isBalanced ? 'Debit and credit totals agree' : `${formatCurrency(trialBalance.difference, currency)} variance`, passed: hasLedger && trialBalance.isBalanced },
     { label: 'Draft journals', detail: draftJournals.length === 0 ? 'No unposted vouchers' : `${draftJournals.length} voucher${draftJournals.length === 1 ? '' : 's'} require posting`, passed: draftJournals.length === 0 },
     { label: 'Approvals', detail: pendingApprovals.length === 0 ? 'Approval queue is clear' : `${pendingApprovals.length} request${pendingApprovals.length === 1 ? '' : 's'} pending`, passed: pendingApprovals.length === 0 },
     { label: 'Reconciliation', detail: openReconciliations.length === 0 ? 'Invoices are reconciled' : `${openReconciliations.length} item${openReconciliations.length === 1 ? '' : 's'} need review`, passed: openReconciliations.length === 0 },
@@ -125,8 +127,8 @@ export const FinanceOverview: React.FC = () => {
         <div className="grid gap-6 p-6 lg:grid-cols-[1.3fr_0.7fr] lg:p-8">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={trialBalance.isBalanced ? 'emerald' : 'rose'} dot>
-                {trialBalance.isBalanced ? 'Books balanced' : 'Review required'}
+              <Badge variant={!hasLedger ? 'amber' : trialBalance.isBalanced ? 'emerald' : 'rose'} dot>
+                {!hasLedger ? 'No ledger activity yet' : trialBalance.isBalanced ? 'Books balanced' : 'Review required'}
               </Badge>
               <span className="text-xs font-medium text-slate-400">{pnl.period}</span>
             </div>
@@ -246,6 +248,9 @@ export const FinanceOverview: React.FC = () => {
           <p className="mt-1 text-sm text-slate-400">Latest posted and draft journal vouchers</p>
         </CardHeader>
         <div className="divide-y divide-slate-700">
+          {recentJournals.length === 0 && (
+            <p className="px-6 py-10 text-center text-sm text-slate-400">No journal entries have been posted yet.</p>
+          )}
           {recentJournals.map(entry => (
             <div key={entry.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[140px_1fr_auto] sm:items-center sm:px-6">
               <div>

@@ -1,99 +1,117 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Database, Download, Upload, RotateCcw, ShieldAlert, CheckCircle2, Save, Layers } from 'lucide-react';
+import { Database, Download, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { useFleet } from '../../context/FleetContext';
+import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
+import { exportToJSON } from '../../utils/export';
 
+// Removed with the move to the shared database (see docs/audit/agent-D.md):
+//  * "Import Backup"  - would overwrite the browser cache only; a shared DB must never be bulk-overwritten from a paste box.
+//  * "Reset to Default Data" - would re-seed fake demo rows; there is no equivalent for a shared database.
+//  * Hard-coded "5.0% VAT" / "Decimal safe math" fields.
 export const SettingsPage: React.FC = () => {
-  const { currency, setCurrency, resetToDefaultData, exportAllDataJSON, importDataJSON, approvalRules } = useFleet();
+  const fleet = useFleet();
+  const { currency, setCurrency, approvalRules } = fleet;
+  const { currentUser } = useAuth();
   const { addToast } = useUI();
-  const [importJsonText, setImportJsonText] = useState('');
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset all cached data to standard enterprise initial seed records? This will overwrite your local changes.')) {
-      resetToDefaultData();
-      addToast({
-        type: 'success',
-        title: 'ERP State Restored',
-        message: 'System cache has been reset to default enterprise dataset.',
+  // Read-only export of exactly what this user can see (RLS has already filtered what the app loaded).
+  const handleExport = () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const collections = {
+        companies: fleet.companies, vehicles: fleet.vehicles, tyres: fleet.tyres, tyreEvents: fleet.tyreEvents,
+        oilChanges: fleet.oilChanges, maintenanceRecords: fleet.maintenanceRecords, workOrders: fleet.workOrders,
+        accidents: fleet.accidents, expenses: fleet.expenses, suppliers: fleet.suppliers, customers: fleet.customers,
+        invoices: fleet.invoices, reconciliations: fleet.reconciliations, payments: fleet.payments,
+        bankAccounts: fleet.bankAccounts, chartOfAccounts: fleet.chartOfAccounts, journalEntries: fleet.journalEntries,
+        fixedAssets: fleet.fixedAssets, depreciationRuns: fleet.depreciationRuns, employees: fleet.employees,
+        payrollRuns: fleet.payrollRuns, documents: fleet.documents, approvalRules: fleet.approvalRules,
+        approvalRequests: fleet.approvalRequests,
+      } as Record<string, unknown[]>;
+      const counts = Object.fromEntries(Object.entries(collections).map(([k, v]) => [k, Array.isArray(v) ? v.length : 0]));
+      exportToJSON('FleetX_Visible_Data', {
+        exportedAt: new Date().toISOString(),
+        exportedBy: { id: currentUser.id, name: currentUser.name, role: currentUser.role },
+        note: 'Read-only snapshot of the records visible to this user. Documents are listed as metadata only (no file contents).',
+        counts,
+        data: collections,
       });
-    }
-  };
-
-  const handleImport = () => {
-    if (!importJsonText.trim()) return;
-    const success = importDataJSON(importJsonText);
-    if (success) {
-      addToast({ type: 'success', title: 'Backup Restored', message: 'Imported state into persistent browser cache.' });
-      setIsImportModalOpen(false);
-      setImportJsonText('');
-    } else {
-      addToast({ type: 'error', title: 'Import Failed', message: 'Invalid JSON format or missing required entity keys.' });
+      addToast({ type: 'success', title: 'Export created', message: 'A JSON file with your visible data was downloaded.' });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Export failed', message: (e as Error).message });
+    } finally {
+      setExporting(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            System Settings & Local Cache Controls
+            System Settings
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Manage system currency, regional thresholds, approval rules, and export/import persistent localStorage data.
+            Display currency, approval thresholds and a read-only export of the data you can access.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* System & Financial Configuration */}
         <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
           <CardHeader>
-            <CardTitle>Regional & Currency Configuration</CardTitle>
+            <CardTitle>Display Currency</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-xs">
             <Select
-              label="Default Base Reporting Currency"
+              label="Reporting currency (this browser only)"
               value={currency}
               onChange={e => {
                 setCurrency(e.target.value);
-                addToast({ type: 'info', title: `Reporting currency updated to ${e.target.value}` });
+                addToast({ type: 'info', title: `Display currency set to ${e.target.value}` });
               }}
             >
-              <option value="OMR">OMR - Omani Rial (3 Decimals: OMR 0.000)</option>
-              <option value="USD">USD - US Dollar ($ 0.00)</option>
-              <option value="EUR">EUR - Euro (€ 0.00)</option>
-              <option value="SAR">SAR - Saudi Riyal (﷼ 0.00)</option>
-              <option value="AED">AED - UAE Dirham (د.إ 0.00)</option>
+              <option value="OMR">OMR - Omani Rial (3 decimals)</option>
+              <option value="USD">USD - US Dollar</option>
+              <option value="EUR">EUR - Euro</option>
+              <option value="SAR">SAR - Saudi Riyal</option>
+              <option value="AED">AED - UAE Dirham</option>
             </Select>
-
-            <Input label="Default VAT Rate Percentage" value="5.0%" disabled />
-            <Input label="Financial Year Standard" value="01 January to 31 December" disabled />
-            <Input label="Decimal Safe Math" value="Enabled (3 Decimals IEEE-754 Safe Engine)" disabled />
+            <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
+              This only changes how amounts are formatted for you. Stored amounts are not converted, and each company keeps its own base currency.
+            </p>
+            <Input label="Financial year" value="Per company (see Companies)" disabled />
           </CardContent>
         </Card>
 
-        {/* Approval Rules Settings */}
         <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
           <CardHeader>
-            <CardTitle>Automated Approval Threshold Rules</CardTitle>
+            <CardTitle>Approval Threshold Rules</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
+            {approvalRules.length === 0 && (
+              <p className="text-slate-400">No approval rules are configured. Nothing requires approval until a rule is added.</p>
+            )}
             {approvalRules.map(rule => (
               <div key={rule.id} className="p-3.5 bg-slate-850/60 rounded-xl border border-slate-700/80 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-200 uppercase text-[11px]">{rule.module} Threshold</span>
+                  <span className="font-bold text-slate-200 uppercase text-[11px]">
+                    {rule.module} threshold{!rule.active ? ' (inactive)' : ''}
+                  </span>
                   <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-700 font-mono font-bold text-[10px]">
                     &gt; {rule.thresholdAmount.toFixed(3)} {rule.currency}
                   </span>
                 </div>
-                <p className="text-slate-400 text-[11px]">{rule.description}</p>
+                {rule.description && <p className="text-slate-400 text-[11px]">{rule.description}</p>}
                 <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                  Required Approvers: <span className="text-forest-600">{rule.requiredRoles.join(' → ')}</span>
+                  Required Approvers: <span className="text-forest-600">{rule.requiredRoles.join(' -> ')}</span>
                 </p>
               </div>
             ))}
@@ -101,82 +119,37 @@ export const SettingsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Local Storage & Cache Persistence Management */}
       <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Database className="w-5 h-5 text-forest-500" />
-            <CardTitle>Browser Cache & Offline State Management</CardTitle>
+            <CardTitle>Data Export</CardTitle>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            All vehicles, work orders, invoices, payments, journals, and logs are automatically persisted in your browser&apos;s localStorage cache.
+            Records are stored in the shared company database and protected by role-based access. The export contains only what your role and offices allow you to see.
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div className="p-4 sm:p-5 bg-slate-850/60 rounded-2xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h4 className="text-xs font-bold text-slate-100 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-forest-500" />
-                Persistent Cache Active
-              </h4>
+              <h4 className="text-xs font-bold text-slate-100">Export my visible data (JSON)</h4>
               <p className="text-[11px] text-slate-400 mt-1">
-                Any records you create, update, or pay remain stored in this browser session and across reloads.
+                Read-only snapshot for archiving or audits. It cannot be imported back; restores are done by an administrator from database backups.
               </p>
             </div>
-
-            <div className="flex flex-wrap gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-                onClick={exportAllDataJSON}
-                leftIcon={<Download className="w-4 h-4 text-forest-500" />}
-              >
-                Export JSON Backup
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="rounded-full"
-                onClick={() => setIsImportModalOpen(true)}
-                leftIcon={<Upload className="w-4 h-4" />}
-              >
-                Import Backup
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                className="rounded-full"
-                onClick={handleReset}
-                leftIcon={<RotateCcw className="w-4 h-4" />}
-              >
-                Reset to Default Data
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full shrink-0"
+              onClick={handleExport}
+              disabled={exporting}
+              leftIcon={<Download className="w-4 h-4 text-forest-500" />}
+            >
+              Export JSON
+            </Button>
           </div>
         </CardContent>
       </Card>
-
-      {/* Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 space-y-4">
-            <h3 className="text-base font-bold text-slate-100">Import Al Hakim ERP JSON Backup</h3>
-            <p className="text-xs text-slate-400">Paste your exported Al Hakim ERP JSON state to restore all records into local cache.</p>
-            <textarea
-              rows={6}
-              value={importJsonText}
-              onChange={e => setImportJsonText(e.target.value)}
-              placeholder="Paste JSON content here..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setIsImportModalOpen(false)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={handleImport}>Restore Database</Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,17 +1,56 @@
 import React, { useState } from 'react';
-import { FolderOpen, Plus, Download, Upload, Trash2, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
+import { Upload, Trash2, AlertTriangle, FileText, CheckCircle2, Eye } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { DocumentItem } from '../../types/operations';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
+import { downloadDocument } from '../../services/documents';
 import { formatDate } from '../../utils/date';
 
 export const DocumentsPage: React.FC = () => {
   const { documents, deleteDocument } = useFleet();
-  const { openQuickModal, addToast, openVehicleDetail } = useUI();
+  const { openQuickModal, addToast, openVehicleDetail, openBillModal } = useUI();
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission('delete', 'documents');
+  const canUpload = hasPermission('create', 'documents');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [pending, setPending] = useState<Record<string, 'download' | 'delete'>>({});
+
+  const setBusy = (id: string, op?: 'download' | 'delete') =>
+    setPending(p => { const n = { ...p }; if (op) n[id] = op; else delete n[id]; return n; });
+
+  const handleDownload = async (d: DocumentItem) => {
+    if (pending[d.id]) return;
+    setBusy(d.id, 'download');
+    try {
+      await downloadDocument(d);
+    } catch (e) {
+      addToast({ type: 'error', title: 'Download failed', message: (e as Error).message });
+    } finally {
+      setBusy(d.id);
+    }
+  };
+
+  const handleDelete = async (d: DocumentItem) => {
+    if (pending[d.id]) return;
+    if (!window.confirm(`Permanently remove "${d.documentName}" and its stored file? This cannot be undone.`)) return;
+    setBusy(d.id, 'delete');
+    try {
+      const result = (await deleteDocument(d.id)) as { fileCleanupFailed?: boolean } | void;
+      if (result && result.fileCleanupFailed) {
+        addToast({ type: 'warning', title: 'Document removed', message: 'The record was deleted but its file could not be removed from storage. An administrator can clean it up.' });
+      } else {
+        addToast({ type: 'success', title: 'Document Removed', message: `"${d.documentName}" was deleted.` });
+      }
+    } catch (e) {
+      addToast({ type: 'error', title: 'Delete failed', message: (e as Error).message });
+    } finally {
+      setBusy(d.id);
+    }
+  };
 
   const filteredDocs = documents.filter(d => {
     if (categoryFilter !== 'all' && d.category !== categoryFilter) return false;
@@ -65,7 +104,9 @@ export const DocumentsPage: React.FC = () => {
       render: (d) => (
         <div>
           <span className="text-slate-300">{formatDate(d.expiryDate)}</span>
-          {d.isExpired ? (
+          {!d.expiryDate ? (
+            <p className="text-[10px] text-slate-500">No expiry</p>
+          ) : d.isExpired ? (
             <p className="text-[10px] text-rose-400 font-bold flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" /> Overdue Expiry
             </p>
@@ -84,7 +125,7 @@ export const DocumentsPage: React.FC = () => {
     {
       key: 'fileSize',
       header: 'File Size',
-      render: (d) => <span className="text-slate-400 text-xs">{d.fileSize}</span>,
+      render: (d) => <span className="text-slate-400 text-xs">{d.fileSize || '-'}</span>,
     },
     {
       key: 'actions',
@@ -96,29 +137,30 @@ export const DocumentsPage: React.FC = () => {
           <Button
             variant="ghost"
             size="xs"
-            onClick={() => {
-              const fileUrl = d.documentUrl || d.url;
-              if (!fileUrl) {
-                addToast({ type: 'warning', title: 'No file attached', message: `"${d.documentName}" has no stored file.` });
-                return;
-              }
-              window.open(fileUrl, '_blank', 'noopener,noreferrer');
-            }}
+            disabled={!d.documentUrl}
+            onClick={() => openBillModal(d.documentUrl!, d.documentName, d.fileType, d.fileSize)}
+            leftIcon={<Eye className="w-3.5 h-3.5" />}
           >
-            Download
+            View
           </Button>
-          <button
-            onClick={() => {
-              if (window.confirm(`Are you sure you want to permanently remove "${d.documentName}"?`)) {
-                deleteDocument(d.id);
-                addToast({ type: 'success', title: 'Document Removed' });
-              }
-            }}
-            className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
-            title="Delete document"
+          <Button
+            variant="ghost"
+            size="xs"
+            disabled={!d.documentUrl || !!pending[d.id]}
+            onClick={() => handleDownload(d)}
           >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+            {pending[d.id] === 'download' ? 'Preparing...' : 'Download'}
+          </Button>
+          {canDelete && (
+            <button
+              onClick={() => handleDelete(d)}
+              disabled={!!pending[d.id]}
+              className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer disabled:opacity-50"
+              title="Delete document"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -138,15 +180,17 @@ export const DocumentsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            className="rounded-full shadow-sm"
-            onClick={() => openQuickModal('upload-document')}
-            leftIcon={<Upload className="w-4 h-4" />}
-          >
-            Upload Document
-          </Button>
+          {canUpload && (
+            <Button
+              variant="primary"
+              size="sm"
+              className="rounded-full shadow-sm"
+              onClick={() => openQuickModal('upload-document')}
+              leftIcon={<Upload className="w-4 h-4" />}
+            >
+              Upload Document
+            </Button>
+          )}
         </div>
       </div>
 
@@ -169,6 +213,9 @@ export const DocumentsPage: React.FC = () => {
             <option value="Insurance">Insurance Policies</option>
             <option value="Warranty">Warranty Agreements</option>
             <option value="Inspection Report">Inspection Certificates</option>
+            <option value="Accident Report">Accident Reports</option>
+            <option value="Purchase Invoice">Purchase Agreements</option>
+            <option value="Other">Other</option>
           </select>
         }
       />
