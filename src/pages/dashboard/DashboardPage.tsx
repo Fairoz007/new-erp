@@ -41,22 +41,35 @@ import { formatDate } from '../../utils/date';
 
 export const DashboardPage: React.FC = () => {
   const {
-    vehicles,
-    maintenanceRecords,
-    workOrders,
-    oilChanges,
-    tyres,
-    accidents,
-    expenses,
-    invoices,
+    vehicles: allVehicles,
+    maintenanceRecords: allMaintenanceRecords,
+    workOrders: allWorkOrders,
+    oilChanges: allOilChanges,
+    tyres: allTyres,
+    accidents: allAccidents,
+    expenses: allExpenses,
+    invoices: allInvoices,
     suppliers,
     customers,
+    selectedCompanyId,
     currency,
     getCompanyProfitLoss,
     getCompanyBalanceSheet,
   } = useFleet();
 
   const { setCurrentPage, openVehicleDetail, openQuickModal } = useUI();
+
+  // Scope all operational data to the selected office (or consolidated view)
+  const scoped = !!selectedCompanyId && selectedCompanyId !== 'all';
+  const vehicles = scoped ? allVehicles.filter(v => v.companyId === selectedCompanyId) : allVehicles;
+  const scopedVehicleIds = new Set(vehicles.map(v => v.id));
+  const maintenanceRecords = scoped ? allMaintenanceRecords.filter(m => m.companyId === selectedCompanyId) : allMaintenanceRecords;
+  const workOrders = scoped ? allWorkOrders.filter(w => w.companyId === selectedCompanyId) : allWorkOrders;
+  const accidents = scoped ? allAccidents.filter(a => a.companyId === selectedCompanyId) : allAccidents;
+  const expenses = scoped ? allExpenses.filter(e => e.companyId === selectedCompanyId) : allExpenses;
+  const invoices = scoped ? allInvoices.filter(i => i.companyId === selectedCompanyId) : allInvoices;
+  const oilChanges = scoped ? allOilChanges.filter(o => scopedVehicleIds.has(o.vehicleId)) : allOilChanges;
+  const tyres = scoped ? allTyres.filter(t => scopedVehicleIds.has(t.vehicleId)) : allTyres;
 
   const pnl = getCompanyProfitLoss();
   const balanceSheet = getCompanyBalanceSheet();
@@ -66,7 +79,7 @@ export const DashboardPage: React.FC = () => {
   const activeVehicles = vehicles.filter(v => v.status === 'Active').length;
   const maintenanceVehicles = vehicles.filter(v => v.status === 'Under Maintenance').length;
   const accidentVehicles = vehicles.filter(v => v.status === 'Accident').length;
-  const inactiveVehicles = vehicles.filter(v => ['Inactive', 'Sold', 'Scrapped'].includes(v.status)).length;
+  const inactiveVehicles = vehicles.filter(v => ['Inactive', 'Sold', 'Scrapped', 'Reserved'].includes(v.status)).length;
 
   const totalPurchaseValue = vehicles.reduce((s, v) => s + (v.purchase.purchaseValue || 0), 0);
   const currentAssetValue = balanceSheet.assets.netVehiclesValue;
@@ -117,7 +130,7 @@ export const DashboardPage: React.FC = () => {
           name: `${v.brand} ${v.model}`,
           reason: `Tyre wear critical (${t.position}: ${t.treadDepthMm} mm tread depth remaining)`,
           type: 'tyre_critical',
-          severity: 'critical',
+          severity: t.status === 'Critical' ? 'critical' : 'warning',
           actionText: 'Replace Tyres',
           onClickAction: () => openQuickModal('add-work-order'),
         });
@@ -145,7 +158,7 @@ export const DashboardPage: React.FC = () => {
   });
 
   vehicles.forEach(v => {
-    const isOverdue = v.registrationExpiryDate && new Date(v.registrationExpiryDate).getTime() < new Date().getTime();
+    const isOverdue = !['Sold', 'Scrapped'].includes(v.status) && v.registrationExpiryDate && new Date(v.registrationExpiryDate).getTime() < new Date().getTime();
     if (isOverdue) {
       attentionItems.push({
         id: `reg-${v.id}`,

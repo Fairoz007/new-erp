@@ -93,7 +93,18 @@ export const DocumentsPage: React.FC = () => {
       sortable: false,
       render: (d) => (
         <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
-          <Button variant="ghost" size="xs" onClick={() => addToast({ type: 'info', title: 'Downloading file...' })}>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => {
+              const fileUrl = d.documentUrl || d.url;
+              if (!fileUrl) {
+                addToast({ type: 'warning', title: 'No file attached', message: `"${d.documentName}" has no stored file.` });
+                return;
+              }
+              window.open(fileUrl, '_blank', 'noopener,noreferrer');
+            }}
+          >
             Download
           </Button>
           <button

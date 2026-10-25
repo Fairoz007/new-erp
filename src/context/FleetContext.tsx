@@ -181,6 +181,18 @@ export interface FleetContextType {
   importDataJSON: (jsonData: string) => boolean;
 }
 
+// Collision-safe record id suffix
+const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
+// Next document sequence: max existing trailing number + 1 (never reuses numbers after deletes)
+const nextSeq = (items: any[], field: string, base: number): number => {
+  const max = items.reduce((m: number, it: any) => {
+    const n = parseInt(String(it?.[field] ?? '').split('-').pop() || '', 10);
+    return isNaN(n) ? m : Math.max(m, n);
+  }, base - 1);
+  return Math.max(max + 1, items.length + base);
+};
+
 const FleetContext = createContext<FleetContextType | undefined>(undefined);
 
 export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -367,7 +379,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     newValue?: string
   ) => {
     const newLog: AuditLog = {
-      id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `log-${uid()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString(),
       userId: 'usr-1',
       userName: 'Current User',
@@ -386,7 +398,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Vehicle
   const addVehicle = (vehicleData: Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'>): Vehicle => {
-    const newId = `veh-${Date.now()}`;
+    const newId = `veh-${uid()}`;
     const newVehicle: Vehicle = {
       ...vehicleData,
       id: newId,
@@ -398,7 +410,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Add Timeline event
     const newTimeline: TimelineEvent = {
-      id: `tl-${Date.now()}`,
+      id: `tl-${uid()}`,
       vehicleId: newId,
       date: newVehicle.purchase.purchaseDate || new Date().toISOString().slice(0, 10),
       title: 'Vehicle Added to Fleet',
@@ -413,7 +425,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Add default 5 tyres (FL, FR, RL, RR, Spare)
     const defaultTyres: Tyre[] = (['Front Left', 'Front Right', 'Rear Left', 'Rear Right', 'Spare'] as const).map((pos, idx) => ({
-      id: `tyr-${Date.now()}-${idx}`,
+      id: `tyr-${uid()}-${idx}`,
       vehicleId: newId,
       brand: 'Standard OEM',
       model: 'Factory Spec',
@@ -452,6 +464,9 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Delete Vehicle
   const deleteVehicle = (id: string) => {
+    const hasLinks = ([workOrders, maintenanceRecords, oilChanges, accidents, expenses, tyres] as any[][])
+      .some(list => list.some(r => r.vehicleId === id));
+    if (hasLinks) throw new Error('Vehicle has linked records; set its status to Inactive instead of deleting.');
     const target = vehicles.find(v => v.id === id);
     setVehicles(prev => prev.filter(v => v.id !== id));
     if (target) {
@@ -461,8 +476,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Maintenance Record
   const addMaintenanceRecord = (recordData: Omit<MaintenanceRecord, 'id' | 'recordNumber' | 'createdAt'>): MaintenanceRecord => {
-    const newId = `mnt-${Date.now()}`;
-    const recordNumber = `MNT-2026-${String(maintenanceRecords.length + 1).padStart(3, '0')}`;
+    const newId = `mnt-${uid()}`;
+    const recordNumber = `MNT-2026-${String(nextSeq(maintenanceRecords as any[], 'recordNumber', 1)).padStart(3, '0')}`;
     const newRecord: MaintenanceRecord = {
       ...recordData,
       id: newId,
@@ -486,7 +501,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Add Timeline event
     const newTimeline: TimelineEvent = {
-      id: `tl-${Date.now()}`,
+      id: `tl-${uid()}`,
       vehicleId: newRecord.vehicleId,
       date: newRecord.maintenanceDate,
       title: `${newRecord.category}: ${newRecord.maintenanceType}`,
@@ -507,7 +522,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const newInvoiceNumber = `PINV-MNT-${Date.now().toString().slice(-4)}`;
       
       const newInvoice: Invoice = {
-        id: `inv-${Date.now()}`,
+        id: `inv-${uid()}`,
         invoiceNumber: newRecord.invoiceNumber || newInvoiceNumber,
         invoiceType: 'Purchase',
         companyId: newRecord.companyId,
@@ -525,7 +540,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         exchangeRate: 1.0,
         items: [
           {
-            id: `li-${Date.now()}`,
+            id: `li-${uid()}`,
             itemCode: 'MNT-SRV',
             description: `${newRecord.category} - ${newRecord.description}`,
             quantity: 1,
@@ -582,8 +597,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Work Order
   const addWorkOrder = (orderData: Omit<WorkOrder, 'id' | 'workOrderNumber' | 'createdAt' | 'updatedAt'>): WorkOrder => {
-    const newId = `wo-${Date.now()}`;
-    const workOrderNumber = `WO-2026-${String(workOrders.length + 101).padStart(3, '0')}`;
+    const newId = `wo-${uid()}`;
+    const workOrderNumber = `WO-2026-${String(nextSeq(workOrders as any[], 'workOrderNumber', 101)).padStart(3, '0')}`;
     
     // Check approval rules
     let approvalStatus: WorkOrder['approvalStatus'] = 'Not Required';
@@ -592,7 +607,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const applicableRule = approvalRules.find(r => r.module === 'maintenance' && r.active && orderData.estimatedCost >= r.thresholdAmount);
     if (applicableRule) {
       approvalStatus = 'Pending';
-      approvalId = `app-${Date.now()}`;
+      approvalId = `app-${uid()}`;
       
       const newApprovalRequest: ApprovalRequest = {
         id: approvalId,
@@ -616,7 +631,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Trigger notification
       const newNotif: NotificationItem = {
-        id: `notif-${Date.now()}`,
+        id: `notif-${uid()}`,
         type: 'approval_required',
         title: `Work Order Approval Required: ${workOrderNumber}`,
         message: `Work order for ${orderData.vehiclePlate} (${orderData.estimatedCost.toFixed(3)} OMR) requires approval.`,
@@ -647,52 +662,48 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Update Work Order Status
   const updateWorkOrderStatus = (id: string, status: WorkOrderStatus, actualCost?: number) => {
-    setWorkOrders(prev =>
-      prev.map(wo => {
-        if (wo.id === id) {
-          const finalCost = actualCost !== undefined ? actualCost : wo.finalCost || wo.estimatedCost;
-          const updated: WorkOrder = {
-            ...wo,
-            status,
-            finalCost,
-            actualCompletion: status === 'Completed' ? new Date().toISOString().slice(0, 10) : wo.actualCompletion,
-            updatedAt: new Date().toISOString(),
-          };
+    // Side effects run once here, outside the state updater (StrictMode double-invokes updaters)
+    const wo = workOrders.find(w => w.id === id);
+    if (!wo) return;
+    const finalCost = actualCost !== undefined ? actualCost : wo.finalCost || wo.estimatedCost;
+    const updated: WorkOrder = {
+      ...wo,
+      status,
+      finalCost,
+      actualCompletion: status === 'Completed' ? new Date().toISOString().slice(0, 10) : wo.actualCompletion,
+      updatedAt: new Date().toISOString(),
+    };
+    setWorkOrders(prev => prev.map(w => (w.id === id ? updated : w)));
 
-          // If Completed, automatically create a linked Maintenance Record
-          if (status === 'Completed' && wo.status !== 'Completed') {
-            const vehicle = vehicles.find(v => v.id === wo.vehicleId);
-            addMaintenanceRecord({
-              vehicleId: wo.vehicleId,
-              vehiclePlate: wo.vehiclePlate,
-              companyId: wo.companyId,
-              maintenanceDate: new Date().toISOString().slice(0, 10),
-              maintenanceType: 'Corrective Maintenance',
-              category: 'General Service',
-              description: `Completed Work Order ${wo.workOrderNumber}: ${wo.problemDescription}`,
-              odometerReading: vehicle?.currentMileage || 0,
-              serviceCentre: wo.workshop,
-              supplierId: wo.supplierId || 'sup-2',
-              supplierName: wo.supplierName || wo.workshop,
-              technician: wo.assignedTechnician,
-              workOrderNumber: wo.workOrderNumber,
-              partsCost: wo.partsCharges || roundToPrecision(finalCost * 0.65, 3),
-              labourCost: wo.labourCharges || roundToPrecision(finalCost * 0.3, 3),
-              tax: roundToPrecision(finalCost * 0.05, 3),
-              discount: 0,
-              otherCharges: wo.additionalCharges || 0,
-              totalCost: finalCost,
-              paymentStatus: 'Unpaid',
-              nextServiceMileage: (vehicle?.currentMileage || 0) + 10000,
-            });
-          }
+    // If Completed, automatically create a linked Maintenance Record
+    if (status === 'Completed' && wo.status !== 'Completed') {
+      const vehicle = vehicles.find(v => v.id === wo.vehicleId);
+      addMaintenanceRecord({
+        vehicleId: wo.vehicleId,
+        vehiclePlate: wo.vehiclePlate,
+        companyId: wo.companyId,
+        maintenanceDate: new Date().toISOString().slice(0, 10),
+        maintenanceType: 'Corrective Maintenance',
+        category: 'General Service',
+        description: `Completed Work Order ${wo.workOrderNumber}: ${wo.problemDescription}`,
+        odometerReading: vehicle?.currentMileage || 0,
+        serviceCentre: wo.workshop,
+        supplierId: wo.supplierId || 'sup-2',
+        supplierName: wo.supplierName || wo.workshop,
+        technician: wo.assignedTechnician,
+        workOrderNumber: wo.workOrderNumber,
+        partsCost: wo.partsCharges || roundToPrecision(finalCost * 0.65, 3),
+        labourCost: wo.labourCharges || roundToPrecision(finalCost * 0.3, 3),
+        tax: roundToPrecision(finalCost * 0.05, 3),
+        discount: 0,
+        otherCharges: wo.additionalCharges || 0,
+        totalCost: finalCost,
+        paymentStatus: 'Unpaid',
+        nextServiceMileage: (vehicle?.currentMileage || 0) + 10000,
+      });
+    }
 
-          logAudit('UPDATE', 'WorkOrder', id, wo.workOrderNumber, `Status updated from ${wo.status} to ${status}`);
-          return updated;
-        }
-        return wo;
-      })
-    );
+    logAudit('UPDATE', 'WorkOrder', id, wo.workOrderNumber, `Status updated from ${wo.status} to ${status}`);
   };
 
   // Add Oil Change
@@ -710,7 +721,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       status = 'Due Soon';
     }
 
-    const newId = `oil-${Date.now()}`;
+    const newId = `oil-${uid()}`;
     const newOilChange: OilChange = {
       ...oilData,
       id: newId,
@@ -729,7 +740,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Add Timeline
     const newTimeline: TimelineEvent = {
-      id: `tl-${Date.now()}`,
+      id: `tl-${uid()}`,
       vehicleId: oilData.vehicleId,
       date: oilData.date,
       title: `Oil Change: ${oilData.oilBrand} ${oilData.oilGrade}`,
@@ -749,7 +760,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Tyre
   const addTyre = (tyreData: Omit<Tyre, 'id'>): Tyre => {
-    const newId = `tyr-${Date.now()}`;
+    const newId = `tyr-${uid()}`;
     const newTyre: Tyre = { ...tyreData, id: newId };
     setTyres(prev => [newTyre, ...prev]);
     return newTyre;
@@ -762,13 +773,13 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Tyre Event
   const addTyreEvent = (eventData: Omit<TyreEvent, 'id'>): TyreEvent => {
-    const newId = `te-${Date.now()}`;
+    const newId = `te-${uid()}`;
     const newEvent: TyreEvent = { ...eventData, id: newId };
     setTyreEvents(prev => [newEvent, ...prev]);
 
     const vehicle = vehicles.find(v => v.id === eventData.vehicleId);
     const newTimeline: TimelineEvent = {
-      id: `tl-${Date.now()}`,
+      id: `tl-${uid()}`,
       vehicleId: eventData.vehicleId,
       date: eventData.date,
       title: `Tyre Event: ${eventData.eventType}`,
@@ -788,8 +799,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Accident
   const addAccident = (accidentData: Omit<Accident, 'id' | 'accidentNumber' | 'createdAt' | 'netAccidentCostToCompany'>): Accident => {
-    const newId = `acc-${Date.now()}`;
-    const accidentNumber = `ACC-2026-${String(accidents.length + 1).padStart(3, '0')}`;
+    const newId = `acc-${uid()}`;
+    const accidentNumber = `ACC-2026-${String(nextSeq(accidents as any[], 'accidentNumber', 1)).padStart(3, '0')}`;
     const netCost = Math.max(0, accidentData.actualRepairCost - accidentData.insuranceContribution - accidentData.thirdPartyContribution);
 
     const newAccident: Accident = {
@@ -811,7 +822,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Timeline event
     const newTimeline: TimelineEvent = {
-      id: `tl-${Date.now()}`,
+      id: `tl-${uid()}`,
       vehicleId: newAccident.vehicleId,
       date: newAccident.accidentDate,
       title: `Accident Reported: ${newAccident.accidentType}`,
@@ -856,8 +867,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Expense
   const addExpense = (expenseData: Omit<VehicleExpense, 'id' | 'expenseNumber' | 'createdAt'>): VehicleExpense => {
-    const newId = `exp-${Date.now()}`;
-    const expenseNumber = `EXP-2026-${String(expenses.length + 1).padStart(4, '0')}`;
+    const newId = `exp-${uid()}`;
+    const expenseNumber = `EXP-2026-${String(nextSeq(expenses as any[], 'expenseNumber', 1)).padStart(4, '0')}`;
     const newExpense: VehicleExpense = {
       ...expenseData,
       id: newId,
@@ -869,7 +880,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Add Timeline
     const newTimeline: TimelineEvent = {
-      id: `tl-${Date.now()}`,
+      id: `tl-${uid()}`,
       vehicleId: newExpense.vehicleId,
       date: newExpense.date,
       title: `${newExpense.category} Expense: ${newExpense.description}`,
@@ -889,8 +900,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Supplier
   const addSupplier = (supplierData: Omit<Supplier, 'id' | 'supplierId' | 'currentBalance' | 'totalPurchases' | 'totalInvoicesCount' | 'amountPaid' | 'creditNotesAmount' | 'createdAt'>): Supplier => {
-    const newId = `sup-${Date.now()}`;
-    const supplierId = `SUP-${String(suppliers.length + 1).padStart(3, '0')}`;
+    const newId = `sup-${uid()}`;
+    const supplierId = `SUP-${String(nextSeq(suppliers as any[], 'supplierId', 1)).padStart(3, '0')}`;
     const newSupplier: Supplier = {
       ...supplierData,
       id: newId,
@@ -915,8 +926,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Customer
   const addCustomer = (customerData: Omit<Customer, 'id' | 'customerId' | 'currentBalance' | 'totalSales' | 'totalInvoicesCount' | 'amountReceived' | 'createdAt'>): Customer => {
-    const newId = `cust-${Date.now()}`;
-    const customerId = `CUST-${String(customers.length + 1).padStart(3, '0')}`;
+    const newId = `cust-${uid()}`;
+    const customerId = `CUST-${String(nextSeq(customers as any[], 'customerId', 1)).padStart(3, '0')}`;
     const newCustomer: Customer = {
       ...customerData,
       id: newId,
@@ -940,9 +951,9 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Invoice
   const addInvoice = (invoiceData: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt' | 'amountPaid' | 'outstandingAmount'>): Invoice => {
-    const newId = `inv-${Date.now()}`;
+    const newId = `inv-${uid()}`;
     const prefix = invoiceData.invoiceType === 'Purchase' ? 'PINV-2026' : 'SINV-2026';
-    const invoiceNumber = `${prefix}-${String(invoices.length + 1).padStart(4, '0')}`;
+    const invoiceNumber = `${prefix}-${String(nextSeq(invoices as any[], 'invoiceNumber', 1)).padStart(4, '0')}`;
 
     const newInvoice: Invoice = {
       ...invoiceData,
@@ -1000,9 +1011,9 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const original = invoices.find(inv => inv.id === id);
     if (!original) throw new Error('Invoice not found');
 
-    const newId = `inv-${Date.now()}`;
+    const newId = `inv-${uid()}`;
     const prefix = original.invoiceType === 'Purchase' ? 'PINV-2026' : 'SINV-2026';
-    const invoiceNumber = `${prefix}-${String(invoices.length + 1).padStart(4, '0')}`;
+    const invoiceNumber = `${prefix}-${String(nextSeq(invoices as any[], 'invoiceNumber', 1)).padStart(4, '0')}`;
 
     const cloned: Invoice = {
       ...original,
@@ -1028,7 +1039,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const original = invoices.find(inv => inv.id === invoiceId);
     if (!original) throw new Error('Invoice not found');
 
-    const newId = `inv-cn-${Date.now()}`;
+    const newId = `inv-cn-${uid()}`;
     const invoiceNumber = `CN-${original.invoiceNumber}`;
 
     const creditNote: Invoice = {
@@ -1057,8 +1068,13 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Payment
   const addPayment = (paymentData: Omit<Payment, 'id' | 'paymentNumber' | 'createdAt'>): Payment => {
-    const newId = `pay-${Date.now()}`;
-    const paymentNumber = `PAY-2026-${String(payments.length + 1).padStart(4, '0')}`;
+    const targetInvoice = invoices.find(i => i.id === paymentData.invoiceId);
+    if (!targetInvoice) throw new Error('Invoice not found');
+    if (!(paymentData.amount > 0) || paymentData.amount > targetInvoice.outstandingAmount + 0.0005) {
+      throw new Error(`Payment amount must be between 0 and outstanding ${targetInvoice.outstandingAmount.toFixed(3)}`);
+    }
+    const newId = `pay-${uid()}`;
+    const paymentNumber = `PAY-2026-${String(nextSeq(payments as any[], 'paymentNumber', 1)).padStart(4, '0')}`;
     const newPayment: Payment = {
       ...paymentData,
       id: newId,
@@ -1132,8 +1148,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Reconciliation
   const addReconciliation = (recData: Omit<InvoiceReconciliation, 'id' | 'reconciliationNumber' | 'createdAt' | 'differenceAmount' | 'variancePercentage'>): InvoiceReconciliation => {
-    const newId = `rec-${Date.now()}`;
-    const reconciliationNumber = `REC-2026-${String(reconciliations.length + 1).padStart(3, '0')}`;
+    const newId = `rec-${uid()}`;
+    const reconciliationNumber = `REC-2026-${String(nextSeq(reconciliations as any[], 'reconciliationNumber', 1)).padStart(3, '0')}`;
     const expected = recData.matchingType === '3-Way' ? (recData.goodsServiceReceivedAmount || recData.workOrderAmount || recData.invoiceAmount) : (recData.purchaseOrderAmount || recData.invoiceAmount);
     const diff = roundToPrecision(recData.invoiceAmount - expected, 3);
     const variance = expected > 0 ? roundToPrecision((Math.abs(diff) / expected) * 100, 2) : 0;
@@ -1155,8 +1171,11 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Journal Entry
   const addJournalEntry = (entryData: Omit<JournalEntry, 'id' | 'entryNumber' | 'createdAt'>): JournalEntry => {
-    const newId = `je-${Date.now()}`;
-    const entryNumber = `JE-${new Date().getFullYear()}-${String(journalEntries.length + 1).padStart(4, '0')}`;
+    const totalDr = roundToPrecision(entryData.lines.reduce((sum, l) => sum + (l.debit || 0), 0), 3);
+    const totalCr = roundToPrecision(entryData.lines.reduce((sum, l) => sum + (l.credit || 0), 0), 3);
+    if (totalDr !== totalCr || totalDr === 0) throw new Error(`Unbalanced journal entry: Dr ${totalDr} / Cr ${totalCr}`);
+    const newId = `je-${uid()}`;
+    const entryNumber = `JE-${new Date().getFullYear()}-${String(nextSeq(journalEntries as any[], 'entryNumber', 1)).padStart(4, '0')}`;
     const newEntry: JournalEntry = {
       ...entryData,
       id: newId,
@@ -1191,7 +1210,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Add Document
   const addDocument = (docData: Omit<DocumentItem, 'id' | 'uploadedAt'>): DocumentItem => {
-    const newId = `doc-${Date.now()}`;
+    const newId = `doc-${uid()}`;
     const isExpiring = docData.expiryDate ? isDateExpiringSoon(docData.expiryDate, 30) : false;
     const isExp = docData.expiryDate ? isDateOverdue(docData.expiryDate) : false;
 
@@ -1210,7 +1229,9 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Delete Document
   const deleteDocument = (id: string) => {
+    const target = documents.find(d => d.id === id);
     setDocuments(prev => prev.filter(d => d.id !== id));
+    if (target) logAudit('DELETE', 'Document' as any, id, (target as any).documentName || id, 'Document removed from registry.');
   };
 
   // Notification actions
@@ -1279,9 +1300,9 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Fixed Asset Actions
   const addFixedAsset = (assetData: Omit<FixedAsset, 'id' | 'assetCode' | 'createdAt' | 'updatedAt'>): FixedAsset => {
-    const newId = `ast-${Date.now()}`;
+    const newId = `ast-${uid()}`;
     const prefix = assetData.category === 'Fleet Vehicle' ? 'AST-VEH' : assetData.category === 'Workshop Equipment' ? 'AST-EQP' : 'AST-GEN';
-    const assetCode = `${prefix}-${String(fixedAssets.length + 1).padStart(3, '0')}`;
+    const assetCode = `${prefix}-${String(nextSeq(fixedAssets as any[], 'assetCode', 1)).padStart(3, '0')}`;
     const newAsset: FixedAsset = {
       ...assetData,
       id: newId,
@@ -1315,13 +1336,14 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     autoPostGL?: boolean;
   }): DepreciationRun => {
     const periodLabel = params?.periodLabel || 'August 2026';
+    if (depreciationRuns.some(r => r.periodLabel === periodLabel)) throw new Error(`Depreciation already run for ${periodLabel}.`);
     const runDate = params?.runDate || new Date().toISOString().slice(0, 10);
     const processedBy = params?.processedBy || 'Fatima Al-Lawati';
     const notes = params?.notes || `Monthly automatic fixed asset depreciation amortization for ${periodLabel}.`;
     const autoPostGL = params?.autoPostGL ?? true;
 
-    const newBatchId = `dep-run-${Date.now()}`;
-    const batchNumber = `DEP-2026-${String(depreciationRuns.length + 1).padStart(2, '0')}`;
+    const newBatchId = `dep-run-${uid()}`;
+    const batchNumber = `DEP-2026-${String(nextSeq(depreciationRuns as any[], 'batchNumber', 1)).padStart(2, '0')}`;
     
     let totalDepr = 0;
     const breakdown: DepreciationRun['breakdown'] = [];
@@ -1381,7 +1403,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         description: `Auto-Depreciation run for ${periodLabel} across ${breakdown.length} fixed assets`,
         lines: [
           {
-            id: `jl-${Date.now()}-dep-dr`,
+            id: `jl-${uid()}-dep-dr`,
             accountCode: '5080',
             accountName: 'Depreciation Expense - Motor Vehicles & Fixed Assets',
             debit: roundToPrecision(totalDepr, 3),
@@ -1389,7 +1411,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             description: `Period Asset Amortization (${periodLabel})`,
           },
           {
-            id: `jl-${Date.now()}-dep-cr`,
+            id: `jl-${uid()}-dep-cr`,
             accountCode: '1520',
             accountName: 'Accumulated Depreciation - Motor Vehicles',
             debit: 0,
@@ -1433,8 +1455,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Employee Actions
   const addEmployee = (empData: Omit<Employee, 'id' | 'employeeCode' | 'createdAt'>): Employee => {
-    const newId = `emp-${Date.now()}`;
-    const employeeCode = `EMP-${String(employees.length + 1001).padStart(4, '0')}`;
+    const newId = `emp-${uid()}`;
+    const employeeCode = `EMP-${String(nextSeq(employees as any[], 'employeeCode', 1001)).padStart(4, '0')}`;
     const gross = empData.basicSalary + empData.housingAllowance + empData.transportAllowance + empData.otherAllowances;
     const newEmp: Employee = {
       ...empData,
@@ -1479,9 +1501,10 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     autoPostGL?: boolean;
   }): PayrollRun => {
     const { month, year, paymentDate = new Date().toISOString().slice(0, 10), bankAccountId = 'ba-1', autoPostGL = true } = params;
+    if (payrollRuns.some(r => r.month === month && r.year === year)) throw new Error(`Payroll already processed for ${month}/${year}.`);
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const periodLabel = `${monthNames[month - 1]} ${year}`;
-    const newRunId = `pr-${year}-${String(month).padStart(2, '0')}-${Date.now()}`;
+    const newRunId = `pr-${year}-${String(month).padStart(2, '0')}-${uid()}`;
     const payrollNumber = `PAYROLL-${year}-${String(month).padStart(2, '0')}`;
 
     const activeEmployees = employees.filter(e => e.status === 'Active');
@@ -1506,7 +1529,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       totalNet += net;
 
       return {
-        id: `pli-${Date.now()}-${emp.id}`,
+        id: `pli-${uid()}-${emp.id}`,
         employeeId: emp.id,
         employeeCode: emp.employeeCode,
         employeeName: emp.name,
@@ -1543,7 +1566,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         description: `WPS Salary Disbursal & Payroll for ${periodLabel} (${activeEmployees.length} Staff & Drivers)`,
         lines: [
           {
-            id: `jl-${Date.now()}-sal-dr`,
+            id: `jl-${uid()}-sal-dr`,
             accountCode: '5070',
             accountName: 'Driver Allowances & Logistics Staff Salaries',
             debit: roundToPrecision(totalGross, 3),
@@ -1551,7 +1574,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             description: `Gross Payroll for ${periodLabel}`,
           },
           {
-            id: `jl-${Date.now()}-bank-cr`,
+            id: `jl-${uid()}-bank-cr`,
             accountCode: '1020',
             accountName: bank ? `Bank - ${bank.bankName}` : 'Bank - Bank Muscat Corporate',
             debit: 0,
@@ -1561,7 +1584,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           ...(totalPasi > 0
             ? [
                 {
-                  id: `jl-${Date.now()}-pasi-cr`,
+                  id: `jl-${uid()}-pasi-cr`,
                   accountCode: '2030',
                   accountName: 'Accrued Operational Expenses (PASI / Social Insurance Payable)',
                   debit: 0,
@@ -2172,7 +2195,11 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const importDataJSON = (jsonData: string): boolean => {
     try {
       const parsed = JSON.parse(jsonData);
-      if (parsed.vehicles && Array.isArray(parsed.vehicles)) {
+      if (!parsed || typeof parsed !== 'object') return false;
+      const arrayKeys = ['companies', 'vehicles', 'tyres', 'tyreEvents', 'oilChanges', 'maintenanceRecords', 'workOrders', 'accidents', 'expenses', 'suppliers', 'customers', 'invoices', 'reconciliations', 'payments', 'bankAccounts', 'chartOfAccounts', 'journalEntries', 'fixedAssets', 'depreciationRuns', 'employees', 'payrollRuns', 'documents', 'timeline', 'notifications', 'approvalRules', 'approvalRequests', 'auditLogs'];
+      // Validate the whole backup before touching state so a bad file cannot leave a half-imported mix
+      if (arrayKeys.some(k => parsed[k] !== undefined && !Array.isArray(parsed[k]))) return false;
+      if (Array.isArray(parsed.vehicles)) {
         if (parsed.companies) setCompanies(parsed.companies);
         setVehicles(parsed.vehicles);
         if (parsed.tyres) setTyres(parsed.tyres);

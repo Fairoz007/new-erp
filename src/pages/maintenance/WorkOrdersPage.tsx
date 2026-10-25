@@ -13,7 +13,7 @@ import { formatDate } from '../../utils/date';
 export const WorkOrdersPage: React.FC = () => {
   const { workOrders, updateWorkOrderStatus, selectedCompanyId, currency } = useFleet();
   const { openQuickModal, addToast, openVehicleDetail } = useUI();
-  const { hasPermission } = useAuth();
+  const { hasPermission, canApprove } = useAuth();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
 
   const filteredOrders = workOrders.filter(wo => {
@@ -22,6 +22,20 @@ export const WorkOrdersPage: React.FC = () => {
   });
 
   const handleStatusChange = (orderId: string, newStatus: WorkOrderStatus) => {
+    const order = workOrders.find(w => w.id === orderId);
+    if (!order) return;
+    if (!hasPermission('edit', 'work-orders')) {
+      addToast({ type: 'error', title: 'Permission denied', message: 'Your role cannot update work orders.' });
+      return;
+    }
+    if (newStatus === 'Approved' && !canApprove('maintenance', order.finalCost || order.estimatedCost || 0)) {
+      addToast({ type: 'error', title: 'Approval limit exceeded', message: 'Your role cannot approve a work order of this value.' });
+      return;
+    }
+    if (newStatus === 'Completed' && order.status === 'Requested') {
+      addToast({ type: 'error', title: 'Approval Required', message: 'Approve and start the work order before completing it.' });
+      return;
+    }
     updateWorkOrderStatus(orderId, newStatus);
     addToast({
       type: 'success',
@@ -142,6 +156,12 @@ export const WorkOrdersPage: React.FC = () => {
                             Wait Parts
                           </Button>
                         )}
+                        {wo.status === 'Waiting for Parts' && (
+                          <Button variant="secondary" size="xs" onClick={() => handleStatusChange(wo.id, 'In Progress')}>
+                            Resume Work
+                          </Button>
+                        )}
+                        {wo.status !== 'Requested' && (
                         <Button
                           variant="success"
                           size="xs"
@@ -150,6 +170,7 @@ export const WorkOrdersPage: React.FC = () => {
                         >
                           Mark Completed
                         </Button>
+                        )}
                       </>
                     )}
                   </div>
@@ -162,8 +183,8 @@ export const WorkOrdersPage: React.FC = () => {
 
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 overflow-x-auto pb-4">
-          {(['Requested', 'Approved', 'In Progress', 'Completed'] as const).map(stage => {
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
+          {(['Requested', 'Approved', 'In Progress', 'Waiting for Parts', 'Completed'] as const).map(stage => {
             const stageOrders = filteredOrders.filter(w => w.status === stage);
 
             return (
@@ -200,7 +221,7 @@ export const WorkOrdersPage: React.FC = () => {
                           <Button
                             variant="secondary"
                             size="xs"
-                            onClick={() => handleStatusChange(wo.id, stage === 'Requested' ? 'Approved' : stage === 'Approved' ? 'In Progress' : 'Completed')}
+                            onClick={() => handleStatusChange(wo.id, stage === 'Requested' ? 'Approved' : stage === 'Approved' ? 'In Progress' : stage === 'Waiting for Parts' ? 'In Progress' : 'Completed')}
                           >
                             Advance →
                           </Button>

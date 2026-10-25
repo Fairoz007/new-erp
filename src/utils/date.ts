@@ -1,7 +1,18 @@
+/**
+ * Parse a date string. Date-only strings ('YYYY-MM-DD') are treated as local
+ * calendar dates; `new Date('YYYY-MM-DD')` would parse them as UTC midnight,
+ * shifting the displayed day by one in timezones west of UTC.
+ */
+function parseDate(dateStr: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(dateStr);
+}
+
 export function formatDate(dateStr?: string | null): string {
   if (!dateStr) return 'N/A';
   try {
-    const d = new Date(dateStr);
+    const d = parseDate(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -32,7 +43,7 @@ export function formatDateTime(dateStr?: string | null): string {
 
 export function getDaysDifference(targetDateStr?: string | null): number {
   if (!targetDateStr) return 999;
-  const target = new Date(targetDateStr).getTime();
+  const target = parseDate(targetDateStr).getTime();
   const now = new Date().getTime();
   const diffTime = target - now;
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));

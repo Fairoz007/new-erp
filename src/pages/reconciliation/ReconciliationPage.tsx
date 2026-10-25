@@ -29,15 +29,23 @@ export const ReconciliationPage: React.FC = () => {
     notes: '',
   });
 
+  const purchaseInvoices = invoices.filter(i => i.invoiceType === 'Purchase' && !i.isCreditNote);
   const matchedCount = reconciliations.filter(r => r.status === 'Matched').length;
   const mismatchCount = reconciliations.filter(r => r.status === 'Mismatch').length;
 
   const handleCreateReconciliation = (e: React.FormEvent) => {
     e.preventDefault();
-    const inv = invoices.find(i => i.id === recForm.invoiceId);
-    if (!inv) return;
+    const inv = purchaseInvoices.find(i => i.id === recForm.invoiceId) || purchaseInvoices[0];
+    if (!inv) {
+      addToast({ type: 'error', title: 'No Invoice', message: 'Select a purchase invoice to reconcile.' });
+      return;
+    }
+    if (!(Number(recForm.purchaseOrderAmount) > 0) || (recForm.matchingType === '3-Way' && !(Number(recForm.goodsServiceReceivedAmount) >= 0))) {
+      addToast({ type: 'error', title: 'Invalid Amounts', message: 'Enter a positive PO amount and valid received amount.' });
+      return;
+    }
 
-    addReconciliation({
+    const result = addReconciliation({
       companyId: inv.companyId,
       invoiceId: inv.id,
       invoiceNumber: inv.invoiceNumber,
@@ -54,7 +62,7 @@ export const ReconciliationPage: React.FC = () => {
       notes: recForm.notes,
     });
 
-    addToast({ type: 'success', title: 'Reconciliation Logged', message: `3-Way match executed for ${inv.invoiceNumber}.` });
+    addToast({ type: 'success', title: 'Reconciliation Logged', message: `${recForm.matchingType} match for ${inv.invoiceNumber}: ${result.status}.` });
     setIsModalOpen(false);
   };
 
@@ -191,11 +199,11 @@ export const ReconciliationPage: React.FC = () => {
         <form onSubmit={handleCreateReconciliation} className="space-y-4">
           <Select
             label="Select Invoice to Reconcile"
-            value={recForm.invoiceId}
+            value={purchaseInvoices.some(i => i.id === recForm.invoiceId) ? recForm.invoiceId : (purchaseInvoices[0]?.id || '')}
             onChange={e => setRecForm({ ...recForm, invoiceId: e.target.value })}
             required
           >
-            {invoices.map(inv => (
+            {purchaseInvoices.map(inv => (
               <option key={inv.id} value={inv.id}>
                 {inv.invoiceNumber} - {inv.partyName} ({formatCurrency(inv.grandTotal, inv.currency)})
               </option>
@@ -219,7 +227,7 @@ export const ReconciliationPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label={`PO Amount (${currency})`}
               type="number"
@@ -227,6 +235,14 @@ export const ReconciliationPage: React.FC = () => {
               value={recForm.purchaseOrderAmount}
               onChange={e => setRecForm({ ...recForm, purchaseOrderAmount: Number(e.target.value) })}
               required
+            />
+            <Input
+              label={`Goods/Service Received (${currency})`}
+              type="number"
+              step="0.01"
+              value={recForm.goodsServiceReceivedAmount}
+              onChange={e => setRecForm({ ...recForm, goodsServiceReceivedAmount: Number(e.target.value) })}
+              disabled={recForm.matchingType === '2-Way'}
             />
             <Input
               label="Work Order Number"

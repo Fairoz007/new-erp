@@ -12,6 +12,9 @@ import { formatCurrency } from '../../utils/financial';
 
 interface VehicleProfitabilityRow {
   vehicle: Vehicle;
+  plateNumber: string;
+  vehicleName: string;
+  vehicleCategory: string;
   revenue: number;
   operatingCost: number;
   maintenanceCost: number;
@@ -24,8 +27,10 @@ interface VehicleProfitabilityRow {
 }
 
 export const VehicleProfitabilityPage: React.FC = () => {
-  const { vehicles, getVehicleFinancialSummary, currency } = useFleet();
+  const { vehicles: allVehicles, getVehicleFinancialSummary, currency, selectedCompanyId } = useFleet();
   const { openVehicleDetail } = useUI();
+
+  const vehicles = allVehicles.filter(v => !selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId);
 
   const profitabilityRows: VehicleProfitabilityRow[] = vehicles.map(v => {
     const sum = getVehicleFinancialSummary(v.id);
@@ -43,6 +48,9 @@ export const VehicleProfitabilityPage: React.FC = () => {
 
     return {
       vehicle: v,
+      plateNumber: v.plateNumber,
+      vehicleName: `${v.brand} ${v.model}`,
+      vehicleCategory: v.vehicleCategory,
       revenue: rev,
       operatingCost: opCost,
       maintenanceCost: sum.totalMaintenanceCost,
@@ -57,7 +65,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
 
   const columns: Column<VehicleProfitabilityRow>[] = [
     {
-      key: 'vehicle',
+      key: 'vehicleName',
       header: 'Vehicle / Category',
       render: (row) => (
         <div className="cursor-pointer" onClick={() => openVehicleDetail(row.vehicle.id)}>
@@ -179,6 +187,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
         keyExtractor={r => r.vehicle.id}
         title="Vehicle Profit & Cost Intelligence Analysis"
         searchPlaceholder="Search vehicles by plate, model, category..."
+        searchFields={['plateNumber', 'vehicleName', 'vehicleCategory', 'recommendation']}
         exportFilename="FleetX_Vehicle_Profitability"
       />
     </div>

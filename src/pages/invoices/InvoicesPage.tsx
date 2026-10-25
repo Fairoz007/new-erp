@@ -26,11 +26,12 @@ export const InvoicesPage: React.FC = () => {
     return true;
   });
 
-  const totalPurchaseAmount = invoices.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.grandTotal, 0);
-  const totalSalesAmount = invoices.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.grandTotal, 0);
-  const totalOutstandingAP = invoices.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.outstandingAmount, 0);
-  const totalOutstandingAR = invoices.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.outstandingAmount, 0);
-  const totalWithBills = invoices.filter(i => i.attachmentUrl || i.attachmentName || i.invoiceType === 'Purchase').length;
+  const scoped = invoices.filter(inv => !selectedCompanyId || selectedCompanyId === 'all' || inv.companyId === selectedCompanyId);
+  const totalPurchaseAmount = scoped.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.grandTotal, 0);
+  const totalSalesAmount = scoped.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.grandTotal, 0);
+  const totalOutstandingAP = scoped.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.outstandingAmount, 0);
+  const totalOutstandingAR = scoped.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.outstandingAmount, 0);
+  const totalWithBills = scoped.filter(i => i.attachmentUrl || i.attachmentName || i.invoiceType === 'Purchase').length;
 
   const columns: Column<Invoice>[] = [
     {
@@ -133,7 +134,7 @@ export const InvoicesPage: React.FC = () => {
       sortable: false,
       render: (inv) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          <Button
+          {(inv.attachmentUrl || inv.attachmentName || inv.invoiceType === 'Purchase') && <Button
             variant="ghost"
             size="xs"
             onClick={() => {
@@ -144,7 +145,7 @@ export const InvoicesPage: React.FC = () => {
             leftIcon={<Eye className="w-3 h-3" />}
           >
             Bill
-          </Button>
+          </Button>}
           <Button variant="ghost" size="xs" onClick={() => openInvoiceModal(inv.id)} leftIcon={<Printer className="w-3 h-3" />}>
             Print
           </Button>
@@ -201,14 +202,14 @@ export const InvoicesPage: React.FC = () => {
         />
         <StatCard
           title="Overdue Invoices"
-          value={invoices.filter(i => i.paymentStatus === 'Overdue').length}
+          value={scoped.filter(i => i.paymentStatus === 'Overdue').length}
           subValue="Immediate collection required"
           trend={{ value: 'Critical', direction: 'down' }}
         />
         <StatCard
           title="Scanned Bills Attached"
           value={totalWithBills}
-          subValue={`${invoices.length} total register entries`}
+          subValue={`${scoped.length} total register entries`}
         />
       </div>
 

@@ -46,7 +46,8 @@ export function exportToCSV<T extends Record<string, any>>(
     });
   }
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // UTF-8 BOM so Excel renders non-ASCII names (e.g. Arabic) correctly
+  const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
@@ -54,6 +55,7 @@ export function exportToCSV<T extends Record<string, any>>(
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**
@@ -69,6 +71,7 @@ export function exportToJSON(filename: string, data: any): void {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**

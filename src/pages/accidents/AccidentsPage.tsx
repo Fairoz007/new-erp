@@ -22,11 +22,14 @@ export const AccidentsPage: React.FC = () => {
     return true;
   });
 
-  const totalAccidents = accidents.length;
-  const activeCases = accidents.filter(a => !['Completed', 'Closed'].includes(a.status)).length;
-  const totalRepairCost = accidents.reduce((s, a) => s + (a.actualRepairCost || 0), 0);
-  const totalInsuranceRecovered = accidents.reduce((s, a) => s + (a.insuranceContribution || 0), 0);
-  const netCompanyCost = accidents.reduce((s, a) => s + (a.netAccidentCostToCompany || 0), 0);
+  // KPIs follow the selected office (not the status dropdown)
+  const scopedAccidents = accidents.filter(a => !selectedCompanyId || selectedCompanyId === 'all' || a.companyId === selectedCompanyId);
+  const totalAccidents = scopedAccidents.length;
+  const activeCases = scopedAccidents.filter(a => !['Completed', 'Closed'].includes(a.status)).length;
+  const totalRepairCost = scopedAccidents.reduce((s, a) => s + (a.actualRepairCost || 0), 0);
+  const totalInsuranceRecovered = scopedAccidents.reduce((s, a) => s + (a.insuranceContribution || 0), 0);
+  const netCompanyCost = scopedAccidents.reduce((s, a) => s + (a.netAccidentCostToCompany || 0), 0);
+  const recoveryPct = totalRepairCost > 0 ? Math.round((totalInsuranceRecovered / totalRepairCost) * 100) : 0;
 
   const columns: Column<Accident>[] = [
     {
@@ -157,7 +160,7 @@ export const AccidentsPage: React.FC = () => {
           title="Insurance Recovery"
           value={formatCurrency(totalInsuranceRecovered, currency)}
           subValue="Settled by underwriters"
-          trend={{ value: `${totalInsuranceRecovered > 0 ? '+78%' : '0%'} Covered`, direction: 'up' }}
+          trend={{ value: `${recoveryPct}% Covered`, direction: 'up' }}
         />
         <StatCard
           title="Net Cost to Company"
@@ -174,6 +177,7 @@ export const AccidentsPage: React.FC = () => {
         keyExtractor={a => a.id}
         title="Accident Registry"
         searchPlaceholder="Search by accident number, plate, police report, claim number or location..."
+        searchFields={['accidentNumber', 'vehiclePlate', 'policeReportNumber', 'insuranceClaimNumber', 'location', 'driverName']}
         exportFilename="FleetX_Accidents_Register"
         filterComponent={
           <select
@@ -185,6 +189,9 @@ export const AccidentsPage: React.FC = () => {
             <option value="Under Repair">Under Repair</option>
             <option value="Insurance Processing">Insurance Processing</option>
             <option value="Reported">Reported</option>
+            <option value="Under Investigation">Under Investigation</option>
+            <option value="Repair Approved">Repair Approved</option>
+            <option value="Completed">Completed</option>
             <option value="Closed">Closed</option>
           </select>
         }

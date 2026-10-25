@@ -38,7 +38,12 @@ export const ApprovalsPage: React.FC = () => {
       return;
     }
 
-    processApproval(selectedRequest.id, actionType, comment, currentUser);
+    if (!comment.trim()) {
+      addToast({ type: 'warning', title: 'Comment Required', message: 'Please enter a signoff justification before confirming.' });
+      return;
+    }
+
+    processApproval(selectedRequest.id, actionType, comment.trim(), currentUser);
     addToast({
       type: actionType === 'Approved' ? 'success' : 'warning',
       title: `Request ${actionType}`,

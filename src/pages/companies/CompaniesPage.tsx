@@ -7,13 +7,6 @@ import { useFleet } from '../../context/FleetContext';
 export const CompaniesPage: React.FC = () => {
   const { companies, vehicles, invoices, employees, selectedCompanyId, setSelectedCompanyId, resetToDefaultData } = useFleet();
 
-  // Auto-purge any stale legacy companies from prior sessions
-  React.useEffect(() => {
-    const hasLegacy = companies.some(c => !c.name.includes('Al Hakim') || c.id === 'comp-3') || companies.length !== 2;
-    if (hasLegacy) {
-      resetToDefaultData();
-    }
-  }, [companies, resetToDefaultData]);
 
   // Restrict strictly to Head Office (comp-1) and Duqm Office (comp-2)
   const activeOffices = companies.filter(c => c.id === 'comp-1' || c.id === 'comp-2');
@@ -44,7 +37,7 @@ export const CompaniesPage: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => resetToDefaultData()}
+            onClick={() => { if (window.confirm('Reset ALL data to the default dataset? Unsaved records will be lost.')) resetToDefaultData(); }}
             title="Re-synchronize Head Office and Duqm Office dataset"
             className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer rounded-full"
           >

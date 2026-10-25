@@ -66,7 +66,7 @@ export const AuditLogsPage: React.FC = () => {
     {
       key: 'ipAddress',
       header: 'IP Address',
-      render: (l) => <span className="font-mono text-slate-500 text-[11px]">{l.ipAddress || '192.168.1.100'}</span>,
+      render: (l) => <span className="font-mono text-slate-500 text-[11px]">{l.ipAddress || 'N/A'}</span>,
     },
   ];
 

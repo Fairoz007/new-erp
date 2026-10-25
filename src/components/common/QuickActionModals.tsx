@@ -646,6 +646,7 @@ export const QuickActionModals: React.FC = () => {
     }
     const ba = bankAccounts.find(b => b.id === paymentForm.bankAccountId);
 
+    try {
     addPayment({
       companyId: inv.companyId,
       invoiceId: inv.id,
@@ -663,6 +664,10 @@ export const QuickActionModals: React.FC = () => {
       transactionReference: paymentForm.transactionReference || `TXN-${Date.now().toString().slice(-4)}`,
       notes: paymentForm.notes,
     });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Payment Rejected', message: (err as Error).message });
+      return;
+    }
 
     addToast({ type: 'success', title: 'Payment Processed', message: `Recorded payment of ${Number(paymentForm.amount).toFixed(3)} OMR.` });
     closeQuickModal();
@@ -852,6 +857,7 @@ export const QuickActionModals: React.FC = () => {
 
   const handleRunPayroll = (e: React.FormEvent) => {
     e.preventDefault();
+    try {
     const run = processPayrollRun({
       month: Number(payrollForm.month),
       year: Number(payrollForm.year),
@@ -865,11 +871,16 @@ export const QuickActionModals: React.FC = () => {
       title: 'Payroll Disbursed',
       message: `Processed WPS payroll ${run.periodLabel} with net payout of ${run.totalNetPayout.toFixed(3)} OMR.`,
     });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Payroll Not Processed', message: (err as Error).message });
+      return;
+    }
     closeQuickModal();
   };
 
   const handleRunDepreciation = (e: React.FormEvent) => {
     e.preventDefault();
+    try {
     const run = runAutoDepreciation({
       periodLabel: deprForm.periodLabel,
       runDate: deprForm.runDate,
@@ -882,6 +893,10 @@ export const QuickActionModals: React.FC = () => {
       title: 'Auto-Depreciation Complete',
       message: `Depreciated ${run.totalAssetsProcessed} assets for ${run.totalDepreciationAmount.toFixed(3)} OMR. Posted to GL.`,
     });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Depreciation Not Run', message: (err as Error).message });
+      return;
+    }
     closeQuickModal();
   };
 

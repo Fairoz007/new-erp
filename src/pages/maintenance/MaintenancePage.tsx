@@ -3,11 +3,18 @@ import { Wrench, Plus, Download, Filter, FileText, ArrowRight } from 'lucide-rea
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { MaintenanceRecord } from '../../types/maintenance';
+import { MaintenanceRecord, MaintenanceCategory } from '../../types/maintenance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+
+const MAINTENANCE_CATEGORIES: MaintenanceCategory[] = [
+  'General Service', 'Preventive Maintenance', 'Corrective Maintenance', 'Engine Repair', 'Transmission Repair',
+  'Brake Service', 'Suspension', 'Steering', 'Electrical', 'AC Repair', 'Battery', 'Oil Change', 'Filter Change',
+  'Tyres', 'Wheel Alignment', 'Wheel Balancing', 'Body Repair', 'Painting', 'Accident Repair', 'Glass Replacement',
+  'Interior Repair', 'Washing / Detailing', 'Inspection', 'Registration', 'Insurance', 'Other',
+];
 
 export const MaintenancePage: React.FC = () => {
   const { maintenanceRecords, selectedCompanyId, currency } = useFleet();
@@ -136,12 +143,9 @@ export const MaintenancePage: React.FC = () => {
             className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Service Categories</option>
-            <option value="General Service">General Service</option>
-            <option value="Brake Service">Brake Service</option>
-            <option value="Transmission Repair">Transmission Repair</option>
-            <option value="Engine Repair">Engine Repair</option>
-            <option value="Electrical">Electrical</option>
-            <option value="AC Repair">AC Repair</option>
+            {MAINTENANCE_CATEGORIES.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
         }
       />

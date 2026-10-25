@@ -1,4 +1,4 @@
-import React, { useState, useMemo, ReactNode } from 'react';
+import React, { useState, useMemo, useEffect, ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -111,15 +111,17 @@ export function DataTable<T extends Record<string, any>>({
       const strB = String(valB).toLowerCase();
 
       if (sortDirection === 'asc') {
-        return strA.localeCompare(strB);
+        return strA.localeCompare(strB, undefined, { numeric: true });
       } else {
-        return strB.localeCompare(strA);
+        return strB.localeCompare(strA, undefined, { numeric: true });
       }
     });
   }, [filteredData, sortKey, sortDirection]);
 
   // Pagination
   const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
+  // Keep the page in range when rows are deleted or filtered away
+  useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [currentPage, totalPages]);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return sortedData.slice(start, start + pageSize);

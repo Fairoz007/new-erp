@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 import { PayslipModalData } from '../types/hr';
+import { useAuth } from './AuthContext';
 
 export type AppPage =
   | 'dashboard'
@@ -144,6 +145,7 @@ const parseLocationHash = (): { page: AppPage; vehicleId?: string; tab?: Vehicle
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
 export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { canAccessPage, hasPermission } = useAuth();
   const initialNav = parseLocationHash();
   const [currentPage, setCurrentPageState] = useState<AppPage>(initialNav.page);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(initialNav.vehicleId || null);
@@ -215,10 +217,42 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   };
 
-  const openQuickModal = (type: QuickModalType) => setQuickModal(type);
+  // Quick actions bypass page routing, so enforce page access + create permission here
+  const QUICK_MODAL_ACCESS: Record<string, [AppPage, string]> = {
+    'add-vehicle': ['vehicles', 'vehicles'],
+    'add-maintenance': ['maintenance', 'maintenance'],
+    'add-work-order': ['work-orders', 'work-orders'],
+    'add-oil-change': ['oil-management', 'oil'],
+    'add-tyre': ['tyre-management', 'tyres'],
+    'add-expense': ['expenses', 'expenses'],
+    'add-accident': ['accidents', 'accidents'],
+    'add-invoice': ['invoices', 'invoices'],
+    'add-payment': ['payments', 'payments'],
+    'add-supplier': ['suppliers', 'suppliers'],
+    'add-customer': ['customers', 'customers'],
+    'upload-document': ['documents', 'documents'],
+    'add-employee': ['payroll', 'payroll'],
+    'run-payroll': ['payroll', 'payroll'],
+    'run-depreciation': ['depreciation', 'accounting'],
+    'add-fixed-asset': ['fixed-assets', 'accounting'],
+  };
+  const openQuickModal = (type: QuickModalType) => {
+    const access = type ? QUICK_MODAL_ACCESS[type] : undefined;
+    if (access && (!canAccessPage(access[0]) || !hasPermission('create', access[1]))) {
+      addToast({ type: 'error', title: 'Permission denied', message: 'Your role cannot perform this action.' });
+      return;
+    }
+    setQuickModal(type);
+  };
   const closeQuickModal = () => setQuickModal(null);
 
-  const openInvoiceModal = (invoiceId: string) => setViewingInvoiceId(invoiceId);
+  const openInvoiceModal = (invoiceId: string) => {
+    if (!canAccessPage('invoices')) {
+      addToast({ type: 'error', title: 'Permission denied', message: 'Your role cannot view invoices.' });
+      return;
+    }
+    setViewingInvoiceId(invoiceId);
+  };
   const closeInvoiceModal = () => setViewingInvoiceId(null);
 
   const openBillModal = (url: string, title: string, type?: string, size?: string) => {

@@ -58,11 +58,20 @@ export const ReportsPage: React.FC = () => {
           { key: 'currentMileage', header: 'Mileage (KM)', align: 'right', render: v => `${v.currentMileage.toLocaleString()} KM` },
           { key: 'status', header: 'Status', render: v => v.status },
         ];
-        return <DataTable data={vehicles} columns={columns} keyExtractor={v => v.id} exportFilename="Vehicle_Master_Report" />;
+        const rows = vehicles.map(v => ({ ...v, brandModel: `${v.brand} ${v.model} (${v.variant})` }));
+        return <DataTable data={rows} columns={columns} keyExtractor={v => v.id} exportFilename="Vehicle_Master_Report" />;
       }
 
       case 'vehicle-asset': {
-        const columns: Column<typeof vehicles[0]>[] = [
+        // Flatten nested/derived fields so CSV export includes real values (DataTable exports by raw key)
+        const rows = vehicles.map(v => ({
+          ...v,
+          brandModel: `${v.brand} ${v.model}`,
+          purchaseValue: v.purchase.purchaseValue,
+          bookValue: calculateCurrentBookValue(v).bookValue,
+          marketValue: v.currentMarketValue,
+        }));
+        const columns: Column<typeof rows[0]>[] = [
           { key: 'plateNumber', header: 'Plate', render: v => <span className="font-mono font-bold">{v.plateNumber}</span> },
           { key: 'brandModel', header: 'Vehicle', render: v => `${v.brand} ${v.model}` },
           { key: 'purchaseValue', header: 'Purchase Cost', align: 'right', render: v => formatCurrency(v.purchase.purchaseValue, currency) },
@@ -70,14 +79,11 @@ export const ReportsPage: React.FC = () => {
             key: 'bookValue',
             header: 'Book Value',
             align: 'right',
-            render: v => {
-              const { bookValue } = calculateCurrentBookValue(v);
-              return <span className="font-bold text-indigo-300">{formatCurrency(bookValue, currency)}</span>;
-            },
+            render: v => <span className="font-bold text-indigo-300">{formatCurrency(v.bookValue, currency)}</span>,
           },
-          { key: 'marketValue', header: 'Market Value', align: 'right', render: v => formatCurrency(v.currentMarketValue, currency) },
+          { key: 'marketValue', header: 'Market Value', align: 'right', render: v => formatCurrency(v.marketValue, currency) },
         ];
-        return <DataTable data={vehicles} columns={columns} keyExtractor={v => v.id} exportFilename="Vehicle_Asset_Report" />;
+        return <DataTable data={rows} columns={columns} keyExtractor={v => v.id} exportFilename="Vehicle_Asset_Report" />;
       }
 
       case 'maintenance-cost': {
@@ -113,7 +119,7 @@ export const ReportsPage: React.FC = () => {
         return <DataTable data={agingData} columns={columns} keyExtractor={a => a.supplier} exportFilename="AP_Aging_Report" />;
       }
 
-      default: {
+      case 'expense-report': {
         const columns: Column<typeof expenses[0]>[] = [
           { key: 'expenseNumber', header: 'Expense #', render: e => <span className="font-mono">{e.expenseNumber}</span> },
           { key: 'vehiclePlate', header: 'Plate', render: e => e.vehiclePlate },
@@ -124,6 +130,14 @@ export const ReportsPage: React.FC = () => {
         ];
         return <DataTable data={expenses} columns={columns} keyExtractor={e => e.id} exportFilename="Expense_Report" />;
       }
+
+      default:
+        return (
+          <Card className="p-6 rounded-[20px] bg-white border border-slate-700 shadow-card">
+            <p className="text-sm font-semibold text-slate-200">This report is not yet implemented.</p>
+            <p className="text-xs text-slate-400 mt-1">Select an available report (Vehicle Master, Vehicle Asset, Maintenance Cost, AP Aging or Vehicle Expense).</p>
+          </Card>
+        );
     }
   };
 
@@ -136,7 +150,7 @@ export const ReportsPage: React.FC = () => {
             Executive Reports & Analytical Export Suite
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            24+ pre-configured tabular and financial reports with date filtering, CSV export, and PDF printable format.
+            Pre-configured tabular and financial reports with CSV export and browser print.
           </p>
         </div>
 

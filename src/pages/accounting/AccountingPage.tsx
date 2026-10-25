@@ -38,12 +38,25 @@ export const AccountingPage: React.FC = () => {
 
   const handleCreateJournal = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission('create', 'accounting')) {
+      addToast({ type: 'error', title: 'Permission Denied', message: 'You do not have permission to post journal entries.' });
+      return;
+    }
+    const activeLines = journalForm.lines.filter(l => Number(l.debit || 0) !== 0 || Number(l.credit || 0) !== 0);
+    if (activeLines.some(l => Number(l.debit) < 0 || Number(l.credit) < 0 || !chartOfAccounts.some(a => a.code === l.accountCode))) {
+      addToast({ type: 'error', title: 'Invalid Line', message: 'Amounts must be non-negative and every line needs a valid account.' });
+      return;
+    }
+    if (activeLines.length < 2 || !activeLines.some(l => Number(l.debit) > 0) || !activeLines.some(l => Number(l.credit) > 0)) {
+      addToast({ type: 'error', title: 'Incomplete Journal', message: 'A journal needs at least one debit line and one credit line.' });
+      return;
+    }
     if (!isBalanced) {
       addToast({ type: 'error', title: 'Unbalanced Journal', message: 'Debits must equal Credits in double-entry bookkeeping.' });
       return;
     }
 
-    const linesWithNames = journalForm.lines.map(line => {
+    const linesWithNames = activeLines.map(line => {
       const acc = chartOfAccounts.find(a => a.code === line.accountCode);
       return {
         id: `jl-${Date.now()}-${Math.random()}`,
@@ -55,18 +68,23 @@ export const AccountingPage: React.FC = () => {
       };
     });
 
+    try {
     addJournalEntry({
       companyId: selectedCompanyId === 'all' ? 'comp-1' : selectedCompanyId,
       date: journalForm.date,
       description: journalForm.description,
       reference: journalForm.reference,
       lines: linesWithNames,
-      totalDebit,
-      totalCredit,
+      totalDebit: Math.round(totalDebit * 1000) / 1000,
+      totalCredit: Math.round(totalCredit * 1000) / 1000,
       postedBy: currentUser.name,
       status: 'Posted',
       sourceModule: 'Manual',
     });
+    } catch (err) {
+      addToast({ type: 'error', title: 'Journal Rejected', message: (err as Error).message });
+      return;
+    }
 
     addToast({ type: 'success', title: 'Journal Entry Posted', message: `Posted entry for ${totalDebit.toFixed(3)} OMR.` });
     setIsJournalModalOpen(false);

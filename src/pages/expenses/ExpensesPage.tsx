@@ -23,11 +23,12 @@ export const ExpensesPage: React.FC = () => {
     return true;
   });
 
-  const totalFuel = expenses.filter(e => e.category === 'Fuel').reduce((s, e) => s + e.total, 0);
-  const totalInsurance = expenses.filter(e => e.category === 'Insurance').reduce((s, e) => s + e.total, 0);
-  const totalReg = expenses.filter(e => e.category === 'Registration').reduce((s, e) => s + e.total, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + e.total, 0);
-  const totalReceiptsAttached = expenses.filter(e => e.attachmentUrl || e.attachmentName || ['Fuel', 'Insurance', 'Registration'].includes(e.category)).length;
+  const scoped = expenses.filter(e => !selectedCompanyId || selectedCompanyId === 'all' || e.companyId === selectedCompanyId);
+  const totalFuel = scoped.filter(e => e.category === 'Fuel').reduce((s, e) => s + e.total, 0);
+  const totalInsurance = scoped.filter(e => e.category === 'Insurance').reduce((s, e) => s + e.total, 0);
+  const totalReg = scoped.filter(e => e.category === 'Registration').reduce((s, e) => s + e.total, 0);
+  const totalExpenses = scoped.reduce((s, e) => s + e.total, 0);
+  const totalReceiptsAttached = scoped.filter(e => e.attachmentUrl || e.attachmentName || ['Fuel', 'Insurance', 'Registration'].includes(e.category)).length;
 
   const columns: Column<VehicleExpense>[] = [
     {

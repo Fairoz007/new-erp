@@ -24,10 +24,11 @@ export const AssetModulePage: React.FC = () => {
     return true;
   });
 
-  const totalCost = fixedAssets.reduce((s, a) => s + a.purchaseCost, 0);
-  const totalAccDepr = fixedAssets.reduce((s, a) => s + a.accumulatedDepreciation, 0);
-  const totalNetBookValue = fixedAssets.reduce((s, a) => s + a.currentBookValue, 0);
-  const totalAssetsCount = fixedAssets.length;
+  const scopedAssets = fixedAssets.filter(a => !selectedCompanyId || selectedCompanyId === 'all' || a.companyId === selectedCompanyId);
+  const totalCost = scopedAssets.reduce((s, a) => s + a.purchaseCost, 0);
+  const totalAccDepr = scopedAssets.reduce((s, a) => s + a.accumulatedDepreciation, 0);
+  const totalNetBookValue = scopedAssets.reduce((s, a) => s + a.currentBookValue, 0);
+  const totalAssetsCount = scopedAssets.length;
 
   const assetColumns: Column<FixedAsset>[] = [
     {
@@ -90,7 +91,7 @@ export const AssetModulePage: React.FC = () => {
             {formatCurrency(a.accumulatedDepreciation, currency)}
           </span>
           <p className="text-[10px] text-slate-500">
-            {((a.accumulatedDepreciation / a.purchaseCost) * 100).toFixed(1)}% amortized
+            {(a.purchaseCost > 0 ? (a.accumulatedDepreciation / a.purchaseCost) * 100 : 0).toFixed(1)}% amortized
           </p>
         </div>
       ),

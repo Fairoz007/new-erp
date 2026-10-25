@@ -12,7 +12,10 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
 export const PayrollPage: React.FC = () => {
-  const { employees, payrollRuns, currency, selectedCompanyId } = useFleet();
+  const { employees: allEmployees, payrollRuns: allPayrollRuns, currency, selectedCompanyId } = useFleet();
+  const inScope = (cid: string) => !selectedCompanyId || selectedCompanyId === 'all' || cid === selectedCompanyId;
+  const employees = allEmployees.filter(e => inScope(e.companyId));
+  const payrollRuns = allPayrollRuns.filter(r => inScope(r.companyId));
   const { openQuickModal, openPayslipModal } = useUI();
   const [activeTab, setActiveTab] = useState<'employees' | 'runs'>('employees');
   const [deptFilter, setDeptFilter] = useState<string>('all');

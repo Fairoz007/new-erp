@@ -169,6 +169,9 @@ export const VehiclesPage: React.FC = () => {
               <option value="Under Maintenance">Under Maintenance</option>
               <option value="Accident">Accident</option>
               <option value="Inactive">Inactive</option>
+              <option value="Reserved">Reserved</option>
+              <option value="Sold">Sold</option>
+              <option value="Scrapped">Scrapped</option>
             </select>
           </div>
         }

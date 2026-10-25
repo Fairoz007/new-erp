@@ -11,12 +11,27 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
+type TyreRow = Tyre & { vehiclePlate: string; vehicleName: string };
+
 export const TyreManagementPage: React.FC = () => {
-  const { tyres, tyreEvents, vehicles, currency } = useFleet();
+  const { tyres: allTyres, tyreEvents: allTyreEvents, vehicles, currency, selectedCompanyId } = useFleet();
   const { openQuickModal, openVehicleDetail } = useUI();
   const [filter, setFilter] = useState<string>('all');
 
-  const totalTyres = tyres.length;
+  // Scope to selected office and add searchable vehicle fields
+  const inScope = (vehicleId: string) => {
+    if (!selectedCompanyId || selectedCompanyId === 'all') return true;
+    return vehicles.find(v => v.id === vehicleId)?.companyId === selectedCompanyId;
+  };
+  const tyres: TyreRow[] = allTyres
+    .filter(t => inScope(t.vehicleId))
+    .map(t => {
+      const v = vehicles.find(veh => veh.id === t.vehicleId);
+      return { ...t, vehiclePlate: v?.plateNumber || '', vehicleName: v ? `${v.brand} ${v.model}` : '' };
+    });
+  const tyreEvents = allTyreEvents.filter(te => inScope(te.vehicleId));
+
+  const totalTyres = tyres.filter(t => !['Replaced', 'Scrapped'].includes(t.status)).length;
   const criticalTyres = tyres.filter(t => t.status === 'Critical').length;
   const dueSoonTyres = tyres.filter(t => t.status === 'Due Soon').length;
   const totalTyreInvestment = tyres.reduce((s, t) => s + (t.purchaseCost || 0), 0) + tyreEvents.reduce((s, te) => s + (te.cost || 0), 0);
@@ -26,7 +41,7 @@ export const TyreManagementPage: React.FC = () => {
     return true;
   });
 
-  const columns: Column<Tyre>[] = [
+  const columns: Column<TyreRow>[] = [
     {
       key: 'vehicle',
       header: 'Vehicle / Position',
@@ -157,6 +172,7 @@ export const TyreManagementPage: React.FC = () => {
         keyExtractor={t => t.id}
         title="Fleet Tyre Registry"
         searchPlaceholder="Search by plate, tyre brand, size, serial number or position..."
+        searchFields={['vehiclePlate', 'vehicleName', 'brand', 'model', 'size', 'serialNumber', 'position']}
         exportFilename="FleetX_Tyres_Register"
         filterComponent={
           <select
@@ -168,6 +184,9 @@ export const TyreManagementPage: React.FC = () => {
             <option value="Critical">Critical Wear Only</option>
             <option value="Due Soon">Due Soon</option>
             <option value="Good">Good Condition</option>
+            <option value="Fair">Fair</option>
+            <option value="Replaced">Replaced</option>
+            <option value="Scrapped">Scrapped</option>
           </select>
         }
       />

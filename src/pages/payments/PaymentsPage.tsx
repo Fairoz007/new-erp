@@ -18,9 +18,9 @@ export const PaymentsPage: React.FC = () => {
     return true;
   });
 
-  const totalDisbursed = payments.filter(p => p.partyType === 'Supplier').reduce((s, p) => s + p.amount, 0);
-  const totalReceived = payments.filter(p => p.partyType === 'Customer').reduce((s, p) => s + p.amount, 0);
-  const totalBankBalance = bankAccounts.reduce((s, b) => s + b.currentBalance, 0);
+  const totalDisbursed = filteredPayments.filter(p => p.partyType === 'Supplier').reduce((s, p) => s + p.amount, 0);
+  const totalReceived = filteredPayments.filter(p => p.partyType === 'Customer').reduce((s, p) => s + p.amount, 0);
+  const totalBankBalance = bankAccounts.filter(b => !selectedCompanyId || selectedCompanyId === 'all' || b.companyId === selectedCompanyId).reduce((s, b) => s + b.currentBalance, 0);
 
   const columns: Column<Payment>[] = [
     {

@@ -19,6 +19,14 @@ export const TrialBalancePage: React.FC = () => {
     return true;
   });
 
+  const sumRows = (k: 'openingDebit' | 'openingCredit' | 'periodDebit' | 'periodCredit' | 'closingDebit' | 'closingCredit') =>
+    Math.round(filteredRows.reduce((t, r) => t + r[k], 0) * 1000) / 1000;
+  const shown = filterCategory === 'all' ? tbData : {
+    totalOpeningDebit: sumRows('openingDebit'), totalOpeningCredit: sumRows('openingCredit'),
+    totalPeriodDebit: sumRows('periodDebit'), totalPeriodCredit: sumRows('periodCredit'),
+    totalClosingDebit: sumRows('closingDebit'), totalClosingCredit: sumRows('closingCredit'),
+  };
+
   const exportCSV = () => {
     const headers = ['Account Code', 'Account Name', 'Category', 'Opening Debit', 'Opening Credit', 'Period Debit', 'Period Credit', 'Closing Debit', 'Closing Credit'];
     const csvRows = [
@@ -40,12 +48,12 @@ export const TrialBalancePage: React.FC = () => {
         '"TOTAL"',
         '""',
         '""',
-        tbData.totalOpeningDebit.toFixed(3),
-        tbData.totalOpeningCredit.toFixed(3),
-        tbData.totalPeriodDebit.toFixed(3),
-        tbData.totalPeriodCredit.toFixed(3),
-        tbData.totalClosingDebit.toFixed(3),
-        tbData.totalClosingCredit.toFixed(3),
+        shown.totalOpeningDebit.toFixed(3),
+        shown.totalOpeningCredit.toFixed(3),
+        shown.totalPeriodDebit.toFixed(3),
+        shown.totalPeriodCredit.toFixed(3),
+        shown.totalClosingDebit.toFixed(3),
+        shown.totalClosingCredit.toFixed(3),
       ].join(','),
     ];
 
@@ -262,22 +270,22 @@ export const TrialBalancePage: React.FC = () => {
                   Audited Totals:
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono border-l border-slate-700 text-slate-300">
-                  {formatCurrency(tbData.totalOpeningDebit, currency)}
+                  {formatCurrency(shown.totalOpeningDebit, currency)}
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono text-slate-300">
-                  {formatCurrency(tbData.totalOpeningCredit, currency)}
+                  {formatCurrency(shown.totalOpeningCredit, currency)}
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono border-l border-slate-700 text-slate-300">
-                  {formatCurrency(tbData.totalPeriodDebit, currency)}
+                  {formatCurrency(shown.totalPeriodDebit, currency)}
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono text-slate-300">
-                  {formatCurrency(tbData.totalPeriodCredit, currency)}
+                  {formatCurrency(shown.totalPeriodCredit, currency)}
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono border-l border-slate-700 text-[#086343] bg-[#DCEFE5]/40 text-sm font-extrabold">
-                  {formatCurrency(tbData.totalClosingDebit, currency)}
+                  {formatCurrency(shown.totalClosingDebit, currency)}
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono text-[#086343] bg-[#DCEFE5]/40 text-sm font-extrabold">
-                  {formatCurrency(tbData.totalClosingCredit, currency)}
+                  {formatCurrency(shown.totalClosingCredit, currency)}
                 </td>
               </tr>
             </tfoot>

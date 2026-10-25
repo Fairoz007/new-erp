@@ -11,10 +11,20 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
+type OilRow = OilChange & { vehiclePlate: string; vehicleName: string; _companyId?: string };
+
 export const OilManagementPage: React.FC = () => {
-  const { oilChanges, vehicles, currency } = useFleet();
+  const { oilChanges: allOilChanges, vehicles, currency, selectedCompanyId } = useFleet();
   const { openQuickModal, openVehicleDetail } = useUI();
   const [filter, setFilter] = useState<string>('all');
+
+  // Scope to selected office and add searchable vehicle fields
+  const oilChanges: OilRow[] = allOilChanges
+    .map(o => {
+      const v = vehicles.find(veh => veh.id === o.vehicleId);
+      return { ...o, vehiclePlate: v?.plateNumber || '', vehicleName: v ? `${v.brand} ${v.model}` : '', _companyId: v?.companyId };
+    })
+    .filter(o => !selectedCompanyId || selectedCompanyId === 'all' || o._companyId === selectedCompanyId);
 
   const overdueCount = oilChanges.filter(o => o.status === 'Overdue').length;
   const dueSoonCount = oilChanges.filter(o => o.status === 'Due Soon').length;
@@ -26,7 +36,7 @@ export const OilManagementPage: React.FC = () => {
     return true;
   });
 
-  const columns: Column<OilChange>[] = [
+  const columns: Column<OilRow>[] = [
     {
       key: 'vehicle',
       header: 'Vehicle / Plate',
@@ -41,7 +51,7 @@ export const OilManagementPage: React.FC = () => {
               <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-xs">
                 {v?.plateNumber}
               </span>
-              <span className="text-xs text-slate-400 font-mono">Cur: {v?.currentMileage.toLocaleString()} KM</span>
+              <span className="text-xs text-slate-400 font-mono">Cur: {(v?.currentMileage ?? 0).toLocaleString()} KM</span>
             </div>
           </div>
         );
@@ -154,6 +164,7 @@ export const OilManagementPage: React.FC = () => {
         keyExtractor={o => o.id}
         title="Engine Oil Service Register"
         searchPlaceholder="Search by vehicle, oil brand, grade, odometer..."
+        searchFields={['vehiclePlate', 'vehicleName', 'oilBrand', 'oilGrade', 'odometer']}
         exportFilename="FleetX_Oil_Services"
         filterComponent={
           <select

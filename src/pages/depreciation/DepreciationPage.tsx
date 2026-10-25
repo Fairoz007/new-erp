@@ -12,7 +12,8 @@ import { formatCurrency, calculateDepreciationSchedule, calculateCurrentBookValu
 import { formatDate } from '../../utils/date';
 
 export const DepreciationPage: React.FC = () => {
-  const { vehicles, currency } = useFleet();
+  const { vehicles: allVehicles, currency, selectedCompanyId } = useFleet();
+  const vehicles = allVehicles.filter(v => !selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId);
   const { openVehicleDetail } = useUI();
   const [selectedMethod, setSelectedMethod] = useState<string>('all');
 

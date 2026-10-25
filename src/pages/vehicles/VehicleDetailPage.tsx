@@ -52,9 +52,9 @@ export const VehicleDetailPage: React.FC = () => {
     updateVehicle,
   } = useFleet();
 
-  const { selectedVehicleId, selectedVehicleTab, setSelectedVehicleTab, setCurrentPage, openQuickModal, openInvoiceModal } = useUI();
+  const { selectedVehicleId, selectedVehicleTab, setSelectedVehicleTab, setCurrentPage, openQuickModal, openInvoiceModal, addToast } = useUI();
 
-  const vehicle = vehicles.find(v => v.id === selectedVehicleId) || vehicles[0];
+  const vehicle = vehicles.find(v => v.id === selectedVehicleId) || (selectedVehicleId ? undefined : vehicles[0]);
 
   if (!vehicle) {
     return (
@@ -73,14 +73,18 @@ export const VehicleDetailPage: React.FC = () => {
 
   // Filtered records for this vehicle
   const vehicleMaintenance = maintenanceRecords.filter(m => m.vehicleId === vehicle.id);
-  const vehicleOilChanges = oilChanges.filter(o => o.vehicleId === vehicle.id);
+  const vehicleOilChanges = oilChanges
+    .filter(o => o.vehicleId === vehicle.id)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const vehicleTyres = tyres.filter(t => t.vehicleId === vehicle.id);
   const vehicleTyreEvents = tyreEvents.filter(te => te.vehicleId === vehicle.id);
   const vehicleAccidents = accidents.filter(a => a.vehicleId === vehicle.id);
   const vehicleExpenses = expenses.filter(e => e.vehicleId === vehicle.id);
   const vehicleInvoices = invoices.filter(i => i.vehicleId === vehicle.id);
   const vehicleDocuments = documents.filter(d => d.vehicleId === vehicle.id);
-  const vehicleTimeline = timeline.filter(t => t.vehicleId === vehicle.id);
+  const vehicleTimeline = timeline
+    .filter(t => t.vehicleId === vehicle.id)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
   // 10 Tabs Navigation Items
   const tabs: TabItem[] = [
@@ -550,14 +554,14 @@ export const VehicleDetailPage: React.FC = () => {
               {/* Front Axle */}
               {['Front Left', 'Front Right', 'Rear Left', 'Rear Right'].map(pos => {
                 const tyre = vehicleTyres.find(t => t.position === pos);
-                const tread = tyre?.treadDepthMm || 8.0;
+                const tread = tyre ? tyre.treadDepthMm : null;
                 const status = tyre?.status || 'Good';
 
                 return (
                   <div key={pos} className="flex flex-col items-center p-4 bg-slate-950 border border-slate-800 rounded-xl text-center shadow-md">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">{pos}</span>
                     <div className="w-12 h-12 rounded-full border-4 border-slate-700 bg-slate-900 flex items-center justify-center my-2 text-xs font-black text-slate-100 shadow-inner">
-                      {tread} mm
+                      {tread !== null ? `${tread} mm` : 'N/A'}
                     </div>
                     <p className="text-xs font-semibold text-slate-200">{tyre?.brand || 'Standard'}</p>
                     <p className="text-[10px] text-slate-400">{tyre?.size || 'Factory'}</p>
@@ -572,7 +576,12 @@ export const VehicleDetailPage: React.FC = () => {
             {/* Spare Tyre */}
             <div className="mt-6 pt-4 border-t border-slate-800 flex items-center gap-4 text-xs">
               <span className="text-slate-400">Spare Tyre in Trunk:</span>
-              <strong className="text-slate-200">Bridgestone Dueler (8.0 mm tread - Good)</strong>
+              <strong className="text-slate-200">
+                {(() => {
+                  const spare = vehicleTyres.find(t => t.position === 'Spare');
+                  return spare ? `${spare.brand} ${spare.model} (${spare.treadDepthMm} mm tread - ${spare.status})` : 'No spare tyre recorded';
+                })()}
+              </strong>
             </div>
           </div>
 
@@ -889,7 +898,17 @@ export const VehicleDetailPage: React.FC = () => {
 
                 <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
                   <span>Expiry: {formatDate(doc.expiryDate)}</span>
-                  <button className="text-indigo-400 hover:underline font-semibold cursor-pointer">
+                  <button
+                    onClick={() => {
+                      const href = doc.documentUrl || doc.url;
+                      if (href) {
+                        window.open(href, '_blank', 'noopener,noreferrer');
+                      } else {
+                        addToast({ type: 'warning', title: 'No File Attached', message: `${doc.documentName} has no downloadable file on record.` });
+                      }
+                    }}
+                    className="text-indigo-400 hover:underline font-semibold cursor-pointer"
+                  >
                     Download
                   </button>
                 </div>
