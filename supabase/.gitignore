@@ -9,3 +9,7 @@
 
 # Seed with user credentials
 seed.sql
+SEED_USERS.local.md
+
+# Generated test-data files (re-create with make_files.py)
+test-data/files/
