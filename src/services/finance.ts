@@ -9,6 +9,7 @@
 // Nothing here computes a stored money value; the client only maps rows.
 import {
   CollectionKey, Fetchers, ServiceError, nul, num, rpcAny, supabase, unwrap, unwrapOne, ymd,
+  fetchPaged,
 } from './core';
 import { parseStorageRef, toStorageRef } from './storage';
 import type { Supplier, Customer, SupplierType } from '../types/operations';
@@ -20,17 +21,13 @@ type Row = Record<string, any>;
 const table = (name: string): any => (supabase as any).from(name);
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
-const PAGE = 1000;
 /** PostgREST caps responses at 1000 rows: page so a collection is never silently truncated. */
 async function fetchAll(name: string, select: string, orderBy = 'created_at', ascending = false, filter?: (q: any) => any): Promise<Row[]> {
-  const out: Row[] = [];
-  for (let from = 0; ; from += PAGE) {
+  return fetchPaged<Row>((from, to) => {
     let q = table(name).select(select);
     if (filter) q = filter(q);
-    const rows = await unwrap<Row[]>(q.order(orderBy, { ascending }).range(from, from + PAGE - 1));
-    out.push(...(rows ?? []));
-    if (!rows || rows.length < PAGE) return out;
-  }
+    return unwrap<Row[]>(q.order(orderBy, { ascending }).range(from, to));
+  });
 }
 
 // ---------------------------------------------------------------------------------------------

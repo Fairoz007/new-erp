@@ -7,7 +7,7 @@
 // account's normal direction (Asset/Expense: Dr − Cr, others: Cr − Dr). All statements below are
 // derived from that one rule, for one company or summed by account code across the user's
 // companies when companyId is 'all' / undefined.
-import { ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd } from './core';
+import { fetchPaged, ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd } from './core';
 import type { CollectionKey, Fetchers } from './core';
 import type {
   Account, AccountCategory, BalanceSheetStatement, DepreciationRun, FixedAsset, FixedAssetCategory,
@@ -16,16 +16,10 @@ import type {
 
 const r3 = (v: number) => Math.round((v + Number.EPSILON) * 1000) / 1000;
 const r2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
-const PAGE = 1000; // PostgREST max-rows default
 
 // Load every row of a (possibly large) ordered query in pages so ledgers are never silently truncated.
 async function fetchAll(build: (from: number, to: number) => PromiseLike<any>): Promise<any[]> {
-  const out: any[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const rows = await unwrap<any[]>(build(from, from + PAGE - 1));
-    out.push(...(rows ?? []));
-    if (!rows || rows.length < PAGE) return out;
-  }
+  return fetchPaged<any>((from, to) => unwrap<any[]>(build(from, to)));
 }
 
 const isUuid = (v?: string) => !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);

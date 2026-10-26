@@ -224,7 +224,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const fetchWithRetry = async (key: CollectionKey) => {
       for (let attempt = 0; ; attempt++) {
         try { return await FETCHERS[key]!(); } catch (err) {
-          if (attempt >= 2) throw err;
+          if (attempt >= 1) throw err;
           await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
         }
       }

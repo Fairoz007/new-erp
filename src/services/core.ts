@@ -79,6 +79,26 @@ export const currentUserId = async (): Promise<string | null> => {
   return data.session?.user.id ?? null;
 };
 
+/**
+ * Load every row of a large ordered query. Pages are modest (a big page can exceed the database
+ * statement timeout) and fetched a few at a time in parallel instead of strictly one after another.
+ * `page(from, to)` must return the rows for that inclusive range.
+ */
+export async function fetchPaged<R>(page: (from: number, to: number) => Promise<R[] | null>, size = 400, parallel = 3): Promise<R[]> {
+  const out: R[] = [];
+  for (let start = 0; ; start += size * parallel) {
+    const batch = await Promise.all(
+      Array.from({ length: parallel }, (_, i) => page(start + i * size, start + (i + 1) * size - 1)),
+    );
+    let done = false;
+    for (const rows of batch) {
+      out.push(...(rows ?? []));
+      if (!rows || rows.length < size) done = true;
+    }
+    if (done) return out;
+  }
+}
+
 // Collection names held in FleetContext; services declare which ones a mutation changes.
 export type CollectionKey =
   | 'companies' | 'vehicles' | 'tyres' | 'tyreEvents' | 'oilChanges' | 'maintenanceRecords' | 'workOrders'

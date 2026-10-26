@@ -5,6 +5,7 @@
 // triggers of supabase/migrations/20261026000100_fleet.sql, not in the browser.
 import {
   CollectionKey, Fetchers, ServiceError, currentUserId, nul, num, numOrUndef, rpcAny, supabase, unwrap, unwrapOne, ymd,
+  fetchPaged,
 } from './core';
 import { parseStorageRef, toStorageRef } from './storage';
 import { Company } from '../types/system';
@@ -23,19 +24,11 @@ const table = (name: string): any => (supabase as any).from(name);
 // ---------------------------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------------------------
-const PAGE = 1000;
-
 /** PostgREST caps a response at 1000 rows: page through so a collection is never silently truncated. */
 async function fetchAll(name: string, select: string, order: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false }): Promise<Row[]> {
-  const out: Row[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const rows = await unwrap<Row[]>(
-      table(name).select(select).order(order.column, { ascending: order.ascending ?? false }).order('id').range(from, from + PAGE - 1),
-    );
-    out.push(...(rows ?? []));
-    if (!rows || rows.length < PAGE) break;
-  }
-  return out;
+  return fetchPaged<Row>((from, to) => unwrap<Row[]>(
+    table(name).select(select).order(order.column, { ascending: order.ascending ?? false }).order('id').range(from, to),
+  ));
 }
 
 const int = (v: unknown): number | null => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Math.round(Number(v)));
