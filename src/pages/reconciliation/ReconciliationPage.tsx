@@ -36,14 +36,24 @@ export const ReconciliationPage: React.FC = () => {
   const [recForm, setRecForm] = useState(emptyForm);
 
   const inScope = (companyId: string) => !selectedCompanyId || selectedCompanyId === 'all' || companyId === selectedCompanyId;
-  const purchaseInvoices = invoices.filter(i => i.invoiceType === 'Purchase' && !i.isCreditNote
+  const purchaseInvoices = invoices.filter(i => i.invoiceType === 'Purchase' && !i.isCreditNote && !reconciledInvoiceIds.has(i.id)
     && i.paymentStatus !== 'Cancelled' && i.approvalStatus !== 'Cancelled' && inScope(i.companyId));
-  const scopedRecs = reconciliations.filter(r => inScope(r.companyId));
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const allScopedRecs = reconciliations.filter(r => inScope(r.companyId));
+  const scopedRecs = allScopedRecs.filter(r =>
+    (statusFilter === 'all' || r.status === statusFilter) &&
+    (typeFilter === 'all' || r.matchingType === typeFilter) &&
+    (!fromDate || (r.createdAt ?? '').slice(0, 10) >= fromDate) &&
+    (!toDate || (r.createdAt ?? '').slice(0, 10) <= toDate));
+  const reconciledInvoiceIds = new Set(reconciliations.map(r => r.invoiceId));
   const selectedInvoice = purchaseInvoices.find(i => i.id === recForm.invoiceId);
   const invoiceWorkOrders = selectedInvoice ? workOrders.filter(w => w.companyId === selectedInvoice.companyId) : [];
-  const matchedCount = scopedRecs.filter(r => r.status === 'Matched').length;
-  const partialCount = scopedRecs.filter(r => r.status === 'Partially Matched').length;
-  const mismatchCount = scopedRecs.filter(r => r.status === 'Mismatch').length;
+  const matchedCount = allScopedRecs.filter(r => r.status === 'Matched').length;
+  const partialCount = allScopedRecs.filter(r => r.status === 'Partially Matched').length;
+  const mismatchCount = allScopedRecs.filter(r => r.status === 'Mismatch').length;
 
   const openModal = () => { setRecForm(emptyForm); setIsModalOpen(true); };
 
@@ -198,7 +208,7 @@ export const ReconciliationPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <StatCard
           title="Total Reconciliations"
-          value={scopedRecs.length}
+          value={allScopedRecs.length}
           subValue={`${partialCount} within 5% tolerance`}
           isHero={true}
         />
@@ -223,6 +233,24 @@ export const ReconciliationPage: React.FC = () => {
         searchPlaceholder="Search reconciliations by invoice, supplier, PO or work order..."
         searchFields={['invoiceNumber', 'supplierOrCustomerName', 'purchaseOrderNumber', 'workOrderNumber', 'reconciliationNumber']}
         exportFilename="FleetX_Invoice_Reconciliations"
+        filterComponent={
+          <div className="flex flex-wrap items-center gap-2">
+            <select aria-label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
+              <option value="all">All Statuses</option>
+              <option value="Matched">Matched</option>
+              <option value="Partially Matched">Partially Matched</option>
+              <option value="Mismatch">Mismatch</option>
+              <option value="Pending Review">Pending Review</option>
+            </select>
+            <select aria-label="Matching type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
+              <option value="all">2-Way & 3-Way</option>
+              <option value="2-Way">2-Way</option>
+              <option value="3-Way">3-Way</option>
+            </select>
+            <input aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
+            <input aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
+          </div>
+        }
       />
 
       {/* Modal */}

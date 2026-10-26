@@ -37,6 +37,20 @@ async function fetchAll(name: string, select: string, orderBy = 'created_at', as
 // Attachments: rows store a storage path; the app carries "storage://documents/<path>" in attachmentUrl
 // so UIContext.openBillModal / DocumentViewerModal can resolve a signed URL.
 // ---------------------------------------------------------------------------------------------
+/**
+ * 'Overdue' is stored, not time-driven, so it goes stale as days pass. Derive it from the due date:
+ * a posted invoice with a balance past its due date is Overdue; one not yet due is never Overdue.
+ */
+const localToday = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+function effectivePaymentStatus(stored: Invoice['paymentStatus'], approval: string, creditNote: boolean, outstanding: number, paid: number, due: string): Invoice['paymentStatus'] {
+  if (creditNote || approval !== 'Approved' || stored === 'Paid' || stored === 'Cancelled' || outstanding <= 0.0005) return stored;
+  if (due && due < localToday()) return 'Overdue';
+  return paid > 0 ? 'Partially Paid' : 'Unpaid';
+}
+
 const pathToRef = (path: string | null | undefined): string | undefined => (path ? toStorageRef('documents', path) : undefined);
 const pathToName = (path: string | null | undefined): string | undefined => {
   if (!path) return undefined;
@@ -285,7 +299,7 @@ export const rowToInvoice = (r: Row): FinanceInvoice => {
     amountPaid: cn ? 0 : num(r.amount_paid),
     outstandingAmount: cn ? 0 : num(r.outstanding_amount),
     creditedAmount: num(r.credited_amount),
-    paymentStatus: r.payment_status,
+    paymentStatus: effectivePaymentStatus(r.payment_status, r.approval_status, cn, num(r.outstanding_amount), num(r.amount_paid), ymd(r.due_date)),
     approvalStatus: r.approval_status,
     approvedBy: r.approved_by ?? undefined,
     approvalDate: r.approval_date ?? undefined,
@@ -577,12 +591,13 @@ export function getPartyLedger(
   invoices: Invoice[],
   payments: Payment[],
   parties: { id: string; openingBalance: number }[] = [],
+  companyId?: string,
 ): { openingBalance: number; lines: PartyStatementLine[]; totalDebit: number; totalCredit: number; closingBalance: number } {
   const openingBalance = parties.find(p => p.id === partyId)?.openingBalance ?? 0;
   const supplier = partyType === 'Supplier';
-  const docs = invoices.filter(i => i.partyId === partyId && i.partyType === partyType
+  const docs = invoices.filter(i => i.partyId === partyId && i.partyType === partyType && (!companyId || i.companyId === companyId)
     && i.approvalStatus === 'Approved' && i.paymentStatus !== 'Cancelled');
-  const pays = payments.filter(p => p.partyId === partyId && p.partyType === partyType);
+  const pays = payments.filter(p => p.partyId === partyId && p.partyType === partyType && (!companyId || p.companyId === companyId));
 
   type Ev = { date: string; created: string; line: Omit<PartyStatementLine, 'runningBalance'>; delta: number };
   const events: Ev[] = [

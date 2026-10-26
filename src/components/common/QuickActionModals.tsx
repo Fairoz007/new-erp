@@ -228,6 +228,7 @@ export const QuickActionModals: React.FC = () => {
     paymentMethod: 'Bank Transfer' as PaymentMethod,
     bankAccountId: '',
     transactionReference: '',
+    chequeNumber: '',
     notes: '',
   });
 
@@ -605,7 +606,11 @@ export const QuickActionModals: React.FC = () => {
     let uploadedPath: string | undefined;
     run('Expense Not Saved', async () => {
       const companyId = requireOffice(v?.companyId || expForm.companyId);
+      if (!v) throw new Error('Select the vehicle this expense belongs to.');
+      if (!(Number(expForm.quantity) > 0)) throw new Error('Quantity must be greater than zero.');
+      if (Number(expForm.unitPrice) < 0 || Number(expForm.tax) < 0) throw new Error('Unit price and tax cannot be negative.');
       const total = Number(expForm.quantity) * Number(expForm.unitPrice) + Number(expForm.tax);
+      if (!(total > 0)) throw new Error('The expense total must be greater than zero.');
       try {
         const att = await uploadAttachment(expForm.attachment, companyId, 'expenses');
         uploadedPath = att?.path;
@@ -766,6 +771,7 @@ export const QuickActionModals: React.FC = () => {
         bankAccountId: ba.id,
         bankAccountName: ba.accountName,
         transactionReference: paymentForm.transactionReference,
+        chequeNumber: paymentForm.paymentMethod === 'Cheque' ? paymentForm.chequeNumber : undefined,
         notes: paymentForm.notes,
       });
       addToast({ type: 'success', title: 'Payment Processed', message: `${pay.paymentNumber}: ${pay.amount.toFixed(3)} ${pay.currency} against ${inv.invoiceNumber}.` });
@@ -1237,8 +1243,16 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Input label="Quantity" type="number" step="0.1" value={expForm.quantity} onChange={e => setExpForm({ ...expForm, quantity: Number(e.target.value) })} />
             <Input label="Unit Price (OMR)" type="number" step="0.001" value={expForm.unitPrice} onChange={e => setExpForm({ ...expForm, unitPrice: Number(e.target.value) })} />
-            <Input label="Tax 5% (OMR)" type="number" step="0.001" value={expForm.tax} onChange={e => setExpForm({ ...expForm, tax: Number(e.target.value) })} />
+            <Input label="VAT amount (OMR)" type="number" step="0.001" min="0" hint="5% of the net amount in Oman" value={expForm.tax} onChange={e => setExpForm({ ...expForm, tax: Number(e.target.value) })} />
             <Input label="Payment Method" value={expForm.paymentMethod} onChange={e => setExpForm({ ...expForm, paymentMethod: e.target.value })} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select label="Supplier / Vendor (optional)" value={expForm.supplierId} onChange={e => setExpForm({ ...expForm, supplierId: e.target.value })}>
+              <option value="">-- None --</option>
+              {suppliers.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+            </Select>
+            <Input label="Cost Centre (optional)" placeholder="e.g. Operations" value={expForm.costCentre} onChange={e => setExpForm({ ...expForm, costCentre: e.target.value })} />
           </div>
 
           {/* Document Upload Zone for Entry Bill */}
@@ -1611,7 +1625,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
-              label="Payment Amount (OMR)"
+              label={`Payment Amount (${paymentInvoice?.currency ?? 'OMR'})`}
               type="number"
               step="0.001"
               value={paymentForm.amount}
@@ -1642,12 +1656,22 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Reference / Cheque #"
-              placeholder="e.g. TXN-998822 or CHQ-00123"
-              value={paymentForm.transactionReference}
-              onChange={e => setPaymentForm({ ...paymentForm, transactionReference: e.target.value })}
-            />
+            {paymentForm.paymentMethod === 'Cheque' ? (
+              <Input
+                label="Cheque Number"
+                placeholder="e.g. CHQ-00123"
+                value={paymentForm.chequeNumber}
+                onChange={e => setPaymentForm({ ...paymentForm, chequeNumber: e.target.value })}
+                required
+              />
+            ) : (
+              <Input
+                label="Transaction Reference"
+                placeholder="e.g. TXN-998822"
+                value={paymentForm.transactionReference}
+                onChange={e => setPaymentForm({ ...paymentForm, transactionReference: e.target.value })}
+              />
+            )}
             <Input
               label="Notes"
               placeholder="Settlement notes..."

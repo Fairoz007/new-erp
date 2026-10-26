@@ -182,7 +182,7 @@ export interface FleetContextType extends Collections {
     closingBalance: number;
   };
   getVehicleFinancialSummary: (vehicleId: string) => VehicleFinancialSummary;
-  getCompanyProfitLoss: (companyId?: string) => ProfitLossStatement;
+  getCompanyProfitLoss: (companyId?: string, range?: { startDate?: string; endDate?: string }) => ProfitLossStatement;
   getCompanyBalanceSheet: (companyId?: string) => BalanceSheetStatement;
 }
 
@@ -218,18 +218,32 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const wanted = Array.from(new Set(keys)).filter(k => FETCHERS[k]);
     if (wanted.length === 0) return;
     setIsRefreshing(true);
-    // Apply each collection the moment it arrives: one slow table never holds back the others.
-    await Promise.allSettled(wanted.map(async key => {
-      try {
-        const rows = await FETCHERS[key]!();
-        setData(prev => ({ ...prev, [key]: rows }));
-        setLoadErrors(prev => { if (!(key in prev)) return prev; const m = { ...prev }; delete m[key]; return m; });
-        if (cacheUserId) void writeCache(cacheUserId, { [key]: rows });
-      } catch (r) {
-        console.error(`Failed to load ${key}:`, r);
-        setLoadErrors(prev => ({ ...prev, [key]: (r as Error)?.message || 'Failed to load' }));
+    // Apply each collection the moment it arrives. Only a few requests run at once (27 at a time
+    // exhausts a small database's connection pool and everything times out) and a failed fetch is
+    // retried with a short back-off before it is reported.
+    const fetchWithRetry = async (key: CollectionKey) => {
+      for (let attempt = 0; ; attempt++) {
+        try { return await FETCHERS[key]!(); } catch (err) {
+          if (attempt >= 2) throw err;
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        }
       }
-    }));
+    };
+    const queue = [...wanted];
+    const worker = async () => {
+      for (let key = queue.shift(); key; key = queue.shift()) {
+        try {
+          const rows = await fetchWithRetry(key);
+          setData(prev => ({ ...prev, [key]: rows }));
+          setLoadErrors(prev => { if (!(key in prev)) return prev; const m = { ...prev }; delete m[key]; return m; });
+          if (cacheUserId) void writeCache(cacheUserId, { [key]: rows });
+        } catch (r) {
+          console.error(`Failed to load ${key}:`, r);
+          setLoadErrors(prev => ({ ...prev, [key]: (r as Error)?.message || 'Failed to load' }));
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, wanted.length) }, worker));
     if (wanted.length === ALL_KEYS.length) lastLoadedAt.current = Date.now();
     setIsRefreshing(false);
   }, [cacheUserId]);
@@ -360,7 +374,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [data.chartOfAccounts, data.journalEntries, currency, scope]);
 
   const getCompanyProfitLoss = useCallback(
-    (companyId?: string) => accounting.getCompanyProfitLoss(data.chartOfAccounts as any, data.journalEntries, scope(companyId)),
+    (companyId?: string, range?: { startDate?: string; endDate?: string }) =>
+      accounting.getCompanyProfitLoss(data.chartOfAccounts as any, data.journalEntries, scope(companyId), range),
     [data.chartOfAccounts, data.journalEntries, scope]);
 
   const getCompanyBalanceSheet = useCallback(
@@ -370,8 +385,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const getPartyLedger = useCallback(
     (partyId: string, partyType: 'Supplier' | 'Customer') =>
       finance.getPartyLedger(partyId, partyType, data.invoices, data.payments,
-        partyType === 'Supplier' ? data.suppliers : data.customers),
-    [data.invoices, data.payments, data.suppliers, data.customers]);
+        partyType === 'Supplier' ? data.suppliers : data.customers, toScope(selectedCompanyId)),
+    [data.invoices, data.payments, data.suppliers, data.customers, selectedCompanyId]);
 
   const getVehicleFinancialSummary = useCallback(
     (vehicleId: string) => fleet.getVehicleFinancialSummary(vehicleId, {

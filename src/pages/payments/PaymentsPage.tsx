@@ -16,16 +16,37 @@ export const PaymentsPage: React.FC = () => {
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('create', 'payments');
 
+  const [methodFilter, setMethodFilter] = useState('all');
+  const [bankFilter, setBankFilter] = useState('all');
+  const [partyFilter, setPartyFilter] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
+  const inCompany = (companyId: string) => !selectedCompanyId || selectedCompanyId === 'all' || companyId === selectedCompanyId;
   const filteredPayments = payments.filter(p => {
-    if (selectedCompanyId && selectedCompanyId !== 'all' && p.companyId !== selectedCompanyId) return false;
+    if (!inCompany(p.companyId)) return false;
+    if (methodFilter !== 'all' && p.paymentMethod !== methodFilter) return false;
+    if (bankFilter !== 'all' && p.bankAccountId !== bankFilter) return false;
+    if (partyFilter !== 'all' && p.partyType !== partyFilter) return false;
+    if (fromDate && p.paymentDate < fromDate) return false;
+    if (toDate && p.paymentDate > toDate) return false;
     return true;
   });
+  const methods = Array.from(new Set(payments.map(p => p.paymentMethod)));
+  const filtersActive = methodFilter !== 'all' || bankFilter !== 'all' || partyFilter !== 'all' || !!fromDate || !!toDate;
 
-  const totalDisbursed = filteredPayments.filter(p => p.partyType === 'Supplier').reduce((s, p) => s + p.amount, 0);
-  const totalReceived = filteredPayments.filter(p => p.partyType === 'Customer').reduce((s, p) => s + p.amount, 0);
+  // Totals are kept per currency: amounts in different currencies are never added together
+  const sumByCurrency = (rows: { currency?: string }[], amount: (r: any) => number): Record<string, number> =>
+    rows.reduce<Record<string, number>>((acc, r) => { const c = r.currency || currency; acc[c] = (acc[c] ?? 0) + amount(r); return acc; }, {});
+  const fmtTotals = (m: Record<string, number>) => {
+    const entries = Object.entries(m);
+    return entries.length === 0 ? formatCurrency(0, currency) : entries.map(([c, v]) => formatCurrency(v, c)).join(' + ');
+  };
+  const totalDisbursed = sumByCurrency(filteredPayments.filter(p => p.partyType === 'Supplier'), p => p.amount);
+  const totalReceived = sumByCurrency(filteredPayments.filter(p => p.partyType === 'Customer'), p => p.amount);
   // Bank balances come from v_bank_balances (opening balance + recorded payments)
-  const scopedBanks = bankAccounts.filter(b => !selectedCompanyId || selectedCompanyId === 'all' || b.companyId === selectedCompanyId);
-  const totalBankBalance = scopedBanks.reduce((s, b) => s + b.currentBalance, 0);
+  const scopedBanks = bankAccounts.filter(b => inCompany(b.companyId));
+  const totalBankBalance = sumByCurrency(scopedBanks, b => b.currentBalance);
 
   const columns: Column<Payment>[] = [
     {
@@ -132,19 +153,19 @@ export const PaymentsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <StatCard
           title="Total Cash & Bank Balance"
-          value={formatCurrency(totalBankBalance, currency)}
+          value={fmtTotals(totalBankBalance)}
           subValue={`${scopedBanks.length} bank account(s)`}
           isHero={true}
         />
         <StatCard
           title="Supplier Disbursals (AP Paid)"
-          value={formatCurrency(totalDisbursed, currency)}
-          subValue="Payments to suppliers"
+          value={fmtTotals(totalDisbursed)}
+          subValue={`${filteredPayments.filter(p => p.partyType === 'Supplier').length} payment(s) to suppliers`}
         />
         <StatCard
           title="Customer Collections (AR Received)"
-          value={formatCurrency(totalReceived, currency)}
-          subValue="Receipts from customers"
+          value={fmtTotals(totalReceived)}
+          subValue={`${filteredPayments.filter(p => p.partyType === 'Customer').length} receipt(s) from customers`}
         />
       </div>
 
@@ -156,6 +177,30 @@ export const PaymentsPage: React.FC = () => {
         title="Payment Transactions Ledger"
         searchPlaceholder="Search payments by number, invoice, beneficiary, bank or reference..."
         exportFilename="FleetX_Payments_Register"
+        filterComponent={
+          <div className="flex flex-wrap items-center gap-2">
+            <select aria-label="Party type" value={partyFilter} onChange={e => setPartyFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
+              <option value="all">Paid & Received</option>
+              <option value="Supplier">Paid to suppliers</option>
+              <option value="Customer">Received from customers</option>
+            </select>
+            <select aria-label="Payment method" value={methodFilter} onChange={e => setMethodFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
+              <option value="all">All Methods</option>
+              {methods.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select aria-label="Bank account" value={bankFilter} onChange={e => setBankFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
+              <option value="all">All Bank Accounts</option>
+              {scopedBanks.map(b => <option key={b.id} value={b.id}>{b.accountName}</option>)}
+            </select>
+            <input aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
+            <input aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
+            {filtersActive && (
+              <button className="text-xs font-bold text-[#086343] underline cursor-pointer" onClick={() => { setMethodFilter('all'); setBankFilter('all'); setPartyFilter('all'); setFromDate(''); setToDate(''); }}>
+                Clear filters
+              </button>
+            )}
+          </div>
+        }
       />
     </div>
   );

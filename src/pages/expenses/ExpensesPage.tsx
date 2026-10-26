@@ -22,16 +22,22 @@ const mimeOf = (name: string): string => {
 };
 
 export const ExpensesPage: React.FC = () => {
-  const { expenses, currency, selectedCompanyId } = useFleet();
+  const { expenses, vehicles, currency, selectedCompanyId } = useFleet();
   const { openQuickModal, openVehicleDetail, openBillModal } = useUI();
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('create', 'expenses');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [receiptFilter, setReceiptFilter] = useState<string>('all');
+  const [vehicleFilter, setVehicleFilter] = useState<string>('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const filteredExpenses = expenses.filter(e => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && e.companyId !== selectedCompanyId) return false;
     if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
+    if (vehicleFilter !== 'all' && e.vehicleId !== vehicleFilter) return false;
+    if (fromDate && e.date < fromDate) return false;
+    if (toDate && e.date > toDate) return false;
     if (receiptFilter === 'with-receipt' && !e.attachmentUrl) return false;
     if (receiptFilter === 'no-receipt' && e.attachmentUrl) return false;
     return true;
@@ -42,6 +48,11 @@ export const ExpensesPage: React.FC = () => {
   const totalInsurance = scoped.filter(e => e.category === 'Insurance').reduce((s, e) => s + e.total, 0);
   const totalReg = scoped.filter(e => e.category === 'Registration').reduce((s, e) => s + e.total, 0);
   const totalExpenses = scoped.reduce((s, e) => s + e.total, 0);
+  // Breakdown of what the current filters show, largest category first
+  const filteredTotal = filteredExpenses.reduce((s, e) => s + e.total, 0);
+  const byCategory = Object.entries(filteredExpenses.reduce<Record<string, number>>((acc, e) => { acc[e.category] = (acc[e.category] ?? 0) + e.total; return acc; }, {}))
+    .sort((a, b) => b[1] - a[1]);
+  const scopedVehicles = vehicles.filter(v => !selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId);
   const totalReceiptsAttached = scoped.filter(e => !!e.attachmentUrl).length;
 
   const openReceipt = (e: VehicleExpense) => {
@@ -56,7 +67,7 @@ export const ExpensesPage: React.FC = () => {
       key: 'expenseNumber',
       header: 'Expense # / Plate',
       render: (e) => (
-        <div className="cursor-pointer" onClick={() => openVehicleDetail(e.vehicleId, 'expenses')}>
+        <div className={e.vehicleId ? 'cursor-pointer' : ''} onClick={() => e.vehicleId && openVehicleDetail(e.vehicleId, 'expenses')}>
           <span className="font-mono font-bold text-slate-100 hover:text-[#086343] transition-colors">{e.expenseNumber}</span>
           <div className="flex items-center gap-1.5 mt-1">
             <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
@@ -82,7 +93,7 @@ export const ExpensesPage: React.FC = () => {
       render: (e) => (
         <div className="max-w-md">
           <p className="text-slate-200 font-medium line-clamp-1">{e.description}</p>
-          <p className="text-[10px] text-slate-400">Supplier: {e.supplierName || 'Fleet Operations'}</p>
+          <p className="text-[10px] text-slate-400">{e.supplierName ? `Supplier: ${e.supplierName}` : 'No supplier recorded'}</p>
         </div>
       ),
     },
@@ -193,6 +204,24 @@ export const ExpensesPage: React.FC = () => {
         />
       </div>
 
+      {/* Spend breakdown for the current filters */}
+      {byCategory.length > 0 && (
+        <div className="bg-white border border-slate-700 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-slate-100">Spend by category</h3>
+            <span className="text-xs font-bold text-slate-300">{filteredExpenses.length} voucher(s) · {formatCurrency(filteredTotal, currency)}</span>
+          </div>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+            {byCategory.slice(0, 8).map(([cat, amt]) => (
+              <li key={cat} className="text-xs">
+                <div className="flex justify-between mb-0.5"><span className="font-semibold text-slate-200">{cat}</span><span className="text-slate-300 font-mono">{formatCurrency(amt, currency)}</span></div>
+                <div className="h-1.5 rounded-full bg-slate-850 overflow-hidden"><div className="h-full bg-[#086343]" style={{ width: `${filteredTotal > 0 ? Math.max(2, (amt / filteredTotal) * 100) : 0}%` }} /></div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* DataTable */}
       <DataTable
         data={filteredExpenses}
@@ -223,6 +252,17 @@ export const ExpensesPage: React.FC = () => {
               <option value="with-receipt">With Attached Bill Scan</option>
               <option value="no-receipt">Without Receipt</option>
             </select>
+            <select
+              value={vehicleFilter}
+              onChange={e => setVehicleFilter(e.target.value)}
+              aria-label="Vehicle"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
+            >
+              <option value="all">All Vehicles</option>
+              {scopedVehicles.map(v => <option key={v.id} value={v.id}>{v.plateNumber}</option>)}
+            </select>
+            <input aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
+            <input aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
           </div>
         }
       />

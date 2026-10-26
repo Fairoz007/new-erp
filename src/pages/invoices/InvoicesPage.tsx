@@ -56,7 +56,7 @@ export const InvoicesPage: React.FC = () => {
   const todayMs = new Date().setHours(0, 0, 0, 0);
   const BUCKETS = ['Not yet due', '1-30 days', '31-60 days', '61-90 days', '90+ days'];
   const bucketOf = (due: string) => {
-    const days = Math.floor((todayMs - new Date(due).getTime()) / 86_400_000);
+    const days = Math.floor((todayMs - new Date(`${due.slice(0, 10)}T00:00:00`).getTime()) / 86_400_000);
     return days <= 0 ? 0 : days <= 30 ? 1 : days <= 60 ? 2 : days <= 90 ? 3 : 4;
   };
   const pendingAll = scoped.filter(isPending);

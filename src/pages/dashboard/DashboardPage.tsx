@@ -74,7 +74,13 @@ export const DashboardPage: React.FC = () => {
   const oilChanges = scoped ? allOilChanges.filter(o => scopedVehicleIds.has(o.vehicleId)) : allOilChanges;
   const tyres = scoped ? allTyres.filter(t => scopedVehicleIds.has(t.vehicleId)) : allTyres;
 
-  const pnl = getCompanyProfitLoss();
+  // Revenue YTD: posted ledger lines from 1 January of the current year to today (local dates)
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const pnl = getCompanyProfitLoss(undefined, {
+    startDate: `${now.getFullYear()}-01-01`,
+    endDate: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+  });
   const balanceSheet = getCompanyBalanceSheet();
 
   // Summary Metrics Calculations (Real ERP Data)

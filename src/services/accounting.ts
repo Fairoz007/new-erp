@@ -448,7 +448,7 @@ export function getGeneralLedger(accounts: AnyAccount[], entries: JournalEntry[]
   startDate?: string, endDate?: string, companyId?: string, currency = 'OMR'): GeneralLedgerAccountSummary[] {
   const before = startDate ? movements(entries, companyId, { endDate: dayBefore(startDate) }) : new Map();
   const inRange = postedLines(entries, companyId, { startDate, endDate })
-    .sort((a, b) => a.entry.date.localeCompare(b.entry.date) || a.entry.entryNumber.localeCompare(b.entry.entryNumber));
+    .sort((a, b) => a.entry.date.localeCompare(b.entry.date) || a.entry.entryNumber.localeCompare(b.entry.entryNumber, undefined, { numeric: true }));
   return scopeAccounts(accounts, companyId)
     .filter(a => !targetAccountCode || targetAccountCode === 'all' || a.code === targetAccountCode)
     .map(a => {

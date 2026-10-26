@@ -95,6 +95,8 @@ interface UIContextType {
   closeQuickModal: () => void;
 
   // Invoices register: pre-selected view when arriving from a dashboard card, and one-click settle
+  ledgerFocus: string | null;
+  openLedgerFor: (accountCode: string | null) => void;
   invoiceView: InvoiceView;
   setInvoiceView: (view: InvoiceView) => void;
   paymentInvoiceId: string | null;
@@ -254,6 +256,11 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
   const closeQuickModal = () => { setQuickModal(null); setPaymentInvoiceId(null); };
   const [invoiceView, setInvoiceView] = useState<InvoiceView>('all');
+  const [ledgerFocus, setLedgerFocus] = useState<string | null>(null);
+  const openLedgerFor = (accountCode: string | null) => {
+    setLedgerFocus(accountCode);
+    if (accountCode) setCurrentPage('general-ledger');
+  };
   const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | null>(null);
   const openPaymentFor = (invoiceId: string) => {
     if (!canAccessPage('payments') || !hasPermission('create', 'payments')) {
@@ -313,6 +320,8 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         closeQuickModal,
         invoiceView,
         setInvoiceView,
+        ledgerFocus,
+        openLedgerFor,
         paymentInvoiceId,
         openPaymentFor,
         viewingInvoiceId,

@@ -5,12 +5,15 @@ import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, localToday } from '../../utils/date';
+import { useUI } from '../../context/UIContext';
 import { getTrialBalance } from '../../services/accounting';
 
 export const TrialBalancePage: React.FC = () => {
   const { chartOfAccounts, journalEntries, currency, selectedCompany, selectedCompanyId } = useFleet();
-  const [asOfDate, setAsOfDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const { openLedgerFor } = useUI();
+  const [asOfDate, setAsOfDate] = useState<string>(localToday());
+  const [hideZero, setHideZero] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
   const tbData = getTrialBalance(chartOfAccounts, journalEntries, asOfDate, selectedCompanyId);
@@ -19,12 +22,13 @@ export const TrialBalancePage: React.FC = () => {
 
   const filteredRows = tbData.rows.filter(r => {
     if (filterCategory !== 'all' && r.category !== filterCategory) return false;
+    if (hideZero && !r.closingDebit && !r.closingCredit && !r.periodDebit && !r.periodCredit) return false;
     return true;
   });
 
   const sumRows = (k: 'openingDebit' | 'openingCredit' | 'periodDebit' | 'periodCredit' | 'closingDebit' | 'closingCredit') =>
     Math.round(filteredRows.reduce((t, r) => t + r[k], 0) * 1000) / 1000;
-  const shown = filterCategory === 'all' ? tbData : {
+  const shown = filterCategory === 'all' && !hideZero ? tbData : {
     totalOpeningDebit: sumRows('openingDebit'), totalOpeningCredit: sumRows('openingCredit'),
     totalPeriodDebit: sumRows('periodDebit'), totalPeriodCredit: sumRows('periodCredit'),
     totalClosingDebit: sumRows('closingDebit'), totalClosingCredit: sumRows('closingCredit'),
@@ -187,6 +191,11 @@ export const TrialBalancePage: React.FC = () => {
                 <option value="Expense">Expenses</option>
               </select>
             </div>
+
+            <label className="flex items-center gap-2 text-xs text-slate-300 font-semibold cursor-pointer">
+              <input type="checkbox" checked={hideZero} onChange={e => setHideZero(e.target.checked)} className="accent-[#086343]" />
+              Hide zero-balance accounts
+            </label>
           </div>
 
           <div className="text-xs text-slate-400">
@@ -232,7 +241,15 @@ export const TrialBalancePage: React.FC = () => {
               )}
               {filteredRows.map(row => (
                 <tr key={row.accountCode} className="hover:bg-slate-850/60 transition-colors">
-                  <td className="py-3 px-4 font-mono font-bold text-slate-100">{row.accountCode}</td>
+                  <td className="py-3 px-4 font-mono font-bold text-slate-100">
+                    <button
+                      className="text-[#086343] hover:underline cursor-pointer"
+                      title="Open this account in the General Ledger"
+                      onClick={() => openLedgerFor(row.accountCode)}
+                    >
+                      {row.accountCode}
+                    </button>
+                  </td>
                   <td className="py-3 px-4 font-semibold text-slate-200">
                     {row.accountName}
                     <span className="block text-[10px] text-slate-400 font-normal">{row.subcategory}</span>

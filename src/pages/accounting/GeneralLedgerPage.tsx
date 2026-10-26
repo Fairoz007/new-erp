@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, Calendar, Download, Printer, Filter, Building2, Search, ArrowRight, UserCheck, Truck, Layers, ChevronRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -6,19 +6,28 @@ import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, localToday } from '../../utils/date';
 import { consolidateAccounts, getGeneralLedger } from '../../services/accounting';
 
 export const GeneralLedgerPage: React.FC = () => {
   const { chartOfAccounts, journalEntries, suppliers, customers, getPartyLedger, currency, selectedCompany, selectedCompanyId } = useFleet();
   const accountOptions = consolidateAccounts(chartOfAccounts, selectedCompanyId);
-  const { openQuickModal } = useUI();
+  const { ledgerFocus, openLedgerFor } = useUI();
+  const [accountSearch, setAccountSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'gl' | 'party'>('gl');
   const [selectedAccountCode, setSelectedAccountCode] = useState<string>('all');
   const [partyType, setPartyType] = useState<'Supplier' | 'Customer'>('Supplier');
   const [selectedPartyId, setSelectedPartyId] = useState<string>(suppliers[0]?.id || '');
   const [startDate, setStartDate] = useState<string>(`${new Date().getFullYear()}-01-01`);
-  const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState<string>(localToday());
+
+  // Arriving from a Trial Balance row: focus that account over the whole year
+  useEffect(() => {
+    if (!ledgerFocus) return;
+    setSelectedAccountCode(ledgerFocus);
+    setActiveTab('gl');
+    openLedgerFor(null);
+  }, [ledgerFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const effectivePartyId = selectedPartyId || (partyType === 'Supplier' ? suppliers : customers)[0]?.id || '';
   const glData = getGeneralLedger(chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency);
@@ -146,13 +155,21 @@ export const GeneralLedgerPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Target Account</label>
+                  <input
+                    type="search"
+                    value={accountSearch}
+                    onChange={e => setAccountSearch(e.target.value)}
+                    placeholder="Search code or name..."
+                    aria-label="Search accounts"
+                    className="mb-1.5 w-full bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#086343]"
+                  />
                   <select
                     value={selectedAccountCode}
                     onChange={e => setSelectedAccountCode(e.target.value)}
                     className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer min-w-[280px]"
                   >
                     <option value="all">-- All Chart of Accounts (Consolidated) --</option>
-                    {accountOptions.map(acc => (
+                    {accountOptions.filter(acc => acc.code === selectedAccountCode || !accountSearch.trim() || `${acc.code} ${acc.name}`.toLowerCase().includes(accountSearch.trim().toLowerCase())).map(acc => (
                       <option key={acc.code} value={acc.code}>
                         {acc.code} - {acc.name} ({acc.category})
                       </option>
