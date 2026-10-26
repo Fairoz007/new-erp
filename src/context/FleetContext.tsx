@@ -302,7 +302,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       } finally {
         // also after a failure: a multi-step call can fail after its first write succeeded
         // (e.g. payment recorded but attachment not linked), and the UI must show what was saved
-        await reload(AFFECTS[name] ?? []).catch(err => console.error(`Refresh after ${name} failed:`, err));
+        // not awaited: the save is done, so the dialog closes at once while the lists refresh behind it
+        void reload(AFFECTS[name] ?? []).catch(err => console.error(`Refresh after ${name} failed:`, err));
       }
     }, [reload]);
 

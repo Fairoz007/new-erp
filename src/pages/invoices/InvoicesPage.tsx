@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Printer, Paperclip, Eye, Wallet } from 'lucide-react';
+import { Plus, Printer, Paperclip, Eye, Wallet, CheckCircle2 } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -12,9 +12,12 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
 export const InvoicesPage: React.FC = () => {
-  const { invoices, selectedCompanyId, currency } = useFleet();
-  const { openQuickModal, openInvoiceModal, openBillModal, invoiceView, setInvoiceView, openPaymentFor } = useUI();
-  const { hasPermission } = useAuth();
+  const { invoices, selectedCompanyId, currency, submitInvoice } = useFleet();
+  const { openQuickModal, openInvoiceModal, openBillModal, invoiceView, setInvoiceView, openPaymentFor, addToast, setCurrentPage } = useUI();
+  const { hasPermission, canApprove } = useAuth();
+  const canSubmit = hasPermission('create', 'invoices') || hasPermission('edit', 'invoices');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<string | null>(null);
   const canCreate = hasPermission('create', 'invoices');
   const canPay = hasPermission('create', 'payments');
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
@@ -82,6 +85,48 @@ export const InvoicesPage: React.FC = () => {
     { id: 'draft', label: 'Drafts', count: scoped.filter(i => i.approvalStatus === 'Draft').length },
     { id: 'paid', label: 'Paid', count: scoped.filter(i => i.paymentStatus === 'Paid').length },
   ];
+
+  // Invoices waiting for a decision. Those without an open approval request (e.g. raised by
+  // maintenance) are approved/submitted here; the DB re-checks the signer's authority.
+  const needsDecision = (i: Invoice) => ['Pending Approval', 'Draft', 'Rejected'].includes(i.approvalStatus) && !i.isCreditNote && i.paymentStatus !== 'Cancelled';
+  const decide = async (inv: Invoice, quiet = false): Promise<boolean> => {
+    try {
+      const result = await submitInvoice(inv.id);
+      if (!quiet) {
+        addToast({
+          type: 'success',
+          title: result === 'Approved' ? 'Invoice approved & posted' : 'Sent for approval',
+          message: result === 'Approved' ? `${inv.invoiceNumber} was posted to the ledger.` : `${inv.invoiceNumber} is waiting in the Approvals queue.`,
+        });
+      }
+      return true;
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (!quiet) {
+        addToast({ type: 'error', title: 'Could not approve', message: msg });
+        if (/awaiting approval/i.test(msg)) setCurrentPage('approvals');
+      }
+      return false;
+    }
+  };
+  const handleDecide = async (inv: Invoice) => {
+    if (busyId) return;
+    setBusyId(inv.id);
+    await decide(inv);
+    setBusyId(null);
+  };
+  const approvable = filteredInvoices.filter(i => i.approvalStatus === 'Pending Approval' && !i.isCreditNote && canApprove('invoice', i.grandTotal));
+  const handleApproveAll = async () => {
+    if (bulkProgress || approvable.length === 0) return;
+    if (!window.confirm(`Approve and post ${approvable.length} invoice(s) to the ledger? This cannot be undone.`)) return;
+    let ok = 0;
+    for (let i = 0; i < approvable.length; i++) {
+      setBulkProgress(`${i + 1} / ${approvable.length}`);
+      if (await decide(approvable[i], true)) ok++;
+    }
+    setBulkProgress(null);
+    addToast({ type: ok === approvable.length ? 'success' : 'warning', title: 'Bulk approval finished', message: `${ok} of ${approvable.length} invoice(s) approved and posted.` });
+  };
 
   const columns: Column<Invoice>[] = [
     {
@@ -196,6 +241,18 @@ export const InvoicesPage: React.FC = () => {
           >
             Bill
           </Button>}
+          {canSubmit && needsDecision(inv) && (
+            <Button
+              variant="success"
+              size="xs"
+              isLoading={busyId === inv.id}
+              disabled={!!busyId || !!bulkProgress}
+              onClick={() => handleDecide(inv)}
+              leftIcon={<CheckCircle2 className="w-3 h-3" />}
+            >
+              {canApprove('invoice', inv.grandTotal) ? 'Approve & Post' : 'Submit'}
+            </Button>
+          )}
           {canPay && isPending(inv) && (
             <Button variant="secondary" size="xs" onClick={() => openPaymentFor(inv.id)} leftIcon={<Wallet className="w-3 h-3" />}>
               {inv.invoiceType === 'Purchase' ? 'Pay' : 'Receive'}
@@ -275,6 +332,15 @@ export const InvoicesPage: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {invoiceView === 'approval' && approvable.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+          <span><strong>{approvable.length}</strong> invoice(s) in this list are within your approval limit and can be posted in one go.</span>
+          <Button variant="success" size="sm" disabled={!!bulkProgress} isLoading={!!bulkProgress} onClick={handleApproveAll} leftIcon={<CheckCircle2 className="w-4 h-4" />}>
+            {bulkProgress ? `Posting ${bulkProgress}` : `Approve & post all (${approvable.length})`}
+          </Button>
+        </div>
+      )}
 
       {(invoiceView === 'pending' || invoiceView === 'overdue') && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
