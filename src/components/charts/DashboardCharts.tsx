@@ -73,7 +73,7 @@ export const RevenueVsExpenseChart: React.FC<{
   const data = lastMonths(6).map(m => {
     const Revenue = invoices
       .filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Cancelled' && ym(i.invoiceDate) === m.key)
-      .reduce((s, i) => s + (i.isCreditNote ? -i.subtotal : i.subtotal), 0);
+      .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.subtotal) : i.subtotal), 0);
     const Expenses =
       expenses.filter(e => ym(e.date) === m.key).reduce((s, e) => s + e.total, 0) +
       maintenanceRecords.filter(r => ym(r.maintenanceDate) === m.key).reduce((s, r) => s + r.totalCost, 0);

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test:db": "node supabase/tests/schema.test.mjs supabase/migrations"
+    "test:db": "node supabase/tests/schema.test.mjs supabase/migrations",
+    "test:e2e": "node e2e/remote.e2e.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

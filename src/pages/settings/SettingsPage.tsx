@@ -96,6 +96,12 @@ export const SettingsPage: React.FC = () => {
             <CardTitle>Approval Threshold Rules</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
+            <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
+              {currentUser.role === 'Super Admin'
+                ? 'Thresholds below decide when a request is raised. Role permissions and per-role signing limits can be changed by Super Admin only.'
+                : 'Read-only. Role permissions and per-role signing limits can be changed by a Super Admin only.'}
+            </p>
             {approvalRules.length === 0 && (
               <p className="text-slate-400">No approval rules are configured. Nothing requires approval until a rule is added.</p>
             )}

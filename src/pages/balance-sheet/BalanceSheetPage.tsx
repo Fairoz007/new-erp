@@ -1,14 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Scale, Printer, CheckCircle2, ShieldCheck, DollarSign } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
+import { getCompanyBalanceSheet } from '../../services/accounting';
+
+const Empty: React.FC<{ text: string }> = ({ text }) => <div className="py-2.5 text-slate-400 italic">{text}</div>;
 
 export const BalanceSheetPage: React.FC = () => {
-  const { getCompanyBalanceSheet, currency } = useFleet();
-  const bs = getCompanyBalanceSheet();
+  const { chartOfAccounts, journalEntries, selectedCompanyId, currency } = useFleet();
+  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
+  // Opening balances + posted journal lines up to the date; no plug figures.
+  const bs = getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, asOfDate);
+  const isEmpty = bs.assets.totalAssets === 0 && bs.liabilities.totalLiabilities === 0 && bs.equity.totalEquity === 0;
 
   return (
     <div className="space-y-6">
@@ -19,11 +25,13 @@ export const BalanceSheetPage: React.FC = () => {
             Balance Sheet (Statement of Financial Position)
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Audited assets, liabilities, equity, and net fleet capital value upholding the fundamental accounting equation.
+            Assets, liabilities and equity from account opening balances plus posted journals up to the selected date.
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          <input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} aria-label="As of date"
+            className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-100" />
           <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
             Print Balance Sheet
           </Button>
@@ -35,26 +43,23 @@ export const BalanceSheetPage: React.FC = () => {
         <StatCard
           title="Total Assets"
           value={formatCurrency(bs.assets.totalAssets, currency)}
-          subValue={`Net Fleet: ${formatCurrency(bs.assets.netVehiclesValue, currency)}`}
+          subValue={`Fixed (net): ${formatCurrency(bs.assets.totalFixedAssets, currency)}`}
           isHero={true}
         />
         <StatCard
           title="Total Liabilities"
           value={formatCurrency(bs.liabilities.totalLiabilities, currency)}
           subValue={`AP: ${formatCurrency(bs.liabilities.accountsPayable, currency)}`}
-          trend={{ value: 'Obligations', direction: 'down' }}
         />
         <StatCard
           title="Total Equity"
           value={formatCurrency(bs.equity.totalEquity, currency)}
-          subValue="Capital + Retained Earnings"
-          trend={{ value: 'Net Worth', direction: 'up' }}
+          subValue="Equity accounts + unclosed profit"
         />
         <StatCard
           title="Equation Balance"
-          value={bs.isBalanced ? 'BALANCED' : 'OUT OF BALANCE'}
-          subValue="Assets = Liabilities + Equity"
-          trend={{ value: bs.isBalanced ? '100% Parity' : 'Discrepancy', direction: bs.isBalanced ? 'up' : 'down' }}
+          value={isEmpty ? 'NO DATA' : bs.isBalanced ? 'BALANCED' : 'OUT OF BALANCE'}
+          subValue={isEmpty ? 'Nothing posted yet' : `Difference: ${formatCurrency(bs.assets.totalAssets - bs.totalLiabilitiesAndEquity, currency)}`}
         />
       </div>
 
@@ -71,6 +76,7 @@ export const BalanceSheetPage: React.FC = () => {
             <div className="space-y-2">
               <h3 className="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Current Assets</h3>
               <div className="divide-y divide-slate-700/80">
+                {bs.assets.currentAssets.length === 0 && <Empty text="None" />}
                 {bs.assets.currentAssets.map((a, idx) => (
                   <div key={idx} className="flex justify-between py-2.5">
                     <span className="text-slate-300 font-medium">{a.name}</span>
@@ -86,24 +92,17 @@ export const BalanceSheetPage: React.FC = () => {
 
             {/* Non-Current / Fixed Assets */}
             <div className="space-y-2">
-              <h3 className="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Non-Current Assets (Fixed Fleet)</h3>
+              <h3 className="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Non-Current (Fixed) Assets</h3>
               <div className="divide-y divide-slate-700/80">
-                <div className="flex justify-between py-2.5">
-                  <span className="text-slate-300 font-medium">Motor Vehicles Fleet at Acquisition Cost</span>
-                  <span className="font-mono font-bold text-slate-100">{formatCurrency(bs.assets.vehiclesCost, currency)}</span>
-                </div>
-                <div className="flex justify-between py-2.5">
-                  <span className="text-slate-400">Less: Accumulated Depreciation</span>
-                  <span className="font-mono text-rose-600 font-bold">({formatCurrency(bs.assets.accumulatedDepreciation, currency)})</span>
-                </div>
-                <div className="flex justify-between py-2.5 font-bold text-[#086343] bg-[#DCEFE5]/50 px-3 rounded-xl">
-                  <span>Net Book Value of Motor Vehicles</span>
-                  <span className="font-mono">{formatCurrency(bs.assets.netVehiclesValue, currency)}</span>
-                </div>
-                <div className="flex justify-between py-2.5">
-                  <span className="text-slate-300 font-medium">Diagnostic Workshop & Garage Equipment</span>
-                  <span className="font-mono font-bold text-slate-100">{formatCurrency(bs.assets.workshopEquipmentCost, currency)}</span>
-                </div>
+                {bs.assets.fixedAssets.length === 0 && <Empty text="None" />}
+                {bs.assets.fixedAssets.map((a, idx) => (
+                  <div key={idx} className="flex justify-between py-2.5">
+                    <span className="text-slate-300 font-medium">{a.name}</span>
+                    <span className={`font-mono font-bold ${a.amount < 0 ? 'text-rose-600' : 'text-slate-100'}`}>
+                      {a.amount < 0 ? `(${formatCurrency(-a.amount, currency)})` : formatCurrency(a.amount, currency)}
+                    </span>
+                  </div>
+                ))}
                 <div className="flex justify-between py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
                   <span>Total Fixed Assets</span>
                   <span>{formatCurrency(bs.assets.totalFixedAssets, currency)}</span>
@@ -130,6 +129,7 @@ export const BalanceSheetPage: React.FC = () => {
             <div className="space-y-2">
               <h3 className="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Current Liabilities</h3>
               <div className="divide-y divide-slate-700/80">
+                {bs.liabilities.currentLiabilities.length === 0 && <Empty text="None" />}
                 {bs.liabilities.currentLiabilities.map((l, idx) => (
                   <div key={idx} className="flex justify-between py-2.5">
                     <span className="text-slate-300 font-medium">{l.name}</span>
@@ -147,10 +147,13 @@ export const BalanceSheetPage: React.FC = () => {
             <div className="space-y-2">
               <h3 className="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Long-Term Liabilities</h3>
               <div className="divide-y divide-slate-700/80">
-                <div className="flex justify-between py-2.5">
-                  <span className="text-slate-300 font-medium">Commercial Vehicle Term Bank Loans</span>
-                  <span className="font-mono font-bold text-slate-100">{formatCurrency(bs.liabilities.vehicleLoans, currency)}</span>
-                </div>
+                {bs.liabilities.longTermLiabilities.length === 0 && <Empty text="None" />}
+                {bs.liabilities.longTermLiabilities.map((l, idx) => (
+                  <div key={idx} className="flex justify-between py-2.5">
+                    <span className="text-slate-300 font-medium">{l.name}</span>
+                    <span className="font-mono font-bold text-slate-100">{formatCurrency(l.amount, currency)}</span>
+                  </div>
+                ))}
                 <div className="flex justify-between py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
                   <span>Total Long-Term Liabilities</span>
                   <span>{formatCurrency(bs.liabilities.totalLongTermLiabilities, currency)}</span>
@@ -162,6 +165,7 @@ export const BalanceSheetPage: React.FC = () => {
             <div className="space-y-2">
               <h3 className="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Shareholders&apos; Equity</h3>
               <div className="divide-y divide-slate-700/80">
+                {bs.equity.items.length === 0 && <Empty text="None" />}
                 {bs.equity.items.map((eq, idx) => (
                   <div key={idx} className="flex justify-between py-2.5">
                     <span className="text-slate-300 font-medium">{eq.name}</span>

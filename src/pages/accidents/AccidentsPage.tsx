@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Plus, ShieldCheck, Clock, FileText, CheckCircle2, Car } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { Plus } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -10,10 +9,14 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
+import { AccidentUpdateModal } from './AccidentUpdateModal';
 
 export const AccidentsPage: React.FC = () => {
-  const { accidents, vehicles, currency, selectedCompanyId } = useFleet();
-  const { openQuickModal, openVehicleDetail } = useUI();
+  const { accidents, currency, selectedCompanyId, updateAccident } = useFleet();
+  const { openQuickModal, openVehicleDetail, addToast } = useUI();
+  const { hasPermission } = useAuth();
+  const [editing, setEditing] = useState<Accident | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const filteredAccidents = accidents.filter(a => {
@@ -62,7 +65,7 @@ export const AccidentsPage: React.FC = () => {
       header: 'Police & Claim #',
       render: (a) => (
         <div>
-          <span className="font-mono text-xs text-slate-300">Police: {a.policeReportNumber}</span>
+          <span className="font-mono text-xs text-slate-300">Police: {a.policeReportNumber || 'n/a'}</span>
           <p className="text-[10px] text-slate-400">Claim: {a.insuranceClaimNumber || 'Pending'}</p>
         </div>
       ),
@@ -95,7 +98,7 @@ export const AccidentsPage: React.FC = () => {
       render: (a) => (
         <div className="text-right">
           <span className="font-bold text-rose-600">{formatCurrency(a.netAccidentCostToCompany, currency)}</span>
-          <p className="text-[10px] text-slate-400">Deductible</p>
+          <p className="text-[10px] text-slate-400">After recoveries</p>
         </div>
       ),
     },
@@ -111,9 +114,16 @@ export const AccidentsPage: React.FC = () => {
       align: 'right',
       sortable: false,
       render: (a) => (
-        <Button variant="ghost" size="xs" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
-          Claim File
-        </Button>
+        <div className="flex items-center justify-end gap-1.5">
+          {hasPermission('edit', 'accidents') && (
+            <Button variant="ghost" size="xs" onClick={() => setEditing(a)}>
+              Update
+            </Button>
+          )}
+          <Button variant="ghost" size="xs" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
+            Claim File
+          </Button>
+        </div>
       ),
     },
   ];
@@ -132,14 +142,16 @@ export const AccidentsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="danger"
-            size="md"
-            onClick={() => openQuickModal('add-accident')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Report Accident
-          </Button>
+          {hasPermission('create', 'accidents') && (
+            <Button
+              variant="danger"
+              size="md"
+              onClick={() => openQuickModal('add-accident')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Report Accident
+            </Button>
+          )}
         </div>
       </div>
 
@@ -165,8 +177,7 @@ export const AccidentsPage: React.FC = () => {
         <StatCard
           title="Net Cost to Company"
           value={formatCurrency(netCompanyCost, currency)}
-          subValue="Policy deductibles & excesses"
-          trend={{ value: 'Liability', direction: 'down' }}
+          subValue="Repair cost less insurance and third-party recoveries"
         />
       </div>
 
@@ -196,6 +207,16 @@ export const AccidentsPage: React.FC = () => {
           </select>
         }
       />
+      {editing && (
+        <AccidentUpdateModal
+          accident={editing}
+          onClose={() => setEditing(null)}
+          onSubmit={async updates => {
+            await updateAccident(editing.id, updates);
+            addToast({ type: 'success', title: 'Claim Updated', message: `${editing.accidentNumber} was saved.` });
+          }}
+        />
+      )}
     </div>
   );
 };

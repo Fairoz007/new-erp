@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ClipboardList, Plus, CheckCircle2, Clock, AlertCircle, CheckSquare, Wrench } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { Plus, CheckCircle2 } from 'lucide-react';
+import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { WorkOrder, WorkOrderStatus } from '../../types/maintenance';
@@ -15,17 +15,24 @@ export const WorkOrdersPage: React.FC = () => {
   const { openQuickModal, addToast, openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [busyId, setBusyId] = useState<string | null>(null); // work order with a status change in flight
+  const canCreate = hasPermission('create', 'work-orders');
 
   const filteredOrders = workOrders.filter(wo => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && wo.companyId !== selectedCompanyId) return false;
     return true;
   });
 
-  const handleStatusChange = (orderId: string, newStatus: WorkOrderStatus) => {
+  const handleStatusChange = async (orderId: string, newStatus: WorkOrderStatus) => {
+    if (busyId) return;
     const order = workOrders.find(w => w.id === orderId);
     if (!order) return;
     if (!hasPermission('edit', 'work-orders')) {
       addToast({ type: 'error', title: 'Permission denied', message: 'Your role cannot update work orders.' });
+      return;
+    }
+    if (order.approvalStatus === 'Pending' && newStatus !== 'Cancelled') {
+      addToast({ type: 'warning', title: 'Approval pending', message: 'This work order must be approved in the Approvals module before work can start.' });
       return;
     }
     if (newStatus === 'Approved' && !canApprove('maintenance', order.finalCost || order.estimatedCost || 0)) {
@@ -36,12 +43,20 @@ export const WorkOrdersPage: React.FC = () => {
       addToast({ type: 'error', title: 'Approval Required', message: 'Approve and start the work order before completing it.' });
       return;
     }
-    updateWorkOrderStatus(orderId, newStatus);
-    addToast({
-      type: 'success',
-      title: 'Work Order Updated',
-      message: `Status updated to ${newStatus}${newStatus === 'Completed' ? ' and maintenance record/supplier invoice linked.' : '.'}`,
-    });
+    if (newStatus === 'Cancelled' && !window.confirm(`Cancel work order ${order.workOrderNumber}?`)) return;
+    setBusyId(orderId);
+    try {
+      await updateWorkOrderStatus(orderId, newStatus);
+      addToast({
+        type: 'success',
+        title: 'Work Order Updated',
+        message: `Status updated to ${newStatus}${newStatus === 'Completed' ? ' and the maintenance record was created.' : '.'}`,
+      });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Could not update work order', message: (e as Error).message });
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const priorityColors = {
@@ -60,7 +75,7 @@ export const WorkOrdersPage: React.FC = () => {
             Maintenance Work Orders
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Dispatch, track workshop jobs, approve multi-tier repair estimates, and mark completed jobs to trigger automated AP cascade.
+            Dispatch, track workshop jobs, approve multi-tier repair estimates, and mark completed jobs to generate their maintenance record.
           </p>
         </div>
 
@@ -84,14 +99,11 @@ export const WorkOrdersPage: React.FC = () => {
             </button>
           </div>
 
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-work-order')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Create Work Order
-          </Button>
+          {canCreate && (
+            <Button variant="primary" size="md" onClick={() => openQuickModal('add-work-order')} leftIcon={<Plus className="w-4 h-4" />}>
+              Create Work Order
+            </Button>
+          )}
         </div>
       </div>
 
@@ -125,7 +137,7 @@ export const WorkOrdersPage: React.FC = () => {
 
                   <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-400 font-medium">
                     <span>Workshop: <strong className="text-slate-200">{wo.workshop}</strong></span>
-                    <span>Requested: {formatDate(wo.reportedDate)} by {wo.requestedByName}</span>
+                    <span>Requested: {formatDate(wo.reportedDate)}{wo.requestedByName ? ` by ${wo.requestedByName}` : ''}</span>
                     {wo.expectedCompletion && <span>Target: {formatDate(wo.expectedCompletion)}</span>}
                     {wo.partsRequired && <span>Parts: {wo.partsRequired}</span>}
                   </div>
@@ -140,38 +152,37 @@ export const WorkOrdersPage: React.FC = () => {
 
                   <div className="flex items-center gap-2">
                     {wo.status !== 'Completed' && wo.status !== 'Cancelled' && (
-                      <>
-                        {wo.status === 'Requested' && (
-                          <Button variant="secondary" size="xs" onClick={() => handleStatusChange(wo.id, 'Approved')}>
-                            Approve
-                          </Button>
-                        )}
-                        {wo.status === 'Approved' && (
-                          <Button variant="secondary" size="xs" onClick={() => handleStatusChange(wo.id, 'In Progress')}>
-                            Start Work
-                          </Button>
-                        )}
-                        {wo.status === 'In Progress' && (
-                          <Button variant="outline" size="xs" onClick={() => handleStatusChange(wo.id, 'Waiting for Parts')}>
-                            Wait Parts
-                          </Button>
-                        )}
-                        {wo.status === 'Waiting for Parts' && (
-                          <Button variant="secondary" size="xs" onClick={() => handleStatusChange(wo.id, 'In Progress')}>
-                            Resume Work
-                          </Button>
-                        )}
-                        {wo.status !== 'Requested' && (
-                        <Button
-                          variant="success"
-                          size="xs"
-                          onClick={() => handleStatusChange(wo.id, 'Completed')}
-                          leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                        >
-                          Mark Completed
-                        </Button>
-                        )}
-                      </>
+                      wo.approvalStatus === 'Pending' ? (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Awaiting approval (Approvals module)</span>
+                      ) : (
+                        <>
+                          {wo.approvalStatus !== 'Rejected' && wo.status === 'Requested' && (
+                            <Button variant="secondary" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Approved')}>Approve</Button>
+                          )}
+                          {wo.approvalStatus !== 'Rejected' && wo.status === 'Approved' && (
+                            <Button variant="secondary" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'In Progress')}>Start Work</Button>
+                          )}
+                          {wo.approvalStatus !== 'Rejected' && wo.status === 'In Progress' && (
+                            <Button variant="outline" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Waiting for Parts')}>Wait Parts</Button>
+                          )}
+                          {wo.approvalStatus !== 'Rejected' && wo.status === 'Waiting for Parts' && (
+                            <Button variant="secondary" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'In Progress')}>Resume Work</Button>
+                          )}
+                          {wo.approvalStatus !== 'Rejected' && wo.status !== 'Requested' && wo.status !== 'Draft' && (
+                            <Button
+                              variant="success"
+                              size="xs"
+                              isLoading={busyId === wo.id}
+                              disabled={busyId === wo.id}
+                              onClick={() => handleStatusChange(wo.id, 'Completed')}
+                              leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                            >
+                              Mark Completed
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Cancelled')}>Cancel</Button>
+                        </>
+                      )
                     )}
                   </div>
                 </div>
@@ -218,13 +229,20 @@ export const WorkOrdersPage: React.FC = () => {
 
                       {stage !== 'Completed' && (
                         <div className="pt-2 border-t border-slate-700 flex justify-end">
+                          {wo.approvalStatus === 'Pending' ? (
+                            <span className="text-[10px] font-bold text-amber-700">Awaiting approval</span>
+                          ) : wo.approvalStatus === 'Rejected' ? (
+                            <span className="text-[10px] font-bold text-rose-700">Rejected</span>
+                          ) : (
                           <Button
                             variant="secondary"
                             size="xs"
+                            disabled={busyId === wo.id}
                             onClick={() => handleStatusChange(wo.id, stage === 'Requested' ? 'Approved' : stage === 'Approved' ? 'In Progress' : stage === 'Waiting for Parts' ? 'In Progress' : 'Completed')}
                           >
                             Advance →
                           </Button>
+                          )}
                         </div>
                       )}
                     </div>

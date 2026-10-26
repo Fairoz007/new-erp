@@ -1,14 +1,27 @@
-import React from 'react';
-import { TrendingUp, Download, Printer, DollarSign, Receipt, Percent } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import React, { useState } from 'react';
+import { Printer, Calendar } from 'lucide-react';
+import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
+import { formatDate } from '../../utils/date';
+import { getCompanyProfitLoss } from '../../services/accounting';
+
+const EmptyRow: React.FC<{ text: string }> = ({ text }) => (
+  <div className="py-2.5 text-slate-400 italic">{text}</div>
+);
 
 export const ProfitLossPage: React.FC = () => {
-  const { getCompanyProfitLoss, selectedCompanyId, currency } = useFleet();
-  const pnl = getCompanyProfitLoss();
+  const { chartOfAccounts, journalEntries, selectedCompanyId, selectedCompany, currency } = useFleet();
+  const today = new Date().toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(`${new Date().getFullYear()}-01-01`);
+  const [endDate, setEndDate] = useState(today);
+
+  // Built from posted journal lines in the period, classified by account category/subcategory (not by name).
+  const pnl = getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId,
+    { startDate: startDate || undefined, endDate: endDate || undefined });
+  const hasActivity = pnl.revenues.length + pnl.directCosts.length + pnl.operatingExpenses.length > 0 || pnl.depreciationExpense !== 0;
 
   return (
     <div className="space-y-6">
@@ -19,11 +32,19 @@ export const ProfitLossPage: React.FC = () => {
             Profit & Loss Statement (Income Statement)
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Real-time income, direct logistics operational costs, gross margin, operating overheads, and net profit.
+            Posted revenue and expense movements for the selected period, grouped by account category.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Calendar className="w-4 h-4" />
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} aria-label="Start date"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-100" />
+            <span>to</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} aria-label="End date"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-100" />
+          </div>
           <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
             Print Statement
           </Button>
@@ -32,30 +53,10 @@ export const ProfitLossPage: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard
-          title="Total Operating Revenue"
-          value={formatCurrency(pnl.totalRevenue, currency)}
-          subValue="Haulage & Rentals"
-          isHero={true}
-        />
-        <StatCard
-          title="Direct Operating Costs"
-          value={formatCurrency(pnl.totalDirectCosts, currency)}
-          subValue="Fuel, tyres, oil & maintenance"
-          trend={{ value: 'Cost of Sales', direction: 'down' }}
-        />
-        <StatCard
-          title="Gross Profit"
-          value={formatCurrency(pnl.grossProfit, currency)}
-          subValue={`${pnl.grossProfitMarginPercentage}% Gross Margin`}
-          trend={{ value: `${pnl.grossProfitMarginPercentage}%`, direction: 'up' }}
-        />
-        <StatCard
-          title="Net Profit (After Depr)"
-          value={formatCurrency(pnl.netProfit, currency)}
-          subValue={`${pnl.netProfitMarginPercentage}% Net Margin`}
-          trend={{ value: 'Net Surplus', direction: 'up' }}
-        />
+        <StatCard title="Total Revenue" value={formatCurrency(pnl.totalRevenue, currency)} subValue={`${pnl.revenues.length} revenue account(s)`} isHero={true} />
+        <StatCard title="Direct Operating Costs" value={formatCurrency(pnl.totalDirectCosts, currency)} subValue="Accounts in a 'Direct' subcategory" />
+        <StatCard title="Gross Profit" value={formatCurrency(pnl.grossProfit, currency)} subValue={`${pnl.grossProfitMarginPercentage}% gross margin`} />
+        <StatCard title="Net Profit (After Depr)" value={formatCurrency(pnl.netProfit, currency)} subValue={`${pnl.netProfitMarginPercentage}% net margin`} />
       </div>
 
       {/* P&L Detailed Statement Table */}
@@ -63,15 +64,22 @@ export const ProfitLossPage: React.FC = () => {
         <div className="space-y-6">
           <div className="text-center pb-5 border-b border-slate-700">
             <h2 className="text-base sm:text-lg font-extrabold text-slate-100 uppercase tracking-wide">
-              CONSOLIDATED STATEMENT OF PROFIT OR LOSS
+              {selectedCompanyId === 'all' ? 'Consolidated Statement of Profit or Loss' : `Statement of Profit or Loss — ${selectedCompany?.name ?? ''}`}
             </h2>
-            <p className="text-xs text-slate-400 mt-1">For Period Ending 22 August 2026 • Reporting Currency: {currency}</p>
+            <p className="text-xs text-slate-400 mt-1">
+              {startDate ? formatDate(startDate) : 'Beginning'} – {endDate ? formatDate(endDate) : 'today'} • Reporting Currency: {currency}
+            </p>
           </div>
+
+          {!hasActivity && (
+            <p className="text-center text-sm text-slate-400 py-6">No revenue or expense has been posted in this period.</p>
+          )}
 
           {/* 1. REVENUE SECTION */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold text-[#086343] uppercase tracking-wider">1. Operating Revenue</h3>
+            <h3 className="text-xs font-bold text-[#086343] uppercase tracking-wider">1. Revenue</h3>
             <div className="divide-y divide-slate-700/80 text-xs">
+              {pnl.revenues.length === 0 && <EmptyRow text="No revenue posted." />}
               {pnl.revenues.map(rev => (
                 <div key={rev.accountCode} className="flex justify-between py-2.5">
                   <span className="text-slate-300 font-medium">{rev.accountName} ({rev.accountCode})</span>
@@ -79,7 +87,7 @@ export const ProfitLossPage: React.FC = () => {
                 </div>
               ))}
               <div className="flex justify-between py-2.5 font-bold text-sm text-[#086343] bg-[#DCEFE5]/50 px-3 rounded-xl mt-1">
-                <span>Total Operating Revenue</span>
+                <span>Total Revenue</span>
                 <span>{formatCurrency(pnl.totalRevenue, currency)}</span>
               </div>
             </div>
@@ -87,11 +95,12 @@ export const ProfitLossPage: React.FC = () => {
 
           {/* 2. DIRECT OPERATING COSTS */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold text-rose-600 uppercase tracking-wider">2. Direct Fleet Operating Costs</h3>
+            <h3 className="text-xs font-bold text-rose-600 uppercase tracking-wider">2. Direct Operating Costs</h3>
             <div className="divide-y divide-slate-700/80 text-xs">
-              {pnl.directCosts.map((cost, idx) => (
-                <div key={idx} className="flex justify-between py-2.5">
-                  <span className="text-slate-300 font-medium">{cost.category} Operational Expense</span>
+              {pnl.directCosts.length === 0 && <EmptyRow text="No direct costs posted." />}
+              {pnl.directCosts.map(cost => (
+                <div key={cost.category} className="flex justify-between py-2.5">
+                  <span className="text-slate-300 font-medium">{cost.category}</span>
                   <span className="font-mono font-semibold text-rose-600">({formatCurrency(cost.amount, currency)})</span>
                 </div>
               ))}
@@ -110,8 +119,9 @@ export const ProfitLossPage: React.FC = () => {
 
           {/* 3. OPERATING OVERHEADS & DEPRECIATION */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold text-[#D9A441] uppercase tracking-wider">3. Administrative Overheads & Depreciation</h3>
+            <h3 className="text-xs font-bold text-[#D9A441] uppercase tracking-wider">3. Operating Expenses & Depreciation</h3>
             <div className="divide-y divide-slate-700/80 text-xs">
+              {pnl.operatingExpenses.length === 0 && <EmptyRow text="No operating expenses posted." />}
               {pnl.operatingExpenses.map(opex => (
                 <div key={opex.accountCode} className="flex justify-between py-2.5">
                   <span className="text-slate-300 font-medium">{opex.accountName} ({opex.accountCode})</span>
@@ -119,11 +129,11 @@ export const ProfitLossPage: React.FC = () => {
                 </div>
               ))}
               <div className="flex justify-between py-2.5">
-                <span className="text-slate-300 font-medium">Motor Vehicles Fleet Depreciation (5080)</span>
+                <span className="text-slate-300 font-medium">Depreciation (accounts in the Depreciation subcategory)</span>
                 <span className="font-mono text-[#086343] font-semibold">({formatCurrency(pnl.depreciationExpense, currency)})</span>
               </div>
               <div className="flex justify-between py-2.5 font-bold text-sm text-[#D9A441] bg-amber-50 px-3 rounded-xl mt-1">
-                <span>Total Overheads & Depreciation</span>
+                <span>Total Operating Expenses & Depreciation</span>
                 <span>({formatCurrency(pnl.totalOperatingExpenses + pnl.depreciationExpense, currency)})</span>
               </div>
             </div>
@@ -134,6 +144,9 @@ export const ProfitLossPage: React.FC = () => {
             <span>NET PROFIT FOR THE PERIOD</span>
             <span className="font-mono">{formatCurrency(pnl.netProfit, currency)} ({pnl.netProfitMarginPercentage}%)</span>
           </div>
+          <p className="text-[11px] text-slate-400">
+            Finance costs are included in operating expenses; EBITDA {formatCurrency(pnl.ebitda, currency)} is before depreciation only.
+          </p>
         </div>
       </Card>
     </div>

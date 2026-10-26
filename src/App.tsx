@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { FleetProvider } from './context/FleetContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { useAuth } from './context/AuthContext';
 import { UIProvider, useUI } from './context/UIContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { Button } from './components/ui/Button';
@@ -141,14 +141,13 @@ const PageRenderer: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
+    // AuthProvider + AuthGate wrap the app in main.tsx; data loads only after sign-in
     <FleetProvider>
-      <AuthProvider>
-        <UIProvider>
-          <AppLayout>
-            <PageRenderer />
-          </AppLayout>
-        </UIProvider>
-      </AuthProvider>
+      <UIProvider>
+        <AppLayout>
+          <PageRenderer />
+        </AppLayout>
+      </UIProvider>
     </FleetProvider>
   );
 };

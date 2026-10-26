@@ -10,6 +10,8 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
+
 
 type OilRow = OilChange & { vehiclePlate: string; vehicleName: string; _companyId?: string };
 
@@ -17,6 +19,7 @@ export const OilManagementPage: React.FC = () => {
   const { oilChanges: allOilChanges, vehicles, currency, selectedCompanyId } = useFleet();
   const { openQuickModal, openVehicleDetail } = useUI();
   const [filter, setFilter] = useState<string>('all');
+  const { hasPermission } = useAuth();
 
   // Scope to selected office and add searchable vehicle fields
   const oilChanges: OilRow[] = allOilChanges
@@ -119,14 +122,16 @@ export const OilManagementPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-oil-change')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Record Oil Service
-          </Button>
+          {hasPermission('create', 'oil') && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => openQuickModal('add-oil-change')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Record Oil Service
+            </Button>
+          )}
         </div>
       </div>
 
@@ -141,14 +146,12 @@ export const OilManagementPage: React.FC = () => {
         <StatCard
           title="Overdue Oil Changes"
           value={overdueCount}
-          subValue="Exceeded KM interval limit"
-          trend={{ value: `${overdueCount} Critical`, direction: 'down' }}
+          subValue="Latest service per vehicle, KM limit exceeded"
         />
         <StatCard
           title="Due Soon (< 1,000 KM)"
           value={dueSoonCount}
           subValue="Approaching threshold"
-          trend={{ value: `${dueSoonCount} Due`, direction: 'neutral' }}
         />
         <StatCard
           title="Cumulative Oil Cost"

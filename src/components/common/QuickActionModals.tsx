@@ -3,7 +3,9 @@ import { Plus, Trash2, Car, Wrench, Fuel, AlertTriangle, FileText, DollarSign, U
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, Select, Textarea } from '../ui/Input';
-import { DocumentUploadZone, UploadedFileMeta } from './DocumentUploadZone';
+import { DocumentUploadZone, UploadedFileMeta, UploadDocumentForm } from './DocumentUploadZone';
+import { BUCKETS, formatFileSize, removeFiles, toStorageRef, uploadFile, validateFile } from '../../services/storage';
+import { useAuth } from '../../context/AuthContext';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { MaintenanceCategory, MaintenanceType, WorkOrderPriority } from '../../types/maintenance';
@@ -13,6 +15,7 @@ import { EmployeeDepartment } from '../../types/hr';
 
 export const QuickActionModals: React.FC = () => {
   const { quickModal, closeQuickModal, addToast, selectedVehicleId } = useUI();
+  const { currentUser } = useAuth();
   const {
     companies,
     vehicles,
@@ -23,6 +26,7 @@ export const QuickActionModals: React.FC = () => {
     chartOfAccounts,
     employees,
     fixedAssets,
+    selectedCompanyId,
     addVehicle,
     addMaintenanceRecord,
     addWorkOrder,
@@ -34,7 +38,6 @@ export const QuickActionModals: React.FC = () => {
     addCustomer,
     addInvoice,
     addPayment,
-    addJournalEntry,
     addDocument,
     addEmployee,
     addFixedAsset,
@@ -46,8 +49,7 @@ export const QuickActionModals: React.FC = () => {
 
   // 1. ADD VEHICLE STATE
   const [vehicleForm, setVehicleForm] = useState({
-    vehicleId: `VH-00${vehicles.length + 1}`,
-    companyId: companies[0]?.id || 'comp-1',
+    companyId: '',
     plateNumber: '',
     registrationNumber: '',
     vin: '',
@@ -70,31 +72,46 @@ export const QuickActionModals: React.FC = () => {
     currentMileage: 0,
     initialOdometer: 0,
     status: 'Active' as const,
-    photoUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=80',
     assignedDriver: '',
     department: 'Operations',
-    location: 'Muscat HQ',
-    purchaseValue: 15000,
-    supplierId: suppliers[0]?.id || 'sup-1',
+    location: '',
+    purchaseValue: 0,
+    supplierId: '',
     depreciationMethod: 'Straight-Line' as const,
     usefulLifeYears: 5,
-    salvageValue: 2000,
+    salvageValue: 0,
     oilIntervalKm: 10000,
     oilBrand: 'Mobil 1 ESP',
     oilGrade: '5W-30',
   });
 
+  // Optional vehicle photo: uploaded to the private `media` bucket on save
+  const [vehiclePhoto, setVehiclePhoto] = useState<File | null>(null);
+  const [vehiclePhotoError, setVehiclePhotoError] = useState('');
+
+  const pickVehiclePhoto = (file: File | null) => {
+    setVehiclePhotoError('');
+    if (!file) { setVehiclePhoto(null); return; }
+    try {
+      validateFile(file, 'media');
+      setVehiclePhoto(file);
+    } catch (err) {
+      setVehiclePhoto(null);
+      setVehiclePhotoError((err as Error).message);
+    }
+  };
+
   // 2. ADD MAINTENANCE STATE
   const [mntForm, setMntForm] = useState({
     vehicleId: defaultVehicle?.id || '',
-    companyId: defaultVehicle?.companyId || 'comp-1',
+    companyId: defaultVehicle?.companyId || '',
     maintenanceDate: new Date().toISOString().slice(0, 10),
     maintenanceType: 'Routine' as MaintenanceType,
     category: 'General Service' as MaintenanceCategory,
     description: '',
     odometerReading: defaultVehicle?.currentMileage || 0,
-    serviceCentre: 'Authorized Service Center',
-    supplierId: suppliers[0]?.id || 'sup-1',
+    serviceCentre: '',
+    supplierId: '',
     partsCost: 0,
     labourCost: 0,
     tax: 0,
@@ -106,15 +123,13 @@ export const QuickActionModals: React.FC = () => {
   // 3. ADD WORK ORDER STATE
   const [woForm, setWoForm] = useState({
     vehicleId: defaultVehicle?.id || '',
-    companyId: defaultVehicle?.companyId || 'comp-1',
+    companyId: defaultVehicle?.companyId || '',
     reportedDate: new Date().toISOString().slice(0, 10),
     problemDescription: '',
-    requestedBy: 'usr-1',
-    requestedByName: 'Fleet Operations',
-    workshop: 'Central Workshop',
-    supplierId: suppliers[0]?.id || 'sup-1',
+    workshop: '',
+    supplierId: '',
     priority: 'Medium' as WorkOrderPriority,
-    estimatedCost: 150,
+    estimatedCost: 0,
     partsRequired: '',
     notes: '',
   });
@@ -128,34 +143,34 @@ export const QuickActionModals: React.FC = () => {
     oilBrand: 'Mobil 1 ESP',
     oilGrade: '5W-30',
     quantityLitres: 6.5,
-    oilCost: 25,
-    filterCost: 6,
-    labourCost: 5,
-    tax: 1.8,
-    supplierId: suppliers[0]?.id || 'sup-1',
-    notes: 'Engine oil and OEM filter replaced.',
+    oilCost: 0,
+    filterCost: 0,
+    labourCost: 0,
+    tax: 0,
+    supplierId: '',
+    notes: '',
   });
 
   // 5. ADD EXPENSE STATE
   const [expForm, setExpForm] = useState({
     vehicleId: defaultVehicle?.id || '',
-    companyId: defaultVehicle?.companyId || 'comp-1',
+    companyId: defaultVehicle?.companyId || '',
     date: new Date().toISOString().slice(0, 10),
     category: 'Fuel' as ExpenseCategory,
     description: '',
     quantity: 1,
-    unitPrice: 20,
-    tax: 1,
+    unitPrice: 0,
+    tax: 0,
     paymentMethod: 'Corporate Fuel Card',
-    costCentre: 'CC-OPS-100',
-    supplierId: suppliers[0]?.id || '',
+    costCentre: '',
+    supplierId: '',
     attachment: null as UploadedFileMeta | null,
   });
 
   // 6. ADD ACCIDENT STATE
   const [accForm, setAccForm] = useState({
     vehicleId: defaultVehicle?.id || '',
-    companyId: defaultVehicle?.companyId || 'comp-1',
+    companyId: defaultVehicle?.companyId || '',
     accidentDate: new Date().toISOString().slice(0, 10),
     accidentTime: '14:00',
     location: '',
@@ -165,21 +180,21 @@ export const QuickActionModals: React.FC = () => {
     damageDescription: '',
     policeReportNumber: '',
     insuranceClaimNumber: '',
-    estimatedRepairCost: 400,
-    actualRepairCost: 400,
-    insuranceContribution: 300,
-    companyContribution: 100,
+    estimatedRepairCost: 0,
+    actualRepairCost: 0,
+    insuranceContribution: 0,
+    companyContribution: 0,
     thirdPartyContribution: 0,
-    workshop: 'Bodyshop Workshop',
-    vehicleDowntimeDays: 3,
+    workshop: '',
+    vehicleDowntimeDays: 0,
     status: 'Reported' as const,
   });
 
   // 7. ADD INVOICE STATE (with multi-items)
   const [invoiceForm, setInvoiceForm] = useState({
     invoiceType: 'Purchase' as InvoiceType,
-    companyId: companies[0]?.id || 'comp-1',
-    partyId: suppliers[0]?.id || 'sup-1',
+    companyId: '',
+    partyId: '',
     invoiceDate: new Date().toISOString().slice(0, 10),
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     referenceNumber: '',
@@ -190,16 +205,16 @@ export const QuickActionModals: React.FC = () => {
     items: [
       {
         id: 'item-1',
-        itemCode: 'SRV-01',
-        description: 'Fleet Service & Spare Parts',
+        itemCode: '',
+        description: '',
         quantity: 1,
         unit: 'Job',
-        unitPrice: 100,
+        unitPrice: 0,
         discountPercentage: 0,
         discountAmount: 0,
         taxRatePercentage: 5,
-        taxAmount: 5,
-        lineTotal: 105,
+        taxAmount: 0,
+        lineTotal: 0,
       },
     ],
   });
@@ -208,23 +223,11 @@ export const QuickActionModals: React.FC = () => {
   const [paymentForm, setPaymentForm] = useState({
     invoiceId: '',
     paymentDate: new Date().toISOString().slice(0, 10),
-    amount: 100,
+    amount: 0,
     currency: 'OMR',
     paymentMethod: 'Bank Transfer' as PaymentMethod,
-    bankAccountId: bankAccounts[0]?.id || 'ba-1',
+    bankAccountId: '',
     transactionReference: '',
-    notes: '',
-  });
-
-  // 9. UPLOAD DOCUMENT STATE
-  const [docForm, setDocForm] = useState({
-    documentName: '',
-    documentNumber: '',
-    category: 'Registration' as const,
-    vehicleId: defaultVehicle?.id || '',
-    companyId: defaultVehicle?.companyId || 'comp-1',
-    issueDate: new Date().toISOString().slice(0, 10),
-    expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     notes: '',
   });
 
@@ -233,19 +236,21 @@ export const QuickActionModals: React.FC = () => {
     name: '',
     nationalId: '',
     passportNumber: '',
-    designation: 'Heavy Fleet Driver',
+    companyId: '',
+    designation: '',
     department: 'Fleet & Logistics' as EmployeeDepartment,
     joiningDate: new Date().toISOString().slice(0, 10),
-    basicSalary: 650,
-    housingAllowance: 150,
-    transportAllowance: 100,
-    otherAllowances: 50,
+    basicSalary: 0,
+    housingAllowance: 0,
+    transportAllowance: 0,
+    otherAllowances: 0,
     pasiContributionPercentage: 7.0,
+    employerPasiPercentage: 11.5,
     paymentMethod: 'Bank Transfer' as const,
-    bankName: 'Bank Muscat',
-    accountNumber: '0421098877665544',
-    iban: 'OM68BMSC00000421098877665544',
-    assignedVehiclePlate: defaultVehicle?.plateNumber || '',
+    bankName: '',
+    accountNumber: '',
+    iban: '',
+    assignedVehicleId: '',
     status: 'Active' as const,
   });
 
@@ -253,16 +258,18 @@ export const QuickActionModals: React.FC = () => {
   const [payrollForm, setPayrollForm] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
+    companyId: '',
     paymentDate: new Date().toISOString().slice(0, 10),
-    bankAccountId: bankAccounts[0]?.id || 'ba-1',
+    bankAccountId: '',
     autoPostGL: true,
   });
 
   // 12. RUN DEPRECIATION STATE
   const [deprForm, setDeprForm] = useState({
-    periodLabel: 'August 2026',
+    companyId: '',
+    period: new Date().toISOString().slice(0, 7),
     runDate: new Date().toISOString().slice(0, 10),
-    notes: 'Monthly automatic depreciation amortization run for fleet and workshop fixed assets.',
+    notes: '',
     autoPostGL: true,
   });
 
@@ -274,12 +281,12 @@ export const QuickActionModals: React.FC = () => {
     phone: '',
     email: '',
     address: '',
-    city: 'Muscat',
+    city: '',
     country: 'Oman',
     vatNumber: '',
     taxNumber: '',
     paymentTermsDays: 30,
-    creditLimit: 20000,
+    creditLimit: 0,
     openingBalance: 0,
     status: 'Active' as const,
   });
@@ -292,12 +299,12 @@ export const QuickActionModals: React.FC = () => {
     phone: '',
     email: '',
     address: '',
-    city: 'Muscat',
+    city: '',
     country: 'Oman',
     vatNumber: '',
     taxNumber: '',
-    paymentTermsDays: 45,
-    creditLimit: 50000,
+    paymentTermsDays: 30,
+    creditLimit: 0,
     openingBalance: 0,
     status: 'Active' as const,
   });
@@ -305,18 +312,18 @@ export const QuickActionModals: React.FC = () => {
   // 15. ADD TYRE STATE
   const [tyreForm, setTyreForm] = useState({
     vehicleId: defaultVehicle?.id || '',
-    companyId: defaultVehicle?.companyId || 'comp-1',
+    companyId: defaultVehicle?.companyId || '',
     serialNumber: '',
-    brand: 'Bridgestone',
-    model: 'R22.5 Heavy Haulage',
-    size: '295/80R22.5',
+    brand: '',
+    model: '',
+    size: '',
     position: 'Front Left (Steer)',
-    dotNumber: 'DOT-2026',
-    treadDepthMm: 16.0,
-    psi: 120,
+    dotNumber: '',
+    treadDepthMm: 0,
+    psi: 0,
     purchaseDate: new Date().toISOString().slice(0, 10),
-    purchaseCost: 150,
-    supplierId: suppliers[0]?.id || 'sup-5',
+    purchaseCost: 0,
+    supplierId: '',
     notes: '',
   });
 
@@ -324,18 +331,31 @@ export const QuickActionModals: React.FC = () => {
   const [assetForm, setAssetForm] = useState({
     name: '',
     category: 'Workshop Equipment' as import('../../types/finance').FixedAssetCategory,
-    companyId: companies[0]?.id || 'comp-1',
+    companyId: '',
     purchaseDate: new Date().toISOString().slice(0, 10),
-    purchaseCost: 5000,
-    salvageValue: 500,
+    purchaseCost: 0,
+    salvageValue: 0,
     depreciationMethod: 'Straight-Line' as const,
     annualRatePercentage: 20,
     usefulLifeYears: 5,
-    location: 'Muscat Central Workshop',
+    location: '',
     serialNumber: '',
     assignedVehicleId: '',
     notes: '',
   });
+
+  useEffect(() => {
+    if (!quickModal) return;
+    const office = selectedCompanyId !== 'all' ? selectedCompanyId : companies.length === 1 ? companies[0].id : '';
+    if (!office) return;
+    const fill = <T extends { companyId: string }>(prev: T): T => (prev.companyId ? prev : { ...prev, companyId: office });
+    setVehicleForm(fill);
+    setInvoiceForm(fill);
+    setAssetForm(fill);
+    setEmpForm(fill);
+    setPayrollForm(fill);
+    setDeprForm(fill);
+  }, [quickModal, selectedCompanyId, companies]);
 
   // Sync modal form targets when selectedVehicleId changes
   useEffect(() => {
@@ -347,12 +367,40 @@ export const QuickActionModals: React.FC = () => {
         setOilForm(prev => ({ ...prev, vehicleId: target.id, odometer: target.currentMileage }));
         setExpForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
         setAccForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
-        setDocForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
         setInvoiceForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
         setTyreForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
       }
     }
   }, [selectedVehicleId, quickModal, vehicles]);
+
+  // ---------------------------------------------------------------------------------------------
+  // Submit handling: every handler awaits the (async) context mutation. Success is reported only
+  // after the write succeeded; any ServiceError is shown and the modal stays open.
+  // ---------------------------------------------------------------------------------------------
+  const [busy, setBusy] = useState(false);
+  const run = async (failTitle: string, fn: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fn();
+    } catch (err) {
+      addToast({ type: 'error', title: failTitle, message: (err as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Upload a picked attachment into the documents bucket; returns its storage ref (or undefined)
+  const uploadAttachment = async (meta: UploadedFileMeta | null, companyId: string, entity: 'expenses' | 'invoices') => {
+    if (!meta?.file) return undefined;
+    const stored = await uploadFile(meta.file, companyId, entity);
+    return { ref: toStorageRef('documents', stored.path), path: stored.path, name: stored.name, size: formatFileSize(stored.size), type: stored.mimeType };
+  };
+
+  const requireOffice = (companyId: string) => {
+    if (!companyId) throw new Error('Select an office first.');
+    return companyId;
+  };
 
   // Handlers
   const handleCreateVehicle = (e: React.FormEvent) => {
@@ -361,543 +409,574 @@ export const QuickActionModals: React.FC = () => {
       addToast({ type: 'error', title: 'Validation Error', message: 'Plate number, Brand, and Model are required.' });
       return;
     }
-    const comp = companies.find(c => c.id === vehicleForm.companyId);
     const sup = suppliers.find(s => s.id === vehicleForm.supplierId);
-
-    addVehicle({
-      vehicleId: vehicleForm.vehicleId,
-      companyId: vehicleForm.companyId,
-      companyName: comp?.name || 'Company',
-      plateNumber: vehicleForm.plateNumber,
-      registrationNumber: vehicleForm.registrationNumber || `REG-${vehicleForm.plateNumber}`,
-      vin: vehicleForm.vin || `VIN-${Date.now()}`,
-      engineNumber: vehicleForm.engineNumber || 'ENG-10029',
-      vehicleType: vehicleForm.vehicleType,
-      vehicleCategory: vehicleForm.vehicleCategory,
-      brand: vehicleForm.brand,
-      manufacturer: vehicleForm.manufacturer || vehicleForm.brand,
-      model: vehicleForm.model,
-      variant: vehicleForm.variant || 'Standard',
-      manufacturingYear: Number(vehicleForm.manufacturingYear),
-      registrationDate: vehicleForm.registrationDate,
-      registrationExpiryDate: vehicleForm.registrationExpiryDate,
-      countryOfRegistration: vehicleForm.countryOfRegistration,
-      color: vehicleForm.color,
-      fuelType: vehicleForm.fuelType,
-      transmission: vehicleForm.transmission,
-      engineCapacityCc: Number(vehicleForm.engineCapacityCc),
-      numberOfSeats: Number(vehicleForm.numberOfSeats),
-      currentMileage: Number(vehicleForm.currentMileage),
-      initialOdometer: Number(vehicleForm.initialOdometer),
-      status: vehicleForm.status,
-      photoUrl: vehicleForm.photoUrl,
-      assignedDriver: vehicleForm.assignedDriver,
-      department: vehicleForm.department,
-      location: vehicleForm.location,
-      purchase: {
-        purchaseDate: vehicleForm.registrationDate,
-        purchaseValue: Number(vehicleForm.purchaseValue),
-        purchaseInvoiceNumber: `PINV-ACQ-${Date.now().toString().slice(-4)}`,
-        supplierId: vehicleForm.supplierId,
-        supplierName: sup?.name || 'Dealer',
-        paymentMethod: 'Bank Transfer',
-      },
-      depreciation: {
-        depreciationMethod: vehicleForm.depreciationMethod,
-        usefulLifeYears: Number(vehicleForm.usefulLifeYears),
-        annualRatePercentage: 100 / Number(vehicleForm.usefulLifeYears),
-        salvageValue: Number(vehicleForm.salvageValue),
-      },
-      oilConfig: {
-        oilType: vehicleForm.oilGrade,
-        oilBrand: vehicleForm.oilBrand,
-        oilGrade: vehicleForm.oilGrade,
-        intervalKm: Number(vehicleForm.oilIntervalKm),
-        intervalMonths: 6,
-        estimatedCost: 35,
-        capacityLitres: 6.5,
-      },
-      currentMarketValue: Number(vehicleForm.purchaseValue) * 0.9,
-      marketValueUpdatedDate: new Date().toISOString().slice(0, 10),
-      insuranceProvider: 'Oman United Insurance Co',
-      insurancePolicyNumber: `POL-${Date.now().toString().slice(-4)}`,
-      insuranceExpiryDate: vehicleForm.registrationExpiryDate,
-      insurancePremiumAnnual: 300,
+    let photoPath: string | undefined;
+    run('Vehicle Not Saved', async () => {
+      const companyId = requireOffice(vehicleForm.companyId);
+      try {
+        if (vehiclePhoto) {
+          photoPath = (await uploadFile(vehiclePhoto, companyId, 'vehicles', { bucket: 'media' })).path;
+        }
+        // vehicleId / companyName are ignored: the DB assigns VH-### and the office name comes from the join
+        await addVehicle({
+          vehicleId: '',
+          companyId,
+          companyName: '',
+          plateNumber: vehicleForm.plateNumber,
+          registrationNumber: vehicleForm.registrationNumber,
+          vin: vehicleForm.vin,
+          engineNumber: vehicleForm.engineNumber,
+          vehicleType: vehicleForm.vehicleType,
+          vehicleCategory: vehicleForm.vehicleCategory,
+          brand: vehicleForm.brand,
+          manufacturer: vehicleForm.manufacturer || vehicleForm.brand,
+          model: vehicleForm.model,
+          variant: vehicleForm.variant,
+          manufacturingYear: Number(vehicleForm.manufacturingYear),
+          registrationDate: vehicleForm.registrationDate,
+          registrationExpiryDate: vehicleForm.registrationExpiryDate,
+          countryOfRegistration: vehicleForm.countryOfRegistration,
+          color: vehicleForm.color,
+          fuelType: vehicleForm.fuelType,
+          transmission: vehicleForm.transmission,
+          engineCapacityCc: Number(vehicleForm.engineCapacityCc),
+          numberOfSeats: Number(vehicleForm.numberOfSeats),
+          currentMileage: Number(vehicleForm.currentMileage),
+          initialOdometer: Number(vehicleForm.initialOdometer),
+          status: vehicleForm.status,
+          photoUrl: photoPath ?? '',
+          assignedDriver: vehicleForm.assignedDriver,
+          department: vehicleForm.department,
+          location: vehicleForm.location,
+          purchase: {
+            purchaseDate: vehicleForm.registrationDate,
+            purchaseValue: Number(vehicleForm.purchaseValue),
+            purchaseInvoiceNumber: '',
+            supplierId: vehicleForm.supplierId,
+            supplierName: sup?.name || '',
+            paymentMethod: 'Bank Transfer',
+          },
+          depreciation: {
+            depreciationMethod: vehicleForm.depreciationMethod,
+            usefulLifeYears: Number(vehicleForm.usefulLifeYears),
+            annualRatePercentage: Number(vehicleForm.usefulLifeYears) > 0 ? 100 / Number(vehicleForm.usefulLifeYears) : 0,
+            salvageValue: Number(vehicleForm.salvageValue),
+          },
+          oilConfig: {
+            oilType: vehicleForm.oilGrade,
+            oilBrand: vehicleForm.oilBrand,
+            oilGrade: vehicleForm.oilGrade,
+            intervalKm: Number(vehicleForm.oilIntervalKm),
+            intervalMonths: 6,
+            estimatedCost: 0,
+            capacityLitres: 0,
+          },
+          // not appraised or insured yet: no invented market value or insurance policy
+          currentMarketValue: 0,
+          marketValueUpdatedDate: '',
+          insuranceProvider: '',
+          insurancePolicyNumber: '',
+          insuranceExpiryDate: '',
+          insurancePremiumAnnual: 0,
+        });
+      } catch (err) {
+        // the vehicle row was not saved: do not leave an orphaned photo in storage
+        if (photoPath) removeFiles('media', [photoPath]).catch(() => undefined);
+        throw err;
+      }
+      addToast({ type: 'success', title: 'Vehicle Created', message: `${vehicleForm.brand} ${vehicleForm.model} (${vehicleForm.plateNumber}) added to fleet.` });
+      setVehiclePhoto(null);
+      closeQuickModal();
     });
-
-    addToast({ type: 'success', title: 'Vehicle Created', message: `${vehicleForm.brand} ${vehicleForm.model} (${vehicleForm.plateNumber}) added to fleet.` });
-    closeQuickModal();
   };
 
   const handleCreateMaintenance = (e: React.FormEvent) => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === mntForm.vehicleId);
     const sup = suppliers.find(s => s.id === mntForm.supplierId);
-    const total = Number(mntForm.partsCost) + Number(mntForm.labourCost) + Number(mntForm.tax) + Number(mntForm.otherCharges) - Number(mntForm.discount);
-
-    addMaintenanceRecord({
-      vehicleId: mntForm.vehicleId,
-      vehiclePlate: v?.plateNumber || 'Vehicle',
-      companyId: v?.companyId || 'comp-1',
-      maintenanceDate: mntForm.maintenanceDate,
-      maintenanceType: mntForm.maintenanceType,
-      category: mntForm.category,
-      description: mntForm.description,
-      odometerReading: Number(mntForm.odometerReading),
-      serviceCentre: mntForm.serviceCentre,
-      supplierId: mntForm.supplierId,
-      supplierName: sup?.name || 'Workshop',
-      partsCost: Number(mntForm.partsCost),
-      labourCost: Number(mntForm.labourCost),
-      tax: Number(mntForm.tax),
-      discount: Number(mntForm.discount),
-      otherCharges: Number(mntForm.otherCharges),
-      totalCost: total,
-      paymentStatus: mntForm.paymentStatus,
+    run('Maintenance Not Saved', async () => {
+      if (!v) throw new Error('Select a vehicle.');
+      // totalCost is recomputed by the database from the cost components
+      const total = Number(mntForm.partsCost) + Number(mntForm.labourCost) + Number(mntForm.tax) + Number(mntForm.otherCharges) - Number(mntForm.discount);
+      const rec = await addMaintenanceRecord({
+        vehicleId: v.id,
+        vehiclePlate: v.plateNumber,
+        companyId: v.companyId,
+        maintenanceDate: mntForm.maintenanceDate,
+        maintenanceType: mntForm.maintenanceType,
+        category: mntForm.category,
+        description: mntForm.description,
+        odometerReading: Number(mntForm.odometerReading),
+        serviceCentre: mntForm.serviceCentre,
+        supplierId: mntForm.supplierId,
+        supplierName: sup?.name || '',
+        partsCost: Number(mntForm.partsCost),
+        labourCost: Number(mntForm.labourCost),
+        tax: Number(mntForm.tax),
+        discount: Number(mntForm.discount),
+        otherCharges: Number(mntForm.otherCharges),
+        totalCost: total,
+        paymentStatus: mntForm.paymentStatus,
+      });
+      addToast({ type: 'success', title: 'Maintenance Logged', message: `Recorded ${rec.recordNumber} for ${v.plateNumber}. Total: ${rec.totalCost.toFixed(3)} OMR` });
+      closeQuickModal();
     });
-
-    addToast({ type: 'success', title: 'Maintenance Logged', message: `Recorded ${mntForm.category} for ${v?.plateNumber}. Total: ${total.toFixed(3)} OMR` });
-    closeQuickModal();
   };
 
   const handleCreateWorkOrder = (e: React.FormEvent) => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === woForm.vehicleId);
     const sup = suppliers.find(s => s.id === woForm.supplierId);
-
-    addWorkOrder({
-      vehicleId: woForm.vehicleId,
-      vehiclePlate: v?.plateNumber || 'Vehicle',
-      companyId: v?.companyId || 'comp-1',
-      reportedDate: woForm.reportedDate,
-      problemDescription: woForm.problemDescription,
-      requestedBy: 'usr-1',
-      requestedByName: woForm.requestedByName,
-      workshop: woForm.workshop,
-      supplierId: woForm.supplierId,
-      supplierName: sup?.name || woForm.workshop,
-      priority: woForm.priority,
-      status: 'Requested',
-      estimatedCost: Number(woForm.estimatedCost),
-      partsCharges: Number(woForm.estimatedCost) * 0.65,
-      labourCharges: Number(woForm.estimatedCost) * 0.3,
-      additionalCharges: 0,
-      tax: Number(woForm.estimatedCost) * 0.05,
-      finalCost: Number(woForm.estimatedCost),
-      partsRequired: woForm.partsRequired,
-      approvalStatus: 'Not Required',
-      notes: woForm.notes,
+    run('Work Order Not Saved', async () => {
+      if (!v) throw new Error('Select a vehicle.');
+      // Cost components are entered when the job is quoted/completed; approval is decided by the DB rules
+      const wo = await addWorkOrder({
+        vehicleId: v.id,
+        vehiclePlate: v.plateNumber,
+        companyId: v.companyId,
+        reportedDate: woForm.reportedDate,
+        problemDescription: woForm.problemDescription,
+        requestedBy: currentUser.id,
+        requestedByName: currentUser.name,
+        workshop: woForm.workshop,
+        supplierId: woForm.supplierId,
+        supplierName: sup?.name || woForm.workshop,
+        priority: woForm.priority,
+        status: 'Requested',
+        estimatedCost: Number(woForm.estimatedCost),
+        partsCharges: 0,
+        labourCharges: 0,
+        additionalCharges: 0,
+        tax: 0,
+        finalCost: 0,
+        partsRequired: woForm.partsRequired,
+        approvalStatus: 'Not Required',
+        notes: woForm.notes,
+      });
+      addToast({
+        type: 'success',
+        title: 'Work Order Created',
+        message: wo.approvalStatus === 'Pending'
+          ? `${wo.workOrderNumber} for ${v.plateNumber} is awaiting approval.`
+          : `${wo.workOrderNumber} dispatched for ${v.plateNumber}.`,
+      });
+      closeQuickModal();
     });
-
-    addToast({ type: 'success', title: 'Work Order Created', message: `Work order dispatched for ${v?.plateNumber}.` });
-    closeQuickModal();
   };
 
   const handleCreateOilChange = (e: React.FormEvent) => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === oilForm.vehicleId);
     const sup = suppliers.find(s => s.id === oilForm.supplierId);
-    const total = Number(oilForm.oilCost) + Number(oilForm.filterCost) + Number(oilForm.labourCost) + Number(oilForm.tax);
-
-    addOilChange({
-      vehicleId: oilForm.vehicleId,
-      date: oilForm.date,
-      odometer: Number(oilForm.odometer),
-      oilType: oilForm.oilType,
-      oilBrand: oilForm.oilBrand,
-      oilGrade: oilForm.oilGrade,
-      quantityLitres: Number(oilForm.quantityLitres),
-      oilCost: Number(oilForm.oilCost),
-      filterCost: Number(oilForm.filterCost),
-      labourCost: Number(oilForm.labourCost),
-      tax: Number(oilForm.tax),
-      totalCost: total,
-      supplierId: oilForm.supplierId,
-      supplierName: sup?.name,
-      nextOilChangeMileage: Number(oilForm.odometer) + (v?.oilConfig.intervalKm || 10000),
-      nextOilChangeDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      notes: oilForm.notes,
+    run('Oil Service Not Saved', async () => {
+      if (!v) throw new Error('Select a vehicle.');
+      const total = Number(oilForm.oilCost) + Number(oilForm.filterCost) + Number(oilForm.labourCost) + Number(oilForm.tax);
+      const next = new Date(oilForm.date + 'T00:00:00');
+      next.setMonth(next.getMonth() + (v.oilConfig?.intervalMonths || 6));
+      await addOilChange({
+        vehicleId: v.id,
+        date: oilForm.date,
+        odometer: Number(oilForm.odometer),
+        oilType: oilForm.oilType,
+        oilBrand: oilForm.oilBrand,
+        oilGrade: oilForm.oilGrade,
+        quantityLitres: Number(oilForm.quantityLitres),
+        oilCost: Number(oilForm.oilCost),
+        filterCost: Number(oilForm.filterCost),
+        labourCost: Number(oilForm.labourCost),
+        tax: Number(oilForm.tax),
+        totalCost: total,
+        supplierId: oilForm.supplierId,
+        supplierName: sup?.name,
+        nextOilChangeMileage: Number(oilForm.odometer) + (v.oilConfig?.intervalKm || 10000),
+        nextOilChangeDate: next.toISOString().slice(0, 10),
+        notes: oilForm.notes,
+      });
+      addToast({ type: 'success', title: 'Oil Service Saved', message: `Recorded oil service for ${v.plateNumber}.` });
+      closeQuickModal();
     });
-
-    addToast({ type: 'success', title: 'Oil Service Saved', message: `Updated oil change interval for ${v?.plateNumber}.` });
-    closeQuickModal();
   };
 
   const handleCreateExpense = (e: React.FormEvent) => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === expForm.vehicleId);
     const sup = suppliers.find(s => s.id === expForm.supplierId);
-    const total = Number(expForm.quantity) * Number(expForm.unitPrice) + Number(expForm.tax);
-
-    addExpense({
-      vehicleId: expForm.vehicleId,
-      vehiclePlate: v?.plateNumber || 'Vehicle',
-      companyId: v?.companyId || 'comp-1',
-      date: expForm.date,
-      category: expForm.category,
-      supplierId: expForm.supplierId,
-      supplierName: sup?.name,
-      description: expForm.description,
-      quantity: Number(expForm.quantity),
-      unitPrice: Number(expForm.unitPrice),
-      tax: Number(expForm.tax),
-      total,
-      paymentMethod: expForm.paymentMethod,
-      costCentre: expForm.costCentre,
-      attachmentUrl: expForm.attachment?.url,
-      attachmentName: expForm.attachment?.name,
-      attachmentSize: expForm.attachment?.size,
-      attachmentType: expForm.attachment?.type,
+    let uploadedPath: string | undefined;
+    run('Expense Not Saved', async () => {
+      const companyId = requireOffice(v?.companyId || expForm.companyId);
+      const total = Number(expForm.quantity) * Number(expForm.unitPrice) + Number(expForm.tax);
+      try {
+        const att = await uploadAttachment(expForm.attachment, companyId, 'expenses');
+        uploadedPath = att?.path;
+        await addExpense({
+          vehicleId: v?.id || '',
+          vehiclePlate: v?.plateNumber || '',
+          companyId,
+          date: expForm.date,
+          category: expForm.category,
+          supplierId: expForm.supplierId,
+          supplierName: sup?.name,
+          description: expForm.description,
+          quantity: Number(expForm.quantity),
+          unitPrice: Number(expForm.unitPrice),
+          tax: Number(expForm.tax),
+          total,
+          paymentMethod: expForm.paymentMethod,
+          costCentre: expForm.costCentre,
+          attachmentUrl: att?.ref,
+          attachmentName: att?.name,
+          attachmentSize: att?.size,
+          attachmentType: att?.type,
+        });
+      } catch (err) {
+        if (uploadedPath) removeFiles('documents', [uploadedPath]).catch(() => undefined);
+        throw err;
+      }
+      addToast({ type: 'success', title: 'Expense Added', message: `Logged ${expForm.category} expense of ${total.toFixed(3)} OMR${uploadedPath ? ' with receipt' : ''}.` });
+      closeQuickModal();
     });
-
-    addToast({ type: 'success', title: 'Expense Added', message: `Logged ${expForm.category} expense of ${total.toFixed(3)} OMR with attached receipt.` });
-    closeQuickModal();
   };
 
   const handleCreateAccident = (e: React.FormEvent) => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === accForm.vehicleId);
-    const sup = suppliers.find(s => s.id === mntForm.supplierId);
-
-    addAccident({
-      vehicleId: accForm.vehicleId,
-      vehiclePlate: v?.plateNumber || 'Vehicle',
-      companyId: accForm.companyId || 'comp-1',
-      accidentDate: accForm.accidentDate,
-      accidentTime: accForm.accidentTime,
-      location: accForm.location,
-      driverName: accForm.driverName,
-      accidentDescription: accForm.accidentDescription,
-      accidentType: accForm.accidentType,
-      damageDescription: accForm.damageDescription,
-      policeReportNumber: accForm.policeReportNumber,
-      insuranceClaimNumber: accForm.insuranceClaimNumber,
-      estimatedRepairCost: Number(accForm.estimatedRepairCost),
-      actualRepairCost: Number(accForm.actualRepairCost),
-      insuranceContribution: Number(accForm.insuranceContribution),
-      companyContribution: Number(accForm.companyContribution),
-      thirdPartyContribution: Number(accForm.thirdPartyContribution),
-      workshop: accForm.workshop,
-      vehicleDowntimeDays: Number(accForm.vehicleDowntimeDays),
-      status: accForm.status,
+    run('Accident Not Saved', async () => {
+      if (!v) throw new Error('Select a vehicle.');
+      const acc = await addAccident({
+        vehicleId: v.id,
+        vehiclePlate: v.plateNumber,
+        companyId: v.companyId,
+        accidentDate: accForm.accidentDate,
+        accidentTime: accForm.accidentTime,
+        location: accForm.location,
+        driverName: accForm.driverName,
+        accidentDescription: accForm.accidentDescription,
+        accidentType: accForm.accidentType,
+        damageDescription: accForm.damageDescription,
+        policeReportNumber: accForm.policeReportNumber,
+        insuranceClaimNumber: accForm.insuranceClaimNumber,
+        estimatedRepairCost: Number(accForm.estimatedRepairCost),
+        actualRepairCost: Number(accForm.actualRepairCost),
+        insuranceContribution: Number(accForm.insuranceContribution),
+        companyContribution: Number(accForm.companyContribution),
+        thirdPartyContribution: Number(accForm.thirdPartyContribution),
+        workshop: accForm.workshop,
+        vehicleDowntimeDays: Number(accForm.vehicleDowntimeDays),
+        status: accForm.status,
+      });
+      addToast({ type: 'warning', title: 'Accident Recorded', message: `${acc.accidentNumber} reported for ${v.plateNumber}.` });
+      closeQuickModal();
     });
-
-    addToast({ type: 'warning', title: 'Accident Recorded', message: `Reported accident case for ${v?.plateNumber}.` });
-    closeQuickModal();
   };
 
   const handleCreateInvoice = (e: React.FormEvent) => {
     e.preventDefault();
     const isPurchase = invoiceForm.invoiceType === 'Purchase';
     const party = isPurchase ? suppliers.find(s => s.id === invoiceForm.partyId) : customers.find(c => c.id === invoiceForm.partyId);
-    const comp = companies.find(c => c.id === invoiceForm.companyId);
     const v = vehicles.find(veh => veh.id === invoiceForm.vehicleId);
-
-    const subtotal = invoiceForm.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-    const discount = invoiceForm.items.reduce((s, it) => s + it.discountAmount, 0);
-    const tax = invoiceForm.items.reduce((s, it) => s + it.taxAmount, 0);
-    const grandTotal = subtotal - discount + tax;
-
-    addInvoice({
-      invoiceType: invoiceForm.invoiceType,
-      companyId: invoiceForm.companyId,
-      companyName: comp?.name || 'Company',
-      partyType: isPurchase ? 'Supplier' : 'Customer',
-      partyId: invoiceForm.partyId,
-      partyName: party?.name || 'Entity',
-      partyVatNumber: party?.vatNumber,
-      partyAddress: party?.address,
-      partyEmail: party?.email,
-      partyPhone: party?.phone,
-      invoiceDate: invoiceForm.invoiceDate,
-      dueDate: invoiceForm.dueDate,
-      referenceNumber: invoiceForm.referenceNumber,
-      purchaseOrderNumber: invoiceForm.purchaseOrderNumber,
-      vehicleId: invoiceForm.vehicleId,
-      vehiclePlate: v?.plateNumber,
-      currency: invoiceForm.currency,
-      exchangeRate: 1.0,
-      items: invoiceForm.items,
-      subtotal,
-      discountTotal: discount,
-      taxTotal: tax,
-      otherCharges: 0,
-      grandTotal,
-      paymentStatus: 'Unpaid',
-      approvalStatus: 'Approved',
-      paymentTermsDays: 30,
-      attachmentUrl: invoiceForm.attachment?.url,
-      attachmentName: invoiceForm.attachment?.name,
-      attachmentSize: invoiceForm.attachment?.size,
-      attachmentType: invoiceForm.attachment?.type,
+    let uploadedPath: string | undefined;
+    run('Invoice Not Saved', async () => {
+      const companyId = requireOffice(invoiceForm.companyId);
+      if (!party) throw new Error(`Select a ${isPurchase ? 'supplier' : 'customer'}.`);
+      if (invoiceForm.items.some(it => !it.description.trim() || Number(it.quantity) <= 0)) {
+        throw new Error('Every line needs a description and a quantity above zero.');
+      }
+      let created;
+      try {
+        const att = await uploadAttachment(invoiceForm.attachment, companyId, 'invoices');
+        uploadedPath = att?.path;
+        // Totals, number and party snapshot are computed by create_invoice; a non-Draft status submits it:
+        // posted at once when within the user's approval limit, otherwise an approval request is raised.
+        created = await addInvoice({
+          invoiceType: invoiceForm.invoiceType,
+          companyId,
+          companyName: '',
+          partyType: isPurchase ? 'Supplier' : 'Customer',
+          partyId: party.id,
+          partyName: party.name,
+          invoiceDate: invoiceForm.invoiceDate,
+          dueDate: invoiceForm.dueDate,
+          referenceNumber: invoiceForm.referenceNumber,
+          purchaseOrderNumber: invoiceForm.purchaseOrderNumber,
+          vehicleId: v?.id,
+          vehiclePlate: v?.plateNumber,
+          currency: invoiceForm.currency,
+          exchangeRate: 1.0,
+          items: invoiceForm.items,
+          subtotal: 0,
+          discountTotal: 0,
+          taxTotal: 0,
+          otherCharges: 0,
+          grandTotal: 0,
+          paymentStatus: 'Unpaid',
+          approvalStatus: 'Pending Approval',
+          paymentTermsDays: party.paymentTermsDays ?? 30,
+          attachmentUrl: att?.ref,
+          attachmentName: att?.name,
+          attachmentSize: att?.size,
+          attachmentType: att?.type,
+        });
+      } catch (err) {
+        if (uploadedPath) removeFiles('documents', [uploadedPath]).catch(() => undefined);
+        throw err;
+      }
+      addToast({
+        type: 'success',
+        title: created.approvalStatus === 'Approved' ? 'Invoice Posted' : 'Invoice Submitted',
+        message: created.approvalStatus === 'Approved'
+          ? `${created.invoiceNumber} posted to the ledger for ${created.grandTotal.toFixed(3)} ${created.currency}.`
+          : `${created.invoiceNumber} (${created.grandTotal.toFixed(3)} ${created.currency}) is awaiting approval.`,
+      });
+      closeQuickModal();
     });
-
-    addToast({ type: 'success', title: 'Invoice Generated', message: `Created ${invoiceForm.invoiceType} invoice for ${grandTotal.toFixed(3)} OMR.` });
-    closeQuickModal();
   };
+
+  // Only posted, unpaid invoices can receive a payment (record_payment enforces the same)
+  const payableInvoices = invoices.filter(i =>
+    i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0.0005);
+  const paymentInvoice = payableInvoices.find(i => i.id === paymentForm.invoiceId);
+  const paymentBanks = bankAccounts.filter(b => b.active !== false && (!paymentInvoice || b.companyId === paymentInvoice.companyId));
 
   const handleCreatePayment = (e: React.FormEvent) => {
     e.preventDefault();
-    // find invoice
-    const inv = invoices.find(i => i.id === paymentForm.invoiceId) || invoices[0];
-    if (!inv) {
-      addToast({ type: 'error', title: 'Select an invoice first' });
-      return;
-    }
-    const ba = bankAccounts.find(b => b.id === paymentForm.bankAccountId);
-
-    try {
-    addPayment({
-      companyId: inv.companyId,
-      invoiceId: inv.id,
-      invoiceNumber: inv.invoiceNumber,
-      invoiceType: inv.invoiceType,
-      partyType: inv.partyType,
-      partyId: inv.partyId,
-      partyName: inv.partyName,
-      paymentDate: paymentForm.paymentDate,
-      amount: Number(paymentForm.amount),
-      currency: paymentForm.currency,
-      paymentMethod: paymentForm.paymentMethod,
-      bankAccountId: paymentForm.bankAccountId,
-      bankAccountName: ba?.accountName || 'Bank Account',
-      transactionReference: paymentForm.transactionReference || `TXN-${Date.now().toString().slice(-4)}`,
-      notes: paymentForm.notes,
+    run('Payment Rejected', async () => {
+      const inv = paymentInvoice;
+      if (!inv) throw new Error('Select a posted invoice with an outstanding balance.');
+      const ba = paymentBanks.find(b => b.id === paymentForm.bankAccountId);
+      if (!ba) throw new Error('Select a bank account of the invoice office.');
+      const pay = await addPayment({
+        companyId: inv.companyId,
+        invoiceId: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        invoiceType: inv.invoiceType,
+        partyType: inv.partyType,
+        partyId: inv.partyId,
+        partyName: inv.partyName,
+        paymentDate: paymentForm.paymentDate,
+        amount: Number(paymentForm.amount),
+        currency: inv.currency,
+        paymentMethod: paymentForm.paymentMethod,
+        bankAccountId: ba.id,
+        bankAccountName: ba.accountName,
+        transactionReference: paymentForm.transactionReference,
+        notes: paymentForm.notes,
+      });
+      addToast({ type: 'success', title: 'Payment Processed', message: `${pay.paymentNumber}: ${pay.amount.toFixed(3)} ${pay.currency} against ${inv.invoiceNumber}.` });
+      closeQuickModal();
     });
-    } catch (err) {
-      addToast({ type: 'error', title: 'Payment Rejected', message: (err as Error).message });
-      return;
-    }
-
-    addToast({ type: 'success', title: 'Payment Processed', message: `Recorded payment of ${Number(paymentForm.amount).toFixed(3)} OMR.` });
-    closeQuickModal();
   };
 
   const handleCreateSupplier = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplierForm.name) {
+    if (!supplierForm.name.trim()) {
       addToast({ type: 'error', title: 'Validation Error', message: 'Supplier name is required.' });
       return;
     }
-    addSupplier({
-      name: supplierForm.name,
-      supplierType: supplierForm.supplierType,
-      contactPerson: supplierForm.contactPerson || 'Procurement',
-      phone: supplierForm.phone || '+968 2400 0000',
-      email: supplierForm.email || 'info@supplier.om',
-      address: supplierForm.address || 'Muscat, Oman',
-      city: supplierForm.city || 'Muscat',
-      country: supplierForm.country || 'Oman',
-      vatNumber: supplierForm.vatNumber || 'OM1100223344',
-      taxNumber: supplierForm.taxNumber || 'OM-TAX-9988',
-      paymentTermsDays: Number(supplierForm.paymentTermsDays) || 30,
-      creditLimit: Number(supplierForm.creditLimit) || 10000,
-      openingBalance: Number(supplierForm.openingBalance) || 0,
-      status: supplierForm.status,
-      bankDetails: {
-        bankName: 'Bank Muscat',
-        accountNumber: '0421000000000',
-        iban: 'OM68BMSC00000000000000',
-        swiftCode: 'BMSCOM2X',
-      },
-      notes: 'Registered via Quick Actions',
+    run('Supplier Not Saved', async () => {
+      const s = await addSupplier({
+        name: supplierForm.name.trim(),
+        supplierType: supplierForm.supplierType,
+        contactPerson: supplierForm.contactPerson,
+        phone: supplierForm.phone,
+        email: supplierForm.email,
+        address: supplierForm.address,
+        city: supplierForm.city,
+        country: supplierForm.country,
+        vatNumber: supplierForm.vatNumber,
+        taxNumber: supplierForm.taxNumber,
+        paymentTermsDays: Number(supplierForm.paymentTermsDays) || 0,
+        creditLimit: Number(supplierForm.creditLimit) || 0,
+        openingBalance: Number(supplierForm.openingBalance) || 0,
+        status: supplierForm.status,
+        bankDetails: { bankName: '', accountNumber: '', iban: '', swiftCode: '' },
+        notes: '',
+      });
+      addToast({ type: 'success', title: 'Supplier Created', message: `Registered ${s.supplierId} ${s.name}.` });
+      closeQuickModal();
     });
-    addToast({ type: 'success', title: 'Supplier Created', message: `Registered supplier ${supplierForm.name}.` });
-    closeQuickModal();
   };
 
   const handleCreateCustomer = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerForm.name) {
+    if (!customerForm.name.trim()) {
       addToast({ type: 'error', title: 'Validation Error', message: 'Customer name is required.' });
       return;
     }
-    addCustomer({
-      name: customerForm.name,
-      customerType: customerForm.customerType,
-      contactPerson: customerForm.contactPerson || 'Accounts Payable',
-      phone: customerForm.phone || '+968 2400 1111',
-      email: customerForm.email || 'billing@client.om',
-      address: customerForm.address || 'Muscat, Oman',
-      city: customerForm.city || 'Muscat',
-      country: customerForm.country || 'Oman',
-      vatNumber: customerForm.vatNumber || 'OM2200334455',
-      taxNumber: customerForm.taxNumber || 'OM-TAX-5544',
-      paymentTermsDays: Number(customerForm.paymentTermsDays) || 45,
-      creditLimit: Number(customerForm.creditLimit) || 50000,
-      openingBalance: Number(customerForm.openingBalance) || 0,
-      status: customerForm.status,
+    run('Customer Not Saved', async () => {
+      const c = await addCustomer({
+        name: customerForm.name.trim(),
+        customerType: customerForm.customerType,
+        contactPerson: customerForm.contactPerson,
+        phone: customerForm.phone,
+        email: customerForm.email,
+        address: customerForm.address,
+        city: customerForm.city,
+        country: customerForm.country,
+        vatNumber: customerForm.vatNumber,
+        taxNumber: customerForm.taxNumber,
+        paymentTermsDays: Number(customerForm.paymentTermsDays) || 0,
+        creditLimit: Number(customerForm.creditLimit) || 0,
+        openingBalance: Number(customerForm.openingBalance) || 0,
+        status: customerForm.status,
+      });
+      addToast({ type: 'success', title: 'Customer Created', message: `Registered ${c.customerId} ${c.name}.` });
+      closeQuickModal();
     });
-    addToast({ type: 'success', title: 'Customer Created', message: `Registered customer ${customerForm.name}.` });
-    closeQuickModal();
   };
 
   const handleCreateTyre = (e: React.FormEvent) => {
     e.preventDefault();
-    const v = vehicles.find(veh => veh.id === tyreForm.vehicleId) || vehicles[0];
+    const v = vehicles.find(veh => veh.id === tyreForm.vehicleId);
     const sup = suppliers.find(s => s.id === tyreForm.supplierId);
-    addTyre({
-      vehicleId: v?.id || '',
-      brand: tyreForm.brand || 'Bridgestone',
-      model: tyreForm.model || 'R22.5 Heavy Haulage',
-      size: tyreForm.size || '295/80R22.5',
-      serialNumber: tyreForm.serialNumber || `TYR-${Date.now().toString().slice(-6)}`,
-      position: tyreForm.position as any,
-      purchaseDate: tyreForm.purchaseDate,
-      purchaseCost: Number(tyreForm.purchaseCost) || 150,
-      installationDate: tyreForm.purchaseDate,
-      installationMileage: v?.currentMileage || 0,
-      expectedLifeKm: 60000,
-      currentMileage: 0,
-      treadDepthMm: Number(tyreForm.treadDepthMm) || 16.0,
-      supplierId: tyreForm.supplierId,
-      supplierName: sup?.name,
-      status: 'Good',
-      notes: tyreForm.notes,
+    run('Tyre Not Saved', async () => {
+      if (!v) throw new Error('Select a vehicle.');
+      if (!tyreForm.brand.trim()) throw new Error('Tyre brand is required.');
+      await addTyre({
+        vehicleId: v.id,
+        brand: tyreForm.brand,
+        model: tyreForm.model,
+        size: tyreForm.size,
+        serialNumber: tyreForm.serialNumber,
+        position: tyreForm.position as any,
+        purchaseDate: tyreForm.purchaseDate,
+        purchaseCost: Number(tyreForm.purchaseCost) || 0,
+        installationDate: tyreForm.purchaseDate,
+        installationMileage: v.currentMileage || 0,
+        expectedLifeKm: 60000,
+        currentMileage: 0,
+        treadDepthMm: Number(tyreForm.treadDepthMm) || 0,
+        supplierId: tyreForm.supplierId,
+        supplierName: sup?.name,
+        status: 'Good',
+        notes: tyreForm.notes,
+      });
+      addToast({ type: 'success', title: 'Tyre Logged', message: `Added ${tyreForm.brand} tyre to vehicle ${v.plateNumber}.` });
+      closeQuickModal();
     });
-    addToast({ type: 'success', title: 'Tyre Logged', message: `Added ${tyreForm.brand} tyre to vehicle ${v?.plateNumber || ''}.` });
-    closeQuickModal();
   };
 
   const handleCreateFixedAsset = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!assetForm.name || !assetForm.purchaseCost) {
+    if (!assetForm.name || !Number(assetForm.purchaseCost)) {
       addToast({ type: 'error', title: 'Validation Error', message: 'Asset name and purchase cost are required.' });
       return;
     }
-    const cost = Number(assetForm.purchaseCost);
-    const salvage = Number(assetForm.salvageValue) || 0;
-    const lifeYears = Number(assetForm.usefulLifeYears) || 5;
-    const annualRate = Number(assetForm.annualRatePercentage) || (lifeYears > 0 ? 100 / lifeYears : 20);
-    const assignedVeh = vehicles.find(v => v.id === assetForm.assignedVehicleId);
-
-    const isVehicle = assetForm.category === 'Fleet Vehicle';
-    const isEquipment = assetForm.category === 'Workshop Equipment';
-
-    addFixedAsset({
-      name: assetForm.name,
-      category: assetForm.category,
-      companyId: assetForm.companyId || 'comp-1',
-      location: assetForm.location || 'Muscat HQ',
-      department: isVehicle ? 'Fleet Operations' : isEquipment ? 'Workshop' : 'Administration',
-      purchaseDate: assetForm.purchaseDate,
-      purchaseCost: cost,
-      salvageValue: salvage,
-      usefulLifeYears: lifeYears,
-      annualRatePercentage: annualRate,
-      depreciationMethod: assetForm.depreciationMethod,
-      accumulatedDepreciation: 0,
-      currentBookValue: cost,
-      glAssetAccount: isVehicle ? '1500' : isEquipment ? '1530' : '1550',
-      glDepreciationExpenseAccount: '5080',
-      glAccumulatedDepreciationAccount: '1520',
-      status: 'Active',
-      vehicleId: assetForm.assignedVehicleId || undefined,
-      serialNumber: assetForm.serialNumber || undefined,
-      serialOrPlateNumber: assignedVeh?.plateNumber || assetForm.serialNumber || undefined,
-      notes: assetForm.notes,
+    run('Asset Not Saved', async () => {
+      const companyId = requireOffice(assetForm.companyId);
+      const cost = Number(assetForm.purchaseCost);
+      const salvage = Number(assetForm.salvageValue) || 0;
+      const lifeYears = Number(assetForm.usefulLifeYears);
+      if (!(lifeYears > 0)) throw new Error('Useful life must be above zero.');
+      const annualRate = Number(assetForm.annualRatePercentage) || 100 / lifeYears;
+      const assignedVeh = vehicles.find(v => v.id === assetForm.assignedVehicleId);
+      const isVehicle = assetForm.category === 'Fleet Vehicle';
+      const isEquipment = assetForm.category === 'Workshop Equipment';
+      // GL codes from the per-company chart of accounts template (1510 vehicles, 1530 equipment & other)
+      const asset = await addFixedAsset({
+        name: assetForm.name,
+        category: assetForm.category,
+        companyId,
+        location: assetForm.location,
+        department: isVehicle ? 'Fleet Operations' : isEquipment ? 'Workshop' : 'Administration',
+        purchaseDate: assetForm.purchaseDate,
+        purchaseCost: cost,
+        salvageValue: salvage,
+        usefulLifeYears: lifeYears,
+        annualRatePercentage: annualRate,
+        depreciationMethod: assetForm.depreciationMethod,
+        accumulatedDepreciation: 0,
+        currentBookValue: cost,
+        glAssetAccount: isVehicle ? '1510' : '1530',
+        glDepreciationExpenseAccount: '5080',
+        glAccumulatedDepreciationAccount: '1520',
+        status: 'Active',
+        vehicleId: assetForm.assignedVehicleId || undefined,
+        serialNumber: assetForm.serialNumber || undefined,
+        serialOrPlateNumber: assignedVeh?.plateNumber || assetForm.serialNumber || undefined,
+        notes: assetForm.notes,
+      });
+      addToast({ type: 'success', title: 'Fixed Asset Registered', message: `Added ${asset.assetCode} ${asset.name} (${cost.toFixed(3)} OMR).` });
+      closeQuickModal();
     });
-    addToast({ type: 'success', title: 'Fixed Asset Registered', message: `Added ${assetForm.name} (${cost.toFixed(3)} OMR) to registry.` });
-    closeQuickModal();
-  };
-
-  const handleUploadDocument = (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = vehicles.find(veh => veh.id === docForm.vehicleId);
-
-    addDocument({
-      documentName: docForm.documentName || 'Document_Attachment.pdf',
-      documentNumber: docForm.documentNumber,
-      category: docForm.category,
-      vehicleId: docForm.vehicleId,
-      vehiclePlate: v?.plateNumber,
-      companyId: docForm.companyId,
-      issueDate: docForm.issueDate,
-      expiryDate: docForm.expiryDate,
-      notes: docForm.notes,
-      documentUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&auto=format&fit=crop&q=80',
-    });
-
-    addToast({ type: 'success', title: 'Document Uploaded', message: `Saved document ${docForm.documentName} to registry.` });
-    closeQuickModal();
   };
 
   const handleCreateEmployee = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!empForm.name || !empForm.basicSalary) {
+    if (!empForm.name || !Number(empForm.basicSalary)) {
       addToast({ type: 'error', title: 'Validation Error', message: 'Employee name and basic salary are required.' });
       return;
     }
-
-    addEmployee({
-      companyId: 'comp-1',
-      name: empForm.name,
-      nationalId: empForm.nationalId || `NID-${Date.now().toString().slice(-6)}`,
-      passportNumber: empForm.passportNumber,
-      designation: empForm.designation,
-      department: empForm.department,
-      joiningDate: empForm.joiningDate,
-      basicSalary: Number(empForm.basicSalary),
-      housingAllowance: Number(empForm.housingAllowance),
-      transportAllowance: Number(empForm.transportAllowance),
-      otherAllowances: Number(empForm.otherAllowances),
-      totalGrossSalary: Number(empForm.basicSalary) + Number(empForm.housingAllowance) + Number(empForm.transportAllowance) + Number(empForm.otherAllowances),
-      pasiContributionPercentage: Number(empForm.pasiContributionPercentage),
-      paymentMethod: empForm.paymentMethod,
-      bankName: empForm.bankName,
-      accountNumber: empForm.accountNumber,
-      iban: empForm.iban,
-      assignedVehiclePlate: empForm.assignedVehiclePlate,
-      status: empForm.status,
+    run('Employee Not Saved', async () => {
+      const companyId = requireOffice(empForm.companyId);
+      const emp = await addEmployee({
+        companyId,
+        name: empForm.name,
+        nationalId: empForm.nationalId,
+        passportNumber: empForm.passportNumber,
+        designation: empForm.designation,
+        department: empForm.department,
+        joiningDate: empForm.joiningDate,
+        basicSalary: Number(empForm.basicSalary),
+        housingAllowance: Number(empForm.housingAllowance),
+        transportAllowance: Number(empForm.transportAllowance),
+        otherAllowances: Number(empForm.otherAllowances),
+        totalGrossSalary: 0, // generated by the database
+        pasiContributionPercentage: Number(empForm.pasiContributionPercentage),
+        employerPasiPercentage: Number(empForm.employerPasiPercentage),
+        paymentMethod: empForm.paymentMethod,
+        bankName: empForm.bankName,
+        accountNumber: empForm.accountNumber,
+        iban: empForm.iban,
+        assignedVehicleId: empForm.assignedVehicleId || undefined,
+        status: empForm.status,
+      });
+      addToast({ type: 'success', title: 'Employee Enrolled', message: `Added ${emp.employeeCode} ${emp.name}.` });
+      closeQuickModal();
     });
-
-    addToast({ type: 'success', title: 'Employee Enrolled', message: `Added ${empForm.name} to HR employee directory.` });
-    closeQuickModal();
   };
+
+  const payrollStaff = employees.filter(e => e.companyId === payrollForm.companyId && (e.status === 'Active' || e.status === 'Probation'));
+  const payrollBanks = bankAccounts.filter(b => b.active !== false && b.companyId === payrollForm.companyId);
 
   const handleRunPayroll = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-    const run = processPayrollRun({
-      month: Number(payrollForm.month),
-      year: Number(payrollForm.year),
-      paymentDate: payrollForm.paymentDate,
-      bankAccountId: payrollForm.bankAccountId,
-      autoPostGL: payrollForm.autoPostGL,
+    run('Payroll Not Processed', async () => {
+      const companyId = requireOffice(payrollForm.companyId);
+      const prun = await processPayrollRun({
+        companyId,
+        month: Number(payrollForm.month),
+        year: Number(payrollForm.year),
+        paymentDate: payrollForm.paymentDate,
+        bankAccountId: payrollForm.bankAccountId || undefined,
+        autoPostGL: payrollForm.autoPostGL,
+      });
+      addToast({
+        type: 'success',
+        title: payrollForm.bankAccountId ? 'Payroll Paid' : 'Payroll Accrued',
+        message: `Processed payroll ${prun.periodLabel}: net ${prun.totalNetPayout.toFixed(3)} OMR.`,
+      });
+      closeQuickModal();
     });
-
-    addToast({
-      type: 'success',
-      title: 'Payroll Disbursed',
-      message: `Processed WPS payroll ${run.periodLabel} with net payout of ${run.totalNetPayout.toFixed(3)} OMR.`,
-    });
-    } catch (err) {
-      addToast({ type: 'error', title: 'Payroll Not Processed', message: (err as Error).message });
-      return;
-    }
-    closeQuickModal();
   };
 
   const handleRunDepreciation = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-    const run = runAutoDepreciation({
-      periodLabel: deprForm.periodLabel,
-      runDate: deprForm.runDate,
-      notes: deprForm.notes,
-      autoPostGL: deprForm.autoPostGL,
+    run('Depreciation Not Run', async () => {
+      const companyId = requireOffice(deprForm.companyId);
+      const drun = await runAutoDepreciation({
+        companyId,
+        period: deprForm.period,
+        runDate: deprForm.runDate,
+        notes: deprForm.notes,
+        autoPostGL: deprForm.autoPostGL,
+      });
+      addToast({
+        type: 'success',
+        title: 'Depreciation Complete',
+        message: `Depreciated ${drun.totalAssetsProcessed} assets for ${drun.totalDepreciationAmount.toFixed(3)} OMR${deprForm.autoPostGL ? ', posted to the GL' : ''}.`,
+      });
+      closeQuickModal();
     });
-
-    addToast({
-      type: 'success',
-      title: 'Auto-Depreciation Complete',
-      message: `Depreciated ${run.totalAssetsProcessed} assets for ${run.totalDepreciationAmount.toFixed(3)} OMR. Posted to GL.`,
-    });
-    } catch (err) {
-      addToast({ type: 'error', title: 'Depreciation Not Run', message: (err as Error).message });
-      return;
-    }
-    closeQuickModal();
   };
 
   return (
@@ -912,9 +991,9 @@ export const QuickActionModals: React.FC = () => {
       >
         <form onSubmit={handleCreateVehicle} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input label="Vehicle ID" value={vehicleForm.vehicleId} onChange={e => setVehicleForm({ ...vehicleForm, vehicleId: e.target.value })} required />
             <Input label="Plate Number" placeholder="e.g. 1234 ABC" value={vehicleForm.plateNumber} onChange={e => setVehicleForm({ ...vehicleForm, plateNumber: e.target.value })} required />
-            <Select label="Assigned Office / Branch" value={vehicleForm.companyId} onChange={e => setVehicleForm({ ...vehicleForm, companyId: e.target.value })}>
+            <Select label="Assigned Office / Branch" value={vehicleForm.companyId} onChange={e => setVehicleForm({ ...vehicleForm, companyId: e.target.value })} required>
+              <option value="">Select office</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>
@@ -965,9 +1044,22 @@ export const QuickActionModals: React.FC = () => {
             <Input label="Location" value={vehicleForm.location} onChange={e => setVehicleForm({ ...vehicleForm, location: e.target.value })} />
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs sm:text-sm font-semibold text-slate-100">Vehicle photo (optional)</label>
+            <input
+              type="file"
+              accept={BUCKETS.media.mimeTypes.join(',')}
+              onChange={e => pickVehiclePhoto(e.target.files?.[0] ?? null)}
+              className="text-xs text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-slate-850 file:px-3 file:py-1.5 file:text-xs file:font-semibold"
+            />
+            {vehiclePhotoError
+              ? <p className="text-xs font-semibold text-rose-600">{vehiclePhotoError}</p>
+              : <p className="text-xs text-slate-400">{BUCKETS.media.label} up to 5 MB.</p>}
+          </div>
+
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Car className="w-4 h-4" />}>Save Vehicle</Button>
+            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <Button variant="primary" type="submit" leftIcon={<Car className="w-4 h-4" />} isLoading={busy} disabled={busy}>Save Vehicle</Button>
           </div>
         </form>
       </Modal>
@@ -1023,7 +1115,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Wrench className="w-4 h-4" />}>Save Maintenance Record</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Wrench className="w-4 h-4" />}>Save Maintenance Record</Button>
           </div>
         </form>
       </Modal>
@@ -1053,17 +1145,18 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select label="Assigned Supplier / Workshop" value={woForm.supplierId} onChange={e => setWoForm({ ...woForm, supplierId: e.target.value })}>
+              <option value="">Not assigned</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
             <Input label="Estimated Cost (OMR)" type="number" step="0.001" value={woForm.estimatedCost} onChange={e => setWoForm({ ...woForm, estimatedCost: Number(e.target.value) })} required />
-            <Input label="Requested By" value={woForm.requestedByName} onChange={e => setWoForm({ ...woForm, requestedByName: e.target.value })} />
+            <Input label="Requested By" value={currentUser.name} readOnly />
           </div>
 
           <Input label="Parts Required" placeholder="e.g. Front Brake Pads, Brake Fluid DOT 4" value={woForm.partsRequired} onChange={e => setWoForm({ ...woForm, partsRequired: e.target.value })} />
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Wrench className="w-4 h-4" />}>Dispatch Work Order</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Wrench className="w-4 h-4" />}>Dispatch Work Order</Button>
           </div>
         </form>
       </Modal>
@@ -1100,7 +1193,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Droplet className="w-4 h-4" />}>Save Oil Service</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Droplet className="w-4 h-4" />}>Save Oil Service</Button>
           </div>
         </form>
       </Modal>
@@ -1147,19 +1240,11 @@ export const QuickActionModals: React.FC = () => {
             description="Upload scanned fuel bill, payment receipt or invoice voucher"
             value={expForm.attachment}
             onChange={file => setExpForm({ ...expForm, attachment: file })}
-            onOcrExtract={data => {
-              if (data.amount) {
-                setExpForm(prev => ({ ...prev, unitPrice: data.amount!, tax: data.tax || prev.tax }));
-              }
-              if (data.description) {
-                setExpForm(prev => ({ ...prev, description: data.description! }));
-              }
-            }}
           />
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<DollarSign className="w-4 h-4" />}>Save Expense</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<DollarSign className="w-4 h-4" />}>Save Expense</Button>
           </div>
         </form>
       </Modal>
@@ -1204,7 +1289,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="danger" type="submit" leftIcon={<AlertTriangle className="w-4 h-4" />}>Submit Accident Report</Button>
+            <Button variant="danger" type="submit" isLoading={busy} disabled={busy} leftIcon={<AlertTriangle className="w-4 h-4" />}>Submit Accident Report</Button>
           </div>
         </form>
       </Modal>
@@ -1214,22 +1299,24 @@ export const QuickActionModals: React.FC = () => {
         isOpen={quickModal === 'add-invoice'}
         onClose={closeQuickModal}
         title="Create Invoice / Purchase Bill"
-        description="Generate Purchase (Supplier) or Sales (Customer) invoice with document upload and OCR"
+        description="Purchase (supplier) or sales (customer) invoice. Posted to the ledger on save when within your approval limit, otherwise sent for approval."
         size="xl"
       >
         <form onSubmit={handleCreateInvoice} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Select label="Invoice Type" value={invoiceForm.invoiceType} onChange={e => setInvoiceForm({ ...invoiceForm, invoiceType: e.target.value as any })}>
+            <Select label="Invoice Type" value={invoiceForm.invoiceType} onChange={e => setInvoiceForm({ ...invoiceForm, invoiceType: e.target.value as any, partyId: '' })}>
               <option value="Purchase">Purchase Bill (Supplier)</option>
               <option value="Sales">Sales Invoice (Customer)</option>
             </Select>
-            <Select label="Assigned Office / Branch" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value })}>
+            <Select label="Assigned Office / Branch" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value })} required>
+              <option value="">Select office</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Select label={invoiceForm.invoiceType === 'Purchase' ? 'Supplier' : 'Customer'} value={invoiceForm.partyId} onChange={e => setInvoiceForm({ ...invoiceForm, partyId: e.target.value })}>
+            <Select label={invoiceForm.invoiceType === 'Purchase' ? 'Supplier' : 'Customer'} value={invoiceForm.partyId} onChange={e => setInvoiceForm({ ...invoiceForm, partyId: e.target.value })} required>
+              <option value="">Select {invoiceForm.invoiceType === 'Purchase' ? 'supplier' : 'customer'}</option>
               {invoiceForm.invoiceType === 'Purchase'
-                ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
-                : customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                ? suppliers.filter(s => s.status === 'Active').map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                : customers.filter(c => c.status === 'Active').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
             <Select label="Vehicle (Optional)" value={invoiceForm.vehicleId} onChange={e => setInvoiceForm({ ...invoiceForm, vehicleId: e.target.value })}>
               <option value="">-- General Fleet --</option>
@@ -1249,18 +1336,6 @@ export const QuickActionModals: React.FC = () => {
             description="Drag & drop or select sample invoice to auto-extract reference, items, and tax totals"
             value={invoiceForm.attachment}
             onChange={file => setInvoiceForm({ ...invoiceForm, attachment: file })}
-            onOcrExtract={extracted => {
-              const invoiceNumber = extracted.invoiceNumber;
-              if (invoiceNumber) setInvoiceForm(prev => ({ ...prev, referenceNumber: invoiceNumber }));
-              if (extracted.amount) {
-                const items = [...invoiceForm.items];
-                items[0].unitPrice = extracted.amount;
-                if (extracted.description) items[0].description = extracted.description;
-                items[0].taxAmount = extracted.tax || extracted.amount * 0.05;
-                items[0].lineTotal = extracted.amount * items[0].quantity + items[0].taxAmount;
-                setInvoiceForm(prev => ({ ...prev, items }));
-              }
-            }}
           />
 
           {/* Line Item */}
@@ -1315,7 +1390,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<FileText className="w-4 h-4" />}>Save Invoice</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<FileText className="w-4 h-4" />}>Save Invoice</Button>
           </div>
         </form>
       </Modal>
@@ -1328,34 +1403,7 @@ export const QuickActionModals: React.FC = () => {
         description="Store Mulkiya registration, insurance policies, inspection certificates, or warranties"
         size="md"
       >
-        <form onSubmit={handleUploadDocument} className="space-y-4">
-          <Input label="Document Title" placeholder="e.g. Mulkiya_Registration_2026.pdf" value={docForm.documentName} onChange={e => setDocForm({ ...docForm, documentName: e.target.value })} required />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select label="Category" value={docForm.category} onChange={e => setDocForm({ ...docForm, category: e.target.value as any })}>
-              <option value="Registration">Registration (Mulkiya)</option>
-              <option value="Insurance">Insurance Policy</option>
-              <option value="Warranty">Warranty Certificate</option>
-              <option value="Inspection Report">Inspection Report</option>
-              <option value="Purchase Invoice">Purchase Agreement</option>
-              <option value="Accident Report">Police Accident Report</option>
-              <option value="Other">Other Document</option>
-            </Select>
-            <Select label="Vehicle" value={docForm.vehicleId} onChange={e => setDocForm({ ...docForm, vehicleId: e.target.value })}>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Issue Date" type="date" value={docForm.issueDate} onChange={e => setDocForm({ ...docForm, issueDate: e.target.value })} />
-            <Input label="Expiry Date" type="date" value={docForm.expiryDate} onChange={e => setDocForm({ ...docForm, expiryDate: e.target.value })} />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Upload className="w-4 h-4" />}>Save to Repository</Button>
-          </div>
-        </form>
+        <UploadDocumentForm defaultVehicleId={defaultVehicle?.id} onDone={closeQuickModal} />
       </Modal>
 
       {/* 9. ADD EMPLOYEE MODAL */}
@@ -1367,7 +1415,11 @@ export const QuickActionModals: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleCreateEmployee} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Select label="Office" value={empForm.companyId} onChange={e => setEmpForm({ ...empForm, companyId: e.target.value, assignedVehicleId: '' })} required>
+              <option value="">Select office</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
             <Input label="Full Name" placeholder="e.g. Salim Al-Harthy" value={empForm.name} onChange={e => setEmpForm({ ...empForm, name: e.target.value })} required />
             <Input label="National ID / Civil ID" placeholder="e.g. 10928374" value={empForm.nationalId} onChange={e => setEmpForm({ ...empForm, nationalId: e.target.value })} />
             <Input label="Passport / Resident Card" value={empForm.passportNumber} onChange={e => setEmpForm({ ...empForm, passportNumber: e.target.value })} />
@@ -1393,24 +1445,28 @@ export const QuickActionModals: React.FC = () => {
                 Gross: {(Number(empForm.basicSalary) + Number(empForm.housingAllowance) + Number(empForm.transportAllowance) + Number(empForm.otherAllowances)).toFixed(3)} OMR
               </span>
             </h4>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <Input label="Basic Salary" type="number" step="0.001" value={empForm.basicSalary} onChange={e => setEmpForm({ ...empForm, basicSalary: Number(e.target.value) })} required />
               <Input label="Housing" type="number" step="0.001" value={empForm.housingAllowance} onChange={e => setEmpForm({ ...empForm, housingAllowance: Number(e.target.value) })} />
               <Input label="Transport" type="number" step="0.001" value={empForm.transportAllowance} onChange={e => setEmpForm({ ...empForm, transportAllowance: Number(e.target.value) })} />
               <Input label="Other Allowances" type="number" step="0.001" value={empForm.otherAllowances} onChange={e => setEmpForm({ ...empForm, otherAllowances: Number(e.target.value) })} />
-              <Input label="PASI % (Omani 7%)" type="number" step="0.1" value={empForm.pasiContributionPercentage} onChange={e => setEmpForm({ ...empForm, pasiContributionPercentage: Number(e.target.value) })} />
+              <Input label="Employee PASI %" type="number" step="0.1" value={empForm.pasiContributionPercentage} onChange={e => setEmpForm({ ...empForm, pasiContributionPercentage: Number(e.target.value) })} />
+              <Input label="Employer PASI %" type="number" step="0.1" value={empForm.employerPasiPercentage} onChange={e => setEmpForm({ ...empForm, employerPasiPercentage: Number(e.target.value) })} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Bank Name" value={empForm.bankName} onChange={e => setEmpForm({ ...empForm, bankName: e.target.value })} />
             <Input label="IBAN / Account Number" value={empForm.iban} onChange={e => setEmpForm({ ...empForm, iban: e.target.value })} />
-            <Input label="Assigned Vehicle Plate" placeholder="e.g. 88123-A" value={empForm.assignedVehiclePlate} onChange={e => setEmpForm({ ...empForm, assignedVehiclePlate: e.target.value })} />
+            <Select label="Assigned Vehicle" value={empForm.assignedVehicleId} onChange={e => setEmpForm({ ...empForm, assignedVehicleId: e.target.value })}>
+              <option value="">None</option>
+              {vehicles.filter(v => v.companyId === empForm.companyId).map(v => <option key={v.id} value={v.id}>{v.plateNumber} ({v.brand} {v.model})</option>)}
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Users className="w-4 h-4" />}>Save Employee Record</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Users className="w-4 h-4" />}>Save Employee Record</Button>
           </div>
         </form>
       </Modal>
@@ -1424,6 +1480,10 @@ export const QuickActionModals: React.FC = () => {
         size="md"
       >
         <form onSubmit={handleRunPayroll} className="space-y-4">
+          <Select label="Office" value={payrollForm.companyId} onChange={e => setPayrollForm({ ...payrollForm, companyId: e.target.value, bankAccountId: '' })} required>
+            <option value="">Select office</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
           <div className="grid grid-cols-2 gap-4">
             <Select label="Month" value={payrollForm.month} onChange={e => setPayrollForm({ ...payrollForm, month: Number(e.target.value) })}>
               {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
@@ -1436,29 +1496,30 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Payment Date" type="date" value={payrollForm.paymentDate} onChange={e => setPayrollForm({ ...payrollForm, paymentDate: e.target.value })} required />
             <Select label="Disbursing Bank Account" value={payrollForm.bankAccountId} onChange={e => setPayrollForm({ ...payrollForm, bankAccountId: e.target.value })}>
-              {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.bankName} ({b.accountNumber})</option>)}
+              <option value="">No bank: accrue to Salaries Payable (2050)</option>
+              {payrollBanks.map(b => <option key={b.id} value={b.id}>{b.bankName} ({b.accountNumber})</option>)}
             </Select>
           </div>
 
           <div className="p-3 bg-indigo-950/40 rounded-xl border border-indigo-500/30 text-xs text-indigo-200 space-y-1.5">
             <div className="flex items-center justify-between font-semibold">
-              <span>Active Staff Eligible:</span>
-              <span className="text-indigo-300 font-mono">{employees.filter(e => e.status === 'Active').length} Employees</span>
+              <span>Eligible Staff (Active + Probation):</span>
+              <span className="text-indigo-300 font-mono">{payrollStaff.length} Employees</span>
             </div>
             <div className="flex items-center justify-between font-semibold">
-              <span>Estimated Payout:</span>
+              <span>Estimated Net Payout:</span>
               <span className="text-emerald-300 font-mono">
-                {employees.filter(e => e.status === 'Active').reduce((s, e) => s + e.totalGrossSalary, 0).toFixed(3)} OMR
+                {payrollStaff.reduce((s, e) => s + e.totalGrossSalary * (1 - (e.pasiContributionPercentage || 0) / 100), 0).toFixed(3)} OMR
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Automatic GL Posting: Dr 5070 (Salaries Expense) / Cr 1020 (Bank Account) / Cr 2030 (PASI Social Insurance).
+              GL posting: Dr 5070 Salaries + Dr 5075 Employer PASI / Cr 2040 PASI Payable / Cr selected bank (or 2050 Salaries Payable).
             </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Calculator className="w-4 h-4" />}>Run & Post Payroll</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Calculator className="w-4 h-4" />}>Run & Post Payroll</Button>
           </div>
         </form>
       </Modal>
@@ -1468,12 +1529,16 @@ export const QuickActionModals: React.FC = () => {
         isOpen={quickModal === 'run-depreciation'}
         onClose={closeQuickModal}
         title="Execute Automatic Asset Depreciation"
-        description="Amortize fixed asset registry and auto-post balanced double-entry journal entry to GL (Dr 5080 / Cr 1520)"
+        description="Depreciate the office's fixed assets for one month and post a balanced journal to each asset's own GL accounts"
         size="md"
       >
         <form onSubmit={handleRunDepreciation} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Period Label" value={deprForm.periodLabel} onChange={e => setDeprForm({ ...deprForm, periodLabel: e.target.value })} required />
+            <Select label="Office" value={deprForm.companyId} onChange={e => setDeprForm({ ...deprForm, companyId: e.target.value })} required>
+              <option value="">Select office</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+            <Input label="Period (month)" type="month" value={deprForm.period} onChange={e => setDeprForm({ ...deprForm, period: e.target.value })} required />
             <Input label="Run Date" type="date" value={deprForm.runDate} onChange={e => setDeprForm({ ...deprForm, runDate: e.target.value })} required />
           </div>
 
@@ -1482,7 +1547,7 @@ export const QuickActionModals: React.FC = () => {
           <div className="p-3 bg-amber-950/40 rounded-xl border border-amber-500/30 text-xs text-amber-200 space-y-1.5">
             <div className="flex items-center justify-between font-semibold">
               <span>Active Assets in Scope:</span>
-              <span className="text-amber-300 font-mono">{fixedAssets.filter(a => a.status === 'Active').length} Assets</span>
+              <span className="text-amber-300 font-mono">{fixedAssets.filter(a => a.companyId === deprForm.companyId && (a.status === 'Active' || a.status === 'Under Maintenance')).length} Assets</span>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
               Engine calculates Straight-Line and Written Down Value (Reducing Balance) depreciation up to residual salvage value.
@@ -1491,7 +1556,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Sparkles className="w-4 h-4" />}>Execute Depreciation</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Sparkles className="w-4 h-4" />}>Execute Depreciation</Button>
           </div>
         </form>
       </Modal>
@@ -1510,19 +1575,20 @@ export const QuickActionModals: React.FC = () => {
               label="Select Invoice / Bill"
               value={paymentForm.invoiceId}
               onChange={e => {
-                const inv = invoices.find(i => i.id === e.target.value);
+                const inv = payableInvoices.find(i => i.id === e.target.value);
                 setPaymentForm(prev => ({
                   ...prev,
                   invoiceId: e.target.value,
-                  amount: inv ? (inv.outstandingAmount ?? inv.grandTotal) : prev.amount,
+                  amount: inv ? inv.outstandingAmount : 0,
+                  bankAccountId: '',
                 }));
               }}
               required
             >
               <option value="">-- Choose Invoice to Settle --</option>
-              {invoices.map(inv => (
+              {payableInvoices.map(inv => (
                 <option key={inv.id} value={inv.id}>
-                  {inv.invoiceNumber} - {inv.partyName} ({inv.grandTotal.toFixed(3)} OMR - Status: {inv.paymentStatus})
+                  {inv.invoiceNumber} - {inv.partyName} (outstanding {inv.outstandingAmount.toFixed(3)} {inv.currency})
                 </option>
               ))}
             </Select>
@@ -1559,8 +1625,10 @@ export const QuickActionModals: React.FC = () => {
               label="Bank Account"
               value={paymentForm.bankAccountId}
               onChange={e => setPaymentForm({ ...paymentForm, bankAccountId: e.target.value })}
+              required
             >
-              {bankAccounts.map(b => (
+              <option value="">Select bank account</option>
+              {paymentBanks.map(b => (
                 <option key={b.id} value={b.id}>{b.bankName} - {b.accountNumber}</option>
               ))}
             </Select>
@@ -1583,7 +1651,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<DollarSign className="w-4 h-4" />}>Post Payment</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<DollarSign className="w-4 h-4" />}>Post Payment</Button>
           </div>
         </form>
       </Modal>
@@ -1671,7 +1739,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Building2 className="w-4 h-4" />}>Save Supplier</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Building2 className="w-4 h-4" />}>Save Supplier</Button>
           </div>
         </form>
       </Modal>
@@ -1756,7 +1824,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Users className="w-4 h-4" />}>Save Customer</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Users className="w-4 h-4" />}>Save Customer</Button>
           </div>
         </form>
       </Modal>
@@ -1859,7 +1927,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Disc className="w-4 h-4" />}>Save Tyre</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Disc className="w-4 h-4" />}>Save Tyre</Button>
           </div>
         </form>
       </Modal>
@@ -1899,7 +1967,9 @@ export const QuickActionModals: React.FC = () => {
               label="Assigned Branch / Location"
               value={assetForm.companyId}
               onChange={e => setAssetForm({ ...assetForm, companyId: e.target.value })}
+              required
             >
+              <option value="">Select office</option>
               {companies.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -1959,7 +2029,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
-            <Button variant="primary" type="submit" leftIcon={<Sparkles className="w-4 h-4" />}>Register Asset</Button>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Sparkles className="w-4 h-4" />}>Register Asset</Button>
           </div>
         </form>
       </Modal>

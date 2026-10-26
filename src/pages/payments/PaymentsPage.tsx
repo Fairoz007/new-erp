@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { CreditCard, Plus, Download, Banknote, Building2, CheckCircle2 } from 'lucide-react';
+import { Plus, Paperclip } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { Payment } from '../../types/finance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
 export const PaymentsPage: React.FC = () => {
-  const { payments, bankAccounts, invoices, currency, selectedCompanyId } = useFleet();
-  const { openQuickModal, openInvoiceModal } = useUI();
+  const { payments, bankAccounts, currency, selectedCompanyId } = useFleet();
+  const { openQuickModal, openInvoiceModal, openBillModal } = useUI();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('create', 'payments');
 
   const filteredPayments = payments.filter(p => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && p.companyId !== selectedCompanyId) return false;
@@ -20,7 +23,9 @@ export const PaymentsPage: React.FC = () => {
 
   const totalDisbursed = filteredPayments.filter(p => p.partyType === 'Supplier').reduce((s, p) => s + p.amount, 0);
   const totalReceived = filteredPayments.filter(p => p.partyType === 'Customer').reduce((s, p) => s + p.amount, 0);
-  const totalBankBalance = bankAccounts.filter(b => !selectedCompanyId || selectedCompanyId === 'all' || b.companyId === selectedCompanyId).reduce((s, b) => s + b.currentBalance, 0);
+  // Bank balances come from v_bank_balances (opening balance + recorded payments)
+  const scopedBanks = bankAccounts.filter(b => !selectedCompanyId || selectedCompanyId === 'all' || b.companyId === selectedCompanyId);
+  const totalBankBalance = scopedBanks.reduce((s, b) => s + b.currentBalance, 0);
 
   const columns: Column<Payment>[] = [
     {
@@ -29,7 +34,16 @@ export const PaymentsPage: React.FC = () => {
       render: (p) => (
         <div>
           <span className="font-mono font-bold text-slate-100">{p.paymentNumber}</span>
-          <p className="text-[10px] text-slate-400 font-mono">Ref: {p.transactionReference}</p>
+          {p.transactionReference && <p className="text-[10px] text-slate-400 font-mono">Ref: {p.transactionReference}</p>}
+          {p.chequeNumber && <p className="text-[10px] text-slate-400 font-mono">Cheque: {p.chequeNumber}</p>}
+          {p.attachmentUrl && (
+            <button
+              onClick={() => openBillModal(p.attachmentUrl!, p.attachmentName || p.paymentNumber)}
+              className="inline-flex items-center gap-1 text-[10px] text-[#086343] font-bold hover:underline cursor-pointer"
+            >
+              <Paperclip className="w-3 h-3" /> Receipt
+            </button>
+          )}
         </div>
       ),
     },
@@ -71,7 +85,7 @@ export const PaymentsPage: React.FC = () => {
       render: (p) => (
         <div>
           <span className="text-slate-200 font-semibold">{p.bankAccountName}</span>
-          <p className="text-[10px] text-slate-400 font-mono">Ledger Cleared</p>
+          <p className="text-[10px] text-slate-400">{p.paymentMethod}</p>
         </div>
       ),
     },
@@ -103,14 +117,14 @@ export const PaymentsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
+          {canCreate && <Button
             variant="primary"
             size="md"
             onClick={() => openQuickModal('add-payment')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
             Record Payment
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -119,20 +133,18 @@ export const PaymentsPage: React.FC = () => {
         <StatCard
           title="Total Cash & Bank Balance"
           value={formatCurrency(totalBankBalance, currency)}
-          subValue={`${bankAccounts.length} Corporate Accounts`}
+          subValue={`${scopedBanks.length} bank account(s)`}
           isHero={true}
         />
         <StatCard
           title="Supplier Disbursals (AP Paid)"
           value={formatCurrency(totalDisbursed, currency)}
-          subValue="Settled vendor claims"
-          trend={{ value: 'Outgoing', direction: 'down' }}
+          subValue="Payments to suppliers"
         />
         <StatCard
           title="Customer Collections (AR Received)"
           value={formatCurrency(totalReceived, currency)}
-          subValue="Client wire remittances"
-          trend={{ value: 'Inflow', direction: 'up' }}
+          subValue="Receipts from customers"
         />
       </div>
 

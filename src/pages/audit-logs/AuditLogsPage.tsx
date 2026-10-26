@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { History, Shield, Download, Filter, User } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -9,8 +9,11 @@ import { formatDateTime } from '../../utils/date';
 import { AUDIT_LOG_LIMIT } from '../../services/system';
 
 export const AuditLogsPage: React.FC = () => {
-  const { auditLogs } = useFleet();
+  const { auditLogs, reload } = useFleet();
   const [actionFilter, setActionFilter] = useState<string>('all');
+
+  // Every write adds audit rows (DB triggers); mutations do not refetch them, so load fresh on open.
+  useEffect(() => { reload(['auditLogs']).catch(() => undefined); }, [reload]);
 
   const filteredLogs = auditLogs.filter(l => {
     if (actionFilter !== 'all' && l.action !== actionFilter) return false;

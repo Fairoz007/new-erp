@@ -504,6 +504,15 @@ alter default privileges for role postgres in schema public revoke all on sequen
 --     when this file runs last on the linked project). RLS stays the primary control.
 revoke all on all tables in schema public from anon;
 revoke all on all sequences in schema public from anon;
+-- Supabase's default privileges also hand `authenticated` TRUNCATE/REFERENCES/TRIGGER (TRUNCATE
+-- ignores RLS) and write grants on tables that are written only by SECURITY DEFINER RPCs/triggers.
+revoke truncate, references, trigger on all tables in schema public from authenticated;
+revoke insert, update, delete on
+  public.journal_entries, public.journal_lines, public.payments, public.approval_actions,
+  public.audit_logs, public.doc_sequences, public.global_doc_sequences, public.depreciation_run_items,
+  public.notifications
+from authenticated;
+alter default privileges for role postgres in schema public revoke truncate, references, trigger on tables from authenticated;
 
 -- 3g. Every table in public must have RLS enabled and forced (new tables from this file).
 do $$

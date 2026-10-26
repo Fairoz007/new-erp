@@ -34,6 +34,7 @@ import {
 } from '../../components/dashboard/RightAnalyticsColumn';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useVehiclePhotoUrls } from '../vehicles/VehiclePhoto';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
@@ -60,6 +61,8 @@ export const DashboardPage: React.FC = () => {
   // Scope all operational data to the selected office (or consolidated view)
   const scoped = !!selectedCompanyId && selectedCompanyId !== 'all';
   const vehicles = scoped ? allVehicles.filter(v => v.companyId === selectedCompanyId) : allVehicles;
+  // photo_url is a path in the private media bucket: resolve to short-lived signed URLs
+  const vehiclePhotoUrl = useVehiclePhotoUrls(vehicles.map(v => v.photoUrl));
   const scopedVehicleIds = new Set(vehicles.map(v => v.id));
   const maintenanceRecords = scoped ? allMaintenanceRecords.filter(m => m.companyId === selectedCompanyId) : allMaintenanceRecords;
   const workOrders = scoped ? allWorkOrders.filter(w => w.companyId === selectedCompanyId) : allWorkOrders;
@@ -102,7 +105,7 @@ export const DashboardPage: React.FC = () => {
   const salesIn = (key: string) =>
     invoices
       .filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Cancelled' && (i.invoiceDate || '').slice(0, 7) === key)
-      .reduce((s, i) => s + (i.isCreditNote ? -i.subtotal : i.subtotal), 0);
+      .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.subtotal) : i.subtotal), 0);
   const salesThisMonth = salesIn(monthKey(0));
   const salesLastMonth = salesIn(monthKey(-1));
   const revenueTrend =
@@ -370,8 +373,8 @@ export const DashboardPage: React.FC = () => {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-slate-700 flex items-center justify-center">
-                          {veh.photoUrl ? (
-                            <img src={veh.photoUrl} alt={veh.model} className="w-full h-full object-cover" />
+                          {vehiclePhotoUrl(veh.photoUrl) ? (
+                            <img src={vehiclePhotoUrl(veh.photoUrl)!} alt={veh.model} className="w-full h-full object-cover" />
                           ) : (
                             <Car className="w-4 h-4 text-slate-400" />
                           )}
@@ -469,7 +472,7 @@ export const DashboardPage: React.FC = () => {
                       <td className="px-5 py-3.5 font-bold text-slate-100">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-slate-700">
-                            {v.photoUrl && <img src={v.photoUrl} alt={v.model} className="w-full h-full object-cover" />}
+                            {vehiclePhotoUrl(v.photoUrl) && <img src={vehiclePhotoUrl(v.photoUrl)!} alt={v.model} className="w-full h-full object-cover" />}
                           </div>
                           <div>
                             <p className="text-xs font-bold text-slate-100">{v.brand} {v.model}</p>

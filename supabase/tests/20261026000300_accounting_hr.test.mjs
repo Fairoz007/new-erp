@@ -64,7 +64,7 @@ const coa = (cid) => `
     ('${cid}','3010','Shareholder Capital','Equity','Equity', 10000),
     ('${cid}','5070','Driver Allowances & Logistics Staff','Expense','Operating Expense', 0),
     ('${cid}','5080','Depreciation Expense - Motor Vehicles','Expense','Depreciation', 0)
-  on conflict (company_id, code) do nothing;`;
+  on conflict (company_id, code) do update set opening_balance = excluded.opening_balance;`;
 
 await db.exec(`
   select set_config('request.uid', '', false);

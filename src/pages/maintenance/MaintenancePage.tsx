@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, Plus, Download, Filter, FileText, ArrowRight } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -8,6 +8,8 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
+
 
 const MAINTENANCE_CATEGORIES: MaintenanceCategory[] = [
   'General Service', 'Preventive Maintenance', 'Corrective Maintenance', 'Engine Repair', 'Transmission Repair',
@@ -20,6 +22,7 @@ export const MaintenancePage: React.FC = () => {
   const { maintenanceRecords, selectedCompanyId, currency } = useFleet();
   const { openQuickModal, openVehicleDetail } = useUI();
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const { hasPermission } = useAuth();
 
   const filteredRecords = maintenanceRecords.filter(m => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && m.companyId !== selectedCompanyId) return false;
@@ -117,14 +120,16 @@ export const MaintenancePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-maintenance')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Record Maintenance
-          </Button>
+          {hasPermission('create', 'maintenance') && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => openQuickModal('add-maintenance')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Record Maintenance
+            </Button>
+          )}
         </div>
       </div>
 

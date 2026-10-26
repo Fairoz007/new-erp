@@ -249,6 +249,20 @@ await check('payment: 60 accepted -> outstanding 150, Partially Paid, bank 4940'
   return 'ok';
 });
 
+await check('set_payment_attachment: foreign path rejected', async () => {
+  const id = (await one(`select id from public.payments where invoice_id = '${P1}'`)).id;
+  return tx(ACC, `select public.set_payment_attachment('${id}', '${DQ}/payments/x.pdf')`);
+}, 'payments folder');
+await check('set_payment_attachment: Viewer denied', async () => {
+  const id = (await one(`select id from public.payments where invoice_id = '${P1}'`)).id;
+  return tx(VIEW, `select public.set_payment_attachment('${id}', '${HO}/payments/x.pdf')`);
+}, 'Permission denied');
+await check('set_payment_attachment: accepted once, second time rejected', async () => {
+  const id = (await one(`select id from public.payments where invoice_id = '${P1}'`)).id;
+  await tx(ACC, `select public.set_payment_attachment('${id}', '${HO}/payments/abc-receipt.pdf')`);
+  return tx(ACC, `select public.set_payment_attachment('${id}', '${HO}/payments/abc-2.pdf')`);
+}, 'already has an attachment');
+
 // ---------------------------------------------------------------- credit notes
 let CN1;
 await check('credit note: zero amount rejected', () => val(ACC, `select public.create_credit_note('${P1}', 'Damaged', 0)`), 'greater than zero');
@@ -339,7 +353,7 @@ await check('GL: client cannot write journal lines directly', () =>
 // ---------------------------------------------------------------- party balances
 await check('v_party_summary: supplier balance from DB (FM sees HO invoices)', async () => {
   const r = (await as(FM, `select * from public.v_party_summary where party_id = '${SUP2}'`)).rows[0];
-  const open = await one(`select sum(outstanding_amount) s, sum(grand_total) t, count(*)::int n from public.invoices where supplier_id = '${SUP2}' and not is_credit_note`);
+  const open = await one(`select sum(outstanding_amount) s, sum(grand_total) t, count(*)::int n from public.invoices where supplier_id = '${SUP2}' and not is_credit_note and approval_status = 'Approved'`);
   eq('current_balance', r.current_balance, Number(open.s)); eq('total_invoiced', r.total_invoiced, Number(open.t));
   if (Number(r.invoice_count) !== open.n) throw new Error('count');
   return `balance ${r.current_balance}, ${r.invoice_count} invoices`;

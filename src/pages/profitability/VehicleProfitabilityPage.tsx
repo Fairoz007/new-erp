@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Car, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Car, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -18,7 +18,6 @@ interface VehicleProfitabilityRow {
   revenue: number;
   operatingCost: number;
   maintenanceCost: number;
-  fuelCost: number;
   netProfit: number;
   costPerKm: number;
   maintenanceCostPerKm: number;
@@ -54,7 +53,6 @@ export const VehicleProfitabilityPage: React.FC = () => {
       revenue: rev,
       operatingCost: opCost,
       maintenanceCost: sum.totalMaintenanceCost,
-      fuelCost: opCost * 0.45,
       netProfit: profit,
       costPerKm: sum.costPerKilometer,
       maintenanceCostPerKm: sum.maintenanceCostPerKm,
@@ -149,7 +147,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
             Vehicle Profitability & ROI Intelligence
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Identify high-cost underperforming units, cost-per-kilometer metrics, and AI replacement vs maintenance recommendations.
+            Identify high-cost underperforming units, cost-per-kilometer metrics, and rule-based replacement vs maintenance flags (maintenance cost per KM above 0.015 / 0.025 OMR, or operating cost above 70% of purchase value).
           </p>
         </div>
       </div>
@@ -167,7 +165,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
         <StatCard
           title="Average Cost per KM"
           value={`${(profitabilityRows.reduce((s, r) => s + r.costPerKm, 0) / (profitabilityRows.length || 1)).toFixed(3)} OMR`}
-          subValue="Across active fleet"
+          subValue="Across listed vehicles"
           icon={<Car className="w-4 h-4" />}
           variant="indigo"
         />

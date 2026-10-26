@@ -50,7 +50,7 @@ export type Database = {
         Insert: {
           accident_date: string
           accident_description?: string | null
-          accident_number: string
+          accident_number?: string | null  // assigned by the DB numbering trigger when null/''
           accident_time?: string | null
           accident_type: string
           actual_repair_cost?: number
@@ -134,6 +134,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      account_templates: {
+        Row: {
+          active: boolean
+          category: Database["public"]["Enums"]["account_category"]
+          code: string
+          description: string | null
+          is_system: boolean
+          name: string
+          sort_order: number
+          subcategory: string
+        }
+        Insert: {
+          active?: boolean
+          category: Database["public"]["Enums"]["account_category"]
+          code: string
+          description?: string | null
+          is_system?: boolean
+          name: string
+          sort_order?: number
+          subcategory: string
+        }
+        Update: {
+          active?: boolean
+          category?: Database["public"]["Enums"]["account_category"]
+          code?: string
+          description?: string | null
+          is_system?: boolean
+          name?: string
+          sort_order?: number
+          subcategory?: string
+        }
+        Relationships: []
       }
       accounts: {
         Row: {
@@ -449,6 +482,7 @@ export type Database = {
           bank_details: Json
           city: string | null
           code: string
+          created_by: string | null
           country: string | null
           created_at: string
           currency: string
@@ -474,6 +508,7 @@ export type Database = {
           bank_details?: Json
           city?: string | null
           code: string
+          created_by?: string | null
           country?: string | null
           created_at?: string
           currency?: string
@@ -499,6 +534,7 @@ export type Database = {
           bank_details?: Json
           city?: string | null
           code?: string
+          created_by?: string | null
           country?: string | null
           created_at?: string
           currency?: string
@@ -583,7 +619,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           credit_limit?: number
-          customer_code: string
+          customer_code?: string | null  // assigned by the DB numbering trigger when null/''
           customer_type: string
           email?: string | null
           id?: string
@@ -680,7 +716,7 @@ export type Database = {
           total_assets: number
         }
         Insert: {
-          batch_number: string
+          batch_number?: string | null  // assigned by the DB numbering trigger when null/''
           company_id: string
           created_at?: string
           currency?: string
@@ -884,7 +920,7 @@ export type Database = {
           department: string
           designation: string
           email?: string | null
-          employee_code: string
+          employee_code?: string | null  // assigned by the DB numbering trigger when null/''
           housing_allowance?: number
           iban?: string | null
           id?: string
@@ -985,7 +1021,7 @@ export type Database = {
           created_at?: string
           date: string
           description: string
-          expense_number: string
+          expense_number?: string | null  // assigned by the DB numbering trigger when null/''
           gl_account_code?: string | null
           id?: string
           invoice_number?: string | null
@@ -1080,7 +1116,7 @@ export type Database = {
         Insert: {
           accumulated_depreciation?: number
           annual_rate_percentage: number
-          asset_code: string
+          asset_code?: string | null  // assigned by the DB numbering trigger when null/''
           category: string
           company_id: string
           created_at?: string
@@ -1295,7 +1331,7 @@ export type Database = {
           grand_total?: number
           id?: string
           invoice_date: string
-          invoice_number: string
+          invoice_number?: string | null  // assigned by the DB numbering trigger when null/''
           invoice_type: Database["public"]["Enums"]["invoice_type"]
           is_credit_note?: boolean
           journal_entry_id?: string | null
@@ -1621,7 +1657,7 @@ export type Database = {
           parts_used?: Json
           payment_method?: string | null
           payment_status?: string
-          record_number: string
+          record_number?: string | null  // assigned by the DB numbering trigger when null/''
           service_centre?: string | null
           supplier_id?: string | null
           tax?: number
@@ -2100,7 +2136,7 @@ export type Database = {
           month: number
           notes?: string | null
           payment_date?: string | null
-          payroll_number: string
+          payroll_number?: string | null  // assigned by the DB numbering trigger when null/''
           status?: string
           year: number
         }
@@ -2238,7 +2274,7 @@ export type Database = {
           purchase_order_number?: string | null
           reconciled_by?: string | null
           reconciled_date?: string | null
-          reconciliation_number: string
+          reconciliation_number?: string | null  // assigned by the DB numbering trigger when null/''
           status: string
           variance_percentage: number
           work_order_id?: string | null
@@ -2354,7 +2390,7 @@ export type Database = {
           payment_terms_days?: number
           phone?: string | null
           status?: string
-          supplier_code: string
+          supplier_code?: string | null  // assigned by the DB numbering trigger when null/''
           supplier_type: string
           tax_number?: string | null
           updated_at?: string
@@ -2706,7 +2742,7 @@ export type Database = {
           updated_at?: string
           variant?: string | null
           vehicle_category: string
-          vehicle_code: string
+          vehicle_code?: string | null  // assigned by the DB numbering trigger when null/''
           vehicle_type: string
           vin?: string | null
         }
@@ -2820,7 +2856,7 @@ export type Database = {
           tax?: number
           updated_at?: string
           vehicle_id: string
-          work_order_number: string
+          work_order_number?: string | null  // assigned by the DB numbering trigger when null/''
           workshop?: string | null
         }
         Update: {
@@ -3011,11 +3047,7 @@ export type Database = {
         }
         Returns: string
       }
-      recalc_invoice_settlement: {
-        Args: { p_invoice: string }
-        Returns: undefined
-      }
-      recalc_invoice_totals: { Args: { p_invoice: string }; Returns: undefined }
+      // recalc_invoice_settlement / recalc_invoice_totals are internal (EXECUTE revoked in 20261026000000_platform.sql)
       record_payment: {
         Args: {
           p_amount: number
@@ -3029,6 +3061,8 @@ export type Database = {
         }
         Returns: string
       }
+      seed_chart_of_accounts: { Args: { p_company: string }; Returns: number }
+      shares_company_with: { Args: { p_user: string }; Returns: boolean }
       storage_company: { Args: { p_name: string }; Returns: string }
     }
     Enums: {

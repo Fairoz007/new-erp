@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Truck, Plus, Phone, Mail, MapPin, CreditCard, Building2 } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -7,13 +7,41 @@ import { StatCard } from '../../components/ui/StatCard';
 import { Supplier } from '../../types/operations';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
+import { PartyEditModal } from './PartyEditModal';
+import { Pencil, Power } from 'lucide-react';
 import { formatCurrency } from '../../utils/financial';
 
 export const SuppliersPage: React.FC = () => {
-  const { suppliers, currency } = useFleet();
-  const { openQuickModal } = useUI();
+  const { suppliers, currency, updateSupplier } = useFleet();
+  const { openQuickModal, addToast } = useUI();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('edit', 'suppliers');
+  const canCreate = hasPermission('create', 'suppliers');
+  const [editing, setEditing] = useState<Supplier | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const totalSuppliers = suppliers.length;
+  const save = async (id: string, changes: Partial<Supplier>) => {
+    await updateSupplier(id, changes);
+    addToast({ type: 'success', title: 'Supplier Updated', message: 'Changes saved.' });
+  };
+
+  // Suppliers linked to invoices are never deleted: they are deactivated (status Inactive) instead.
+  const toggleActive = async (s: Supplier) => {
+    const next = s.status === 'Active' ? 'Inactive' : 'Active';
+    setBusyId(s.id);
+    try {
+      await updateSupplier(s.id, { status: next });
+      addToast({ type: 'success', title: next === 'Active' ? 'Supplier Activated' : 'Supplier Deactivated', message: s.name });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Update Failed', message: (e as Error).message });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Balances come from the database (posted invoices, payments and credit notes)
+  const activeSuppliers = suppliers.filter(s => s.status === 'Active').length;
   const totalPurchases = suppliers.reduce((s, sup) => s + sup.totalPurchases, 0);
   const totalOutstandingAP = suppliers.reduce((s, sup) => s + sup.currentBalance, 0);
 
@@ -82,6 +110,23 @@ export const SuppliersPage: React.FC = () => {
       align: 'center',
       render: (s) => <StatusBadge status={s.status} size="sm" />,
     },
+    ...(canEdit ? [{
+      key: 'actions',
+      header: 'Actions',
+      align: 'right' as const,
+      sortable: false,
+      render: (s: Supplier) => (
+        <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+          <Button variant="ghost" size="xs" onClick={() => setEditing(s)} leftIcon={<Pencil className="w-3 h-3" />}>
+            Edit
+          </Button>
+          <Button variant="ghost" size="xs" onClick={() => toggleActive(s)} disabled={busyId === s.id}
+            isLoading={busyId === s.id} leftIcon={<Power className="w-3 h-3" />}>
+            {s.status === 'Active' ? 'Deactivate' : 'Activate'}
+          </Button>
+        </div>
+      ),
+    }] : []),
   ];
 
   return (
@@ -98,7 +143,7 @@ export const SuppliersPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
+          {canCreate && <Button
             variant="primary"
             size="sm"
             className="rounded-full shadow-sm"
@@ -106,7 +151,7 @@ export const SuppliersPage: React.FC = () => {
             leftIcon={<Plus className="w-4 h-4" />}
           >
             Add Supplier
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -114,16 +159,16 @@ export const SuppliersPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           title="Active Suppliers"
-          value={totalSuppliers}
-          subValue="Registered vendor partners"
+          value={activeSuppliers}
+          subValue={`${suppliers.length} registered in total`}
           icon={<Truck className="w-4 h-4" />}
           variant="indigo"
           isHero={true}
         />
         <StatCard
-          title="Cumulative Purchases YTD"
+          title="Total Posted Purchases"
           value={formatCurrency(totalPurchases, currency)}
-          subValue="Parts, tyres, fuel & vehicles"
+          subValue="Approved supplier invoices, all periods"
           icon={<CreditCard className="w-4 h-4" />}
           variant="blue"
         />
@@ -146,6 +191,8 @@ export const SuppliersPage: React.FC = () => {
         searchFields={['name', 'supplierType', 'contactPerson', 'phone', 'vatNumber']}
         exportFilename="FleetX_Suppliers_Directory"
       />
+
+      <PartyEditModal kind="supplier" party={editing} onClose={() => setEditing(null)} onSave={save} />
     </div>
   );
 };

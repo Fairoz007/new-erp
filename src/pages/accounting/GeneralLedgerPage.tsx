@@ -7,18 +7,20 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { consolidateAccounts, getGeneralLedger } from '../../services/accounting';
 
 export const GeneralLedgerPage: React.FC = () => {
-  const { chartOfAccounts, suppliers, customers, getGeneralLedger, getPartyLedger, currency, selectedCompany } = useFleet();
+  const { chartOfAccounts, journalEntries, suppliers, customers, getPartyLedger, currency, selectedCompany, selectedCompanyId } = useFleet();
+  const accountOptions = consolidateAccounts(chartOfAccounts, selectedCompanyId);
   const { openQuickModal } = useUI();
   const [activeTab, setActiveTab] = useState<'gl' | 'party'>('gl');
   const [selectedAccountCode, setSelectedAccountCode] = useState<string>('all');
   const [partyType, setPartyType] = useState<'Supplier' | 'Customer'>('Supplier');
-  const [selectedPartyId, setSelectedPartyId] = useState<string>(suppliers[0]?.id || 'sup-1');
-  const [startDate, setStartDate] = useState<string>('2026-01-01');
+  const [selectedPartyId, setSelectedPartyId] = useState<string>(suppliers[0]?.id || '');
+  const [startDate, setStartDate] = useState<string>(`${new Date().getFullYear()}-01-01`);
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
 
-  const glData = getGeneralLedger(selectedAccountCode, startDate, endDate);
+  const glData = getGeneralLedger(chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency);
   const partyLedger = getPartyLedger(selectedPartyId, partyType);
 
   const selectedParty = partyType === 'Supplier'
@@ -129,12 +131,11 @@ export const GeneralLedgerPage: React.FC = () => {
               title="Ledger Entries"
               value={totalTransactions}
               subValue="Transactions in range"
-              trend={{ value: `${totalTransactions} Records`, direction: 'up' }}
             />
             <StatCard
               title="Accounts Displayed"
               value={glData.length}
-              subValue={`Out of ${chartOfAccounts.length} accounts`}
+              subValue={`Out of ${accountOptions.length} accounts`}
             />
           </div>
 
@@ -150,7 +151,7 @@ export const GeneralLedgerPage: React.FC = () => {
                     className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer min-w-[280px]"
                   >
                     <option value="all">-- All Chart of Accounts (Consolidated) --</option>
-                    {chartOfAccounts.map(acc => (
+                    {accountOptions.map(acc => (
                       <option key={acc.code} value={acc.code}>
                         {acc.code} - {acc.name} ({acc.category})
                       </option>
@@ -187,6 +188,11 @@ export const GeneralLedgerPage: React.FC = () => {
 
           {/* Accounts General Ledger Tables */}
           <div className="space-y-6">
+            {glData.length === 0 && (
+              <Card className="p-8 text-center text-sm text-slate-400 bg-white border border-slate-700 rounded-[20px]">
+                No chart of accounts is set up for this selection yet, so there is no ledger to show.
+              </Card>
+            )}
             {glData.map(acc => (
               <Card key={acc.accountCode} className="overflow-hidden border border-slate-700 bg-white shadow-card rounded-[20px]">
                 {/* Account Ledger Header */}

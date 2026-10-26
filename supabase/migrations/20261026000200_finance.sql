@@ -506,7 +506,8 @@ create trigger fin_reconciliation_compute before insert or update on public.reco
   for each row execute function public.fin_reconciliation_compute();
 
 -- ---------------------------------------------------------------------
--- 6. Party balances across every office the caller can see (suppliers/customers are group-level)
+-- 6. Party balances across every office the caller can see (suppliers/customers are group-level).
+--    Only posted (Approved) documents count, so party balances agree with the AP/AR control accounts.
 -- ---------------------------------------------------------------------
 create view public.v_party_summary with (security_invoker = true) as
 select 'Supplier'::public.party_type as party_type, s.id as party_id, s.opening_balance,
@@ -517,7 +518,7 @@ select 'Supplier'::public.party_type as party_type, s.id as party_id, s.opening_
        count(i.id) filter (where not i.is_credit_note)                            as invoice_count,
        s.opening_balance + coalesce(sum(i.outstanding_amount) filter (where not i.is_credit_note), 0) as current_balance
 from public.suppliers s
-left join public.invoices i on i.supplier_id = s.id and i.payment_status <> 'Cancelled'
+left join public.invoices i on i.supplier_id = s.id and i.approval_status = 'Approved'
 group by s.id
 union all
 select 'Customer'::public.party_type, c.id, c.opening_balance,
@@ -528,7 +529,7 @@ select 'Customer'::public.party_type, c.id, c.opening_balance,
        count(i.id) filter (where not i.is_credit_note),
        c.opening_balance + coalesce(sum(i.outstanding_amount) filter (where not i.is_credit_note), 0)
 from public.customers c
-left join public.invoices i on i.customer_id = c.id and i.payment_status <> 'Cancelled'
+left join public.invoices i on i.customer_id = c.id and i.approval_status = 'Approved'
 group by c.id;
 
 -- ---------------------------------------------------------------------
@@ -540,11 +541,11 @@ revoke execute on function public.fin_insert_lines(uuid, uuid, jsonb), public.fi
 grant execute on function
   public.create_invoice(jsonb, jsonb, boolean), public.submit_invoice(uuid),
   public.replace_invoice_lines(uuid, jsonb), public.duplicate_invoice(uuid),
-  public.create_credit_note(uuid, text, numeric)
+  public.create_credit_note(uuid, text, numeric), public.set_payment_attachment(uuid, text)
 to authenticated;
 revoke execute on function
   public.create_invoice(jsonb, jsonb, boolean), public.submit_invoice(uuid),
   public.replace_invoice_lines(uuid, jsonb), public.duplicate_invoice(uuid),
-  public.create_credit_note(uuid, text, numeric)
+  public.create_credit_note(uuid, text, numeric), public.set_payment_attachment(uuid, text)
 from public, anon;
 grant select on public.v_party_summary to authenticated;

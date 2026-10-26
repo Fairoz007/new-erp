@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Printer, Paperclip, UploadCloud, Eye, AlertTriangle, CreditCard, Sparkles } from 'lucide-react';
+import { Plus, Printer, Paperclip, Eye } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -7,12 +7,16 @@ import { StatCard } from '../../components/ui/StatCard';
 import { Invoice } from '../../types/finance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
 export const InvoicesPage: React.FC = () => {
   const { invoices, selectedCompanyId, currency } = useFleet();
   const { openQuickModal, openInvoiceModal, openBillModal } = useUI();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('create', 'invoices');
+  const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [attachmentFilter, setAttachmentFilter] = useState<string>('all');
@@ -21,17 +25,22 @@ export const InvoicesPage: React.FC = () => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && inv.companyId !== selectedCompanyId) return false;
     if (typeFilter !== 'all' && inv.invoiceType !== typeFilter) return false;
     if (statusFilter !== 'all' && inv.paymentStatus !== statusFilter) return false;
-    if (attachmentFilter === 'with-attachment' && !inv.attachmentUrl && !inv.attachmentName) return false;
-    if (attachmentFilter === 'no-attachment' && (inv.attachmentUrl || inv.attachmentName)) return false;
+    if (approvalFilter !== 'all' && inv.approvalStatus !== approvalFilter) return false;
+    if (attachmentFilter === 'with-attachment' && !inv.attachmentUrl) return false;
+    if (attachmentFilter === 'no-attachment' && inv.attachmentUrl) return false;
     return true;
   });
 
   const scoped = invoices.filter(inv => !selectedCompanyId || selectedCompanyId === 'all' || inv.companyId === selectedCompanyId);
-  const totalPurchaseAmount = scoped.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.grandTotal, 0);
-  const totalSalesAmount = scoped.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.grandTotal, 0);
-  const totalOutstandingAP = scoped.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.outstandingAmount, 0);
-  const totalOutstandingAR = scoped.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.outstandingAmount, 0);
-  const totalWithBills = scoped.filter(i => i.attachmentUrl || i.attachmentName || i.invoiceType === 'Purchase').length;
+  // AP/AR figures use posted (Approved) documents only; credit notes carry negative totals
+  const posted = scoped.filter(i => i.approvalStatus === 'Approved');
+  const totalPurchaseAmount = posted.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.grandTotal, 0);
+  const totalSalesAmount = posted.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.grandTotal, 0);
+  const totalOutstandingAP = posted.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.outstandingAmount, 0);
+  const totalOutstandingAR = posted.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.outstandingAmount, 0);
+  // Only documents with a stored file count (no assumed scans for purchase invoices)
+  const totalWithBills = scoped.filter(i => i.attachmentUrl).length;
+  const awaitingApproval = scoped.filter(i => i.approvalStatus === 'Pending Approval').length;
 
   const columns: Column<Invoice>[] = [
     {
@@ -76,18 +85,15 @@ export const InvoicesPage: React.FC = () => {
       key: 'attachmentUrl',
       header: 'Bill Document',
       render: (inv) => {
-        const hasDoc = inv.attachmentUrl || inv.attachmentName || inv.invoiceType === 'Purchase';
-        const docUrl = inv.attachmentUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&auto=format&fit=crop&q=80';
-        const docName = inv.attachmentName || `${inv.invoiceNumber}_Scanned_Supplier_Bill.pdf`;
-
-        return hasDoc ? (
+        // attachmentUrl is a storage://documents/<path> reference resolved to a signed URL by the viewer
+        return inv.attachmentUrl ? (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              openBillModal(docUrl, docName, inv.attachmentType || 'application/pdf', inv.attachmentSize || '1.4 MB');
+              openBillModal(inv.attachmentUrl!, inv.attachmentName || inv.invoiceNumber, inv.attachmentType, inv.attachmentSize);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCEFE5] text-[#06452F] hover:bg-[#bde2d0] text-[10px] font-bold transition-colors cursor-pointer group"
-            title="View Scanned Purchase Bill"
+            title="View attached bill"
           >
             <Paperclip className="w-3 h-3 text-[#086343] group-hover:scale-110 transition-transform" />
             <span>View Bill</span>
@@ -104,7 +110,7 @@ export const InvoicesPage: React.FC = () => {
       render: (inv) => (
         <div className="text-right">
           <span className="font-bold text-slate-100">{formatCurrency(inv.grandTotal, inv.currency)}</span>
-          <p className="text-[10px] text-slate-400 font-medium">VAT (5%): {formatCurrency(inv.taxTotal, inv.currency)}</p>
+          <p className="text-[10px] text-slate-400 font-medium">VAT: {formatCurrency(inv.taxTotal, inv.currency)}</p>
         </div>
       ),
     },
@@ -125,7 +131,14 @@ export const InvoicesPage: React.FC = () => {
       key: 'paymentStatus',
       header: 'Status',
       align: 'center',
-      render: (inv) => <StatusBadge status={inv.paymentStatus} size="sm" />,
+      render: (inv) => (
+        <div className="flex flex-col items-center gap-1">
+          <StatusBadge status={inv.paymentStatus} size="sm" />
+          {inv.approvalStatus !== 'Approved' && (
+            <span className="text-[10px] font-semibold text-slate-400">{inv.approvalStatus}</span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'actions',
@@ -134,14 +147,10 @@ export const InvoicesPage: React.FC = () => {
       sortable: false,
       render: (inv) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          {(inv.attachmentUrl || inv.attachmentName || inv.invoiceType === 'Purchase') && <Button
+          {inv.attachmentUrl && <Button
             variant="ghost"
             size="xs"
-            onClick={() => {
-              const docUrl = inv.attachmentUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1000&auto=format&fit=crop&q=80';
-              const docName = inv.attachmentName || `${inv.invoiceNumber}_Scanned_Supplier_Bill.pdf`;
-              openBillModal(docUrl, docName, 'application/pdf', '1.4 MB');
-            }}
+            onClick={() => openBillModal(inv.attachmentUrl!, inv.attachmentName || inv.invoiceNumber, inv.attachmentType, inv.attachmentSize)}
             leftIcon={<Eye className="w-3 h-3" />}
           >
             Bill
@@ -163,27 +172,19 @@ export const InvoicesPage: React.FC = () => {
             Invoice & Purchase Bill Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Supplier purchase bills with document scan upload, customer invoicing, 5% VAT calculations, and interactive bill preview.
+            Supplier purchase bills and customer invoices. Totals and VAT are calculated from the invoice lines; invoices reach the ledger when approved.
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => openQuickModal('add-invoice')}
-            leftIcon={<UploadCloud className="w-4 h-4 text-[#086343]" />}
-          >
-            Upload Bill
-          </Button>
-          <Button
+          {canCreate && <Button
             variant="primary"
             size="md"
             onClick={() => openQuickModal('add-invoice')}
             leftIcon={<Plus className="w-4 h-4" />}
           >
             Create Invoice
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -203,11 +204,10 @@ export const InvoicesPage: React.FC = () => {
         <StatCard
           title="Overdue Invoices"
           value={scoped.filter(i => i.paymentStatus === 'Overdue').length}
-          subValue="Immediate collection required"
-          trend={{ value: 'Critical', direction: 'down' }}
+          subValue={`${awaitingApproval} invoice(s) awaiting approval`}
         />
         <StatCard
-          title="Scanned Bills Attached"
+          title="Bills With Attachment"
           value={totalWithBills}
           subValue={`${scoped.length} total register entries`}
         />
@@ -243,6 +243,19 @@ export const InvoicesPage: React.FC = () => {
               <option value="Overdue">Overdue</option>
               <option value="Partially Paid">Partially Paid</option>
               <option value="Paid">Paid</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <select
+              value={approvalFilter}
+              onChange={e => setApprovalFilter(e.target.value)}
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
+            >
+              <option value="all">All Approval States</option>
+              <option value="Draft">Draft</option>
+              <option value="Pending Approval">Pending Approval</option>
+              <option value="Approved">Approved (posted)</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
             <select
               value={attachmentFilter}
@@ -250,8 +263,8 @@ export const InvoicesPage: React.FC = () => {
               className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Attachments</option>
-              <option value="with-attachment">Attached Bill Scans</option>
-              <option value="no-attachment">No Bill Scan</option>
+              <option value="with-attachment">With Attachment</option>
+              <option value="no-attachment">No Attachment</option>
             </select>
           </div>
         }

@@ -3,6 +3,7 @@ import { Search, Car, FileText, Wrench, Building2, ShieldAlert, Folder, ArrowRig
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { StatusBadge } from './StatusBadge';
+import { VehiclePhoto, useVehiclePhotoUrls } from '../../pages/vehicles/VehiclePhoto';
 
 export const GlobalSearchModal: React.FC = () => {
   const { isSearchOpen, setIsSearchOpen, setCurrentPage, openVehicleDetail, openInvoiceModal } = useUI();
@@ -83,6 +84,7 @@ export const GlobalSearchModal: React.FC = () => {
       accidents: matchedAccidents,
     };
   }, [query, vehicles, invoices, workOrders, maintenanceRecords, suppliers, documents, accidents]);
+  const vehiclePhotoUrl = useVehiclePhotoUrls(results?.vehicles.map(v => v.photoUrl) ?? []);
 
   if (!isSearchOpen) return null;
 
@@ -155,7 +157,7 @@ export const GlobalSearchModal: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-800 overflow-hidden shrink-0 border border-slate-700">
-                        <img src={v.photoUrl} alt={v.model} className="w-full h-full object-cover" />
+                        <VehiclePhoto src={vehiclePhotoUrl(v.photoUrl)} alt={v.model} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">

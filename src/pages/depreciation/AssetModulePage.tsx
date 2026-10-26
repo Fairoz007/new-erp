@@ -1,34 +1,102 @@
 import React, { useState } from 'react';
-import { Sparkles, Plus, Play, History, Calculator, ShieldCheck, RefreshCw, CheckCircle2, TrendingDown, Layers, FileSpreadsheet, Eye, ChevronRight } from 'lucide-react';
+import { Plus, Play, History, ShieldCheck, TrendingDown, Layers, Eye, Pencil, Trash2 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
-import { FixedAsset, DepreciationRun } from '../../types/finance';
+import { Input, Select, Textarea } from '../../components/ui/Input';
+import { FixedAsset, DepreciationRun, FixedAssetCategory, AssetDepreciationMethod } from '../../types/finance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
+const CATEGORIES: FixedAssetCategory[] = ['Fleet Vehicle', 'Workshop Equipment', 'Heavy Machinery', 'IT & GPS Hardware', 'Facility & Garage Fixture', 'Other Fixed Asset'];
+const STATUSES: FixedAsset['status'][] = ['Active', 'Under Maintenance', 'Fully Depreciated', 'Disposed'];
+
 export const AssetModulePage: React.FC = () => {
-  const { fixedAssets, depreciationRuns, currency, selectedCompanyId } = useFleet();
-  const { openQuickModal } = useUI();
+  const { fixedAssets, depreciationRuns: allRuns, currency, selectedCompanyId, updateFixedAsset, deleteFixedAsset } = useFleet();
+  const { openQuickModal, addToast } = useUI();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('create', 'fixed-assets');
+  const canEdit = hasPermission('edit', 'fixed-assets');
+  const canDelete = hasPermission('delete', 'fixed-assets');
   const [activeTab, setActiveTab] = useState<'register' | 'runs'>('register');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRun, setSelectedRun] = useState<DepreciationRun | null>(null);
+  const [editing, setEditing] = useState<FixedAsset | null>(null);
+  const [editForm, setEditForm] = useState<Partial<FixedAsset>>({});
+  const [deleting, setDeleting] = useState<FixedAsset | null>(null);
+  const [pending, setPending] = useState(false);
 
-  const filteredAssets = fixedAssets.filter(a => {
-    if (selectedCompanyId && selectedCompanyId !== 'all' && a.companyId !== selectedCompanyId) return false;
-    if (selectedCategory !== 'all' && a.category !== selectedCategory) return false;
-    return true;
-  });
-
-  const scopedAssets = fixedAssets.filter(a => !selectedCompanyId || selectedCompanyId === 'all' || a.companyId === selectedCompanyId);
+  const inScope = (cid: string) => !selectedCompanyId || selectedCompanyId === 'all' || cid === selectedCompanyId;
+  const depreciationRuns = allRuns.filter(r => inScope(r.companyId));
+  const scopedAssets = fixedAssets.filter(a => inScope(a.companyId));
+  const filteredAssets = scopedAssets.filter(a => selectedCategory === 'all' || a.category === selectedCategory);
   const totalCost = scopedAssets.reduce((s, a) => s + a.purchaseCost, 0);
   const totalAccDepr = scopedAssets.reduce((s, a) => s + a.accumulatedDepreciation, 0);
   const totalNetBookValue = scopedAssets.reduce((s, a) => s + a.currentBookValue, 0);
-  const totalAssetsCount = scopedAssets.length;
+
+  const openEdit = (a: FixedAsset) => {
+    setEditing(a);
+    setEditForm({
+      name: a.name, category: a.category, location: a.location, department: a.department, serialNumber: a.serialNumber,
+      purchaseDate: a.purchaseDate, purchaseCost: a.purchaseCost, salvageValue: a.salvageValue,
+      usefulLifeYears: a.usefulLifeYears, annualRatePercentage: a.annualRatePercentage, depreciationMethod: a.depreciationMethod,
+      currentMarketValue: a.currentMarketValue, status: a.status, notes: a.notes,
+      glAssetAccount: a.glAssetAccount, glDepreciationExpenseAccount: a.glDepreciationExpenseAccount,
+      glAccumulatedDepreciationAccount: a.glAccumulatedDepreciationAccount,
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing || pending) return;
+    const cost = Number(editForm.purchaseCost);
+    const salvage = Number(editForm.salvageValue);
+    const life = Number(editForm.usefulLifeYears);
+    if (!(life > 0) || !(salvage >= 0) || cost - salvage < editing.accumulatedDepreciation - 0.0005) {
+      addToast({ type: 'error', title: 'Invalid values', message: 'Useful life must be above 0, and cost less salvage cannot be below the depreciation already posted.' });
+      return;
+    }
+    setPending(true);
+    try {
+      await updateFixedAsset(editing.id, {
+        ...editForm,
+        purchaseCost: cost,
+        salvageValue: salvage,
+        usefulLifeYears: life,
+        annualRatePercentage: Number(editForm.annualRatePercentage) || 0,
+      });
+      addToast({ type: 'success', title: 'Asset updated', message: `${editing.assetCode} saved.` });
+      setEditing(null);
+    } catch (err) {
+      addToast({ type: 'error', title: 'Update failed', message: (err as Error).message });
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleting || pending) return;
+    setPending(true);
+    try {
+      await deleteFixedAsset(deleting.id);
+      addToast({ type: 'success', title: 'Asset removed', message: `${deleting.assetCode} deleted from the register.` });
+      setDeleting(null);
+    } catch (err) {
+      const msg = (err as Error).message;
+      addToast({
+        type: 'error',
+        title: 'Delete failed',
+        message: /linked/i.test(msg) ? 'This asset has posted depreciation and cannot be deleted. Set its status to Disposed instead.' : msg,
+      });
+    } finally {
+      setPending(false);
+    }
+  };
 
   const assetColumns: Column<FixedAsset>[] = [
     {
@@ -76,7 +144,7 @@ export const AssetModulePage: React.FC = () => {
         <div>
           <span className="text-slate-300 font-medium">{a.depreciationMethod}</span>
           <p className="text-[10px] text-slate-400">
-            {a.annualRatePercentage}% p.a. • {a.usefulLifeYears} Yrs Life
+            {a.depreciationMethod === 'Reducing Balance' ? `${a.annualRatePercentage}% p.a. • ` : ''}{a.usefulLifeYears} Yrs Life
           </p>
         </div>
       ),
@@ -87,9 +155,7 @@ export const AssetModulePage: React.FC = () => {
       align: 'right',
       render: (a) => (
         <div className="text-right">
-          <span className="font-mono font-bold text-rose-400">
-            {formatCurrency(a.accumulatedDepreciation, currency)}
-          </span>
+          <span className="font-mono font-bold text-rose-400">{formatCurrency(a.accumulatedDepreciation, currency)}</span>
           <p className="text-[10px] text-slate-500">
             {(a.purchaseCost > 0 ? (a.accumulatedDepreciation / a.purchaseCost) * 100 : 0).toFixed(1)}% amortized
           </p>
@@ -102,9 +168,7 @@ export const AssetModulePage: React.FC = () => {
       align: 'right',
       render: (a) => (
         <div className="text-right">
-          <span className="font-mono font-bold text-emerald-400 text-sm">
-            {formatCurrency(a.currentBookValue, currency)}
-          </span>
+          <span className="font-mono font-bold text-emerald-400 text-sm">{formatCurrency(a.currentBookValue, currency)}</span>
           <p className="text-[10px] text-slate-400">Salvage: {formatCurrency(a.salvageValue, currency)}</p>
         </div>
       ),
@@ -127,6 +191,18 @@ export const AssetModulePage: React.FC = () => {
         </span>
       ),
     },
+    ...((canEdit || canDelete) ? [{
+      key: 'actions',
+      header: 'Actions',
+      align: 'right' as const,
+      sortable: false,
+      render: (a: FixedAsset) => (
+        <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
+          {canEdit && <Button variant="ghost" size="xs" onClick={() => openEdit(a)} leftIcon={<Pencil className="w-3 h-3" />}>Edit</Button>}
+          {canDelete && <Button variant="ghost" size="xs" onClick={() => setDeleting(a)} leftIcon={<Trash2 className="w-3 h-3" />}>Delete</Button>}
+        </div>
+      ),
+    }] : []),
   ];
 
   return (
@@ -138,63 +214,36 @@ export const AssetModulePage: React.FC = () => {
             Asset Module & Automatic Depreciation
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Enterprise fixed asset register with automatic monthly depreciation calculations and direct GL journal posting (Dr 5080 / Cr 1520).
+            Fixed asset register with monthly depreciation runs posted to the GL (Dr each asset's depreciation expense account / Cr its accumulated depreciation account).
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={() => openQuickModal('run-depreciation')}
-            leftIcon={<Play className="w-4 h-4 text-forest-500" />}
-          >
-            Run Auto-Depreciation
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            className="rounded-full shadow-sm"
-            onClick={() => openQuickModal('add-fixed-asset')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Add Fixed Asset
-          </Button>
+          {canCreate && (
+            <Button variant="outline" size="sm" className="rounded-full" onClick={() => openQuickModal('run-depreciation')}
+              leftIcon={<Play className="w-4 h-4 text-forest-500" />}>
+              Run Auto-Depreciation
+            </Button>
+          )}
+          {canCreate && (
+            <Button variant="primary" size="sm" className="rounded-full shadow-sm" onClick={() => openQuickModal('add-fixed-asset')}
+              leftIcon={<Plus className="w-4 h-4" />}>
+              Add Fixed Asset
+            </Button>
+          )}
         </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard
-          title="Gross Fixed Assets (At Cost)"
-          value={formatCurrency(totalCost, currency)}
-          subValue={`${totalAssetsCount} Registered Assets`}
-          icon={<Layers className="w-4 h-4" />}
-          variant="indigo"
-          isHero={true}
-        />
-        <StatCard
-          title="Accumulated Depreciation"
-          value={formatCurrency(totalAccDepr, currency)}
-          subValue="Credit Balance (GL 1520)"
-          icon={<TrendingDown className="w-4 h-4" />}
-          variant="rose"
-        />
-        <StatCard
-          title="Net Carrying Book Value"
-          value={formatCurrency(totalNetBookValue, currency)}
-          subValue="Balance Sheet Net Worth"
-          icon={<ShieldCheck className="w-4 h-4" />}
-          variant="emerald"
-        />
-        <StatCard
-          title="Depreciation Batches"
-          value={depreciationRuns.length}
-          subValue="Executed Amortizations"
-          icon={<History className="w-4 h-4" />}
-          variant="amber"
-        />
+        <StatCard title="Gross Fixed Assets (At Cost)" value={formatCurrency(totalCost, currency)} subValue={`${scopedAssets.length} Registered Assets`}
+          icon={<Layers className="w-4 h-4" />} variant="indigo" isHero={true} />
+        <StatCard title="Accumulated Depreciation" value={formatCurrency(totalAccDepr, currency)} subValue="Per asset register"
+          icon={<TrendingDown className="w-4 h-4" />} variant="rose" />
+        <StatCard title="Net Carrying Book Value" value={formatCurrency(totalNetBookValue, currency)} subValue="Cost less accumulated depreciation"
+          icon={<ShieldCheck className="w-4 h-4" />} variant="emerald" />
+        <StatCard title="Depreciation Runs" value={depreciationRuns.length} subValue="Monthly runs executed"
+          icon={<History className="w-4 h-4" />} variant="amber" />
       </div>
 
       {/* Segmented Pill Tabs */}
@@ -202,21 +251,16 @@ export const AssetModulePage: React.FC = () => {
         <button
           onClick={() => setActiveTab('register')}
           className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'register'
-              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
-              : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'register' ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
           <span>Fixed Asset Register</span>
         </button>
-
         <button
           onClick={() => setActiveTab('runs')}
           className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'runs'
-              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
-              : 'text-slate-400 hover:text-slate-200'
+            activeTab === 'runs' ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <History className="w-3.5 h-3.5" />
@@ -233,6 +277,7 @@ export const AssetModulePage: React.FC = () => {
           searchPlaceholder="Search fixed assets by asset code, name, category, serial number..."
           searchFields={['assetCode', 'name', 'category', 'serialNumber', 'assignedVehiclePlate']}
           exportFilename="FleetX_Fixed_Assets_Register"
+          emptyMessage="No fixed assets registered for this selection."
           filterComponent={
             <select
               value={selectedCategory}
@@ -240,25 +285,17 @@ export const AssetModulePage: React.FC = () => {
               className="bg-white border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer shadow-sm"
             >
               <option value="all">All Asset Categories</option>
-              <option value="Fleet Vehicle">Fleet Vehicles</option>
-              <option value="Workshop Equipment">Workshop & Diagnostic Equipment</option>
-              <option value="Machinery">Machinery & Cranes</option>
-              <option value="IT & Office">IT & Facilities</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           }
         />
       ) : (
-        /* Depreciation Runs Log */
         <div className="space-y-4">
           <Card className="overflow-hidden border border-slate-700 bg-white shadow-card rounded-[20px]">
             <div className="p-4 sm:p-5 bg-white border-b border-slate-700 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
-                  Automatic Depreciation Batch Runs
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Historical monthly depreciation runs with linked GL double-entry journal vouchers.
-                </p>
+                <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">Depreciation Runs</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Monthly runs (one per company and month) with their linked GL journal.</p>
               </div>
             </div>
 
@@ -279,9 +316,7 @@ export const AssetModulePage: React.FC = () => {
                 <tbody className="divide-y divide-slate-700/60 bg-white">
                   {depreciationRuns.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-6 text-center text-slate-500 italic">
-                        No depreciation batches executed yet. Click "Run Auto-Depreciation" above.
-                      </td>
+                      <td colSpan={8} className="py-6 text-center text-slate-500 italic">No depreciation runs yet.</td>
                     </tr>
                   ) : (
                     depreciationRuns.map(run => (
@@ -290,26 +325,17 @@ export const AssetModulePage: React.FC = () => {
                         <td className="py-3 px-4 font-medium text-amber-300">{run.periodLabel}</td>
                         <td className="py-3 px-4 text-slate-300 font-mono">{formatDate(run.runDate)}</td>
                         <td className="py-3 px-4 text-center font-mono">
-                          <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-200">
-                            {run.totalAssetsProcessed} Assets
-                          </span>
+                          <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-200">{run.totalAssetsProcessed} Assets</span>
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-rose-400">
-                          {formatCurrency(run.totalDepreciationAmount, currency)}
-                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-rose-400">{formatCurrency(run.totalDepreciationAmount, currency)}</td>
                         <td className="py-3 px-4">
                           <span className="px-2 py-0.5 rounded bg-indigo-950 border border-indigo-800 text-indigo-300 font-mono text-[10px] font-bold">
-                            {run.journalEntryNumber || 'JE-POSTED'}
+                            {run.journalEntryNumber || 'Not posted to GL'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-300">{run.processedBy}</td>
+                        <td className="py-3 px-4 text-slate-300">{run.processedBy || '—'}</td>
                         <td className="py-3 px-4 text-right">
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            onClick={() => setSelectedRun(run)}
-                            leftIcon={<Eye className="w-3 h-3" />}
-                          >
+                          <Button variant="ghost" size="xs" onClick={() => setSelectedRun(run)} leftIcon={<Eye className="w-3 h-3" />}>
                             View Breakdown
                           </Button>
                         </td>
@@ -329,7 +355,7 @@ export const AssetModulePage: React.FC = () => {
           isOpen={!!selectedRun}
           onClose={() => setSelectedRun(null)}
           title={`Depreciation Breakdown: ${selectedRun.batchNumber} (${selectedRun.periodLabel})`}
-          description={`Processed by ${selectedRun.processedBy} on ${formatDate(selectedRun.runDate)} • Total: ${formatCurrency(selectedRun.totalDepreciationAmount, currency)}`}
+          description={`Processed by ${selectedRun.processedBy || 'unknown user'} on ${formatDate(selectedRun.runDate)} • Total: ${formatCurrency(selectedRun.totalDepreciationAmount, currency)}`}
           size="xl"
         >
           <div className="space-y-4">
@@ -346,20 +372,17 @@ export const AssetModulePage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
-                  {selectedRun.breakdown.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/30">
+                  {selectedRun.breakdown.length === 0 && (
+                    <tr><td colSpan={6} className="py-4 text-center text-slate-500 italic">No asset was depreciated in this run.</td></tr>
+                  )}
+                  {selectedRun.breakdown.map(item => (
+                    <tr key={item.assetId} className="hover:bg-slate-800/30">
                       <td className="py-2 px-3 font-mono font-bold text-slate-200">{item.assetCode}</td>
                       <td className="py-2 px-3 font-medium text-slate-200">{item.assetName}</td>
                       <td className="py-2 px-3 text-slate-400">{item.category}</td>
-                      <td className="py-2 px-3 text-right font-mono text-slate-300">
-                        {formatCurrency(item.previousBookValue, currency)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-rose-400">
-                        {formatCurrency(item.depreciationAmount, currency)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-emerald-400">
-                        {formatCurrency(item.newBookValue, currency)}
-                      </td>
+                      <td className="py-2 px-3 text-right font-mono text-slate-300">{formatCurrency(item.previousBookValue, currency)}</td>
+                      <td className="py-2 px-3 text-right font-mono font-bold text-rose-400">{formatCurrency(item.depreciationAmount, currency)}</td>
+                      <td className="py-2 px-3 text-right font-mono font-bold text-emerald-400">{formatCurrency(item.newBookValue, currency)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -367,13 +390,83 @@ export const AssetModulePage: React.FC = () => {
             </div>
 
             <div className="flex justify-end pt-2">
-              <Button variant="secondary" size="sm" onClick={() => setSelectedRun(null)}>
-                Close Breakdown
-              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedRun(null)}>Close Breakdown</Button>
             </div>
           </div>
         </Modal>
       )}
+
+      {/* Edit Fixed Asset */}
+      <Modal
+        isOpen={!!editing}
+        onClose={() => !pending && setEditing(null)}
+        title={`Edit ${editing?.assetCode ?? ''}`}
+        description="Accumulated depreciation only changes through depreciation runs."
+        size="lg"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <Input label="Asset Name" value={editForm.name ?? ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} required />
+            </div>
+            <Select label="Category" value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value as FixedAssetCategory })}>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </Select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Location" value={editForm.location ?? ''} onChange={e => setEditForm({ ...editForm, location: e.target.value })} />
+            <Input label="Department" value={editForm.department ?? ''} onChange={e => setEditForm({ ...editForm, department: e.target.value })} />
+            <Input label="Serial Number" value={editForm.serialNumber ?? ''} onChange={e => setEditForm({ ...editForm, serialNumber: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Input label="Purchase Date" type="date" value={editForm.purchaseDate ?? ''} onChange={e => setEditForm({ ...editForm, purchaseDate: e.target.value })} required />
+            <Input label={`Cost (${currency})`} type="number" step="0.001" min="0" value={editForm.purchaseCost ?? 0} onChange={e => setEditForm({ ...editForm, purchaseCost: Number(e.target.value) })} required />
+            <Input label={`Salvage (${currency})`} type="number" step="0.001" min="0" value={editForm.salvageValue ?? 0} onChange={e => setEditForm({ ...editForm, salvageValue: Number(e.target.value) })} />
+            <Input label="Useful Life (Years)" type="number" step="0.01" min="0.01" value={editForm.usefulLifeYears ?? 0} onChange={e => setEditForm({ ...editForm, usefulLifeYears: Number(e.target.value) })} required />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Select label="Method" value={editForm.depreciationMethod} onChange={e => setEditForm({ ...editForm, depreciationMethod: e.target.value as AssetDepreciationMethod })}>
+              <option value="Straight-Line">Straight-Line</option>
+              <option value="Reducing Balance">Reducing Balance</option>
+              <option value="Double Declining">Double Declining</option>
+            </Select>
+            <Input label="Annual Rate % (reducing balance)" type="number" step="0.001" min="0" value={editForm.annualRatePercentage ?? 0}
+              onChange={e => setEditForm({ ...editForm, annualRatePercentage: Number(e.target.value) })} />
+            <Input label={`Market Value (${currency})`} type="number" step="0.001" min="0" value={editForm.currentMarketValue ?? ''}
+              onChange={e => setEditForm({ ...editForm, currentMarketValue: e.target.value === '' ? undefined : Number(e.target.value) })} />
+            <Select label="Status" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value as FixedAsset['status'] })}>
+              {STATUSES.map(st => <option key={st} value={st}>{st}</option>)}
+            </Select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="GL Asset Account" value={editForm.glAssetAccount ?? ''} onChange={e => setEditForm({ ...editForm, glAssetAccount: e.target.value })} required />
+            <Input label="GL Depreciation Expense" value={editForm.glDepreciationExpenseAccount ?? ''} onChange={e => setEditForm({ ...editForm, glDepreciationExpenseAccount: e.target.value })} required />
+            <Input label="GL Accumulated Depreciation" value={editForm.glAccumulatedDepreciationAccount ?? ''} onChange={e => setEditForm({ ...editForm, glAccumulatedDepreciationAccount: e.target.value })} required />
+          </div>
+          <Textarea label="Notes" value={editForm.notes ?? ''} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} />
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+            <Button variant="secondary" type="button" onClick={() => setEditing(null)} disabled={pending}>Cancel</Button>
+            <Button variant="primary" type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save Changes'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Fixed Asset */}
+      <Modal
+        isOpen={!!deleting}
+        onClose={() => !pending && setDeleting(null)}
+        title={`Delete ${deleting?.assetCode ?? ''}?`}
+        description="Assets with posted depreciation cannot be deleted; mark them Disposed instead."
+        size="sm"
+      >
+        <div className="space-y-4 text-sm text-slate-300">
+          <p>{deleting?.name} will be removed from the fixed asset register.</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setDeleting(null)} disabled={pending}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete} disabled={pending}>{pending ? 'Deleting…' : 'Delete Asset'}</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

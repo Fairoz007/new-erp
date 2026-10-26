@@ -821,7 +821,7 @@ export function getVehicleFinancialSummary(vehicleId: string, c: VehicleFinancia
   // Revenue = approved (GL-posted) sales invoices for this vehicle, net of approved credit notes
   const totalRev = c.invoices
     .filter(i => i.invoiceType === 'Sales' && i.vehicleId === vehicleId && i.approvalStatus === 'Approved')
-    .reduce((s, i) => s + (i.isCreditNote ? -i.grandTotal : i.grandTotal), 0);
+    .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.grandTotal) : i.grandTotal), 0);
 
   return {
     purchaseValue: purchaseVal,
@@ -874,13 +874,13 @@ export const fetchers: Fetchers = {
 };
 
 export const affects: Record<string, CollectionKey[]> = {
-  addCompany: ['companies'],
+  addCompany: ['companies', 'chartOfAccounts'],   // companies_bootstrap seeds the new office's chart of accounts
   updateCompany: ['companies'],
   addVehicle: ['vehicles', 'timeline'],
   updateVehicle: ['vehicles', 'timeline'],
   deleteVehicle: ['vehicles', 'timeline'],
   addMaintenanceRecord: ['maintenanceRecords', 'vehicles', 'timeline', 'invoices', 'suppliers'],
-  addWorkOrder: ['workOrders', 'approvalRequests'],
+  addWorkOrder: ['workOrders', 'approvalRequests', 'notifications'],   // approval request notifies approvers
   updateWorkOrderStatus: ['workOrders', 'maintenanceRecords', 'vehicles', 'timeline', 'invoices', 'suppliers'],
   addOilChange: ['oilChanges', 'vehicles', 'timeline'],
   addTyre: ['tyres'],

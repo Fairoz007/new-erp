@@ -6,13 +6,14 @@ import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { getTrialBalance } from '../../services/accounting';
 
 export const TrialBalancePage: React.FC = () => {
-  const { getTrialBalance, currency, selectedCompany, companies, selectedCompanyId } = useFleet();
+  const { chartOfAccounts, journalEntries, currency, selectedCompany, selectedCompanyId } = useFleet();
   const [asOfDate, setAsOfDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const tbData = getTrialBalance(asOfDate);
+  const tbData = getTrialBalance(chartOfAccounts, journalEntries, asOfDate, selectedCompanyId);
   // An empty ledger is trivially balanced; show that truthfully instead of a "perfect balance" banner.
   const hasLedger = tbData.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 

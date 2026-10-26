@@ -321,7 +321,7 @@ export const ReportsPage: React.FC = () => {
         inCompany(invoices).filter(i => i.paymentStatus !== 'Cancelled' && i.approvalStatus !== 'Draft' && i.approvalStatus !== 'Rejected' && i.approvalStatus !== 'Cancelled').forEach(i => {
           const key = (i.invoiceDate || '').slice(0, 7);
           const row = byMonth.get(key) ?? { id: key, month: key, outputTax: 0, inputTax: 0, net: 0 };
-          const signed = i.isCreditNote ? -i.taxTotal : i.taxTotal;
+          const signed = i.isCreditNote ? -Math.abs(i.taxTotal) : i.taxTotal;   // credit-note totals already arrive negative
           if (i.invoiceType === 'Sales') row.outputTax += signed; else row.inputTax += signed;
           byMonth.set(key, row);
         });

@@ -44,11 +44,15 @@ export const IDS = {
   DQ: '22222222-2222-2222-2222-222222222222',
 };
 
-export async function setup(dir = 'supabase/migrations') {
+// opts.order(files) may reorder the sorted migration list (e.g. to replay the linked
+// project's apply order); opts.quiet suppresses the per-migration OK lines.
+export async function setup(dir = 'supabase/migrations', opts = {}) {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  for (const f of readdirSync(dir).filter(f => f.endsWith('.sql')).sort()) {
-    try { await db.exec(readFileSync(join(dir, f), 'utf8')); console.log('OK   migration', f); }
+  let files = readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+  if (opts.order) files = opts.order(files);
+  for (const f of files) {
+    try { await db.exec(readFileSync(join(dir, f), 'utf8')); if (!opts.quiet) console.log('OK   migration', f); }
     catch (e) { console.log('FAIL migration', f, '\n  ', e.message); process.exit(1); }
   }
 
@@ -76,7 +80,12 @@ export async function setup(dir = 'supabase/migrations') {
     finally { await db.exec(`reset role; ${setUid(null)}`); }
   };
   // owner / service-role context (auth.uid() is null), e.g. imports and SQL editor
-  const asServer = async (sql, params) => { await db.exec(setUid(null)); return db.query(sql, params); };
+  // (several statements allowed when no params; returns the last statement's result)
+  const asServer = async (sql, params) => {
+    await db.exec(setUid(null));
+    if (params) return db.query(sql, params);
+    const res = await db.exec(sql); return res[res.length - 1];
+  };
   const one = async (uid, sql) => (await as(uid, sql)).rows[0];
   const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
   const report = () => {

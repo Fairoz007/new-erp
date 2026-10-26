@@ -1,4 +1,4 @@
-// Core schema tests (migrations 000000-000200) and the entry point for .
+// Core schema tests (migrations 000000-000200) and the entry point for `npm run test:db`.
 // After its own checks this file runs every other supabase/tests/*.test.mjs in a child
 // process (fresh in-memory DB each) and fails if any of them fails.
 // Run a single file: node supabase/tests/<file>.test.mjs supabase/migrations
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import { setup, seedFixtures, IDS } from './harness.mjs';
 
 const dir = process.argv[2] || 'supabase/migrations';
-const { db, check, as, tx, report: printReport, results } = await setup(dir);
+const { db, check, as, tx, results } = await setup(dir);
 await seedFixtures(db);
 const { ADMIN, VIEWER, FLEET, OTHER, HO } = IDS;
 
@@ -82,7 +82,8 @@ await check('user cannot promote self to Super Admin', () =>
   as(VIEWER, `update profiles set role='Super Admin' where id='${VIEWER}'`), 'Only administrators');
 await check('audit log written by trigger, scoped by company', async () => {
   const total = (await db.query(`select count(*)::int n from audit_logs`)).rows[0].n;
-  const seen = (await as(OTHER, `select count(*)::int n from audit_logs`)).rows[0].n;
+  // OTHER (Duqm) legitimately sees Duqm's own rows (e.g. its chart-of-accounts bootstrap); never Head Office's
+  const seen = (await as(OTHER, `select count(*)::int n from audit_logs where company_id is distinct from '${IDS.DQ}'`)).rows[0].n;
   if (total === 0 || seen !== 0) throw new Error(`total=${total} seen=${seen}`); return `total=${total}, other office sees 0`;
 });
 
@@ -127,19 +128,19 @@ await check('anon has no table access', async () => {
 // ---------------------------------------------------------------------
 for (const [s, n, d] of results) console.log(s.padEnd(5), n, d ? '— ' + String(d).slice(0, 160) : '');
 const ownFails = results.filter(r => r[0] === 'FAIL').length;
-console.log();
+console.log(`\nschema.test.mjs: ${results.length - ownFails}/${results.length} passed`);
 
 const here = dirname(fileURLToPath(import.meta.url));
+const self = basename(fileURLToPath(import.meta.url));
 const only = (process.env.TEST_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
-const files = readdirSync(here).filter(f => f.endsWith('.test.mjs') && f !== basename(fileURLToPath(import.meta.url)))
-  .filter(f => !only.length || only.some(o => f.startsWith(o))).sort();
-const summary = [['schema.test.mjs', ownFails ? 'FAIL' : 'PASS']];
+const files = readdirSync(here).filter(f => f.endsWith('.test.mjs') && f !== self)
+  .filter(f => !only.length || only.some(o => f.includes(o))).sort();
+const summary = [[self, ownFails ? 'FAIL' : 'PASS']];
 for (const f of files) {
-  console.log();
+  console.log(`\n===== ${f} =====`);
   const r = spawnSync(process.execPath, [join(here, f), dir], { stdio: 'inherit' });
   summary.push([f, r.status === 0 ? 'PASS' : 'FAIL']);
 }
-console.log('
-===== test:db summary =====');
+console.log('\n===== test:db summary =====');
 for (const [f, s] of summary) console.log(s.padEnd(5), f);
 process.exit(summary.some(([, s]) => s === 'FAIL') ? 1 : 0);

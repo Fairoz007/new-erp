@@ -111,7 +111,7 @@ export const DepreciationPage: React.FC = () => {
             Vehicle Asset Depreciation Engine
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Amortize fleet asset values using Straight-Line and Reducing Balance methods to track accurate book vs market values.
+            Estimated vehicle book values calculated from each vehicle's purchase and depreciation settings. These figures are not posted to the ledger: posted depreciation lives in Fixed Assets (run_depreciation).
           </p>
         </div>
       </div>
@@ -129,21 +129,21 @@ export const DepreciationPage: React.FC = () => {
         <StatCard
           title="Accumulated Depreciation"
           value={formatCurrency(totalAccumulatedDepr, currency)}
-          subValue="Total amortized to date"
+          subValue="Estimate from vehicle settings"
           icon={<TrendingDown className="w-4 h-4" />}
           variant="rose"
         />
         <StatCard
           title="Net Book Value"
           value={formatCurrency(totalBookValue, currency)}
-          subValue="Accounting balance"
+          subValue="Estimate, not the GL balance"
           icon={<Percent className="w-4 h-4" />}
           variant="purple"
         />
         <StatCard
           title="Market Resale Value"
           value={formatCurrency(vehicles.reduce((s, v) => s + (v.currentMarketValue || 0), 0), currency)}
-          subValue="Estimated realizable"
+          subValue="As entered on vehicle records"
           icon={<DollarSign className="w-4 h-4" />}
           variant="emerald"
         />
@@ -152,7 +152,7 @@ export const DepreciationPage: React.FC = () => {
       {/* Depreciation Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Fleet Amortization Schedule Projection</CardTitle>
+          <CardTitle>Fleet Amortization Schedule Projection (estimate)</CardTitle>
         </CardHeader>
         <CardContent>
           <AssetDepreciationChart />
@@ -167,6 +167,7 @@ export const DepreciationPage: React.FC = () => {
         title="Vehicle Depreciation Registry"
         searchPlaceholder="Search vehicles by plate, model, depreciation method..."
         exportFilename="FleetX_Vehicle_Depreciation"
+        emptyMessage="No vehicles in this selection."
       />
     </div>
   );

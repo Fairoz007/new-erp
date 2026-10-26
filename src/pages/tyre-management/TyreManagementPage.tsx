@@ -10,12 +10,16 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { useAuth } from '../../context/AuthContext';
+import { TyreEditModal } from './TyreEditModal';
 
 type TyreRow = Tyre & { vehiclePlate: string; vehicleName: string };
 
 export const TyreManagementPage: React.FC = () => {
-  const { tyres: allTyres, tyreEvents: allTyreEvents, vehicles, currency, selectedCompanyId } = useFleet();
-  const { openQuickModal, openVehicleDetail } = useUI();
+  const { tyres: allTyres, tyreEvents: allTyreEvents, vehicles, currency, selectedCompanyId, updateTyre } = useFleet();
+  const { openQuickModal, openVehicleDetail, addToast } = useUI();
+  const { hasPermission } = useAuth();
+  const [editing, setEditing] = useState<Tyre | null>(null);
   const [filter, setFilter] = useState<string>('all');
 
   // Scope to selected office and add searchable vehicle fields
@@ -106,9 +110,16 @@ export const TyreManagementPage: React.FC = () => {
       align: 'right',
       sortable: false,
       render: (t) => (
-        <Button variant="ghost" size="xs" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
-          Lifecycle
-        </Button>
+        <div className="flex items-center justify-end gap-1.5">
+          {hasPermission('edit', 'tyres') && (
+            <Button variant="ghost" size="xs" onClick={() => setEditing(t)}>
+              Update
+            </Button>
+          )}
+          <Button variant="ghost" size="xs" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
+            Lifecycle
+          </Button>
+        </div>
       ),
     },
   ];
@@ -127,14 +138,21 @@ export const TyreManagementPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-work-order')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Order Tyre Service
-          </Button>
+          {hasPermission('create', 'tyres') && (
+            <Button variant="outline" size="md" onClick={() => openQuickModal('add-tyre')} leftIcon={<Plus className="w-4 h-4" />}>
+              Add Tyre
+            </Button>
+          )}
+          {hasPermission('create', 'work-orders') && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => openQuickModal('add-work-order')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Order Tyre Service
+            </Button>
+          )}
         </div>
       </div>
 
@@ -190,6 +208,16 @@ export const TyreManagementPage: React.FC = () => {
           </select>
         }
       />
+      {editing && (
+        <TyreEditModal
+          tyre={editing}
+          onClose={() => setEditing(null)}
+          onSubmit={async updates => {
+            await updateTyre(editing.id, updates);
+            addToast({ type: 'success', title: 'Tyre Updated', message: `${editing.brand} ${editing.position} was saved.` });
+          }}
+        />
+      )}
     </div>
   );
 };

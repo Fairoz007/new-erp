@@ -21,6 +21,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { getCompanyBalanceSheet, getCompanyProfitLoss, getTrialBalance } from '../../services/accounting';
 
 const FinanceValue: React.FC<{
   label: string;
@@ -60,9 +61,7 @@ export const FinanceOverview: React.FC = () => {
     journalEntries,
     reconciliations,
     approvalRequests,
-    getCompanyProfitLoss,
-    getCompanyBalanceSheet,
-    getTrialBalance,
+    chartOfAccounts,
   } = useFleet();
   const { setCurrentPage } = useUI();
 
@@ -73,9 +72,11 @@ export const FinanceOverview: React.FC = () => {
   const scopedApprovals = approvalRequests.filter(item => companyMatches(item.companyId));
   const scopedBankAccounts = bankAccounts.filter(account => companyMatches(account.companyId) && account.active);
 
-  const pnl = getCompanyProfitLoss();
-  const balanceSheet = getCompanyBalanceSheet();
-  const trialBalance = getTrialBalance(new Date().toISOString().slice(0, 10));
+  // All three statements come from the same per-company ledger (opening balances + posted lines).
+  const today = new Date().toISOString().slice(0, 10);
+  const pnl = getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId, { startDate: `${today.slice(0, 4)}-01-01`, endDate: today });
+  const balanceSheet = getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, today);
+  const trialBalance = getTrialBalance(chartOfAccounts, journalEntries, today, selectedCompanyId);
   // An empty ledger is trivially "balanced"; say so instead of claiming the books were checked.
   const hasLedger = trialBalance.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 
