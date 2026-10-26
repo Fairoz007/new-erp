@@ -13,6 +13,7 @@ import * as hr from '../services/hr';
 import * as system from '../services/system';
 import * as docs from '../services/documents';
 import { useAuth } from './AuthContext';
+import { readCache, writeCache } from '../lib/cache';
 
 // All business data lives in Supabase. This provider loads each collection through the
 // service-layer fetchers (RLS decides what the signed-in user sees), runs every mutation through
@@ -43,6 +44,23 @@ const AFFECTS: Record<string, CollectionKey[]> = {
 
 const ALL_KEYS = Object.keys(FETCHERS) as CollectionKey[];
 const STALE_AFTER_MS = 60_000;
+
+// Load order: what the landing/active page needs first, the rest in the background. A page shows
+// as soon as its own wave arrives instead of waiting for all 27 collections.
+const CORE_KEYS: CollectionKey[] = ['companies', 'vehicles', 'notifications', 'approvalRequests'];
+const PAGE_KEYS: Record<string, CollectionKey[]> = {
+  dashboard: ['maintenanceRecords', 'workOrders', 'oilChanges', 'tyres', 'accidents', 'expenses', 'invoices', 'journalEntries', 'chartOfAccounts', 'suppliers', 'customers'],
+  expenses: ['expenses', 'suppliers'],
+  invoices: ['invoices', 'suppliers', 'customers', 'payments', 'bankAccounts'],
+  payments: ['payments', 'invoices', 'bankAccounts', 'suppliers', 'customers'],
+  reconciliation: ['reconciliations', 'invoices', 'suppliers', 'maintenanceRecords', 'workOrders'],
+  'trial-balance': ['journalEntries', 'chartOfAccounts'],
+  'general-ledger': ['journalEntries', 'chartOfAccounts', 'suppliers', 'customers', 'invoices', 'payments'],
+  vehicles: ['tyres', 'oilChanges', 'maintenanceRecords', 'accidents', 'expenses'],
+};
+const currentHashPage = (): string => {
+  try { return (window.location.hash.replace(/^#/, '').split('?')[0]) || 'dashboard'; } catch { return 'dashboard'; }
+};
 const CURRENCY_KEY = 'erp_display_currency';
 
 interface Collections {
@@ -178,7 +196,8 @@ const readCurrency = (): string => {
 };
 
 export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { refresh: refreshAuth, memberCompanyIds, isSuperAdmin } = useAuth();
+  const { refresh: refreshAuth, memberCompanyIds, isSuperAdmin, currentUser } = useAuth();
+  const cacheUserId = currentUser.id;
 
   const [data, setData] = useState<Collections>(EMPTY);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -199,31 +218,44 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const wanted = Array.from(new Set(keys)).filter(k => FETCHERS[k]);
     if (wanted.length === 0) return;
     setIsRefreshing(true);
-    const results = await Promise.allSettled(wanted.map(k => FETCHERS[k]!()));
-    const next: Partial<Collections> = {};
-    const errors: Partial<Record<CollectionKey, string>> = {};
-    results.forEach((r, i) => {
-      const key = wanted[i];
-      if (r.status === 'fulfilled') (next as any)[key] = r.value;
-      else {
-        errors[key] = (r.reason as Error)?.message || 'Failed to load';
-        console.error(`Failed to load ${key}:`, r.reason);
+    // Apply each collection the moment it arrives: one slow table never holds back the others.
+    await Promise.allSettled(wanted.map(async key => {
+      try {
+        const rows = await FETCHERS[key]!();
+        setData(prev => ({ ...prev, [key]: rows }));
+        setLoadErrors(prev => { if (!(key in prev)) return prev; const m = { ...prev }; delete m[key]; return m; });
+        if (cacheUserId) void writeCache(cacheUserId, { [key]: rows });
+      } catch (r) {
+        console.error(`Failed to load ${key}:`, r);
+        setLoadErrors(prev => ({ ...prev, [key]: (r as Error)?.message || 'Failed to load' }));
       }
-    });
-    setData(prev => ({ ...prev, ...next }));
-    setLoadErrors(prev => {
-      const merged = { ...prev };
-      wanted.forEach(k => { delete merged[k]; });
-      return { ...merged, ...errors };
-    });
+    }));
     if (wanted.length === ALL_KEYS.length) lastLoadedAt.current = Date.now();
     setIsRefreshing(false);
-  }, []);
+  }, [cacheUserId]);
 
-  // Initial load (the provider is mounted by AuthGate only once a user is signed in)
+  // Initial load (the provider is mounted by AuthGate only once a user is signed in):
+  // 1) paint last-known data from the local cache, 2) fetch the active page's collections,
+  // 3) fetch everything else in the background.
   useEffect(() => {
-    reload().finally(() => setIsLoaded(true));
-  }, [reload]);
+    let alive = true;
+    (async () => {
+      if (cacheUserId) {
+        const cached = await readCache(cacheUserId);
+        if (alive && Object.keys(cached).length) {
+          setData(prev => ({ ...prev, ...(cached as Partial<Collections>) }));
+          setIsLoaded(true);
+        }
+      }
+      const first = Array.from(new Set<CollectionKey>([...CORE_KEYS, ...(PAGE_KEYS[currentHashPage()] ?? [])]));
+      await reload(first);
+      if (!alive) return;
+      setIsLoaded(true);
+      await reload(ALL_KEYS.filter(k => !first.includes(k)));
+      lastLoadedAt.current = Date.now();
+    })();
+    return () => { alive = false; };
+  }, [reload, cacheUserId]);
 
   // Refresh stale data when the tab becomes visible again (other users may have changed records)
   useEffect(() => {

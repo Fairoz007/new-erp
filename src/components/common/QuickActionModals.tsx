@@ -14,7 +14,7 @@ import { InvoiceType, PaymentMethod } from '../../types/finance';
 import { EmployeeDepartment } from '../../types/hr';
 
 export const QuickActionModals: React.FC = () => {
-  const { quickModal, closeQuickModal, addToast, selectedVehicleId } = useUI();
+  const { quickModal, closeQuickModal, addToast, selectedVehicleId, paymentInvoiceId } = useUI();
   const { currentUser } = useAuth();
   const {
     companies,
@@ -736,6 +736,12 @@ export const QuickActionModals: React.FC = () => {
   const payableInvoices = invoices.filter(i =>
     i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0.0005);
   const paymentInvoice = payableInvoices.find(i => i.id === paymentForm.invoiceId);
+  // Opened from an invoice row: preselect that invoice and its outstanding balance
+  useEffect(() => {
+    if (quickModal !== 'add-payment' || !paymentInvoiceId) return;
+    const inv = invoices.find(i => i.id === paymentInvoiceId);
+    if (inv) setPaymentForm(prev => ({ ...prev, invoiceId: inv.id, amount: inv.outstandingAmount, bankAccountId: '' }));
+  }, [quickModal, paymentInvoiceId]); // eslint-disable-line react-hooks/exhaustive-deps
   const paymentBanks = bankAccounts.filter(b => b.active !== false && (!paymentInvoice || b.companyId === paymentInvoice.companyId));
 
   const handleCreatePayment = (e: React.FormEvent) => {

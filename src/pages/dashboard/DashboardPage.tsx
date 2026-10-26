@@ -57,7 +57,7 @@ export const DashboardPage: React.FC = () => {
     getCompanyBalanceSheet,
   } = useFleet();
 
-  const { setCurrentPage, openVehicleDetail, openQuickModal } = useUI();
+  const { setCurrentPage, openVehicleDetail, openQuickModal, setInvoiceView } = useUI();
   const { hasPermission, canAccessPage } = useAuth();
 
   // Scope all operational data to the selected office (or consolidated view)
@@ -95,7 +95,7 @@ export const DashboardPage: React.FC = () => {
   const insuranceCost = expenses.filter(e => e.category === 'Insurance').reduce((s, e) => s + e.total, 0) + vehicles.reduce((s, v) => s + (v.insurancePremiumAnnual || 0), 0);
   const totalExpensesLifetime = expenses.reduce((s, e) => s + e.total, 0) + lifetimeMaintenanceCost;
 
-  const openPurchase = invoices.filter(i => i.invoiceType === 'Purchase' && !i.isCreditNote && i.paymentStatus !== 'Paid' && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0);
+  const openPurchase = invoices.filter(i => i.invoiceType === 'Purchase' && i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Paid' && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0);
   const amountPayable = openPurchase.reduce((s, i) => s + i.outstandingAmount, 0);
   const outstandingSupplierInvoices = openPurchase.length;
 
@@ -289,7 +289,7 @@ export const DashboardPage: React.FC = () => {
           title="Pending Invoices (AP)"
           value={formatCurrency(amountPayable, currency)}
           trend={{ value: `${outstandingSupplierInvoices}`, direction: 'neutral', label: 'Unpaid supplier bills' }}
-          onClick={() => setCurrentPage('invoices')}
+          onClick={() => { setInvoiceView('pending'); setCurrentPage('invoices'); }}
         />
         )}
       </div>

@@ -75,6 +75,8 @@ export interface ToastMessage {
   message?: string;
 }
 
+export type InvoiceView = 'all' | 'pending' | 'overdue' | 'approval' | 'draft' | 'paid';
+
 interface UIContextType {
   currentPage: AppPage;
   setCurrentPage: (page: AppPage) => void;
@@ -91,7 +93,13 @@ interface UIContextType {
   quickModal: QuickModalType;
   openQuickModal: (type: QuickModalType) => void;
   closeQuickModal: () => void;
-  
+
+  // Invoices register: pre-selected view when arriving from a dashboard card, and one-click settle
+  invoiceView: InvoiceView;
+  setInvoiceView: (view: InvoiceView) => void;
+  paymentInvoiceId: string | null;
+  openPaymentFor: (invoiceId: string) => void;
+
   // Printable Invoice
   viewingInvoiceId: string | null;
   openInvoiceModal: (invoiceId: string) => void;
@@ -244,7 +252,17 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
     setQuickModal(type);
   };
-  const closeQuickModal = () => setQuickModal(null);
+  const closeQuickModal = () => { setQuickModal(null); setPaymentInvoiceId(null); };
+  const [invoiceView, setInvoiceView] = useState<InvoiceView>('all');
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | null>(null);
+  const openPaymentFor = (invoiceId: string) => {
+    if (!canAccessPage('payments') || !hasPermission('create', 'payments')) {
+      addToast({ type: 'error', title: 'Permission denied', message: 'Your role cannot record payments.' });
+      return;
+    }
+    setPaymentInvoiceId(invoiceId);
+    setQuickModal('add-payment');
+  };
 
   const openInvoiceModal = (invoiceId: string) => {
     if (!canAccessPage('invoices')) {
@@ -293,6 +311,10 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         quickModal,
         openQuickModal,
         closeQuickModal,
+        invoiceView,
+        setInvoiceView,
+        paymentInvoiceId,
+        openPaymentFor,
         viewingInvoiceId,
         openInvoiceModal,
         closeInvoiceModal,

@@ -4,6 +4,7 @@ import { User, UserRole, Permission } from '../types/system';
 import type { AppPage } from './UIContext';
 import { supabase } from '../lib/supabase';
 import * as authService from '../services/auth';
+import { clearCache } from '../lib/cache';
 import type { ApprovalLimit, Membership, RolePermission } from '../services/auth';
 
 // ---------------------------------------------------------------------------
@@ -223,6 +224,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       await authService.signOut();
     } finally {
       // Clear even if the server call failed (e.g. offline); supabase-js already dropped the local session.
+      void clearCache();
       setSession(null);
       setPasswordRecovery(false);
     }
