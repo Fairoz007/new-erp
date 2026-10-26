@@ -130,17 +130,32 @@
   body { font-size: 13px; }
 }
 
-/* Print Styles */
+/* Print Styles
+   - Normal pages: print the page content (main) without sidebar, header or buttons.
+   - When a printable document is open (invoice, payslip, report preview): print only that document. */
 @media print {
-  body * {
+  aside, header, nav, .no-print, button, [role='dialog'] > div:first-child {
+    display: none !important;
+  }
+  body, main {
+    background: white !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  body:has(#printable-invoice) *,
+  body:has(#printable-payslip) *,
+  body:has(#printable-report) * {
     visibility: hidden;
   }
   #printable-invoice, #printable-invoice *,
-  #printable-payslip, #printable-payslip * {
+  #printable-payslip, #printable-payslip *,
+  #printable-report, #printable-report * {
     visibility: visible;
   }
   #printable-invoice,
-  #printable-payslip {
+  #printable-payslip,
+  #printable-report {
     position: absolute;
     left: 0;
     top: 0;
@@ -152,7 +167,8 @@
     background: white !important;
     color: black !important;
   }
-  aside, header, button, .no-print, [role='dialog'] > div:first-child {
-    display: none !important;
-  }
+  #printable-report table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  #printable-report th, #printable-report td { border: 1px solid #ccc; padding: 3px 5px; text-align: left; }
+  #printable-report thead { display: table-header-group; }
+  #printable-report tr { page-break-inside: avoid; }
 }

@@ -11,11 +11,26 @@ import {
   Download,
   Filter,
   SlidersHorizontal,
+  FileText,
+  FileDown,
+  FileSpreadsheet,
+  Printer,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
 import { useAuth } from '../../context/AuthContext';
-import { exportToCSV } from '../../utils/export';
+import { exportToCSV, exportToPDF, cellToText } from '../../utils/export';
+import { ReportPreviewModal } from '../common/ReportPreviewModal';
+
+/** Plain text of a rendered cell (what the user sees), for PDF / document view / non-field columns. */
+function nodeToText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(nodeToText).filter(Boolean).join(' ');
+  const el = node as { props?: { children?: ReactNode; title?: string } };
+  return el.props ? nodeToText(el.props.children) : '';
+}
 
 export interface Column<T> {
   key: string;
@@ -148,9 +163,30 @@ export function DataTable<T extends Record<string, any>>({
 
   const activeColumns = columns.filter(col => visibleColumns[col.key] !== false);
 
-  const handleExport = () => {
-    const headers = activeColumns.map(c => ({ key: c.key as keyof T, label: c.header }));
-    exportToCSV(exportFilename, sortedData, headers);
+  // Export columns: the visible data columns (action columns carry no data)
+  const exportColumns = activeColumns.filter(c => c.sortable !== false && c.key !== 'actions');
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const reportTitle = title || exportFilename.replace(/^FleetX_/, '').replace(/_/g, ' ');
+  // Documents show what the screen shows (formatted dates, currency, names); CSV keeps raw values.
+  const previewRows = () => sortedData.map((row, i) => exportColumns.map(c => {
+    const shown = c.render ? nodeToText(c.render(row, i)).replace(/\s+/g, ' ').trim() : '';
+    return shown || cellToText(row[c.key]);
+  }));
+  const csvValue = (row: T, c: Column<T>, i: number) => {
+    const raw = row[c.key];
+    if (raw !== null && raw !== undefined && typeof raw !== 'object' && !(typeof raw === 'string' && raw.startsWith('storage://'))) return raw;
+    return c.render ? nodeToText(c.render(row, i)).replace(/\s+/g, ' ').trim() : '';
+  };
+  const handleExportCsv = () => {
+    setExportMenuOpen(false);
+    const flat = sortedData.map((row, i) => Object.fromEntries(exportColumns.map(c => [c.key, csvValue(row, c, i)])));
+    exportToCSV(exportFilename, flat, exportColumns.map(c => ({ key: c.key, label: c.header })));
+  };
+  const handleExportPdf = () => {
+    setExportMenuOpen(false);
+    const rightAlign = exportColumns.map((c, i) => (c.align === 'right' ? i : -1)).filter(i => i >= 0);
+    void exportToPDF(exportFilename, reportTitle, exportColumns.map(c => c.header), previewRows(), { rightAlign });
   };
 
   return (
@@ -220,14 +256,49 @@ export function DataTable<T extends Record<string, any>>({
 
           {/* Export to CSV */}
           {canExport && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              leftIcon={<Download className="w-3.5 h-3.5 text-slate-400" />}
-            >
-              Export Data
-            </Button>
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExportMenuOpen(o => !o)}
+                aria-haspopup="menu"
+                aria-expanded={exportMenuOpen}
+                leftIcon={<Download className="w-3.5 h-3.5 text-slate-400" />}
+                rightIcon={<ChevronDown className="w-3 h-3 text-slate-400" />}
+              >
+                Export
+              </Button>
+              {exportMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setExportMenuOpen(false)} />
+                  <div role="menu" className="absolute right-0 mt-1.5 w-52 z-20 bg-white border border-slate-700 rounded-xl shadow-lg py-1 text-xs font-semibold text-slate-200">
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { setExportMenuOpen(false); setPreviewOpen(true); }}>
+                      <FileText className="w-3.5 h-3.5" /> View as document
+                    </button>
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { setExportMenuOpen(false); setPreviewOpen(true); }}>
+                      <Printer className="w-3.5 h-3.5" /> Print
+                    </button>
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={handleExportPdf}>
+                      <FileDown className="w-3.5 h-3.5" /> Download PDF
+                    </button>
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={handleExportCsv}>
+                      <FileSpreadsheet className="w-3.5 h-3.5" /> Download CSV (Excel)
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {previewOpen && (
+            <ReportPreviewModal
+              isOpen
+              onClose={() => setPreviewOpen(false)}
+              title={reportTitle}
+              columns={exportColumns.map(c => c.header)}
+              rows={previewRows()}
+              onDownloadPdf={handleExportPdf}
+              onDownloadCsv={handleExportCsv}
+            />
           )}
         </div>
       </div>

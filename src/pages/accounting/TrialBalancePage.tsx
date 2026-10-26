@@ -8,6 +8,7 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
 import { useUI } from '../../context/UIContext';
 import { getTrialBalance } from '../../services/accounting';
+import { exportToPDF } from '../../utils/export';
 
 export const TrialBalancePage: React.FC = () => {
   const { chartOfAccounts, journalEntries, currency, selectedCompany, selectedCompanyId } = useFleet();
@@ -72,6 +73,14 @@ export const TrialBalancePage: React.FC = () => {
     link.click();
   };
 
+  const exportPDF = () => {
+    const f = (n: number) => (n > 0 ? n.toFixed(3) : '-');
+    const rows = filteredRows.map(r => [r.accountCode, r.accountName, r.category, f(r.openingDebit), f(r.openingCredit), f(r.periodDebit), f(r.periodCredit), f(r.closingDebit), f(r.closingCredit)]);
+    rows.push(['', 'TOTAL', '', shown.totalOpeningDebit.toFixed(3), shown.totalOpeningCredit.toFixed(3), shown.totalPeriodDebit.toFixed(3), shown.totalPeriodCredit.toFixed(3), shown.totalClosingDebit.toFixed(3), shown.totalClosingCredit.toFixed(3)]);
+    void exportToPDF('Trial_Balance', 'Trial Balance Statement', ['Code', 'Account', 'Category', 'Opening Dr', 'Opening Cr', 'Period Dr', 'Period Cr', 'Closing Dr', 'Closing Cr'], rows,
+      { subtitle: `As of ${asOfDate} (${currency})`, rightAlign: [3, 4, 5, 6, 7, 8] });
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -92,6 +101,9 @@ export const TrialBalancePage: React.FC = () => {
         <div className="flex items-center gap-3 shrink-0">
           <Button variant="secondary" size="md" onClick={exportCSV} leftIcon={<Download className="w-4 h-4" />}>
             Export CSV
+          </Button>
+          <Button variant="secondary" size="md" onClick={exportPDF} leftIcon={<Download className="w-4 h-4" />}>
+            Download PDF
           </Button>
           <Button variant="primary" size="md" onClick={handlePrint} leftIcon={<Printer className="w-4 h-4" />}>
             Print Statement

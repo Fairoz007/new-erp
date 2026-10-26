@@ -89,6 +89,67 @@ export function exportToJSON(filename: string, data: any): void {
 /**
  * Print window / trigger browser print for invoices & reports
  */
-export function printElement(elementId?: string): void {
+export function printElement(_elementId?: string): void {
   window.print();
+}
+
+/** One cell as plain text for PDF / preview output. */
+export function cellToText(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'number') return Number.isInteger(val) ? String(val) : val.toFixed(3);
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+  if (typeof val === 'object') return '';
+  return String(val);
+}
+
+/**
+ * Real PDF download (no print dialog): header, generated-at line, repeating table header and
+ * page numbers. jsPDF is loaded on demand so it does not weigh down the first page load.
+ */
+export async function exportToPDF(
+  filename: string,
+  title: string,
+  columns: string[],
+  rows: string[][],
+  opts: { subtitle?: string; rightAlign?: number[] } = {},
+): Promise<void> {
+  if (!rows.length) {
+    alert('No data available to export.');
+    return;
+  }
+  const [{ jsPDF }, autoTableMod] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+  const autoTable = autoTableMod.default;
+  const doc = new jsPDF({ orientation: columns.length > 6 ? 'landscape' : 'portrait', unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text(title, 40, 42);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text(`Al Hakim National LLC  |  Generated ${new Date().toLocaleString()}${opts.subtitle ? `  |  ${opts.subtitle}` : ''}`, 40, 58);
+  doc.setTextColor(0);
+
+  const columnStyles: Record<number, { halign: 'right' }> = {};
+  (opts.rightAlign ?? []).forEach(i => { columnStyles[i] = { halign: 'right' }; });
+
+  autoTable(doc, {
+    head: [columns],
+    body: rows,
+    startY: 70,
+    margin: { left: 40, right: 40, bottom: 40 },
+    styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
+    headStyles: { fillColor: [8, 99, 67], textColor: 255 },
+    alternateRowStyles: { fillColor: [245, 248, 246] },
+    columnStyles,
+    didDrawPage: () => {
+      doc.setFontSize(8);
+      doc.setTextColor(120);
+      doc.text(`Page ${doc.getNumberOfPages()}`, pageWidth - 40, pageHeight - 20, { align: 'right' });
+      doc.setTextColor(0);
+    },
+  });
+  doc.save(`${filename}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
