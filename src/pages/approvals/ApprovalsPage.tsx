@@ -20,6 +20,10 @@ export const ApprovalsPage: React.FC = () => {
   const [actionType, setActionType] = useState<'Approved' | 'Rejected'>('Approved');
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [statusView, setStatusView] = useState<'Pending' | 'all'>('Pending');
+  const [shown, setShown] = useState(25);
+  const visibleRequests = approvalRequests.filter(r => statusView === 'all' || r.status === 'Pending');
+  const pendingCount = approvalRequests.filter(r => r.status === 'Pending').length;
 
   const handleOpenActionModal = (req: typeof approvalRequests[0], action: 'Approved' | 'Rejected') => {
     setSelectedRequest(req);
@@ -75,15 +79,29 @@ export const ApprovalsPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2" role="tablist">
+        {([['Pending', `Pending (${pendingCount})`], ['all', `History (${approvalRequests.length})`]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={statusView === id}
+            onClick={() => { setStatusView(id); setShown(25); }}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold border cursor-pointer ${statusView === id ? 'bg-[#086343] text-white border-[#086343]' : 'bg-white text-slate-300 border-slate-700'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Approval Requests List */}
       <div className="space-y-4">
-        {approvalRequests.length === 0 && (
+        {visibleRequests.length === 0 && (
           <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
             <p className="text-sm font-semibold text-slate-200">No approval requests</p>
             <p className="text-xs text-slate-400 mt-1">Requests appear here when a work order, invoice or expense exceeds an approval threshold.</p>
           </Card>
         )}
-        {approvalRequests.map(req => {
+        {visibleRequests.slice(0, shown).map(req => {
           const reqModule = req.referenceType === 'WorkOrder' ? 'maintenance' : req.referenceType === 'Invoice' ? 'invoice' : 'expense';
           const userCanSign = canApprove(reqModule, req.amount);
 
@@ -164,6 +182,11 @@ export const ApprovalsPage: React.FC = () => {
             </Card>
           );
         })}
+        {visibleRequests.length > shown && (
+          <div className="text-center">
+            <Button variant="outline" size="sm" onClick={() => setShown(n => n + 25)}>Show more ({visibleRequests.length - shown} remaining)</Button>
+          </div>
+        )}
       </div>
 
       {/* Confirmation Modal */}

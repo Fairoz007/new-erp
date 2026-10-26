@@ -5,6 +5,7 @@ import { useAuth } from './context/AuthContext';
 import { UIProvider, useUI } from './context/UIContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { Button } from './components/ui/Button';
+import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
 // Page Imports
 import { DashboardPage } from './pages/dashboard/DashboardPage';
@@ -143,13 +144,22 @@ const PageRenderer: React.FC = () => {
   }
 };
 
+const GuardedPage: React.FC = () => {
+  const { currentPage } = useUI();
+  return (
+    <ErrorBoundary resetKey={currentPage}>
+      <PageRenderer />
+    </ErrorBoundary>
+  );
+};
+
 export const App: React.FC = () => {
   return (
     // AuthProvider + AuthGate wrap the app in main.tsx; data loads only after sign-in
     <FleetProvider>
       <UIProvider>
         <AppLayout>
-          <PageRenderer />
+          <GuardedPage />
         </AppLayout>
       </UIProvider>
     </FleetProvider>

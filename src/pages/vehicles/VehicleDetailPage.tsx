@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { setTimelineScope } from '../../services/fleet';
 import {
   Car,
   Wrench,
@@ -54,6 +55,7 @@ export const VehicleDetailPage: React.FC = () => {
     currency,
     getVehicleFinancialSummary,
     updateVehicle,
+    reload,
     deleteVehicle,
   } = useFleet();
 
@@ -65,6 +67,13 @@ export const VehicleDetailPage: React.FC = () => {
 
   const vehicle = vehicles.find(v => v.id === selectedVehicleId) || (selectedVehicleId ? undefined : vehicles[0]);
   const photoUrl = useVehiclePhotoUrls([vehicle?.photoUrl]);
+  const vehicleKey = vehicle?.id;
+  // Load this vehicle's timeline on demand (it is not part of the startup load)
+  useEffect(() => {
+    if (!vehicleKey) return;
+    setTimelineScope(vehicleKey);
+    reload(['timeline']).catch(() => undefined);
+  }, [vehicleKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const canEdit = hasPermission('edit', 'vehicles');
   const canDelete = hasPermission('delete', 'vehicles');
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Scale, Download, Printer, CheckCircle2, AlertTriangle, Calendar, Filter, Building2, RefreshCw } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -17,7 +17,7 @@ export const TrialBalancePage: React.FC = () => {
   const [hideZero, setHideZero] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const tbData = getTrialBalance(chartOfAccounts, journalEntries, asOfDate, selectedCompanyId);
+  const tbData = useMemo(() => getTrialBalance(chartOfAccounts, journalEntries, asOfDate, selectedCompanyId), [chartOfAccounts, journalEntries, asOfDate, selectedCompanyId]);
   // An empty ledger is trivially balanced; show that truthfully instead of a "perfect balance" banner.
   const hasLedger = tbData.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 

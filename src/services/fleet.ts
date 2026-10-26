@@ -840,6 +840,10 @@ export function getVehicleFinancialSummary(vehicleId: string, c: VehicleFinancia
 // ---------------------------------------------------------------------------------------------
 // fetchers / affects (used by the coordinator's FleetContext to (re)load collections)
 // ---------------------------------------------------------------------------------------------
+let timelineVehicleId: string | null = null;
+/** Vehicle whose timeline `fetchers.timeline` loads; null = none (empty list). */
+export const setTimelineScope = (vehicleId: string | null) => { timelineVehicleId = vehicleId; };
+
 export const fetchers: Fetchers = {
   companies: async () => (await fetchAll('companies', '*', { column: 'name', ascending: true })).map(rowToCompany),
   vehicles: async () => (await fetchAll('vehicles', VEHICLE_SELECT)).map(rowToVehicle),
@@ -863,7 +867,13 @@ export const fetchers: Fetchers = {
   },
   accidents: async () => (await fetchAll('accidents', ACCIDENT_SELECT, { column: 'accident_date' })).map(rowToAccident),
   expenses: async () => (await fetchAll('expenses', EXPENSE_SELECT, { column: 'date' })).map(rowToExpense),
-  timeline: async () => (await fetchAll('vehicle_timeline', '*', { column: 'date' })).map(rowToTimeline),
+  // The timeline is large (every event of every vehicle) and only the vehicle dossier shows it, so
+  // it loads for the vehicle being viewed (see setTimelineScope) instead of at startup.
+  timeline: async () => {
+    if (!timelineVehicleId) return [];
+    const rows = await unwrap<Row[]>(table('vehicle_timeline').select('*').eq('vehicle_id', timelineVehicleId).order('date', { ascending: false }).order('id').limit(1000));
+    return (rows ?? []).map(rowToTimeline);
+  },
 };
 
 export const affects: Record<string, CollectionKey[]> = {

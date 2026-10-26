@@ -16,6 +16,7 @@ export const NotificationsPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const canRefresh = currentUser.role === 'Super Admin' || currentUser.role === 'Company Admin';
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
+  const [shown, setShown] = useState(40);
 
   const filtered = notifications.filter(n => {
     if (filter === 'unread') return !n.read;
@@ -136,7 +137,7 @@ export const NotificationsPage: React.FC = () => {
             </p>
           </Card>
         )}
-        {filtered.map(item => (
+        {filtered.slice(0, shown).map(item => (
           <Card
             key={item.id}
             className={`p-4 sm:p-5 rounded-[20px] transition-all cursor-pointer border ${
@@ -172,6 +173,11 @@ export const NotificationsPage: React.FC = () => {
             </div>
           </Card>
         ))}
+        {filtered.length > shown && (
+          <div className="text-center">
+            <Button variant="outline" size="sm" onClick={() => setShown(n => n + 40)}>Show more ({filtered.length - shown} remaining)</Button>
+          </div>
+        )}
       </div>
     </div>
   );

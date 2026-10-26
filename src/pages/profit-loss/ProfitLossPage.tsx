@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Printer, Calendar } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -19,8 +19,10 @@ export const ProfitLossPage: React.FC = () => {
   const [endDate, setEndDate] = useState(today);
 
   // Built from posted journal lines in the period, classified by account category/subcategory (not by name).
-  const pnl = getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId,
-    { startDate: startDate || undefined, endDate: endDate || undefined });
+  const pnl = useMemo(
+    () => getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId, { startDate: startDate || undefined, endDate: endDate || undefined }),
+    [chartOfAccounts, journalEntries, selectedCompanyId, startDate, endDate],
+  );
   const hasActivity = pnl.revenues.length + pnl.directCosts.length + pnl.operatingExpenses.length > 0 || pnl.depreciationExpense !== 0;
 
   return (

@@ -35,6 +35,7 @@ export const ReconciliationPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [recForm, setRecForm] = useState(emptyForm);
 
+  const reconciledInvoiceIds = new Set(reconciliations.map(r => r.invoiceId));
   const inScope = (companyId: string) => !selectedCompanyId || selectedCompanyId === 'all' || companyId === selectedCompanyId;
   const purchaseInvoices = invoices.filter(i => i.invoiceType === 'Purchase' && !i.isCreditNote && !reconciledInvoiceIds.has(i.id)
     && i.paymentStatus !== 'Cancelled' && i.approvalStatus !== 'Cancelled' && inScope(i.companyId));
@@ -48,7 +49,6 @@ export const ReconciliationPage: React.FC = () => {
     (typeFilter === 'all' || r.matchingType === typeFilter) &&
     (!fromDate || (r.createdAt ?? '').slice(0, 10) >= fromDate) &&
     (!toDate || (r.createdAt ?? '').slice(0, 10) <= toDate));
-  const reconciledInvoiceIds = new Set(reconciliations.map(r => r.invoiceId));
   const selectedInvoice = purchaseInvoices.find(i => i.id === recForm.invoiceId);
   const invoiceWorkOrders = selectedInvoice ? workOrders.filter(w => w.companyId === selectedInvoice.companyId) : [];
   const matchedCount = allScopedRecs.filter(r => r.status === 'Matched').length;

@@ -14,6 +14,8 @@ interface ReportPreviewModalProps {
   onDownloadCsv: () => void;
 }
 
+const PREVIEW_LIMIT = 500;
+
 /** Document-style view of a register: read it on screen, print it, or download it as PDF / CSV. */
 export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
   isOpen, onClose, title, subtitle, columns, rows, onDownloadPdf, onDownloadCsv,
@@ -51,11 +53,14 @@ export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
             {rows.length === 0 && (
               <tr><td colSpan={columns.length} className="px-2 py-6 text-center text-slate-400 italic border border-slate-700">No records to show.</td></tr>
             )}
-            {rows.map((r, i) => (
+            {rows.slice(0, PREVIEW_LIMIT).map((r, i) => (
               <tr key={i}>
                 {r.map((cell, j) => <td key={j} className="px-2 py-1 border border-slate-700 align-top">{cell}</td>)}
               </tr>
             ))}
+            {rows.length > PREVIEW_LIMIT && (
+              <tr><td colSpan={columns.length} className="px-2 py-3 text-center text-slate-400 italic border border-slate-700">Showing the first {PREVIEW_LIMIT} of {rows.length} records. The PDF and CSV downloads contain all of them.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

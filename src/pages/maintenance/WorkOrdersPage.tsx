@@ -19,8 +19,13 @@ export const WorkOrdersPage: React.FC = () => {
   const canCreate = hasPermission('create', 'work-orders');
   const canEdit = hasPermission('edit', 'work-orders');
 
+  const [statusFilter, setStatusFilter] = useState('open');
+  const [shown, setShown] = useState(40);
+  const OPEN_STATUSES = ['Draft', 'Requested', 'Approved', 'Scheduled', 'In Progress', 'Waiting for Parts'];
   const filteredOrders = workOrders.filter(wo => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && wo.companyId !== selectedCompanyId) return false;
+    if (statusFilter === 'open' && !OPEN_STATUSES.includes(wo.status)) return false;
+    if (statusFilter !== 'open' && statusFilter !== 'all' && wo.status !== statusFilter) return false;
     return true;
   });
 
@@ -108,10 +113,24 @@ export const WorkOrdersPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <select
+          aria-label="Status"
+          value={statusFilter}
+          onChange={e => { setStatusFilter(e.target.value); setShown(40); }}
+          className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer"
+        >
+          <option value="open">Open work orders</option>
+          <option value="all">All work orders</option>
+          {['Requested', 'Approved', 'In Progress', 'Waiting for Parts', 'Completed', 'Cancelled'].map(st => <option key={st} value={st}>{st}</option>)}
+        </select>
+        <span className="text-slate-400">{filteredOrders.length} work order(s)</span>
+      </div>
+
       {/* LIST VIEW */}
       {viewMode === 'list' && (
         <div className="space-y-3.5">
-          {filteredOrders.map(wo => (
+          {filteredOrders.slice(0, shown).map(wo => (
             <Card key={wo.id} className="p-5 sm:p-6 bg-white border-slate-700">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-2 flex-1">
@@ -190,6 +209,13 @@ export const WorkOrdersPage: React.FC = () => {
               </div>
             </Card>
           ))}
+          {filteredOrders.length > shown && (
+            <div className="text-center pt-2">
+              <Button variant="outline" size="sm" onClick={() => setShown(n => n + 40)}>
+                Show more ({filteredOrders.length - shown} remaining)
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -197,7 +223,7 @@ export const WorkOrdersPage: React.FC = () => {
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
           {(['Requested', 'Approved', 'In Progress', 'Waiting for Parts', 'Completed'] as const).map(stage => {
-            const stageOrders = filteredOrders.filter(w => w.status === stage);
+            const stageOrders = workOrders.filter(w => w.status === stage && (!selectedCompanyId || selectedCompanyId === 'all' || w.companyId === selectedCompanyId));
 
             return (
               <div key={stage} className="bg-slate-850 border border-slate-700 rounded-[20px] p-4 flex flex-col gap-3 min-w-[270px]">
@@ -209,7 +235,7 @@ export const WorkOrdersPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-3 flex-1 overflow-y-auto max-h-[70vh]">
-                  {stageOrders.map(wo => (
+                  {stageOrders.slice(0, 25).map(wo => (
                     <div
                       key={wo.id}
                       className="p-4 bg-white border border-slate-700 hover:border-forest-500/40 rounded-2xl shadow-card space-y-2.5 transition-all"

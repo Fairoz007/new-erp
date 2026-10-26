@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Calendar, Download, Printer, Filter, Building2, Search, ArrowRight, UserCheck, Truck, Layers, ChevronRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -14,6 +14,8 @@ export const GeneralLedgerPage: React.FC = () => {
   const accountOptions = consolidateAccounts(chartOfAccounts, selectedCompanyId);
   const { ledgerFocus, openLedgerFor } = useUI();
   const [accountSearch, setAccountSearch] = useState('');
+  // Long ledgers render in pages of 50 lines: thousands of rows at once freeze the browser
+  const [visibleLines, setVisibleLines] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<'gl' | 'party'>('gl');
   const [selectedAccountCode, setSelectedAccountCode] = useState<string>('all');
   const [partyType, setPartyType] = useState<'Supplier' | 'Customer'>('Supplier');
@@ -30,7 +32,10 @@ export const GeneralLedgerPage: React.FC = () => {
   }, [ledgerFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const effectivePartyId = selectedPartyId || (partyType === 'Supplier' ? suppliers : customers)[0]?.id || '';
-  const glData = getGeneralLedger(chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency);
+  const glData = useMemo(
+    () => getGeneralLedger(chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency),
+    [chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency],
+  );
   const partyLedger = getPartyLedger(effectivePartyId, partyType);
 
   const selectedParty = partyType === 'Supplier'
@@ -260,7 +265,7 @@ export const GeneralLedgerPage: React.FC = () => {
                           </td>
                         </tr>
                       ) : (
-                        acc.lines.map(line => (
+                        acc.lines.slice(0, visibleLines[acc.accountCode] ?? 50).map(line => (
                           <tr key={line.id} className="hover:bg-slate-850/60 transition-colors">
                             <td className="py-3 px-4 text-slate-300 font-mono font-medium">{formatDate(line.date)}</td>
                             <td className="py-3 px-4 font-mono font-bold text-[#086343]">{line.entryNumber}</td>
@@ -286,6 +291,18 @@ export const GeneralLedgerPage: React.FC = () => {
                             </td>
                           </tr>
                         ))
+                      )}
+                      {acc.lines.length > (visibleLines[acc.accountCode] ?? 50) && (
+                        <tr>
+                          <td colSpan={8} className="py-3 px-4 text-center">
+                            <button
+                              className="text-xs font-bold text-[#086343] underline cursor-pointer"
+                              onClick={() => setVisibleLines(v => ({ ...v, [acc.accountCode]: (v[acc.accountCode] ?? 50) + 200 }))}
+                            >
+                              Show more ({acc.lines.length - (visibleLines[acc.accountCode] ?? 50)} more lines, totals above include all)
+                            </button>
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                     <tfoot>

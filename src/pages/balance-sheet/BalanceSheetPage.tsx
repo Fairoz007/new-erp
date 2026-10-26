@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Scale, Printer, CheckCircle2, ShieldCheck, DollarSign } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -13,7 +13,10 @@ export const BalanceSheetPage: React.FC = () => {
   const { chartOfAccounts, journalEntries, selectedCompanyId, currency } = useFleet();
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
   // Opening balances + posted journal lines up to the date; no plug figures.
-  const bs = getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, asOfDate);
+  const bs = useMemo(
+    () => getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, asOfDate),
+    [chartOfAccounts, journalEntries, selectedCompanyId, asOfDate],
+  );
   const isEmpty = bs.assets.totalAssets === 0 && bs.liabilities.totalLiabilities === 0 && bs.equity.totalEquity === 0;
 
   return (

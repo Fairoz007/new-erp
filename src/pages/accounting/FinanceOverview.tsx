@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -74,9 +74,9 @@ export const FinanceOverview: React.FC = () => {
 
   // All three statements come from the same per-company ledger (opening balances + posted lines).
   const today = new Date().toISOString().slice(0, 10);
-  const pnl = getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId, { startDate: `${today.slice(0, 4)}-01-01`, endDate: today });
-  const balanceSheet = getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, today);
-  const trialBalance = getTrialBalance(chartOfAccounts, journalEntries, today, selectedCompanyId);
+  const pnl = useMemo(() => getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId, { startDate: `${today.slice(0, 4)}-01-01`, endDate: today }), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
+  const balanceSheet = useMemo(() => getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, today), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
+  const trialBalance = useMemo(() => getTrialBalance(chartOfAccounts, journalEntries, today, selectedCompanyId), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
   // An empty ledger is trivially "balanced"; say so instead of claiming the books were checked.
   const hasLedger = trialBalance.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 
