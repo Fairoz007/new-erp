@@ -145,18 +145,26 @@ export const VehicleDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
-          <Button variant="secondary" size="xs" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Wrench className="w-3.5 h-3.5" />}>
+          {hasPermission('create', 'maintenance') && (
+<Button variant="secondary" size="xs" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Wrench className="w-3.5 h-3.5" />}>
             + Service
           </Button>
-          <Button variant="secondary" size="xs" onClick={() => openQuickModal('add-oil-change')} leftIcon={<Droplet className="w-3.5 h-3.5" />}>
+)}
+          {hasPermission('create', 'oil') && (
+<Button variant="secondary" size="xs" onClick={() => openQuickModal('add-oil-change')} leftIcon={<Droplet className="w-3.5 h-3.5" />}>
             + Oil
           </Button>
-          <Button variant="secondary" size="xs" onClick={() => openQuickModal('add-expense')} leftIcon={<Receipt className="w-3.5 h-3.5" />}>
+)}
+          {hasPermission('create', 'expenses') && (
+<Button variant="secondary" size="xs" onClick={() => openQuickModal('add-expense')} leftIcon={<Receipt className="w-3.5 h-3.5" />}>
             + Expense
           </Button>
-          <Button variant="secondary" size="xs" onClick={() => openQuickModal('upload-document')} leftIcon={<Upload className="w-3.5 h-3.5" />}>
+)}
+          {hasPermission('create', 'documents') && (
+<Button variant="secondary" size="xs" onClick={() => openQuickModal('upload-document')} leftIcon={<Upload className="w-3.5 h-3.5" />}>
             Upload Doc
           </Button>
+)}
           {canEdit && (
             <Button variant="outline" size="xs" onClick={() => setEditOpen(true)} leftIcon={<Edit className="w-3.5 h-3.5" />}>
               Edit Vehicle
@@ -411,9 +419,11 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-200">Maintenance & Workshop Records ({vehicleMaintenance.length})</h3>
-            <Button variant="primary" size="sm" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Plus className="w-4 h-4" />}>
+            {hasPermission('create', 'maintenance') && (
+<Button variant="primary" size="sm" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Plus className="w-4 h-4" />}>
               Add Maintenance Entry
             </Button>
+)}
           </div>
 
           <div className="space-y-3">
@@ -530,9 +540,11 @@ export const VehicleDetailPage: React.FC = () => {
                 <CardTitle>Oil Management Action</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col justify-end">
-                <Button variant="primary" size="md" onClick={() => openQuickModal('add-oil-change')} leftIcon={<Droplet className="w-4 h-4" />}>
+                {hasPermission('create', 'oil') && (
+<Button variant="primary" size="md" onClick={() => openQuickModal('add-oil-change')} leftIcon={<Droplet className="w-4 h-4" />}>
                   Record Oil Service
                 </Button>
+)}
               </CardContent>
             </Card>
           </div>
@@ -579,12 +591,16 @@ export const VehicleDetailPage: React.FC = () => {
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-200">Tyre Lifecycle & Position Health</h3>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => openQuickModal('add-tyre')} leftIcon={<Plus className="w-4 h-4" />}>
+              {hasPermission('create', 'tyres') && (
+<Button variant="outline" size="sm" onClick={() => openQuickModal('add-tyre')} leftIcon={<Plus className="w-4 h-4" />}>
                 Add Tyre
               </Button>
-              <Button variant="primary" size="sm" onClick={() => openQuickModal('add-work-order')} leftIcon={<Disc className="w-4 h-4" />}>
+)}
+              {hasPermission('create', 'work-orders') && (
+<Button variant="primary" size="sm" onClick={() => openQuickModal('add-work-order')} leftIcon={<Disc className="w-4 h-4" />}>
                 Replace / Service Tyres
               </Button>
+)}
             </div>
           </div>
 
@@ -669,9 +685,11 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-200">Accident Claims & Downtime History</h3>
-            <Button variant="danger" size="sm" onClick={() => openQuickModal('add-accident')} leftIcon={<AlertTriangle className="w-4 h-4" />}>
+            {hasPermission('create', 'accidents') && (
+<Button variant="danger" size="sm" onClick={() => openQuickModal('add-accident')} leftIcon={<AlertTriangle className="w-4 h-4" />}>
               Report Accident
             </Button>
+)}
           </div>
 
           <div className="space-y-3">
@@ -740,9 +758,11 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-200">Vehicle Operational Expenses ({vehicleExpenses.length})</h3>
-            <Button variant="primary" size="sm" onClick={() => openQuickModal('add-expense')} leftIcon={<Plus className="w-4 h-4" />}>
+            {hasPermission('create', 'expenses') && (
+<Button variant="primary" size="sm" onClick={() => openQuickModal('add-expense')} leftIcon={<Plus className="w-4 h-4" />}>
               Add Expense
             </Button>
+)}
           </div>
 
           <Card>
@@ -785,9 +805,11 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-200">Linked Invoices (AP & AR)</h3>
-            <Button variant="primary" size="sm" onClick={() => openQuickModal('add-invoice')} leftIcon={<Plus className="w-4 h-4" />}>
+            {hasPermission('create', 'invoices') && (
+<Button variant="primary" size="sm" onClick={() => openQuickModal('add-invoice')} leftIcon={<Plus className="w-4 h-4" />}>
               Create Invoice
             </Button>
+)}
           </div>
 
           <Card>
@@ -917,9 +939,11 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-bold text-slate-200">Vehicle Document Repository ({vehicleDocuments.length})</h3>
-            <Button variant="primary" size="sm" onClick={() => openQuickModal('upload-document')} leftIcon={<Upload className="w-4 h-4" />}>
+            {hasPermission('create', 'documents') && (
+<Button variant="primary" size="sm" onClick={() => openQuickModal('upload-document')} leftIcon={<Upload className="w-4 h-4" />}>
               Upload Document
             </Button>
+)}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

@@ -13,6 +13,7 @@ export const CompaniesPage: React.FC = () => {
   const { addToast } = useUI();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('edit', 'companies');
+  const canCreate = hasPermission('create', 'companies');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Company | undefined>(undefined);
 
@@ -52,7 +53,7 @@ export const CompaniesPage: React.FC = () => {
             <Layers className="w-4 h-4 mr-1.5" />
             {selectedCompanyId === 'all' ? 'Viewing Consolidated (All Offices)' : 'Switch to Consolidated View'}
           </Button>
-          {canEdit && (
+          {canCreate && (
             <Button variant="primary" size="sm" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />}>
               Add Office
             </Button>
@@ -78,7 +79,7 @@ export const CompaniesPage: React.FC = () => {
 
       {companies.length === 0 && (
         <div className="bg-white border border-slate-700 rounded-[20px] p-10 text-center text-sm text-slate-400">
-          No offices are visible to your account yet.{canEdit ? ' Use "Add Office" to create the first one.' : ''}
+          No offices are visible to your account yet.{canCreate ? ' Use "Add Office" to create the first one.' : ''}
         </div>
       )}
 

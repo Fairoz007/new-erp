@@ -251,7 +251,7 @@ export const PayrollPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {canCreate && (
+          {canCreate && hasPermission('create', 'accounting') && (
             <Button variant="secondary" size="md" onClick={() => openQuickModal('run-payroll')} leftIcon={<Play className="w-4 h-4 text-[#086343] fill-current" />}>
               Disburse Payroll
             </Button>

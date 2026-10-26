@@ -12,7 +12,7 @@ export const NotificationsPage: React.FC = () => {
   // refreshExpiryNotifications: new FleetContext function (wraps services/system.refreshExpiryNotifications, affects ['notifications'])
   const { notifications, markNotificationAsRead, markAllNotificationsAsRead, refreshExpiryNotifications } = useFleet();
   const { openVehicleDetail, openInvoiceModal, setCurrentPage, addToast } = useUI();
-  const { currentUser } = useAuth();
+  const { currentUser, canAccessPage } = useAuth();
   const [busy, setBusy] = useState(false);
   const canRefresh = currentUser.role === 'Super Admin' || currentUser.role === 'Company Admin';
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
@@ -25,8 +25,8 @@ export const NotificationsPage: React.FC = () => {
 
   const handleAction = async (n: typeof notifications[0]) => {
     // Navigate first: a failed read-receipt must not block the user from opening the item.
-    if (n.type === 'approval_required') setCurrentPage('approvals');
-    else if (n.vehicleId) openVehicleDetail(n.vehicleId);
+    if (n.type === 'approval_required') { if (canAccessPage('approvals')) setCurrentPage('approvals'); }
+    else if (n.vehicleId && canAccessPage('vehicles')) openVehicleDetail(n.vehicleId);
     else if (n.type.includes('invoice') && n.referenceId) openInvoiceModal(n.referenceId);
     if (n.read) return;
     try {

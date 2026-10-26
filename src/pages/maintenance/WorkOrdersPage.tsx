@@ -17,6 +17,7 @@ export const WorkOrdersPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [busyId, setBusyId] = useState<string | null>(null); // work order with a status change in flight
   const canCreate = hasPermission('create', 'work-orders');
+  const canEdit = hasPermission('edit', 'work-orders');
 
   const filteredOrders = workOrders.filter(wo => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && wo.companyId !== selectedCompanyId) return false;
@@ -151,7 +152,7 @@ export const WorkOrdersPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {wo.status !== 'Completed' && wo.status !== 'Cancelled' && (
+                    {canEdit && wo.status !== 'Completed' && wo.status !== 'Cancelled' && (
                       wo.approvalStatus === 'Pending' ? (
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Awaiting approval (Approvals module)</span>
                       ) : (
@@ -227,7 +228,7 @@ export const WorkOrdersPage: React.FC = () => {
                         <span className="font-extrabold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</span>
                       </div>
 
-                      {stage !== 'Completed' && (
+                      {canEdit && stage !== 'Completed' && (
                         <div className="pt-2 border-t border-slate-700 flex justify-end">
                           {wo.approvalStatus === 'Pending' ? (
                             <span className="text-[10px] font-bold text-amber-700">Awaiting approval</span>

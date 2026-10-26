@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
+import { useAuth } from '../../context/AuthContext';
 import { exportToCSV } from '../../utils/export';
 
 export interface Column<T> {
@@ -39,6 +40,8 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   filterComponent?: ReactNode;
   pageSizeDefault?: number;
+  /** Permission module that gates the export button; omitted = always allowed. */
+  exportModule?: string;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -55,7 +58,10 @@ export function DataTable<T extends Record<string, any>>({
   onRowClick,
   filterComponent,
   pageSizeDefault = 10,
+  exportModule,
 }: DataTableProps<T>) {
+  const { hasPermission } = useAuth();
+  const canExport = !exportModule || hasPermission('export', exportModule);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -213,14 +219,16 @@ export function DataTable<T extends Record<string, any>>({
           </div>
 
           {/* Export to CSV */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            leftIcon={<Download className="w-3.5 h-3.5 text-slate-400" />}
-          >
-            Export Data
-          </Button>
+          {canExport && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              leftIcon={<Download className="w-3.5 h-3.5 text-slate-400" />}
+            >
+              Export Data
+            </Button>
+          )}
         </div>
       </div>
 

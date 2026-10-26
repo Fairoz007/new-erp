@@ -131,8 +131,8 @@ export const PrintableInvoiceModal: React.FC = () => {
                 Duplicate
               </Button>
             )}
-            {canCredit && (
-              <Button variant="outline" size="sm" onClick={openCreditNote} disabled={!!busy || !canApprove('invoice', 0.001)}
+            {canCredit && canApprove('invoice', 0.001) && (
+              <Button variant="outline" size="sm" onClick={openCreditNote} disabled={!!busy}
                 leftIcon={<FileText className="w-4 h-4" />}>
                 Create Credit Note
               </Button>

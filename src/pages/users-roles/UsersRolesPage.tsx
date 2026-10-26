@@ -237,7 +237,7 @@ export const UsersRolesPage: React.FC = () => {
                       </Badge>
                     </td>
                     <td className="px-5 py-3 text-right">
-                      {canEdit && (
+                      {canEdit && !blocked && (
                         <Button
                           variant="outline"
                           size="xs"

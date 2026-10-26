@@ -20,12 +20,13 @@ export const GeneralLedgerPage: React.FC = () => {
   const [startDate, setStartDate] = useState<string>(`${new Date().getFullYear()}-01-01`);
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
 
+  const effectivePartyId = selectedPartyId || (partyType === 'Supplier' ? suppliers : customers)[0]?.id || '';
   const glData = getGeneralLedger(chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency);
-  const partyLedger = getPartyLedger(selectedPartyId, partyType);
+  const partyLedger = getPartyLedger(effectivePartyId, partyType);
 
   const selectedParty = partyType === 'Supplier'
-    ? suppliers.find(s => s.id === selectedPartyId)
-    : customers.find(c => c.id === selectedPartyId);
+    ? suppliers.find(s => s.id === effectivePartyId)
+    : customers.find(c => c.id === effectivePartyId);
 
   const totalDebits = glData.reduce((s, a) => s + a.totalDebit, 0);
   const totalCredits = glData.reduce((s, a) => s + a.totalCredit, 0);
@@ -317,7 +318,7 @@ export const GeneralLedgerPage: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Select Account Name</label>
                   <select
-                    value={selectedPartyId}
+                    value={effectivePartyId}
                     onChange={e => setSelectedPartyId(e.target.value)}
                     className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer min-w-[280px]"
                   >

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Car, FileText, Wrench, Building2, ShieldAlert, Folder, ArrowRight, X } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { StatusBadge } from './StatusBadge';
 import { VehiclePhoto, useVehiclePhotoUrls } from '../../pages/vehicles/VehiclePhoto';
@@ -8,6 +9,7 @@ import { VehiclePhoto, useVehiclePhotoUrls } from '../../pages/vehicles/VehicleP
 export const GlobalSearchModal: React.FC = () => {
   const { isSearchOpen, setIsSearchOpen, setCurrentPage, openVehicleDetail, openInvoiceModal } = useUI();
   const { vehicles, invoices, workOrders, maintenanceRecords, suppliers, documents, accidents } = useFleet();
+  const { canAccessPage } = useAuth();
   const [query, setQuery] = useState('');
 
   const results = useMemo(() => {
@@ -15,7 +17,7 @@ export const GlobalSearchModal: React.FC = () => {
     const q = query.toLowerCase();
 
     // Vehicles
-    const matchedVehicles = vehicles.filter(
+    const matchedVehicles = !canAccessPage('vehicles') ? [] : vehicles.filter(
       v =>
         v.plateNumber.toLowerCase().includes(q) ||
         v.vehicleId.toLowerCase().includes(q) ||
@@ -25,7 +27,7 @@ export const GlobalSearchModal: React.FC = () => {
     );
 
     // Invoices
-    const matchedInvoices = invoices.filter(
+    const matchedInvoices = !canAccessPage('invoices') ? [] : invoices.filter(
       i =>
         i.invoiceNumber.toLowerCase().includes(q) ||
         i.partyName.toLowerCase().includes(q) ||
@@ -33,7 +35,7 @@ export const GlobalSearchModal: React.FC = () => {
     );
 
     // Work Orders
-    const matchedWorkOrders = workOrders.filter(
+    const matchedWorkOrders = !canAccessPage('work-orders') ? [] : workOrders.filter(
       w =>
         w.workOrderNumber.toLowerCase().includes(q) ||
         w.vehiclePlate.toLowerCase().includes(q) ||
@@ -41,7 +43,7 @@ export const GlobalSearchModal: React.FC = () => {
     );
 
     // Maintenance Records
-    const matchedMaintenance = maintenanceRecords.filter(
+    const matchedMaintenance = !canAccessPage('maintenance') ? [] : maintenanceRecords.filter(
       m =>
         m.recordNumber.toLowerCase().includes(q) ||
         m.vehiclePlate.toLowerCase().includes(q) ||
@@ -50,17 +52,17 @@ export const GlobalSearchModal: React.FC = () => {
     );
 
     // Suppliers
-    const matchedSuppliers = suppliers.filter(
+    const matchedSuppliers = !canAccessPage('suppliers') ? [] : suppliers.filter(
       s => s.name.toLowerCase().includes(q) || s.supplierType.toLowerCase().includes(q) || s.supplierId.toLowerCase().includes(q)
     );
 
     // Documents
-    const matchedDocuments = documents.filter(
+    const matchedDocuments = !canAccessPage('documents') ? [] : documents.filter(
       d => d.documentName.toLowerCase().includes(q) || d.category.toLowerCase().includes(q) || (d.vehiclePlate && d.vehiclePlate.toLowerCase().includes(q))
     );
 
     // Accidents
-    const matchedAccidents = accidents.filter(
+    const matchedAccidents = !canAccessPage('accidents') ? [] : accidents.filter(
       a => a.accidentNumber.toLowerCase().includes(q) || a.vehiclePlate.toLowerCase().includes(q) || a.policeReportNumber.toLowerCase().includes(q)
     );
 
@@ -83,7 +85,7 @@ export const GlobalSearchModal: React.FC = () => {
       documents: matchedDocuments,
       accidents: matchedAccidents,
     };
-  }, [query, vehicles, invoices, workOrders, maintenanceRecords, suppliers, documents, accidents]);
+  }, [query, vehicles, invoices, workOrders, maintenanceRecords, suppliers, documents, accidents, canAccessPage]);
   const vehiclePhotoUrl = useVehiclePhotoUrls(results?.vehicles.map(v => v.photoUrl) ?? []);
 
   if (!isSearchOpen) return null;

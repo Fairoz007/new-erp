@@ -33,6 +33,7 @@ import {
   AttentionItem,
 } from '../../components/dashboard/RightAnalyticsColumn';
 import { useFleet } from '../../context/FleetContext';
+import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { useVehiclePhotoUrls } from '../vehicles/VehiclePhoto';
 import { formatCurrency } from '../../utils/financial';
@@ -57,6 +58,7 @@ export const DashboardPage: React.FC = () => {
   } = useFleet();
 
   const { setCurrentPage, openVehicleDetail, openQuickModal } = useUI();
+  const { hasPermission, canAccessPage } = useAuth();
 
   // Scope all operational data to the selected office (or consolidated view)
   const scoped = !!selectedCompanyId && selectedCompanyId !== 'all';
@@ -207,6 +209,15 @@ export const DashboardPage: React.FC = () => {
     }
   });
 
+  // Only offer actions the signed-in role may perform
+  const allowedAttention = attentionItems.filter(i =>
+    i.type === 'oil_overdue' ? hasPermission('create', 'oil')
+    : i.type === 'tyre_critical' ? hasPermission('create', 'work-orders')
+    : i.type === 'accident_pending' ? canAccessPage('accidents')
+    : i.type === 'registration_expiring' ? hasPermission('create', 'documents')
+    : true);
+  attentionItems.splice(0, attentionItems.length, ...allowedAttention);
+
   return (
     <div className="space-y-7">
       {/* Page Heading and Action Area (Exact Reference Match) */}
@@ -221,26 +232,31 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-vehicle')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Add Vehicle
-          </Button>
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => setCurrentPage('reports')}
-          >
-            Reports & Export
-          </Button>
+          {hasPermission('create', 'vehicles') && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => openQuickModal('add-vehicle')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Add Vehicle
+            </Button>
+          )}
+          {canAccessPage('reports') && (
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setCurrentPage('reports')}
+            >
+              Reports & Export
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Reference-Styled 4 Stat Metric Cards (First is deep forest green Hero) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {canAccessPage('vehicles') && (
         <StatCard
           title="Total Fleet Assets"
           value={totalVehicles}
@@ -248,27 +264,34 @@ export const DashboardPage: React.FC = () => {
           isHero={true}
           onClick={() => setCurrentPage('vehicles')}
         />
+        )}
 
+        {canAccessPage('work-orders') && (
         <StatCard
           title="In Workshop"
           value={maintenanceVehicles}
           trend={{ value: `${workOrders.filter(w => w.status === 'In Progress').length}`, direction: 'neutral', label: 'Work Orders in bay' }}
           onClick={() => setCurrentPage('work-orders')}
         />
+        )}
 
+        {canAccessPage('profit-loss') && (
         <StatCard
           title="Revenue YTD"
           value={formatCurrency(pnl.totalRevenue, currency)}
           trend={revenueTrend}
           onClick={() => setCurrentPage('profit-loss')}
         />
+        )}
 
+        {canAccessPage('invoices') && (
         <StatCard
           title="Pending Invoices (AP)"
           value={formatCurrency(amountPayable, currency)}
           trend={{ value: `${outstandingSupplierInvoices}`, direction: 'neutral', label: 'Unpaid supplier bills' }}
           onClick={() => setCurrentPage('invoices')}
         />
+        )}
       </div>
 
       {/* Main Dashboard Layout (Reference 2-Column Split: 8 cols left, 4 cols right) */}
@@ -326,17 +349,19 @@ export const DashboardPage: React.FC = () => {
                   <p className="text-xs text-slate-400 py-4 text-center">No open work orders or services due.</p>
                 )}
 
-                <div className="pt-2">
-                  <Button
-                    variant="primary"
-                    size="md"
-                    className="w-full"
-                    onClick={() => openQuickModal('add-work-order')}
-                    leftIcon={<Play className="w-4 h-4 fill-current" />}
-                  >
-                    Start Service Order
-                  </Button>
-                </div>
+                {hasPermission('create', 'work-orders') && (
+                  <div className="pt-2">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="w-full"
+                      onClick={() => openQuickModal('add-work-order')}
+                      leftIcon={<Play className="w-4 h-4 fill-current" />}
+                    >
+                      Start Service Order
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -509,7 +534,7 @@ export const DashboardPage: React.FC = () => {
           <Card className="bg-white">
             <CardHeader
               className="py-4 px-5"
-              action={
+              action={hasPermission('create', 'work-orders') ? (
                 <Button
                   variant="outline"
                   size="xs"
@@ -518,7 +543,7 @@ export const DashboardPage: React.FC = () => {
                 >
                   New
                 </Button>
-              }
+              ) : undefined}
             >
               <CardTitle className="text-sm font-bold text-slate-100">Work Orders</CardTitle>
             </CardHeader>

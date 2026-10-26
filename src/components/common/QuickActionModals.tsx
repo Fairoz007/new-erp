@@ -371,7 +371,8 @@ export const QuickActionModals: React.FC = () => {
         setTyreForm(prev => ({ ...prev, vehicleId: target.id, companyId: target.companyId }));
       }
     }
-  }, [selectedVehicleId, quickModal, vehicles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-sync only when the target changes, not on every data reload
+  }, [selectedVehicleId, quickModal]);
 
   // ---------------------------------------------------------------------------------------------
   // Submit handling: every handler awaits the (async) context mutation. Success is reported only

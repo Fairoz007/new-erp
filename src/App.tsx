@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { FleetProvider } from './context/FleetContext';
 import { useAuth } from './context/AuthContext';
@@ -43,7 +43,11 @@ const PageRenderer: React.FC = () => {
   const { currentPage, setCurrentPage } = useUI();
   const { canAccessPage, currentUser } = useAuth();
 
-  if (!canAccessPage(currentPage)) {
+  const allowed = canAccessPage(currentPage);
+  // Deep link / stale page the role can't open: land on the dashboard instead of a dead end
+  useEffect(() => { if (!allowed) setCurrentPage('dashboard'); }, [allowed, setCurrentPage]);
+
+  if (!allowed) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-white border border-slate-700 rounded-2xl p-6 sm:p-8 text-center shadow-card space-y-4">

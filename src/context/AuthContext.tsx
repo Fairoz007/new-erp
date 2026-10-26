@@ -200,6 +200,19 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     if (userId) await load(userId, status === 'ready');
   }, [userId, load, status]);
 
+  // Pick up role / status / permission changes made by an admin while this tab was in the background.
+  useEffect(() => {
+    if (status !== 'ready' || !userId) return;
+    let last = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 60_000) return;
+      last = Date.now();
+      load(userId, true).catch(() => undefined);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [status, userId, load]);
+
   const signIn = useCallback(async (email: string, password: string) => {
     await authService.signIn(email, password);
     // onAuthStateChange delivers the session and triggers the profile load.

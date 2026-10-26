@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckSquare, CheckCircle2, XCircle, Clock, ShieldCheck, UserCheck, Lock } from 'lucide-react';
+import { CheckSquare, CheckCircle2, XCircle, Clock, ShieldCheck, UserCheck } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -156,12 +156,7 @@ export const ApprovalsPage: React.FC = () => {
                             Approve Signoff
                           </Button>
                         </>
-                      ) : (
-                        <div className="px-3 py-1.5 rounded-full bg-slate-850 border border-slate-700 text-slate-400 text-xs flex items-center gap-1.5 font-medium" title="Requires authorized role">
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>Requires {req.requiredRoles.join(' / ')}</span>
-                        </div>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>

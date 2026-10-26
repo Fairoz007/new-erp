@@ -168,14 +168,14 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   useEffect(() => {
     const handleHashChange = () => {
       const parsed = parseLocationHash();
-      setCurrentPageState(parsed.page);
+      setCurrentPageState(canAccessPage(parsed.page) ? parsed.page : 'dashboard');
       if (parsed.vehicleId) setSelectedVehicleId(parsed.vehicleId);
       if (parsed.tab) setSelectedVehicleTab(parsed.tab);
     };
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [canAccessPage]);
 
   // Keyboard shortcut for Cmd+K / Ctrl+K
   useEffect(() => {

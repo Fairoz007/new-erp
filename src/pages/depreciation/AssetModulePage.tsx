@@ -219,7 +219,7 @@ export const AssetModulePage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {canCreate && (
+          {canCreate && hasPermission('create', 'accounting') && (
             <Button variant="outline" size="sm" className="rounded-full" onClick={() => openQuickModal('run-depreciation')}
               leftIcon={<Play className="w-4 h-4 text-forest-500" />}>
               Run Auto-Depreciation
