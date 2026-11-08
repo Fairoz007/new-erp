@@ -1,42 +1,50 @@
 
 -- =====================================================================
--- FLEETX ERP - PRODUCTION FRESH RESET (ACCOUNTS ONLY)
--- Only System Accounts retained:
+-- FLEETX ERP - PRODUCTION FRESH RESET (USER LOGINS ONLY)
+-- Keeps ONLY:
 --   1. Regional Offices / Companies (Muscat HO, Duqm, Salalah)
 --   2. User Accounts & Profiles (Super Admin, Fleet Manager, Accountant, etc.)
---   3. Chart of Accounts (COA: Assets, Liabilities, Equity, Revenue, Expenses)
---   4. Bank Accounts (Bank Muscat, Bank Dhofar, National Bank of Oman)
 --
--- All operational/demo records (vehicles, tyres, work orders, maintenance,
--- invoices, payments, expenses, accidents, employees, suppliers, customers)
--- are completely clean with zero data.
+-- REMOVES EVERYTHING ELSE:
+--   - Chart of Accounts, Bank Accounts, Suppliers, Customers
+--   - Vehicles, Tyres, Work Orders, Maintenance, Oil Changes
+--   - Invoices, Payments, Journal Entries, P&L data
+--   - Fixed Assets, Depreciation, Employees, Payroll
+--   - Expenses, Accidents, Notifications, Audit Logs
 -- =====================================================================
 
--- 1. PURGE ALL OPERATIONAL & TRANSACTIONAL RECORDS
+-- 1. PURGE ALL DATA (in dependency-safe order)
 truncate table
   public.reconciliations,
   public.payments,
+  public.journal_lines,
+  public.journal_entries,
   public.invoice_lines,
   public.invoices,
-  public.maintenance_records,
-  public.work_orders,
-  public.oil_changes,
-  public.tyre_events,
-  public.tyres,
-  public.accidents,
-  public.expenses,
-  public.vehicles,
+  public.approval_actions,
+  public.approval_requests,
+  public.notification_reads,
+  public.notifications,
+  public.depreciation_run_items,
   public.depreciation_runs,
   public.fixed_assets,
   public.payroll_items,
   public.payroll_runs,
   public.employees,
+  public.tyre_events,
+  public.oil_changes,
+  public.tyres,
+  public.maintenance_records,
+  public.vehicle_timeline,
+  public.expenses,
+  public.accidents,
+  public.work_orders,
+  public.vehicles,
   public.customers,
   public.suppliers,
-  public.notifications,
-  public.notification_reads,
-  public.approval_actions,
-  public.approval_requests
+  public.accounts,
+  public.bank_accounts,
+  public.audit_logs
 restart identity cascade;
 
 -- 2. COMPANIES & REGIONAL OFFICES
@@ -83,14 +91,6 @@ begin
   end loop;
 end $users_seed$;
 
--- 4. BANK ACCOUNTS
-insert into public.bank_accounts (id, company_id, bank_name, account_name, account_number, iban, currency, account_type, opening_balance, active)
-values
-  ('bbbbbbbb-0001-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Bank Muscat SAOG', 'Main Corporate Operational Account', '0315-0048-2910-0001', 'OM64BMUS0315004829100001', 'OMR', 'Current', 45000.000, true),
-  ('bbbbbbbb-0002-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'Bank Dhofar SAOG', 'Duqm Regional Port Operations', '0108-9923-4410-0002', 'OM71BDOF0108992344100002', 'OMR', 'Current', 18500.000, true),
-  ('bbbbbbbb-0003-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'National Bank of Oman', 'Fleet Payroll & Allowances Pool', '1002-8834-5501-0003', 'OM55NBOM1002883455010003', 'OMR', 'Current', 12000.000, true)
-on conflict (id) do nothing;
-
--- 5. CHART OF ACCOUNTS (COA) INITIALIZATION
--- Ensures full chart of accounts exists for all regional entities
-select public._seed_chart_of_accounts(id) from public.companies;
+-- 4. REMOVE AUTO-SEEDED CHART OF ACCOUNTS (created by migration triggers)
+delete from public.accounts;
+delete from public.bank_accounts;
