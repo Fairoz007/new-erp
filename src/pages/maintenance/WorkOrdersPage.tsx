@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle2 } from 'lucide-react';
+import { Plus, CheckCircle2, Eye } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -7,6 +7,7 @@ import { WorkOrder, WorkOrderStatus } from '../../types/maintenance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
+import { WorkOrderDetailModal } from './WorkOrderDetailModal';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
@@ -16,6 +17,7 @@ export const WorkOrdersPage: React.FC = () => {
   const { hasPermission, canApprove } = useAuth();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [busyId, setBusyId] = useState<string | null>(null); // work order with a status change in flight
+  const [viewingOrder, setViewingOrder] = useState<WorkOrder | null>(null);
   const canCreate = hasPermission('create', 'work-orders');
   const canEdit = hasPermission('edit', 'work-orders');
 
@@ -58,6 +60,9 @@ export const WorkOrdersPage: React.FC = () => {
         title: 'Work Order Updated',
         message: `Status updated to ${newStatus}${newStatus === 'Completed' ? ' and the maintenance record was created.' : '.'}`,
       });
+      if (viewingOrder?.id === orderId) {
+        setViewingOrder(prev => prev ? { ...prev, status: newStatus } : null);
+      }
     } catch (e) {
       addToast({ type: 'error', title: 'Could not update work order', message: (e as Error).message });
     } finally {
@@ -106,38 +111,73 @@ export const WorkOrdersPage: React.FC = () => {
           </div>
 
           {canCreate && (
-            <Button variant="primary" size="md" onClick={() => openQuickModal('add-work-order')} leftIcon={<Plus className="w-4 h-4" />}>
-              Create Work Order
+            <Button
+              variant="primary"
+              size="sm"
+              className="rounded-full shadow-sm"
+              onClick={() => openQuickModal('add-work-order')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              New Work Order
             </Button>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <select
-          aria-label="Status"
-          value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); setShown(40); }}
-          className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer"
-        >
-          <option value="open">Open work orders</option>
-          <option value="all">All work orders</option>
-          {['Requested', 'Approved', 'In Progress', 'Waiting for Parts', 'Completed', 'Cancelled'].map(st => <option key={st} value={st}>{st}</option>)}
-        </select>
-        <span className="text-slate-400">{filteredOrders.length} work order(s)</span>
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-700 rounded-2xl shadow-card text-xs">
+        <span className="text-slate-400 font-semibold px-1">Filter View:</span>
+        {[
+          { id: 'open', label: 'Open Jobs' },
+          { id: 'all', label: 'All Jobs' },
+          { id: 'Requested', label: 'Requested' },
+          { id: 'Approved', label: 'Approved' },
+          { id: 'In Progress', label: 'In Workshop' },
+          { id: 'Waiting for Parts', label: 'Waiting for Parts' },
+          { id: 'Completed', label: 'Completed' },
+          { id: 'Cancelled', label: 'Cancelled' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => { setStatusFilter(tab.id); setShown(40); }}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              statusFilter === tab.id
+                ? 'bg-[#086343] text-white shadow-2xs'
+                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* Empty State */}
+      {filteredOrders.length === 0 && (
+        <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
+          <p className="text-sm font-semibold text-slate-200">No work orders match the selected filter</p>
+          <p className="text-xs text-slate-400 mt-1">Change the filter above or create a new work order.</p>
+        </Card>
+      )}
 
       {/* LIST VIEW */}
       {viewMode === 'list' && (
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           {filteredOrders.slice(0, shown).map(wo => (
-            <Card key={wo.id} className="p-5 sm:p-6 bg-white border-slate-700">
+            <Card
+              key={wo.id}
+              className="p-5 rounded-2xl bg-white border border-slate-700 hover:border-forest-500/40 shadow-card transition-all"
+            >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-2 flex-1">
+                <div className="space-y-2 flex-1 cursor-pointer" onClick={() => setViewingOrder(wo)}>
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="font-mono font-bold text-sm text-slate-100">{wo.workOrderNumber}</span>
+                    <span className="font-mono font-bold text-sm text-slate-100 hover:text-forest-400 transition-colors">
+                      {wo.workOrderNumber}
+                    </span>
                     <button
-                      onClick={() => openVehicleDetail(wo.vehicleId)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openVehicleDetail(wo.vehicleId);
+                      }}
                       className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono text-xs font-bold hover:border-[#086343] cursor-pointer"
                     >
                       {wo.vehiclePlate}
@@ -171,6 +211,9 @@ export const WorkOrdersPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="xs" onClick={() => setViewingOrder(wo)} leftIcon={<Eye className="w-3.5 h-3.5" />}>
+                      Details
+                    </Button>
                     {canEdit && wo.status !== 'Completed' && wo.status !== 'Cancelled' && (
                       wo.approvalStatus === 'Pending' ? (
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Awaiting approval (Approvals module)</span>
@@ -238,10 +281,13 @@ export const WorkOrdersPage: React.FC = () => {
                   {stageOrders.slice(0, 25).map(wo => (
                     <div
                       key={wo.id}
-                      className="p-4 bg-white border border-slate-700 hover:border-forest-500/40 rounded-2xl shadow-card space-y-2.5 transition-all"
+                      onClick={() => setViewingOrder(wo)}
+                      className="p-4 bg-white border border-slate-700 hover:border-forest-500/40 rounded-2xl shadow-card space-y-2.5 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="font-mono text-xs font-bold text-slate-100">{wo.workOrderNumber}</span>
+                        <span className="font-mono text-xs font-bold text-slate-100 group-hover:text-forest-400 transition-colors">
+                          {wo.workOrderNumber}
+                        </span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${priorityColors[wo.priority]}`}>
                           {wo.priority}
                         </span>
@@ -249,34 +295,16 @@ export const WorkOrdersPage: React.FC = () => {
 
                       <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed font-semibold">{wo.problemDescription}</p>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-700">
-                        <span className="font-mono text-[#086343] font-bold">{wo.vehiclePlate}</span>
-                        <span className="font-extrabold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-700/60 font-mono">
+                        <span className="font-bold text-slate-200">{wo.vehiclePlate}</span>
+                        <span className="font-bold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</span>
                       </div>
-
-                      {canEdit && stage !== 'Completed' && (
-                        <div className="pt-2 border-t border-slate-700 flex justify-end">
-                          {wo.approvalStatus === 'Pending' ? (
-                            <span className="text-[10px] font-bold text-amber-700">Awaiting approval</span>
-                          ) : wo.approvalStatus === 'Rejected' ? (
-                            <span className="text-[10px] font-bold text-rose-700">Rejected</span>
-                          ) : (
-                          <Button
-                            variant="secondary"
-                            size="xs"
-                            disabled={busyId === wo.id}
-                            onClick={() => handleStatusChange(wo.id, stage === 'Requested' ? 'Approved' : stage === 'Approved' ? 'In Progress' : stage === 'Waiting for Parts' ? 'In Progress' : 'Completed')}
-                          >
-                            Advance →
-                          </Button>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ))}
-
                   {stageOrders.length === 0 && (
-                    <p className="text-center text-[11px] text-slate-400 py-6">No jobs in {stage}</p>
+                    <div className="py-8 text-center text-[11px] text-slate-500">
+                      No jobs in this stage.
+                    </div>
                   )}
                 </div>
               </div>
@@ -284,6 +312,14 @@ export const WorkOrdersPage: React.FC = () => {
           })}
         </div>
       )}
+
+      <WorkOrderDetailModal
+        order={viewingOrder}
+        isOpen={!!viewingOrder}
+        onClose={() => setViewingOrder(null)}
+        onStatusChange={handleStatusChange}
+        busy={!!busyId}
+      />
     </div>
   );
 };

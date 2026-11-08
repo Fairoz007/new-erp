@@ -7,6 +7,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { Employee, EmployeeDepartment, EmployeeStatus, PayrollRun, PayrollLineItem, PayslipModalData } from '../../types/hr';
+import { EmployeeDetailModal } from './EmployeeDetailModal';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
@@ -61,6 +62,7 @@ export const PayrollPage: React.FC = () => {
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null);
   const [editing, setEditing] = useState<Employee | null>(null);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState<Partial<Employee>>({});
   const [deleting, setDeleting] = useState<Employee | null>(null);
   const [pending, setPending] = useState(false);
@@ -466,6 +468,14 @@ export const PayrollPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <EmployeeDetailModal
+        employee={viewingEmployee}
+        isOpen={!!viewingEmployee}
+        onClose={() => setViewingEmployee(null)}
+        onEdit={openEdit}
+        latestPayslip={viewingEmployee ? latestPayslip(viewingEmployee) : null}
+      />
 
       {/* Delete Employee */}
       <Modal isOpen={!!deleting} onClose={() => !pending && setDeleting(null)} title={`Delete ${deleting?.name ?? ''}?`}

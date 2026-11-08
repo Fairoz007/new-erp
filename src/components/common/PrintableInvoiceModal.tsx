@@ -14,7 +14,7 @@ type Busy = null | 'duplicate' | 'credit' | 'submit' | 'cancel';
 
 export const PrintableInvoiceModal: React.FC = () => {
   const { invoices, companies, duplicateInvoice, createCreditNote, updateInvoice, submitInvoice } = useFleet();
-  const { viewingInvoiceId, closeInvoiceModal, addToast, openInvoiceModal } = useUI();
+  const { viewingInvoiceId, closeInvoiceModal, addToast, openInvoiceModal, openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
   const printableRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<Busy>(null);
@@ -205,7 +205,25 @@ export const PrintableInvoiceModal: React.FC = () => {
               {!invoice.isCreditNote && invoice.referenceNumber && <p><strong>Reference:</strong> {invoice.referenceNumber}</p>}
               {invoice.purchaseOrderNumber && <p><strong>PO Number:</strong> {invoice.purchaseOrderNumber}</p>}
               {invoice.workOrderNumber && <p><strong>Work Order:</strong> {invoice.workOrderNumber}</p>}
-              {invoice.vehiclePlate && <p><strong>Vehicle:</strong> {invoice.vehiclePlate}</p>}
+              {invoice.vehiclePlate && (
+                <p>
+                  <strong>Vehicle:</strong>{' '}
+                  {invoice.vehicleId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeInvoiceModal();
+                        openVehicleDetail(invoice.vehicleId!, 'invoices');
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
+                    >
+                      {invoice.vehiclePlate}
+                    </button>
+                  ) : (
+                    invoice.vehiclePlate
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </div>

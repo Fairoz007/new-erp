@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Paperclip } from 'lucide-react';
+import { Plus, Paperclip, Eye } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
@@ -7,6 +7,7 @@ import { Payment } from '../../types/finance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
+import { PaymentDetailModal } from './PaymentDetailModal';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
@@ -16,6 +17,7 @@ export const PaymentsPage: React.FC = () => {
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('create', 'payments');
 
+  const [viewingPayment, setViewingPayment] = useState<Payment | null>(null);
   const [methodFilter, setMethodFilter] = useState('all');
   const [bankFilter, setBankFilter] = useState('all');
   const [partyFilter, setPartyFilter] = useState('all');
@@ -53,13 +55,16 @@ export const PaymentsPage: React.FC = () => {
       key: 'paymentNumber',
       header: 'Payment # / Ref',
       render: (p) => (
-        <div>
-          <span className="font-mono font-bold text-slate-100">{p.paymentNumber}</span>
+        <div className="cursor-pointer group" onClick={() => setViewingPayment(p)}>
+          <span className="font-mono font-bold text-slate-100 group-hover:text-forest-400 transition-colors">{p.paymentNumber}</span>
           {p.transactionReference && <p className="text-[10px] text-slate-400 font-mono">Ref: {p.transactionReference}</p>}
           {p.chequeNumber && <p className="text-[10px] text-slate-400 font-mono">Cheque: {p.chequeNumber}</p>}
           {p.attachmentUrl && (
             <button
-              onClick={() => openBillModal(p.attachmentUrl!, p.attachmentName || p.paymentNumber)}
+              onClick={(e) => {
+                e.stopPropagation();
+                openBillModal(p.attachmentUrl!, p.attachmentName || p.paymentNumber);
+              }}
               className="inline-flex items-center gap-1 text-[10px] text-[#086343] font-bold hover:underline cursor-pointer"
             >
               <Paperclip className="w-3 h-3" /> Receipt
@@ -102,23 +107,37 @@ export const PaymentsPage: React.FC = () => {
     },
     {
       key: 'bankAccount',
-      header: 'Settlement Account',
+      header: 'Account / Mode',
       render: (p) => (
         <div>
-          <span className="text-slate-200 font-semibold">{p.bankAccountName}</span>
-          <p className="text-[10px] text-slate-400">{p.paymentMethod}</p>
+          <span className="font-medium text-slate-300">{p.bankAccountName || 'General Account'}</span>
+          <p className="text-[10px] text-slate-500 font-mono">{p.paymentMethod}</p>
         </div>
       ),
     },
     {
       key: 'amount',
-      header: 'Settled Amount',
+      header: 'Amount',
       align: 'right',
       render: (p) => (
-        <div className="text-right font-mono">
-          <span className={`text-sm font-extrabold ${p.partyType === 'Supplier' ? 'text-rose-600' : 'text-[#086343]'}`}>
-            {p.partyType === 'Supplier' ? '-' : '+'}{formatCurrency(p.amount, p.currency)}
+        <div className="text-right">
+          <span className={`font-mono font-bold text-sm ${p.partyType === 'Customer' ? 'text-emerald-400' : 'text-slate-100'}`}>
+            {formatCurrency(p.amount, p.currency)}
           </span>
+          <p className="text-[10px] text-slate-500 font-medium">{p.partyType === 'Customer' ? 'Received (CR)' : 'Paid (DR)'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      align: 'right' as const,
+      sortable: false,
+      render: (p: Payment) => (
+        <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
+          <Button variant="ghost" size="xs" onClick={() => setViewingPayment(p)} leftIcon={<Eye className="w-3.5 h-3.5" />}>
+            Voucher
+          </Button>
         </div>
       ),
     },
@@ -130,77 +149,121 @@ export const PaymentsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Payments & Treasury Register
+            Payments & Disbursals Register
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Track invoice payment settlements, partial payments, wire transfers, cheques, and corporate bank balances.
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
+            Accounts Payable disbursals, customer collections, and real-time bank reconciliation statements.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          {canCreate && <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-payment')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Record Payment
-          </Button>}
+        <div className="flex items-center gap-2">
+          {canCreate && (
+            <Button
+              variant="primary"
+              size="sm"
+              className="rounded-full shadow-sm"
+              onClick={() => openQuickModal('add-payment')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Record Payment
+            </Button>
+          )}
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="Total Cash & Bank Balance"
-          value={fmtTotals(totalBankBalance)}
-          subValue={`${scopedBanks.length} bank account(s)`}
+          title="Total Vendor Disbursals"
+          value={fmtTotals(totalDisbursed)}
+          subValue={filtersActive ? 'Filtered supplier payments' : 'All supplier payments'}
+          variant="amber"
           isHero={true}
         />
         <StatCard
-          title="Supplier Disbursals (AP Paid)"
-          value={fmtTotals(totalDisbursed)}
-          subValue={`${filteredPayments.filter(p => p.partyType === 'Supplier').length} payment(s) to suppliers`}
+          title="Customer Collections (AR)"
+          value={fmtTotals(totalReceived)}
+          subValue={filtersActive ? 'Filtered customer receipts' : 'All customer receipts'}
+          variant="emerald"
         />
         <StatCard
-          title="Customer Collections (AR Received)"
-          value={fmtTotals(totalReceived)}
-          subValue={`${filteredPayments.filter(p => p.partyType === 'Customer').length} receipt(s) from customers`}
+          title="Available Bank Balances"
+          value={fmtTotals(totalBankBalance)}
+          subValue="Consolidated across active bank accounts"
+          variant="blue"
         />
       </div>
 
-      {/* DataTable */}
+      {/* Filter Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-700 rounded-2xl shadow-card text-xs">
+        <span className="text-slate-400 font-semibold px-1">Filter by:</span>
+        <select
+          value={methodFilter}
+          onChange={e => setMethodFilter(e.target.value)}
+          className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer"
+        >
+          <option value="all">All Methods</option>
+          {methods.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+        <select
+          value={bankFilter}
+          onChange={e => setBankFilter(e.target.value)}
+          className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer"
+        >
+          <option value="all">All Bank Accounts</option>
+          {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.bankName} - {b.accountName}</option>)}
+        </select>
+        <select
+          value={partyFilter}
+          onChange={e => setPartyFilter(e.target.value)}
+          className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer"
+        >
+          <option value="all">All Parties</option>
+          <option value="Supplier">Suppliers (AP)</option>
+          <option value="Customer">Customers (AR)</option>
+        </select>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={fromDate}
+            onChange={e => setFromDate(e.target.value)}
+            className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20"
+            title="From date"
+          />
+          <span className="text-slate-500">to</span>
+          <input
+            type="date"
+            value={toDate}
+            onChange={e => setToDate(e.target.value)}
+            className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20"
+            title="To date"
+          />
+        </div>
+        {filtersActive && (
+          <button
+            onClick={() => { setMethodFilter('all'); setBankFilter('all'); setPartyFilter('all'); setFromDate(''); setToDate(''); }}
+            className="text-xs font-bold text-[#086343] hover:underline cursor-pointer ml-auto px-2"
+          >
+            Reset Filters
+          </button>
+        )}
+      </div>
+
+      {/* Payments Table */}
       <DataTable
         data={filteredPayments}
         columns={columns}
         keyExtractor={p => p.id}
-        title="Payment Transactions Ledger"
-        searchPlaceholder="Search payments by number, invoice, beneficiary, bank or reference..."
+        title="Transaction Records"
+        searchPlaceholder="Search payments by reference, invoice #, party, cheque #..."
+        searchFields={['paymentNumber', 'invoiceNumber', 'partyName', 'transactionReference', 'chequeNumber', 'paymentMethod']}
         exportFilename="FleetX_Payments_Register"
-        filterComponent={
-          <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Party type" value={partyFilter} onChange={e => setPartyFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
-              <option value="all">Paid & Received</option>
-              <option value="Supplier">Paid to suppliers</option>
-              <option value="Customer">Received from customers</option>
-            </select>
-            <select aria-label="Payment method" value={methodFilter} onChange={e => setMethodFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
-              <option value="all">All Methods</option>
-              {methods.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <select aria-label="Bank account" value={bankFilter} onChange={e => setBankFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
-              <option value="all">All Bank Accounts</option>
-              {scopedBanks.map(b => <option key={b.id} value={b.id}>{b.accountName}</option>)}
-            </select>
-            <input aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
-            <input aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
-            {filtersActive && (
-              <button className="text-xs font-bold text-[#086343] underline cursor-pointer" onClick={() => { setMethodFilter('all'); setBankFilter('all'); setPartyFilter('all'); setFromDate(''); setToDate(''); }}>
-                Clear filters
-              </button>
-            )}
-          </div>
-        }
+      />
+
+      <PaymentDetailModal
+        payment={viewingPayment}
+        isOpen={!!viewingPayment}
+        onClose={() => setViewingPayment(null)}
       />
     </div>
   );

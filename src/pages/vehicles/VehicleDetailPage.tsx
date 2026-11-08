@@ -44,6 +44,7 @@ export const VehicleDetailPage: React.FC = () => {
   const {
     vehicles,
     maintenanceRecords,
+    workOrders,
     oilChanges,
     tyres,
     tyreEvents,
@@ -107,17 +108,22 @@ export const VehicleDetailPage: React.FC = () => {
   const financialSummary = getVehicleFinancialSummary(vehicle.id);
   const depreciationSchedule = calculateDepreciationSchedule(vehicle);
 
-  // Filtered records for this vehicle
-  const vehicleMaintenance = maintenanceRecords.filter(m => m.vehicleId === vehicle.id);
+  // Filtered records for this vehicle with robust foreign-key & plate connections
+  const vehicleMaintenance = maintenanceRecords.filter(m => m.vehicleId === vehicle.id || (m as any).vehiclePlate === vehicle.plateNumber);
+  const vehicleWorkOrders = (workOrders || []).filter(w => w.vehicleId === vehicle.id || w.vehiclePlate === vehicle.plateNumber);
   const vehicleOilChanges = oilChanges
-    .filter(o => o.vehicleId === vehicle.id)
+    .filter(o => o.vehicleId === vehicle.id || (o as any).vehiclePlate === vehicle.plateNumber)
     .sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const vehicleTyres = tyres.filter(t => t.vehicleId === vehicle.id);
   const vehicleTyreEvents = tyreEvents.filter(te => te.vehicleId === vehicle.id);
-  const vehicleAccidents = accidents.filter(a => a.vehicleId === vehicle.id);
-  const vehicleExpenses = expenses.filter(e => e.vehicleId === vehicle.id);
-  const vehicleInvoices = invoices.filter(i => i.vehicleId === vehicle.id);
-  const vehicleDocuments = documents.filter(d => d.vehicleId === vehicle.id);
+  const vehicleAccidents = accidents.filter(a => a.vehicleId === vehicle.id || a.vehiclePlate === vehicle.plateNumber);
+  const vehicleExpenses = expenses.filter(e => e.vehicleId === vehicle.id || e.vehiclePlate === vehicle.plateNumber);
+  const vehicleInvoices = invoices.filter(i => 
+    i.vehicleId === vehicle.id || 
+    i.vehiclePlate === vehicle.plateNumber ||
+    (i.items && i.items.some(item => item.vehicleId === vehicle.id || item.vehiclePlate === vehicle.plateNumber))
+  );
+  const vehicleDocuments = documents.filter(d => d.vehicleId === vehicle.id || (d.vehiclePlate && d.vehiclePlate === vehicle.plateNumber));
   const vehicleTimeline = timeline
     .filter(t => t.vehicleId === vehicle.id)
     .sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -125,7 +131,7 @@ export const VehicleDetailPage: React.FC = () => {
   // 10 Tabs Navigation Items
   const tabs: TabItem[] = [
     { id: 'overview', label: 'Overview', icon: <Car className="w-4 h-4" /> },
-    { id: 'maintenance', label: 'Maintenance', count: vehicleMaintenance.length, icon: <Wrench className="w-4 h-4" /> },
+    { id: 'maintenance', label: 'Maintenance & Work Orders', count: vehicleMaintenance.length + vehicleWorkOrders.length, icon: <Wrench className="w-4 h-4" /> },
     { id: 'oil', label: 'Oil Service', count: vehicleOilChanges.length, icon: <Droplet className="w-4 h-4" /> },
     { id: 'tyres', label: 'Tyres', count: vehicleTyres.length, icon: <Disc className="w-4 h-4" /> },
     { id: 'accidents', label: 'Accidents', count: vehicleAccidents.length, icon: <AlertTriangle className="w-4 h-4" /> },
@@ -423,16 +429,79 @@ export const VehicleDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: MAINTENANCE */}
+      {/* TAB 2: MAINTENANCE & WORK ORDERS */}
       {selectedVehicleTab === 'maintenance' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-200">Maintenance & Workshop Records ({vehicleMaintenance.length})</h3>
+        <div className="space-y-6">
+          {/* Active / Scheduled Work Orders for this vehicle */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-slate-200">
+                Active & Scheduled Work Orders ({vehicleWorkOrders.length})
+              </h3>
+              {hasPermission('create', 'work-orders') && (
+                <Button variant="outline" size="sm" onClick={() => openQuickModal('add-work-order')} leftIcon={<Plus className="w-4 h-4" />}>
+                  Create Work Order
+                </Button>
+              )}
+            </div>
+
+            {vehicleWorkOrders.length > 0 ? (
+              <div className="space-y-2.5">
+                {vehicleWorkOrders.map(wo => (
+                  <Card key={wo.id} className="border border-slate-750 hover:border-slate-600 transition-colors">
+                    <CardHeader
+                      action={
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-slate-100">
+                            {formatCurrency(wo.finalCost || wo.estimatedCost, currency)}
+                          </span>
+                          <div className="mt-1 flex items-center justify-end gap-1.5">
+                            <StatusBadge status={wo.status} size="sm" />
+                          </div>
+                        </div>
+                      }
+                    >
+                      <div className="flex items-center gap-2">
+                        <Wrench className="w-4 h-4 text-amber-500" />
+                        <span className="font-bold text-sm text-slate-100">{wo.workOrderNumber}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          wo.priority === 'Critical' ? 'bg-rose-950/70 text-rose-300 border border-rose-800' :
+                          wo.priority === 'High' ? 'bg-amber-950/70 text-amber-300 border border-amber-800' :
+                          'bg-slate-800 text-slate-300'
+                        }`}>
+                          {wo.priority} Priority
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Reported: {formatDate(wo.reportedDate)} • Workshop: {wo.workshop || 'Internal'} • Tech: {wo.assignedTechnician || 'Unassigned'}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-xs">
+                      <p className="text-slate-200 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800">
+                        {wo.problemDescription}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                        <span>Approval: <strong className={wo.approvalStatus === 'Approved' ? 'text-emerald-400' : 'text-amber-400'}>{wo.approvalStatus}</strong></span>
+                        {wo.expectedCompletion && <span>Target completion: <strong>{formatDate(wo.expectedCompletion)}</strong></span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-xs text-slate-400 border border-slate-800/80 rounded-xl bg-slate-950/20">
+                No active work orders for this vehicle.
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center">
+            <h3 className="text-sm font-bold text-slate-200">Historical Maintenance Records ({vehicleMaintenance.length})</h3>
             {hasPermission('create', 'maintenance') && (
-<Button variant="primary" size="sm" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Plus className="w-4 h-4" />}>
-              Add Maintenance Entry
-            </Button>
-)}
+              <Button variant="primary" size="sm" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Plus className="w-4 h-4" />}>
+                Add Maintenance Entry
+              </Button>
+            )}
           </div>
 
           <div className="space-y-3">

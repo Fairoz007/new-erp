@@ -4,6 +4,7 @@ import { VehicleStatus, TyreStatus } from '../../types/vehicle';
 import { WorkOrderStatus } from '../../types/maintenance';
 import { InvoicePaymentStatus, InvoiceApprovalStatus, ReconciliationStatus } from '../../types/finance';
 import { AccidentStatus } from '../../types/operations';
+import { EmployeeStatus } from '../../types/hr';
 
 interface StatusBadgeProps {
   status:
@@ -25,7 +26,8 @@ interface StatusBadgeProps {
     | 'Void'
     | 'Pending'
     | 'Approved'
-    | 'Rejected';
+    | 'Rejected'
+    | EmployeeStatus;
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -57,6 +59,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
     case 'Pending Review':
     case 'Due Soon':
     case 'Fair':
+    case 'On Leave':
+    case 'Probation':
     case 'Insurance Processing':
     case 'Repair Approved':
       variant = 'amber';
@@ -72,6 +76,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
     case 'Blocked':
     case 'Scrapped':
     case 'Void':
+    case 'Terminated':
       variant = 'rose';
       break;
 

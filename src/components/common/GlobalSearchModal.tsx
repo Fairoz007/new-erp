@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Car, FileText, Wrench, Building2, ShieldAlert, Folder, ArrowRight, X } from 'lucide-react';
+import { Search, Car, FileText, Wrench, Building2, ShieldAlert, Folder, ArrowRight, X, AlertTriangle } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -7,7 +7,7 @@ import { StatusBadge } from './StatusBadge';
 import { VehiclePhoto, useVehiclePhotoUrls } from '../../pages/vehicles/VehiclePhoto';
 
 export const GlobalSearchModal: React.FC = () => {
-  const { isSearchOpen, setIsSearchOpen, setCurrentPage, openVehicleDetail, openInvoiceModal } = useUI();
+  const { isSearchOpen, setIsSearchOpen, setCurrentPage, openVehicleDetail, openInvoiceModal, openBillModal } = useUI();
   const { vehicles, invoices, workOrders, maintenanceRecords, suppliers, documents, accidents } = useFleet();
   const { canAccessPage } = useAuth();
   const [query, setQuery] = useState('');
@@ -233,6 +233,116 @@ export const GlobalSearchModal: React.FC = () => {
                         <StatusBadge status={wo.status} size="sm" />
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{wo.problemDescription}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-500" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {results && results.maintenance.length > 0 && (
+            <div className="pt-3">
+              <p className="text-[11px] font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5" /> Maintenance Records ({results.maintenance.length})
+              </p>
+              <div className="space-y-1.5">
+                {results.maintenance.map(m => (
+                  <div
+                    key={m.id}
+                    onClick={() => {
+                      if (m.vehicleId) {
+                        openVehicleDetail(m.vehicleId, 'maintenance');
+                      } else {
+                        setCurrentPage('maintenance');
+                      }
+                      setIsSearchOpen(false);
+                    }}
+                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-800/70 border border-transparent hover:border-slate-700 cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-200">{m.recordNumber}</span>
+                        {m.vehiclePlate && (
+                          <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded font-mono text-[10px]">{m.vehiclePlate}</span>
+                        )}
+                        <span className="text-[10px] text-slate-400">({m.category})</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{m.description}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-500" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {results && results.accidents.length > 0 && (
+            <div className="pt-3">
+              <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" /> Accident Claims ({results.accidents.length})
+              </p>
+              <div className="space-y-1.5">
+                {results.accidents.map(a => (
+                  <div
+                    key={a.id}
+                    onClick={() => {
+                      if (a.vehicleId) {
+                        openVehicleDetail(a.vehicleId, 'accidents');
+                      } else {
+                        setCurrentPage('accidents');
+                      }
+                      setIsSearchOpen(false);
+                    }}
+                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-800/70 border border-transparent hover:border-slate-700 cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-200">{a.accidentNumber}</span>
+                        {a.vehiclePlate && (
+                          <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded font-mono text-[10px]">{a.vehiclePlate}</span>
+                        )}
+                        <StatusBadge status={a.status} size="sm" />
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{a.damageDescription || a.accidentType}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-500" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {results && results.documents.length > 0 && (
+            <div className="pt-3">
+              <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Folder className="w-3.5 h-3.5" /> Documents ({results.documents.length})
+              </p>
+              <div className="space-y-1.5">
+                {results.documents.map(d => (
+                  <div
+                    key={d.id}
+                    onClick={() => {
+                      if (d.documentUrl) {
+                        openBillModal(d.documentUrl, d.documentName, d.fileType, d.fileSize);
+                      } else if (d.vehicleId) {
+                        openVehicleDetail(d.vehicleId, 'documents');
+                      } else {
+                        setCurrentPage('documents');
+                      }
+                      setIsSearchOpen(false);
+                    }}
+                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-800/70 border border-transparent hover:border-slate-700 cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-200">{d.documentName}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded">{d.category}</span>
+                        {d.vehiclePlate && (
+                          <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded font-mono text-[10px]">{d.vehiclePlate}</span>
+                        )}
+                      </div>
+                      {d.documentNumber && <p className="text-[11px] text-slate-400 mt-0.5">Doc #{d.documentNumber}</p>}
                     </div>
                     <ArrowRight className="w-4 h-4 text-slate-500" />
                   </div>

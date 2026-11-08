@@ -7,6 +7,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { FixedAsset, DepreciationRun, FixedAssetCategory, AssetDepreciationMethod } from '../../types/finance';
+import { AssetDetailModal } from './AssetDetailModal';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,7 @@ export const AssetModulePage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedRun, setSelectedRun] = useState<DepreciationRun | null>(null);
   const [editing, setEditing] = useState<FixedAsset | null>(null);
+  const [viewingAsset, setViewingAsset] = useState<FixedAsset | null>(null);
   const [editForm, setEditForm] = useState<Partial<FixedAsset>>({});
   const [deleting, setDeleting] = useState<FixedAsset | null>(null);
   const [pending, setPending] = useState(false);
@@ -450,6 +452,13 @@ export const AssetModulePage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <AssetDetailModal
+        asset={viewingAsset}
+        isOpen={!!viewingAsset}
+        onClose={() => setViewingAsset(null)}
+        onEdit={openEdit}
+      />
 
       {/* Delete Fixed Asset */}
       <Modal

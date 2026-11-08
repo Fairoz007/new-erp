@@ -14,6 +14,7 @@ import * as system from '../services/system';
 import * as docs from '../services/documents';
 import { useAuth } from './AuthContext';
 import { readCache, writeCache } from '../lib/cache';
+import { supabase } from '../lib/supabase';
 
 // All business data lives in Supabase. This provider loads each collection through the
 // service-layer fetchers (RLS decides what the signed-in user sees), runs every mutation through
@@ -281,6 +282,58 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [reload]);
+
+  // Realtime database synchronization: subscribe to postgres_changes across public tables
+  useEffect(() => {
+    if (!cacheUserId) return;
+
+    const tableToKeys: Record<string, CollectionKey[]> = {
+      vehicles: ['vehicles', 'timeline'],
+      maintenance_records: ['maintenanceRecords', 'timeline'],
+      work_orders: ['workOrders', 'timeline'],
+      oil_changes: ['oilChanges', 'timeline'],
+      tyres: ['tyres', 'tyreEvents', 'timeline'],
+      tyre_events: ['tyres', 'tyreEvents', 'timeline'],
+      accidents: ['accidents', 'timeline'],
+      expenses: ['expenses', 'timeline'],
+      suppliers: ['suppliers'],
+      customers: ['customers'],
+      invoices: ['invoices'],
+      payments: ['payments', 'invoices', 'bankAccounts'],
+      bank_accounts: ['bankAccounts'],
+      journal_entries: ['journalEntries', 'chartOfAccounts'],
+      fixed_assets: ['fixedAssets'],
+      depreciation_runs: ['depreciationRuns', 'fixedAssets', 'journalEntries'],
+      employees: ['employees'],
+      payroll_runs: ['payrollRuns', 'journalEntries'],
+      documents: ['documents'],
+      notifications: ['notifications'],
+      approval_requests: ['approvalRequests'],
+      audit_logs: ['auditLogs'],
+    };
+
+    const channel = supabase
+      .channel('public:erp_realtime_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          const keys = tableToKeys[payload.table];
+          if (keys) {
+            reload(keys).catch(() => undefined);
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('Realtime channel error, falling back to visibility polling');
+        }
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [cacheUserId, reload]);
 
   // Office selector: drop a selection the user no longer has access to
   useEffect(() => {

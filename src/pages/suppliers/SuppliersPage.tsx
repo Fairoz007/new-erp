@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Truck, Plus, Phone, Mail, MapPin, CreditCard, Building2 } from 'lucide-react';
+import { Truck, Plus, Phone, Mail, MapPin, CreditCard, Building2, Eye } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -9,6 +9,7 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { PartyEditModal } from './PartyEditModal';
+import { SupplierDetailModal } from './SupplierDetailModal';
 import { Pencil, Power } from 'lucide-react';
 import { formatCurrency } from '../../utils/financial';
 
@@ -19,6 +20,7 @@ export const SuppliersPage: React.FC = () => {
   const canEdit = hasPermission('edit', 'suppliers');
   const canCreate = hasPermission('create', 'suppliers');
   const [editing, setEditing] = useState<Supplier | null>(null);
+  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const save = async (id: string, changes: Partial<Supplier>) => {
@@ -50,8 +52,8 @@ export const SuppliersPage: React.FC = () => {
       key: 'name',
       header: 'Supplier / ID',
       render: (s) => (
-        <div>
-          <span className="font-bold text-slate-100">{s.name}</span>
+        <div className="cursor-pointer group" onClick={() => setViewingSupplier(s)}>
+          <span className="font-bold text-slate-100 group-hover:text-forest-400 transition-colors">{s.name}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[10px] font-mono text-forest-700 font-semibold px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700">
               {s.supplierId}
@@ -110,23 +112,30 @@ export const SuppliersPage: React.FC = () => {
       align: 'center',
       render: (s) => <StatusBadge status={s.status} size="sm" />,
     },
-    ...(canEdit ? [{
+    {
       key: 'actions',
       header: 'Actions',
       align: 'right' as const,
       sortable: false,
       render: (s: Supplier) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          <Button variant="ghost" size="xs" onClick={() => setEditing(s)} leftIcon={<Pencil className="w-3 h-3" />}>
-            Edit
+          <Button variant="ghost" size="xs" onClick={() => setViewingSupplier(s)} leftIcon={<Eye className="w-3 h-3" />}>
+            Details
           </Button>
-          <Button variant="ghost" size="xs" onClick={() => toggleActive(s)} disabled={busyId === s.id}
-            isLoading={busyId === s.id} leftIcon={<Power className="w-3 h-3" />}>
-            {s.status === 'Active' ? 'Deactivate' : 'Activate'}
-          </Button>
+          {canEdit && (
+            <>
+              <Button variant="ghost" size="xs" onClick={() => setEditing(s)} leftIcon={<Pencil className="w-3 h-3" />}>
+                Edit
+              </Button>
+              <Button variant="ghost" size="xs" onClick={() => toggleActive(s)} disabled={busyId === s.id}
+                isLoading={busyId === s.id} leftIcon={<Power className="w-3 h-3" />}>
+                {s.status === 'Active' ? 'Deactivate' : 'Activate'}
+              </Button>
+            </>
+          )}
         </div>
       ),
-    }] : []),
+    },
   ];
 
   return (
@@ -181,18 +190,30 @@ export const SuppliersPage: React.FC = () => {
         />
       </div>
 
-      {/* DataTable */}
+      {/* Suppliers Table */}
       <DataTable
         data={suppliers}
         columns={columns}
         keyExtractor={s => s.id}
-        title="Supplier Database"
-        searchPlaceholder="Search suppliers by name, type, contact person, VAT number..."
-        searchFields={['name', 'supplierType', 'contactPerson', 'phone', 'vatNumber']}
+        title="Vendor Registry"
+        searchPlaceholder="Search suppliers by name, ID, contact, phone, VAT number..."
+        searchFields={['name', 'supplierId', 'contactPerson', 'phone', 'email', 'vatNumber', 'supplierType']}
         exportFilename="FleetX_Suppliers_Directory"
       />
 
-      <PartyEditModal kind="supplier" party={editing} onClose={() => setEditing(null)} onSave={save} />
+      <PartyEditModal
+        kind="supplier"
+        party={editing}
+        onClose={() => setEditing(null)}
+        onSave={async (id, changes) => { await save(id, changes); }}
+      />
+
+      <SupplierDetailModal
+        isOpen={!!viewingSupplier}
+        supplier={viewingSupplier}
+        onClose={() => setViewingSupplier(null)}
+        onEdit={s => setEditing(s)}
+      />
     </div>
   );
 };

@@ -495,4 +495,12 @@ revoke insert, update, delete on public.v_account_balances, public.v_bank_balanc
 revoke insert, delete on public.profiles from authenticated;
 revoke update, delete on public.approval_requests from authenticated;
 revoke update on public.notification_reads from authenticated;
-revoke select on public.doc_sequences, public.global_doc_sequences from authenticated;
+do $$
+begin
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='doc_sequences') then
+    revoke select on public.doc_sequences from authenticated;
+  end if;
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='global_doc_sequences') then
+    revoke select on public.global_doc_sequences from authenticated;
+  end if;
+end $$;

@@ -13,7 +13,7 @@ import { formatDate } from '../../utils/date';
 
 export const InvoicesPage: React.FC = () => {
   const { invoices, selectedCompanyId, currency, submitInvoice } = useFleet();
-  const { openQuickModal, openInvoiceModal, openBillModal, invoiceView, setInvoiceView, openPaymentFor, addToast, setCurrentPage } = useUI();
+  const { openQuickModal, openInvoiceModal, openBillModal, invoiceView, setInvoiceView, openPaymentFor, addToast, setCurrentPage, openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
   const canSubmit = hasPermission('create', 'invoices') || hasPermission('edit', 'invoices');
   const [busyId, setBusyId] = useState<string | null>(null);
