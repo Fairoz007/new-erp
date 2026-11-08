@@ -1,7 +1,7 @@
 // Per-user snapshot of the loaded collections.
 // Stored in IndexedDB. Version bumped to v3 to guarantee all stale operational data
 // (vehicles, invoices, accounts, P&L, etc.) is completely purged across all client browsers.
-const DB_NAME = 'fleetx-cache-v3';
+const DB_NAME = 'fleetx-cache-v4';
 const STORE = 'collections';
 const VERSION = 1;
 
@@ -10,14 +10,15 @@ if (typeof indexedDB !== 'undefined') {
   try {
     indexedDB.deleteDatabase('fleetx-cache');
     indexedDB.deleteDatabase('fleetx-cache-v2');
+    indexedDB.deleteDatabase('fleetx-cache-v3');
   } catch {
     /* ignore */
   }
 }
 
 // Operational tables that must NEVER be loaded from stale cache
+// (Vehicles are allowed so newly seeded/added vehicle details persist)
 const DISALLOWED_CACHE_KEYS = new Set([
-  'vehicles',
   'tyres',
   'tyreEvents',
   'oilChanges',

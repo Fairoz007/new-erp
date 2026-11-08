@@ -15,6 +15,7 @@ import * as docs from '../services/documents';
 import { useAuth } from './AuthContext';
 import { readCache, writeCache } from '../lib/cache';
 import { supabase } from '../lib/supabase';
+import { DEFAULT_VEHICLES } from '../data/defaultVehicles';
 
 // All business data lives in Supabase. This provider loads each collection through the
 // service-layer fetchers (RLS decides what the signed-in user sees), runs every mutation through
@@ -95,7 +96,7 @@ interface Collections {
 }
 
 const EMPTY: Collections = {
-  companies: [], vehicles: [], tyres: [], tyreEvents: [], oilChanges: [], maintenanceRecords: [], workOrders: [],
+  companies: [], vehicles: DEFAULT_VEHICLES, tyres: [], tyreEvents: [], oilChanges: [], maintenanceRecords: [], workOrders: [],
   accidents: [], expenses: [], suppliers: [], customers: [], invoices: [], reconciliations: [], payments: [],
   bankAccounts: [], chartOfAccounts: [], journalEntries: [], fixedAssets: [], depreciationRuns: [], employees: [],
   payrollRuns: [], documents: [], timeline: [], notifications: [], approvalRules: [], approvalRequests: [], auditLogs: [],
@@ -235,7 +236,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       for (let key = queue.shift(); key; key = queue.shift()) {
         try {
           const rows = await fetchWithRetry(key);
-          setData(prev => ({ ...prev, [key]: rows }));
+          const finalRows = key === 'vehicles' && (!rows || (rows as any[]).length === 0) ? DEFAULT_VEHICLES : rows;
+          setData(prev => ({ ...prev, [key]: finalRows }));
           setLoadErrors(prev => { if (!(key in prev)) return prev; const m = { ...prev }; delete m[key]; return m; });
           if (cacheUserId) void writeCache(cacheUserId, { [key]: rows });
         } catch (r) {
