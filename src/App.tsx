@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { FleetProvider } from './context/FleetContext';
 import { useAuth } from './context/AuthContext';
@@ -7,38 +7,68 @@ import { AppLayout } from './components/layout/AppLayout';
 import { Button } from './components/ui/Button';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
-// Page Imports
+// Static Import for Immediate Paint on Landing Page
 import { DashboardPage } from './pages/dashboard/DashboardPage';
-import { CompaniesPage } from './pages/companies/CompaniesPage';
-import { VehiclesPage } from './pages/vehicles/VehiclesPage';
-import { VehicleDetailPage } from './pages/vehicles/VehicleDetailPage';
-import { MaintenancePage } from './pages/maintenance/MaintenancePage';
-import { WorkOrdersPage } from './pages/maintenance/WorkOrdersPage';
-import { OilManagementPage } from './pages/oil-management/OilManagementPage';
-import { TyreManagementPage } from './pages/tyre-management/TyreManagementPage';
-import { AccidentsPage } from './pages/accidents/AccidentsPage';
-import { ExpensesPage } from './pages/expenses/ExpensesPage';
-import { SuppliersPage } from './pages/suppliers/SuppliersPage';
-import { CustomersPage } from './pages/customers/CustomersPage';
-import { InvoicesPage } from './pages/invoices/InvoicesPage';
-import { ReconciliationPage } from './pages/reconciliation/ReconciliationPage';
-import { PaymentsPage } from './pages/payments/PaymentsPage';
-import { AccountingPage } from './pages/accounting/AccountingPage';
-import { TrialBalancePage } from './pages/accounting/TrialBalancePage';
-import { GeneralLedgerPage } from './pages/accounting/GeneralLedgerPage';
-import { ProfitLossPage } from './pages/profit-loss/ProfitLossPage';
-import { BalanceSheetPage } from './pages/balance-sheet/BalanceSheetPage';
-import { DepreciationPage } from './pages/depreciation/DepreciationPage';
-import { AssetModulePage } from './pages/depreciation/AssetModulePage';
-import { PayrollPage } from './pages/payroll/PayrollPage';
-import { VehicleProfitabilityPage } from './pages/profitability/VehicleProfitabilityPage';
-import { DocumentsPage } from './pages/documents/DocumentsPage';
-import { NotificationsPage } from './pages/notifications/NotificationsPage';
-import { UsersRolesPage } from './pages/users-roles/UsersRolesPage';
-import { ApprovalsPage } from './pages/approvals/ApprovalsPage';
-import { AuditLogsPage } from './pages/audit-logs/AuditLogsPage';
-import { ReportsPage } from './pages/reports/ReportsPage';
-import { SettingsPage } from './pages/settings/SettingsPage';
+
+// Lazy Loaded Submodules (Code-split for maximum load speed)
+const CompaniesPage = lazy(() => import('./pages/companies/CompaniesPage').then(m => ({ default: m.CompaniesPage })));
+const VehiclesPage = lazy(() => import('./pages/vehicles/VehiclesPage').then(m => ({ default: m.VehiclesPage })));
+const VehicleDetailPage = lazy(() => import('./pages/vehicles/VehicleDetailPage').then(m => ({ default: m.VehicleDetailPage })));
+const MaintenancePage = lazy(() => import('./pages/maintenance/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
+const WorkOrdersPage = lazy(() => import('./pages/maintenance/WorkOrdersPage').then(m => ({ default: m.WorkOrdersPage })));
+const OilManagementPage = lazy(() => import('./pages/oil-management/OilManagementPage').then(m => ({ default: m.OilManagementPage })));
+const TyreManagementPage = lazy(() => import('./pages/tyre-management/TyreManagementPage').then(m => ({ default: m.TyreManagementPage })));
+const AccidentsPage = lazy(() => import('./pages/accidents/AccidentsPage').then(m => ({ default: m.AccidentsPage })));
+const ExpensesPage = lazy(() => import('./pages/expenses/ExpensesPage').then(m => ({ default: m.ExpensesPage })));
+const SuppliersPage = lazy(() => import('./pages/suppliers/SuppliersPage').then(m => ({ default: m.SuppliersPage })));
+const CustomersPage = lazy(() => import('./pages/customers/CustomersPage').then(m => ({ default: m.CustomersPage })));
+const InvoicesPage = lazy(() => import('./pages/invoices/InvoicesPage').then(m => ({ default: m.InvoicesPage })));
+const ReconciliationPage = lazy(() => import('./pages/reconciliation/ReconciliationPage').then(m => ({ default: m.ReconciliationPage })));
+const PaymentsPage = lazy(() => import('./pages/payments/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
+const AccountingPage = lazy(() => import('./pages/accounting/AccountingPage').then(m => ({ default: m.AccountingPage })));
+const TrialBalancePage = lazy(() => import('./pages/accounting/TrialBalancePage').then(m => ({ default: m.TrialBalancePage })));
+const GeneralLedgerPage = lazy(() => import('./pages/accounting/GeneralLedgerPage').then(m => ({ default: m.GeneralLedgerPage })));
+const ProfitLossPage = lazy(() => import('./pages/profit-loss/ProfitLossPage').then(m => ({ default: m.ProfitLossPage })));
+const BalanceSheetPage = lazy(() => import('./pages/balance-sheet/BalanceSheetPage').then(m => ({ default: m.BalanceSheetPage })));
+const DepreciationPage = lazy(() => import('./pages/depreciation/DepreciationPage').then(m => ({ default: m.DepreciationPage })));
+const AssetModulePage = lazy(() => import('./pages/depreciation/AssetModulePage').then(m => ({ default: m.AssetModulePage })));
+const PayrollPage = lazy(() => import('./pages/payroll/PayrollPage').then(m => ({ default: m.PayrollPage })));
+const VehicleProfitabilityPage = lazy(() => import('./pages/profitability/VehicleProfitabilityPage').then(m => ({ default: m.VehicleProfitabilityPage })));
+const DocumentsPage = lazy(() => import('./pages/documents/DocumentsPage').then(m => ({ default: m.DocumentsPage })));
+const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
+const UsersRolesPage = lazy(() => import('./pages/users-roles/UsersRolesPage').then(m => ({ default: m.UsersRolesPage })));
+const ApprovalsPage = lazy(() => import('./pages/approvals/ApprovalsPage').then(m => ({ default: m.ApprovalsPage })));
+const AuditLogsPage = lazy(() => import('./pages/audit-logs/AuditLogsPage').then(m => ({ default: m.AuditLogsPage })));
+const ReportsPage = lazy(() => import('./pages/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
+
+/** Non-blocking sleek skeleton displayed during lazy chunk transitions */
+const PageSkeleton: React.FC = () => (
+  <div className="space-y-6 animate-pulse p-4 sm:p-6" role="status" aria-label="Loading section">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="space-y-2">
+        <div className="h-7 w-48 bg-slate-800/80 rounded-lg" />
+        <div className="h-4 w-72 bg-slate-800/50 rounded" />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="h-9 w-24 bg-slate-800/60 rounded-lg" />
+        <div className="h-9 w-32 bg-slate-800/80 rounded-lg" />
+      </div>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="h-24 bg-slate-800/40 border border-slate-800/80 rounded-xl p-4 space-y-3">
+          <div className="h-3 w-20 bg-slate-700/50 rounded" />
+          <div className="h-6 w-28 bg-slate-700/80 rounded" />
+        </div>
+      ))}
+    </div>
+    <div className="h-80 bg-slate-800/25 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-center items-center gap-3">
+      <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs text-slate-400">Loading module...</span>
+    </div>
+  </div>
+);
 
 const PageRenderer: React.FC = () => {
   const { currentPage, setCurrentPage } = useUI();
@@ -76,72 +106,78 @@ const PageRenderer: React.FC = () => {
     );
   }
 
-  switch (currentPage) {
-    case 'dashboard':
-      return <DashboardPage />;
-    case 'companies':
-      return <CompaniesPage />;
-    case 'vehicles':
-      return <VehiclesPage />;
-    case 'vehicle-detail':
-      return <VehicleDetailPage />;
-    case 'maintenance':
-      return <MaintenancePage />;
-    case 'work-orders':
-      return <WorkOrdersPage />;
-    case 'oil-management':
-      return <OilManagementPage />;
-    case 'tyre-management':
-      return <TyreManagementPage />;
-    case 'accidents':
-      return <AccidentsPage />;
-    case 'expenses':
-      return <ExpensesPage />;
-    case 'suppliers':
-      return <SuppliersPage />;
-    case 'customers':
-      return <CustomersPage />;
-    case 'invoices':
-      return <InvoicesPage />;
-    case 'reconciliation':
-      return <ReconciliationPage />;
-    case 'payments':
-      return <PaymentsPage />;
-    case 'trial-balance':
-      return <TrialBalancePage />;
-    case 'general-ledger':
-      return <GeneralLedgerPage />;
-    case 'accounting':
-      return <AccountingPage />;
-    case 'profit-loss':
-      return <ProfitLossPage />;
-    case 'balance-sheet':
-      return <BalanceSheetPage />;
-    case 'depreciation':
-      return <DepreciationPage />;
-    case 'fixed-assets':
-      return <AssetModulePage />;
-    case 'payroll':
-      return <PayrollPage />;
-    case 'profitability':
-      return <VehicleProfitabilityPage />;
-    case 'documents':
-      return <DocumentsPage />;
-    case 'notifications':
-      return <NotificationsPage />;
-    case 'users-roles':
-      return <UsersRolesPage />;
-    case 'approvals':
-      return <ApprovalsPage />;
-    case 'audit-logs':
-      return <AuditLogsPage />;
-    case 'reports':
-      return <ReportsPage />;
-    case 'settings':
-      return <SettingsPage />;
-    default:
-      return <DashboardPage />;
-  }
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      {(() => {
+        switch (currentPage) {
+          case 'dashboard':
+            return <DashboardPage />;
+          case 'companies':
+            return <CompaniesPage />;
+          case 'vehicles':
+            return <VehiclesPage />;
+          case 'vehicle-detail':
+            return <VehicleDetailPage />;
+          case 'maintenance':
+            return <MaintenancePage />;
+          case 'work-orders':
+            return <WorkOrdersPage />;
+          case 'oil-management':
+            return <OilManagementPage />;
+          case 'tyre-management':
+            return <TyreManagementPage />;
+          case 'accidents':
+            return <AccidentsPage />;
+          case 'expenses':
+            return <ExpensesPage />;
+          case 'suppliers':
+            return <SuppliersPage />;
+          case 'customers':
+            return <CustomersPage />;
+          case 'invoices':
+            return <InvoicesPage />;
+          case 'reconciliation':
+            return <ReconciliationPage />;
+          case 'payments':
+            return <PaymentsPage />;
+          case 'trial-balance':
+            return <TrialBalancePage />;
+          case 'general-ledger':
+            return <GeneralLedgerPage />;
+          case 'accounting':
+            return <AccountingPage />;
+          case 'profit-loss':
+            return <ProfitLossPage />;
+          case 'balance-sheet':
+            return <BalanceSheetPage />;
+          case 'depreciation':
+            return <DepreciationPage />;
+          case 'fixed-assets':
+            return <AssetModulePage />;
+          case 'payroll':
+            return <PayrollPage />;
+          case 'profitability':
+            return <VehicleProfitabilityPage />;
+          case 'documents':
+            return <DocumentsPage />;
+          case 'notifications':
+            return <NotificationsPage />;
+          case 'users-roles':
+            return <UsersRolesPage />;
+          case 'approvals':
+            return <ApprovalsPage />;
+          case 'audit-logs':
+            return <AuditLogsPage />;
+          case 'reports':
+            return <ReportsPage />;
+          case 'settings':
+            return <SettingsPage />;
+          default:
+            return <DashboardPage />;
+        }
+      })()}
+    </Suspense>
+  );
 };
 
 const GuardedPage: React.FC = () => {

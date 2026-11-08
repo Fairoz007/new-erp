@@ -1,11 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { Company, AuditLog, NotificationItem, ApprovalRule, ApprovalRequest } from '../types/system';
 import { Vehicle, Tyre, TyreEvent, OilChange, VehicleFinancialSummary } from '../types/vehicle';
-import { MaintenanceRecord, WorkOrder } from '../types/maintenance';
+import { MaintenanceRecord, WorkOrder, WorkOrderStatus } from '../types/maintenance';
 import { VehicleExpense, Accident, Supplier, Customer, DocumentItem, TimelineEvent } from '../types/operations';
 import { Invoice, InvoiceReconciliation, Payment, BankAccount, Account, JournalEntry, FixedAsset, DepreciationRun, TrialBalanceRow, GeneralLedgerAccountSummary, PartyStatementLine, ProfitLossStatement, BalanceSheetStatement } from '../types/finance';
 import { Employee, PayrollRun } from '../types/hr';
-import type { CollectionKey, Fetchers } from '../services/core';
+import { CollectionKey, Fetchers, dedupFetch } from '../services/core';
 import * as fleet from '../services/fleet';
 import * as finance from '../services/finance';
 import * as accounting from '../services/accounting';
@@ -209,6 +209,28 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [currency, setCurrencyState] = useState<string>(readCurrency);
   const lastLoadedAt = useRef(0);
 
+  // Fast memoization cache for ledger and analytical getters
+  const calcCache = useRef(new Map<string, any>());
+
+  // Invalidate memoization cache when underlying data references change
+  useEffect(() => {
+    calcCache.current.clear();
+  }, [
+    data.chartOfAccounts,
+    data.journalEntries,
+    data.invoices,
+    data.payments,
+    data.suppliers,
+    data.customers,
+    data.vehicles,
+    data.maintenanceRecords,
+    data.accidents,
+    data.oilChanges,
+    data.tyres,
+    data.tyreEvents,
+    data.expenses,
+  ]);
+
   const setCurrency = useCallback((curr: string) => {
     setCurrencyState(curr);
     try { localStorage.setItem(CURRENCY_KEY, curr); } catch { /* display preference only */ }
@@ -220,17 +242,20 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const wanted = Array.from(new Set(keys)).filter(k => FETCHERS[k]);
     if (wanted.length === 0) return;
     setIsRefreshing(true);
-    // Apply each collection the moment it arrives. Only a few requests run at once (27 at a time
-    // exhausts a small database's connection pool and everything times out) and a failed fetch is
-    // retried with a short back-off before it is reported.
+
+    // Apply each collection the moment it arrives. Uses in-flight deduplication to coalesce
+    // rapid identical requests from multiple components or lifecycle hooks.
     const fetchWithRetry = async (key: CollectionKey) => {
-      for (let attempt = 0; ; attempt++) {
-        try { return await FETCHERS[key]!(); } catch (err) {
-          if (attempt >= 1) throw err;
-          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+      return dedupFetch(`reload:${key}`, async () => {
+        for (let attempt = 0; ; attempt++) {
+          try { return await FETCHERS[key]!(); } catch (err) {
+            if (attempt >= 1) throw err;
+            await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+          }
         }
-      }
+      });
     };
+
     const queue = [...wanted];
     const worker = async () => {
       for (let key = queue.shift(); key; key = queue.shift()) {
@@ -251,9 +276,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setIsRefreshing(false);
   }, [cacheUserId]);
 
-  // Initial load (the provider is mounted by AuthGate only once a user is signed in):
-  // 1) paint last-known data from the local cache, 2) fetch the active page's collections,
-  // 3) fetch everything else in the background.
+  // Initial load: paint cached data -> active page wave -> rest in background
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -274,7 +297,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return () => { alive = false; };
   }, [reload, cacheUserId]);
 
-  // Refresh stale data when the tab becomes visible again (other users may have changed records)
+  // Refresh stale data when the tab becomes visible again
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible' && Date.now() - lastLoadedAt.current > STALE_AFTER_MS) {
@@ -285,7 +308,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [reload]);
 
-  // Realtime database synchronization: subscribe to postgres_changes across public tables
+  // Realtime database synchronization
   useEffect(() => {
     if (!cacheUserId) return;
 
@@ -348,16 +371,12 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [data.companies, selectedCompanyId],
   );
 
-  // Run a service mutation, then re-fetch what it changed. A refetch failure does not turn a
-  // successful write into an error; it shows up in loadErrors instead.
+  // Run a service mutation, then re-fetch affected collections non-blocking in background
   const mutation = useCallback(<A extends unknown[], R>(name: string, fn: (...args: A) => Promise<R>) =>
     async (...args: A): Promise<R> => {
       try {
         return await fn(...args);
       } finally {
-        // also after a failure: a multi-step call can fail after its first write succeeded
-        // (e.g. payment recorded but attachment not linked), and the UI must show what was saved
-        // not awaited: the save is done, so the dialog closes at once while the lists refresh behind it
         void reload(AFFECTS[name] ?? []).catch(err => console.error(`Refresh after ${name} failed:`, err));
       }
     }, [reload]);
@@ -365,53 +384,177 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const actions = useMemo(() => ({
     addCompany: mutation('addCompany', async (c: Omit<Company, 'id'>) => {
       const created = await fleet.addCompany(c);
-      // the creator becomes a member of the new office (DB trigger): refresh their memberships
+      setData(prev => ({ ...prev, companies: [created, ...prev.companies] }));
       await refreshAuth().catch(() => undefined);
       return created;
     }),
-    updateCompany: mutation('updateCompany', fleet.updateCompany),
-    addVehicle: mutation('addVehicle', fleet.addVehicle),
-    updateVehicle: mutation('updateVehicle', fleet.updateVehicle),
-    deleteVehicle: mutation('deleteVehicle', fleet.deleteVehicle),
-    addMaintenanceRecord: mutation('addMaintenanceRecord', fleet.addMaintenanceRecord),
-    addWorkOrder: mutation('addWorkOrder', fleet.addWorkOrder),
-    updateWorkOrderStatus: mutation('updateWorkOrderStatus', fleet.updateWorkOrderStatus),
-    addOilChange: mutation('addOilChange', fleet.addOilChange),
-    addTyre: mutation('addTyre', fleet.addTyre),
-    updateTyre: mutation('updateTyre', fleet.updateTyre),
-    addTyreEvent: mutation('addTyreEvent', fleet.addTyreEvent),
-    addAccident: mutation('addAccident', fleet.addAccident),
-    updateAccident: mutation('updateAccident', fleet.updateAccident),
-    addExpense: mutation('addExpense', fleet.addExpense),
+    updateCompany: mutation('updateCompany', async (id: string, updates: Partial<Company>) => {
+      const updated = await fleet.updateCompany(id, updates);
+      setData(prev => ({ ...prev, companies: prev.companies.map(c => c.id === id ? { ...c, ...updated } : c) }));
+      return updated;
+    }),
+    addVehicle: mutation('addVehicle', async (v: Parameters<typeof fleet.addVehicle>[0]) => {
+      const created = await fleet.addVehicle(v);
+      setData(prev => ({ ...prev, vehicles: [created, ...prev.vehicles] }));
+      return created;
+    }),
+    updateVehicle: mutation('updateVehicle', async (id: string, updates: Partial<Vehicle>) => {
+      const updated = await fleet.updateVehicle(id, updates);
+      setData(prev => ({ ...prev, vehicles: prev.vehicles.map(v => v.id === id ? { ...v, ...updated } : v) }));
+      return updated;
+    }),
+    deleteVehicle: mutation('deleteVehicle', async (id: string) => {
+      await fleet.deleteVehicle(id);
+      setData(prev => ({ ...prev, vehicles: prev.vehicles.filter(v => v.id !== id) }));
+    }),
+    addMaintenanceRecord: mutation('addMaintenanceRecord', async (m: Parameters<typeof fleet.addMaintenanceRecord>[0]) => {
+      const created = await fleet.addMaintenanceRecord(m);
+      setData(prev => ({ ...prev, maintenanceRecords: [created, ...prev.maintenanceRecords] }));
+      return created;
+    }),
+    addWorkOrder: mutation('addWorkOrder', async (w: Parameters<typeof fleet.addWorkOrder>[0]) => {
+      const created = await fleet.addWorkOrder(w);
+      setData(prev => ({ ...prev, workOrders: [created, ...prev.workOrders] }));
+      return created;
+    }),
+    updateWorkOrderStatus: mutation('updateWorkOrderStatus', async (id: string, status: WorkOrderStatus, actualCost?: number) => {
+      await fleet.updateWorkOrderStatus(id, status, actualCost);
+      setData(prev => ({
+        ...prev,
+        workOrders: prev.workOrders.map(w => w.id === id ? { ...w, status, ...(actualCost !== undefined ? { actualCost } : {}) } : w),
+      }));
+    }),
+    addOilChange: mutation('addOilChange', async (o: Parameters<typeof fleet.addOilChange>[0]) => {
+      const created = await fleet.addOilChange(o);
+      setData(prev => ({ ...prev, oilChanges: [created, ...prev.oilChanges] }));
+      return created;
+    }),
+    addTyre: mutation('addTyre', async (t: Parameters<typeof fleet.addTyre>[0]) => {
+      const created = await fleet.addTyre(t);
+      setData(prev => ({ ...prev, tyres: [created, ...prev.tyres] }));
+      return created;
+    }),
+    updateTyre: mutation('updateTyre', async (id: string, updates: Partial<Tyre>) => {
+      const updated = await fleet.updateTyre(id, updates);
+      setData(prev => ({ ...prev, tyres: prev.tyres.map(t => t.id === id ? { ...t, ...updated } : t) }));
+      return updated;
+    }),
+    addTyreEvent: mutation('addTyreEvent', async (e: Parameters<typeof fleet.addTyreEvent>[0]) => {
+      const created = await fleet.addTyreEvent(e);
+      setData(prev => ({ ...prev, tyreEvents: [created, ...prev.tyreEvents] }));
+      return created;
+    }),
+    addAccident: mutation('addAccident', async (a: Parameters<typeof fleet.addAccident>[0]) => {
+      const created = await fleet.addAccident(a);
+      setData(prev => ({ ...prev, accidents: [created, ...prev.accidents] }));
+      return created;
+    }),
+    updateAccident: mutation('updateAccident', async (id: string, updates: Partial<Accident>) => {
+      const updated = await fleet.updateAccident(id, updates);
+      setData(prev => ({ ...prev, accidents: prev.accidents.map(a => a.id === id ? { ...a, ...updated } : a) }));
+      return updated;
+    }),
+    addExpense: mutation('addExpense', async (e: Parameters<typeof fleet.addExpense>[0]) => {
+      const created = await fleet.addExpense(e);
+      setData(prev => ({ ...prev, expenses: [created, ...prev.expenses] }));
+      return created;
+    }),
 
-    addSupplier: mutation('addSupplier', finance.addSupplier),
-    updateSupplier: mutation('updateSupplier', finance.updateSupplier),
-    addCustomer: mutation('addCustomer', finance.addCustomer),
-    updateCustomer: mutation('updateCustomer', finance.updateCustomer),
-    addInvoice: mutation('addInvoice', finance.addInvoice),
-    updateInvoice: mutation('updateInvoice', finance.updateInvoice),
+    addSupplier: mutation('addSupplier', async (s: Parameters<typeof finance.addSupplier>[0]) => {
+      const created = await finance.addSupplier(s);
+      setData(prev => ({ ...prev, suppliers: [created, ...prev.suppliers] }));
+      return created;
+    }),
+    updateSupplier: mutation('updateSupplier', async (id: string, supplier: Partial<Supplier>) => {
+      await finance.updateSupplier(id, supplier);
+      setData(prev => ({ ...prev, suppliers: prev.suppliers.map(s => s.id === id ? { ...s, ...supplier } : s) }));
+    }),
+    addCustomer: mutation('addCustomer', async (c: Parameters<typeof finance.addCustomer>[0]) => {
+      const created = await finance.addCustomer(c);
+      setData(prev => ({ ...prev, customers: [created, ...prev.customers] }));
+      return created;
+    }),
+    updateCustomer: mutation('updateCustomer', async (id: string, customer: Partial<Customer>) => {
+      await finance.updateCustomer(id, customer);
+      setData(prev => ({ ...prev, customers: prev.customers.map(c => c.id === id ? { ...c, ...customer } : c) }));
+    }),
+    addInvoice: mutation('addInvoice', async (inv: Parameters<typeof finance.addInvoice>[0]) => {
+      const created = await finance.addInvoice(inv);
+      setData(prev => ({ ...prev, invoices: [created, ...prev.invoices] }));
+      return created;
+    }),
+    updateInvoice: mutation('updateInvoice', async (id: string, inv: Partial<Invoice>) => {
+      await finance.updateInvoice(id, inv);
+      setData(prev => ({ ...prev, invoices: prev.invoices.map(i => i.id === id ? { ...i, ...inv } : i) }));
+    }),
     submitInvoice: mutation('submitInvoice', finance.submitInvoice),
-    duplicateInvoice: mutation('duplicateInvoice', finance.duplicateInvoice),
+    duplicateInvoice: mutation('duplicateInvoice', async (id: string) => {
+      const created = await finance.duplicateInvoice(id);
+      setData(prev => ({ ...prev, invoices: [created, ...prev.invoices] }));
+      return created;
+    }),
     createCreditNote: mutation('createCreditNote', finance.createCreditNote),
-    addPayment: mutation('addPayment', finance.addPayment),
+    addPayment: mutation('addPayment', async (p: Parameters<typeof finance.addPayment>[0]) => {
+      const created = await finance.addPayment(p);
+      setData(prev => ({ ...prev, payments: [created, ...prev.payments] }));
+      return created;
+    }),
     addReconciliation: mutation('addReconciliation', finance.addReconciliation),
 
-    addJournalEntry: mutation('addJournalEntry', accounting.addJournalEntry),
-    addFixedAsset: mutation('addFixedAsset', accounting.addFixedAsset),
-    updateFixedAsset: mutation('updateFixedAsset', accounting.updateFixedAsset),
-    deleteFixedAsset: mutation('deleteFixedAsset', accounting.deleteFixedAsset),
+    addJournalEntry: mutation('addJournalEntry', async (j: Parameters<typeof accounting.addJournalEntry>[0]) => {
+      const created = await accounting.addJournalEntry(j);
+      setData(prev => ({ ...prev, journalEntries: [created, ...prev.journalEntries] }));
+      return created;
+    }),
+    addFixedAsset: mutation('addFixedAsset', async (a: Parameters<typeof accounting.addFixedAsset>[0]) => {
+      const created = await accounting.addFixedAsset(a);
+      setData(prev => ({ ...prev, fixedAssets: [created, ...prev.fixedAssets] }));
+      return created;
+    }),
+    updateFixedAsset: mutation('updateFixedAsset', async (id: string, updates: Partial<FixedAsset>) => {
+      await accounting.updateFixedAsset(id, updates);
+      setData(prev => ({ ...prev, fixedAssets: prev.fixedAssets.map(a => a.id === id ? { ...a, ...updates } : a) }));
+    }),
+    deleteFixedAsset: mutation('deleteFixedAsset', async (id: string) => {
+      await accounting.deleteFixedAsset(id);
+      setData(prev => ({ ...prev, fixedAssets: prev.fixedAssets.filter(a => a.id !== id) }));
+    }),
     runAutoDepreciation: mutation('runAutoDepreciation', accounting.runAutoDepreciation),
 
-    addEmployee: mutation('addEmployee', hr.addEmployee),
-    updateEmployee: mutation('updateEmployee', hr.updateEmployee),
-    deleteEmployee: mutation('deleteEmployee', hr.deleteEmployee),
+    addEmployee: mutation('addEmployee', async (e: Parameters<typeof hr.addEmployee>[0]) => {
+      const created = await hr.addEmployee(e);
+      setData(prev => ({ ...prev, employees: [created, ...prev.employees] }));
+      return created;
+    }),
+    updateEmployee: mutation('updateEmployee', async (id: string, updates: Partial<Employee>) => {
+      await hr.updateEmployee(id, updates);
+      setData(prev => ({ ...prev, employees: prev.employees.map(e => e.id === id ? { ...e, ...updates } : e) }));
+    }),
+    deleteEmployee: mutation('deleteEmployee', async (id: string) => {
+      await hr.deleteEmployee(id);
+      setData(prev => ({ ...prev, employees: prev.employees.filter(e => e.id !== id) }));
+    }),
     processPayrollRun: mutation('processPayrollRun', hr.processPayrollRun),
 
-    addDocument: mutation('addDocument', docs.addDocument),
-    deleteDocument: mutation('deleteDocument', docs.deleteDocument),
+    addDocument: mutation('addDocument', async (d: Parameters<typeof docs.addDocument>[0]) => {
+      const created = await docs.addDocument(d);
+      setData(prev => ({ ...prev, documents: [created, ...prev.documents] }));
+      return created;
+    }),
+    deleteDocument: mutation('deleteDocument', async (id: string) => {
+      const res = await docs.deleteDocument(id);
+      setData(prev => ({ ...prev, documents: prev.documents.filter(d => d.id !== id) }));
+      return res;
+    }),
 
-    markNotificationAsRead: mutation('markNotificationAsRead', system.markNotificationAsRead),
-    markAllNotificationsAsRead: mutation('markAllNotificationsAsRead', system.markAllNotificationsAsRead),
+    markNotificationAsRead: mutation('markNotificationAsRead', async (id: string) => {
+      await system.markNotificationAsRead(id);
+      setData(prev => ({ ...prev, notifications: prev.notifications.map(n => n.id === id ? { ...n, read: true } : n) }));
+    }),
+    markAllNotificationsAsRead: mutation('markAllNotificationsAsRead', async () => {
+      await system.markAllNotificationsAsRead();
+      setData(prev => ({ ...prev, notifications: prev.notifications.map(n => ({ ...n, read: true })) }));
+    }),
     processApproval: mutation('processApproval', system.processApproval),
     refreshExpiryNotifications: mutation('refreshExpiryNotifications', system.refreshExpiryNotifications),
   }), [mutation, refreshAuth]);
@@ -420,42 +563,85 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const scope = useCallback((companyId?: string) => toScope(companyId ?? selectedCompanyId), [selectedCompanyId]);
 
   const getTrialBalance = useCallback(
-    (asOfDate?: string, companyId?: string) =>
-      accounting.getTrialBalance(data.chartOfAccounts as any, data.journalEntries, asOfDate, scope(companyId)),
-    [data.chartOfAccounts, data.journalEntries, scope]);
+    (asOfDate?: string, companyId?: string) => {
+      const sc = scope(companyId);
+      const cacheKey = `tb:${asOfDate ?? ''}:${sc ?? 'all'}`;
+      if (calcCache.current.has(cacheKey)) return calcCache.current.get(cacheKey);
+      const res = accounting.getTrialBalance(data.chartOfAccounts as any, data.journalEntries, asOfDate, sc);
+      calcCache.current.set(cacheKey, res);
+      return res;
+    },
+    [data.chartOfAccounts, data.journalEntries, scope]
+  );
 
   const getGeneralLedger = useCallback(
-    (targetAccountCode?: string, startDate?: string, endDate?: string, companyId?: string) =>
-      accounting.getGeneralLedger(data.chartOfAccounts as any, data.journalEntries, targetAccountCode, startDate, endDate, scope(companyId), currency),
-    [data.chartOfAccounts, data.journalEntries, currency, scope]);
+    (targetAccountCode?: string, startDate?: string, endDate?: string, companyId?: string) => {
+      const sc = scope(companyId);
+      const cacheKey = `gl:${targetAccountCode ?? ''}:${startDate ?? ''}:${endDate ?? ''}:${sc ?? 'all'}:${currency}`;
+      if (calcCache.current.has(cacheKey)) return calcCache.current.get(cacheKey);
+      const res = accounting.getGeneralLedger(data.chartOfAccounts as any, data.journalEntries, targetAccountCode, startDate, endDate, sc, currency);
+      calcCache.current.set(cacheKey, res);
+      return res;
+    },
+    [data.chartOfAccounts, data.journalEntries, currency, scope]
+  );
 
   const getCompanyProfitLoss = useCallback(
-    (companyId?: string, range?: { startDate?: string; endDate?: string }) =>
-      accounting.getCompanyProfitLoss(data.chartOfAccounts as any, data.journalEntries, scope(companyId), range),
-    [data.chartOfAccounts, data.journalEntries, scope]);
+    (companyId?: string, range?: { startDate?: string; endDate?: string }) => {
+      const sc = scope(companyId);
+      const cacheKey = `pl:${sc ?? 'all'}:${range?.startDate ?? ''}:${range?.endDate ?? ''}`;
+      if (calcCache.current.has(cacheKey)) return calcCache.current.get(cacheKey);
+      const res = accounting.getCompanyProfitLoss(data.chartOfAccounts as any, data.journalEntries, sc, range);
+      calcCache.current.set(cacheKey, res);
+      return res;
+    },
+    [data.chartOfAccounts, data.journalEntries, scope]
+  );
 
   const getCompanyBalanceSheet = useCallback(
-    (companyId?: string) => accounting.getCompanyBalanceSheet(data.chartOfAccounts as any, data.journalEntries, scope(companyId)),
-    [data.chartOfAccounts, data.journalEntries, scope]);
+    (companyId?: string) => {
+      const sc = scope(companyId);
+      const cacheKey = `bs:${sc ?? 'all'}`;
+      if (calcCache.current.has(cacheKey)) return calcCache.current.get(cacheKey);
+      const res = accounting.getCompanyBalanceSheet(data.chartOfAccounts as any, data.journalEntries, sc);
+      calcCache.current.set(cacheKey, res);
+      return res;
+    },
+    [data.chartOfAccounts, data.journalEntries, scope]
+  );
 
   const getPartyLedger = useCallback(
-    (partyId: string, partyType: 'Supplier' | 'Customer') =>
-      finance.getPartyLedger(partyId, partyType, data.invoices, data.payments,
-        partyType === 'Supplier' ? data.suppliers : data.customers, toScope(selectedCompanyId)),
-    [data.invoices, data.payments, data.suppliers, data.customers, selectedCompanyId]);
+    (partyId: string, partyType: 'Supplier' | 'Customer') => {
+      const sc = toScope(selectedCompanyId);
+      const cacheKey = `party:${partyType}:${partyId}:${sc ?? 'all'}`;
+      if (calcCache.current.has(cacheKey)) return calcCache.current.get(cacheKey);
+      const res = finance.getPartyLedger(partyId, partyType, data.invoices, data.payments,
+        partyType === 'Supplier' ? data.suppliers : data.customers, sc);
+      calcCache.current.set(cacheKey, res);
+      return res;
+    },
+    [data.invoices, data.payments, data.suppliers, data.customers, selectedCompanyId]
+  );
 
   const getVehicleFinancialSummary = useCallback(
-    (vehicleId: string) => fleet.getVehicleFinancialSummary(vehicleId, {
-      vehicles: data.vehicles,
-      maintenanceRecords: data.maintenanceRecords,
-      accidents: data.accidents,
-      oilChanges: data.oilChanges,
-      tyres: data.tyres,
-      tyreEvents: data.tyreEvents,
-      expenses: data.expenses,
-      invoices: data.invoices,
-    }),
-    [data.vehicles, data.maintenanceRecords, data.accidents, data.oilChanges, data.tyres, data.tyreEvents, data.expenses, data.invoices]);
+    (vehicleId: string) => {
+      const cacheKey = `vehFin:${vehicleId}`;
+      if (calcCache.current.has(cacheKey)) return calcCache.current.get(cacheKey);
+      const res = fleet.getVehicleFinancialSummary(vehicleId, {
+        vehicles: data.vehicles,
+        maintenanceRecords: data.maintenanceRecords,
+        accidents: data.accidents,
+        oilChanges: data.oilChanges,
+        tyres: data.tyres,
+        tyreEvents: data.tyreEvents,
+        expenses: data.expenses,
+        invoices: data.invoices,
+      });
+      calcCache.current.set(cacheKey, res);
+      return res;
+    },
+    [data.vehicles, data.maintenanceRecords, data.accidents, data.oilChanges, data.tyres, data.tyreEvents, data.expenses, data.invoices]
+  );
 
   // Membership changes (admin edits) change what RLS returns: reload everything
   const membershipKey = `${isSuperAdmin}|${[...memberCompanyIds].sort().join(',')}`;

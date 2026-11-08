@@ -79,6 +79,19 @@ export const currentUserId = async (): Promise<string | null> => {
   return data.session?.user.id ?? null;
 };
 
+/** In-flight request deduplication: coalesce simultaneous identical queries */
+const inFlightRequests = new Map<string, Promise<any>>();
+
+export function dedupFetch<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const existing = inFlightRequests.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = fn().finally(() => {
+    inFlightRequests.delete(key);
+  });
+  inFlightRequests.set(key, promise);
+  return promise;
+}
+
 /**
  * Load every row of a large ordered query. Pages are modest (a big page can exceed the database
  * statement timeout) and fetched a few at a time in parallel instead of strictly one after another.

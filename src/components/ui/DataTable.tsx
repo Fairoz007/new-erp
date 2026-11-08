@@ -78,6 +78,7 @@ export function DataTable<T extends Record<string, any>>({
   const { hasPermission } = useAuth();
   const canExport = !exportModule || hasPermission('export', exportModule);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,10 +92,19 @@ export function DataTable<T extends Record<string, any>>({
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
 
+  // Debounce search input to maintain responsive typing without recalculating on every keypress
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Filter & Search
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return data;
-    const lower = searchTerm.toLowerCase();
+    if (!debouncedSearch.trim()) return data;
+    const lower = debouncedSearch.toLowerCase();
 
     return data.filter(item => {
       if (searchFields && searchFields.length > 0) {
@@ -111,7 +121,7 @@ export function DataTable<T extends Record<string, any>>({
         return String(val).toLowerCase().includes(lower);
       });
     });
-  }, [data, searchTerm, searchFields]);
+  }, [data, debouncedSearch, searchFields]);
 
   // Sort
   const sortedData = useMemo(() => {
