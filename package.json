@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test:db": "node supabase/tests/schema.test.mjs supabase/migrations",
+    "seed": "node scripts/seed_demo_data.mjs",
     "test:e2e": "node e2e/remote.e2e.mjs"
   },
   "dependencies": {

@@ -8,7 +8,7 @@
 .env.*.local
 
 # Seed with user credentials
-seed.sql
+# seed.sql included for team & deployment reproducibility
 SEED_USERS.local.md
 
 # Generated test-data files (re-create with make_files.py)

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, ArrowLeft, KeyRound } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +7,13 @@ import { requestPasswordReset } from '../../services/auth';
 import { AuthShell, AuthNotice } from './AuthShell';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const DEMO_ACCOUNTS = [
+  { role: 'Super Admin', email: 'superadmin@hakim.com', desc: 'Full System' },
+  { role: 'Fleet Manager', email: 'fleetmanager@hakim.com', desc: 'Fleet & Ops' },
+  { role: 'Accountant', email: 'accounts@hakim.com', desc: 'Finance & GL' },
+];
+const DEMO_PASSWORD = '7YlY6CbYP32rM^lIhi';
 
 // Email + password sign-in and password-reset request. No self sign-up: administrators invite users.
 export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
@@ -59,7 +66,21 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
           </AuthNotice>
         ) : (
           <form onSubmit={handleReset} className="space-y-4" noValidate>
-            {error && <AuthNotice tone="error">{error}</AuthNotice>}
+            {error && (
+          <div className="space-y-2">
+            <AuthNotice tone="error">{error}</AuthNotice>
+            {(error.toLowerCase().includes('service unavailable') || error.includes('503') || error.toLowerCase().includes('failed to fetch')) && (
+              <div className="text-[11px] p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">
+                <p className="font-semibold text-amber-100 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5" /> Supabase Connection Notice
+                </p>
+                <p className="mt-1 text-slate-300 leading-relaxed">
+                  The remote Supabase project (<code className="font-mono text-amber-200">fpeniljpqigpeqtsgizr</code>) is paused or unreachable. Unpause it in your Supabase Dashboard, or run <code className="font-mono text-amber-200">npm run seed</code> to verify your schema & enterprise data.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
             <Input
               label="Work email"
               type="email"
@@ -94,7 +115,21 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
     <AuthShell title="Sign in" subtitle="Use the account your administrator invited you with.">
       <form onSubmit={handleSignIn} className="space-y-4" noValidate>
         {notice && <AuthNotice tone="info">{notice}</AuthNotice>}
-        {error && <AuthNotice tone="error">{error}</AuthNotice>}
+        {error && (
+          <div className="space-y-2">
+            <AuthNotice tone="error">{error}</AuthNotice>
+            {(error.toLowerCase().includes('service unavailable') || error.includes('503') || error.toLowerCase().includes('failed to fetch')) && (
+              <div className="text-[11px] p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">
+                <p className="font-semibold text-amber-100 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5" /> Supabase Connection Notice
+                </p>
+                <p className="mt-1 text-slate-300 leading-relaxed">
+                  The remote Supabase project (<code className="font-mono text-amber-200">fpeniljpqigpeqtsgizr</code>) is paused or unreachable. Unpause it in your Supabase Dashboard, or run <code className="font-mono text-amber-200">npm run seed</code> to verify your schema & enterprise data.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         <Input
           label="Work email"
           type="email"
@@ -130,6 +165,29 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
           Forgot password?
         </button>
         <span className="text-slate-400">No account? Ask your administrator.</span>
+      </div>
+      <div className="pt-3 border-t border-slate-700/60">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Quick Demo Login</span>
+          <span className="text-[10px] text-emerald-400 font-mono">1-Click</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {DEMO_ACCOUNTS.map(acc => (
+            <button
+              key={acc.role}
+              type="button"
+              onClick={() => {
+                setEmail(acc.email);
+                setPassword(DEMO_PASSWORD);
+                setError(null);
+              }}
+              className="px-2 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-left transition text-slate-200 group cursor-pointer"
+            >
+              <div className="text-[11px] font-semibold text-emerald-400 group-hover:text-emerald-300 truncate">{acc.role}</div>
+              <div className="text-[9px] text-slate-400 truncate">{acc.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
     </AuthShell>
   );
