@@ -566,3 +566,8 @@ their passwords, and push code and migrations only to GitHub.
 
 The data model was already company-wide (see README → Concepts); no change was needed. Added
 `supabase/tests/company_data_shared.test.mjs` to keep it that way.
+
+2026-11-12, after the clear-down: the owner created `fairoz@fairoz.in` in the dashboard (the
+database gave it Viewer) and asked for Super Admin. Its profile was set to Super Admin with all
+offices from the CLI (data change only; the account and password are the owner's). The project now
+has 10 accounts and 2 Super Admins.
