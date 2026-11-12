@@ -12,9 +12,9 @@ export const NotificationsPage: React.FC = () => {
   // refreshExpiryNotifications: new FleetContext function (wraps services/system.refreshExpiryNotifications, affects ['notifications'])
   const { notifications, markNotificationAsRead, markAllNotificationsAsRead, refreshExpiryNotifications } = useFleet();
   const { openVehicleDetail, openInvoiceModal, setCurrentPage, addToast } = useUI();
-  const { currentUser, canAccessPage } = useAuth();
+  const { hasPermission, canAccessPage } = useAuth();
   const [busy, setBusy] = useState(false);
-  const canRefresh = currentUser.role === 'Super Admin' || currentUser.role === 'Company Admin';
+  const canRefresh = hasPermission('edit', 'settings'); // run_expiry_notifications() re-checks
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
   const [shown, setShown] = useState(40);
 

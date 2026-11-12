@@ -6,6 +6,8 @@ import { SetPasswordPage } from '../../pages/auth/SetPasswordPage';
 import { AuthShell, AuthNotice } from '../../pages/auth/AuthShell';
 import { Button } from '../ui/Button';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { OrgProvider } from '../../context/OrgContext';
+import { SetupGate } from '../../pages/setup/SetupGate';
 
 // Renders the app only for a signed-in user with an active profile.
 // Must sit inside <AuthProvider> and outside anything that loads business data (FleetProvider).
@@ -42,7 +44,13 @@ export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   if (session && passwordRecovery) return <SetPasswordPage />;
 
-  if (status === 'ready') return <>{children}</>;
+  if (status === 'ready') {
+    return (
+      <OrgProvider>
+        <SetupGate>{children}</SetupGate>
+      </OrgProvider>
+    );
+  }
 
   if (status === 'error') {
     return (

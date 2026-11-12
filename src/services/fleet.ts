@@ -86,6 +86,9 @@ export const rowToCompany = (r: Row): Company => ({
   },
   notes: r.notes ?? undefined,
   active: r.active ?? true,
+  managerUserId: r.manager_user_id ?? '',
+  contacts: Array.isArray(r.contacts) ? r.contacts : [],
+  customFields: r.custom_fields ?? {},
 });
 
 export const companyToRow = (c: Partial<Company>): Row => {
@@ -97,8 +100,14 @@ export const companyToRow = (c: Partial<Company>): Row => {
   m('postalCode', 'postal_code', text); m('phone', 'phone', text); m('email', 'email', text); m('website', 'website', text);
   m('logo', 'logo', text); m('currency', 'currency'); m('financialYear', 'financial_year', text);
   m('bankDetails', 'bank_details'); m('notes', 'notes', text); m('active', 'active');
+  m('managerUserId', 'manager_user_id', v => v || null); m('contacts', 'contacts'); m('customFields', 'custom_fields');
   return o;
 };
+
+export async function listCompanies(): Promise<Company[]> {
+  const rows = await unwrap<Row[]>(table('companies').select('*').order('name'));
+  return rows.map(rowToCompany);
+}
 
 export async function addCompany(data: Omit<Company, 'id'>): Promise<Company> {
   if (!data.name?.trim() || !data.code?.trim()) throw new ServiceError('Office name and code are required.');

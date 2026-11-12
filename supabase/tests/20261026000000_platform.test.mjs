@@ -216,10 +216,10 @@ await check('Company Admin cannot add self to Duqm', () => as(CADMIN, `insert in
 await check('Viewer (invoices view only) cannot delete invoice lines', async () => {
   await asServer(`insert into invoice_lines (invoice_id, line_no, description, quantity, unit_price) values ('a0000000-0000-0000-0000-000000000001', 1, 'x', 1, 1)`);
   // Viewer has no invoices access at all in the matrix, so use Management-like read access: grant temporarily via Viewer -> invoices view
-  await asServer(`insert into role_permissions values ('Viewer','invoices','view') on conflict do nothing`);
+  await asServer(`insert into role_grants (role_id, module, action) select id, 'invoices', 'view' from roles where name = 'Viewer' on conflict do nothing`);
   await tx(VIEWER, `delete from invoice_lines where invoice_id='a0000000-0000-0000-0000-000000000001'`);
   const n = await val(`select count(*)::int from invoice_lines where invoice_id='a0000000-0000-0000-0000-000000000001'`);
-  await asServer(`delete from role_permissions where role='Viewer' and module='invoices'`);
+  await asServer(`delete from role_grants where role_id = (select id from roles where name = 'Viewer') and module='invoices'`);
   assert(n === 1, 'n=' + n); return 'line kept';
 });
 await check('colleague profiles visible to members of the same office', async () => {

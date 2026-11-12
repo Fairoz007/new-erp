@@ -63,14 +63,13 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSidebar, isSidebarCollapsed }) => {
   const headerRef = useRef<HTMLElement>(null);
-  const { companies, selectedCompanyId, setSelectedCompanyId, currency, setCurrency, notifications } = useFleet();
+  const { companies, selectedCompanyId, setSelectedCompanyId, currency, notifications } = useFleet();
   const { setIsSearchOpen, setIsNotificationDrawerOpen, openQuickModal, setCurrentPage } = useUI();
   const { currentUser, signOut, canAccessPage, hasPermission } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
-  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
@@ -80,7 +79,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
   useEffect(() => {
     const closeMenus = () => {
       setIsCompanyDropdownOpen(false);
-      setIsCurrencyDropdownOpen(false);
       setIsQuickAddOpen(false);
       setIsUserDropdownOpen(false);
     };
@@ -167,7 +165,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           <button
             onClick={() => {
               setIsCompanyDropdownOpen(prev => !prev);
-              setIsCurrencyDropdownOpen(false);
               setIsQuickAddOpen(false);
               setIsUserDropdownOpen(false);
             }}
@@ -238,43 +235,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           )}
         </div>
 
-        {/* Currency Switcher */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setIsCurrencyDropdownOpen(prev => !prev);
-              setIsCompanyDropdownOpen(false);
-              setIsQuickAddOpen(false);
-              setIsUserDropdownOpen(false);
-            }}
-            className="flex h-10 items-center gap-1.5 px-3 rounded-full bg-white hover:bg-slate-850 border border-slate-700 text-xs font-bold text-slate-100 transition-all cursor-pointer shadow-2xs"
-            title="Switch Currency"
-          >
-            <Coins className="w-3.5 h-3.5 text-[#D9A441] shrink-0" />
-            <span>{currency}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </button>
-
-          {isCurrencyDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-36 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-1.5 text-xs">
-              <p className="px-2.5 py-1 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Currency</p>
-              {['OMR', 'USD', 'EUR', 'SAR', 'AED'].map(curr => (
-                <button
-                  key={curr}
-                  onClick={() => {
-                    setCurrency(curr);
-                    setIsCurrencyDropdownOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-left ${
-                    currency === curr ? 'bg-[#DCEFE5] text-[#06452F] font-bold' : 'text-slate-200 hover:bg-slate-850'
-                  }`}
-                >
-                  <span>{curr}</span>
-                  {currency === curr && <span className="text-[#086343] font-bold">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
+        {/* Base currency (organization setting; amounts are never converted) */}
+        <div
+          className="hidden sm:flex h-10 items-center gap-1.5 px-3 rounded-full bg-white border border-slate-700 text-xs font-bold text-slate-100 shadow-2xs"
+          title="Organization base currency (Settings → Organization)"
+        >
+          <Coins className="w-3.5 h-3.5 text-[#D9A441] shrink-0" />
+          <span>{currency}</span>
         </div>
 
         {/* Primary Green Quick Action Button */}
@@ -287,7 +254,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
             onClick={() => {
               setIsQuickAddOpen(prev => !prev);
               setIsCompanyDropdownOpen(false);
-              setIsCurrencyDropdownOpen(false);
               setIsUserDropdownOpen(false);
             }}
             leftIcon={<Plus className="w-4 h-4" />}
@@ -356,7 +322,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
             onClick={() => {
               setIsUserDropdownOpen(prev => !prev);
               setIsCompanyDropdownOpen(false);
-              setIsCurrencyDropdownOpen(false);
               setIsQuickAddOpen(false);
             }}
             className="flex h-11 items-center gap-3 pl-1 pr-2 rounded-full bg-white hover:bg-slate-850 border border-slate-700 transition-all cursor-pointer shadow-2xs"

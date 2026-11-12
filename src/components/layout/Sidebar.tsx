@@ -33,7 +33,8 @@ import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from './UserAvatar';
-import { orgName } from '../../lib/branding';
+import { PRODUCT_NAME } from '../../lib/branding';
+import { useOptionalOrg } from '../../context/OrgContext';
 
 interface NavItem {
   id: AppPage;
@@ -63,6 +64,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { currentPage, setCurrentPage } = useUI();
   const { notifications, approvalRequests, workOrders, invoices } = useFleet();
   const { currentUser, canAccessPage } = useAuth();
+  const orgCtx = useOptionalOrg();
+  const brandName = orgCtx?.organization?.tradeName || orgCtx?.organization?.legalName || PRODUCT_NAME;
 
   const unreadNotifs = notifications.filter(n => !n.read).length;
   const pendingApprovals = approvalRequests.filter(a => a.status === 'Pending').length;
@@ -167,17 +170,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className={`h-[72px] px-5 border-b border-slate-700/80 flex items-center bg-surface-secondary shrink-0 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#086343] flex items-center justify-center text-white shrink-0 shadow-sm font-bold">
-              <Shield className="w-5 h-5 text-white stroke-[2.2]" />
-            </div>
+            {orgCtx?.logoUrl ? (
+              <img src={orgCtx.logoUrl} alt="" className="w-9 h-9 rounded-xl object-contain bg-white border border-slate-700 shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-[#086343] flex items-center justify-center text-white shrink-0 shadow-sm font-bold">
+                <Shield className="w-5 h-5 text-white stroke-[2.2]" />
+              </div>
+            )}
             <div className={isCollapsed ? 'lg:hidden' : ''}>
               <div className="flex items-center gap-1.5">
-                <span className="text-base font-extrabold text-slate-100 tracking-tight leading-none">FleetX</span>
-                <span className="text-[10px] bg-[#DCEFE5] text-[#06452F] font-bold px-1.5 py-0.5 rounded-full">
-                  ERP
-                </span>
+                <span className="text-base font-extrabold text-slate-100 tracking-tight leading-none truncate max-w-[150px]">{brandName}</span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate max-w-[150px]">{orgName()}</p>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate max-w-[150px]">{PRODUCT_NAME}</p>
             </div>
           </div>
         </div>

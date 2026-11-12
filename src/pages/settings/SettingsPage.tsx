@@ -1,21 +1,39 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { Database, Download, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Input, Select } from '../../components/ui/Input';
+import { Tabs } from '../../components/ui/Tabs';
+import { Badge } from '../../components/ui/Badge';
+import { useOrg } from '../../context/OrgContext';
+import { useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
-import { useUI } from '../../context/UIContext';
 import { exportToJSON } from '../../utils/export';
 
 // Removed with the move to the shared database (see docs/audit/agent-D.md):
 //  * "Import Backup"  - would overwrite the browser cache only; a shared DB must never be bulk-overwritten from a paste box.
 //  * "Reset to Default Data" - would re-seed fake demo rows; there is no equivalent for a shared database.
 //  * Hard-coded "5.0% VAT" / "Decimal safe math" fields.
+//  * The per-browser "display currency" (amounts were relabelled, not converted); the organization
+//    base currency (Universal settings) is used everywhere instead.
+// Every Setup Wizard step is editable here; the same components are used.
+const OrgProfileStep = lazy(() => import('../setup/steps/OrgProfileStep').then(m => ({ default: m.OrgProfileStep })));
+const UniversalSettingsStep = lazy(() => import('../setup/steps/UniversalSettingsStep').then(m => ({ default: m.UniversalSettingsStep })));
+const OfficesStep = lazy(() => import('../setup/steps/OfficesStep').then(m => ({ default: m.OfficesStep })));
+const VehicleTypesEditor = lazy(() => import('../setup/steps/VehicleTypesStep').then(m => ({ default: m.VehicleTypesEditor })));
+const FieldBuilder = lazy(() => import('../setup/FieldBuilder').then(m => ({ default: m.FieldBuilder })));
+const ExpenseCategoriesStep = lazy(() => import('../setup/steps/ExpenseCategoriesStep').then(m => ({ default: m.ExpenseCategoriesStep })));
+const OpeningBalancesStep = lazy(() => import('../setup/steps/OpeningBalancesStep').then(m => ({ default: m.OpeningBalancesStep })));
+
+type SettingsTab = 'organization' | 'universal' | 'offices' | 'vehicle-types' | 'custom-fields' | 'expenses' | 'opening' | 'approvals' | 'data';
 export const SettingsPage: React.FC = () => {
   const fleet = useFleet();
-  const { currency, setCurrency, approvalRules } = fleet;
-  const { currentUser } = useAuth();
+  const { approvalRules } = fleet;
+  const { currentUser, hasPermission, isSuperAdmin } = useAuth();
+  const { baseCurrency, organization } = useOrg();
+  const canEdit = hasPermission('edit', 'settings');
+  const canEditOffices = hasPermission('edit', 'companies') || hasPermission('create', 'companies');
+  const [tab, setTab] = useState<SettingsTab>('organization');
   const { addToast } = useUI();
   const [exporting, setExporting] = useState(false);
 
@@ -35,7 +53,7 @@ export const SettingsPage: React.FC = () => {
         approvalRequests: fleet.approvalRequests,
       } as Record<string, unknown[]>;
       const counts = Object.fromEntries(Object.entries(collections).map(([k, v]) => [k, Array.isArray(v) ? v.length : 0]));
-      exportToJSON('FleetX_Visible_Data', {
+      exportToJSON('ERP_Visible_Data', {
         exportedAt: new Date().toISOString(),
         exportedBy: { id: currentUser.id, name: currentUser.name, role: currentUser.role },
         note: 'Read-only snapshot of the records visible to this user. Documents are listed as metadata only (no file contents).',
@@ -50,47 +68,46 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const tabs: { id: SettingsTab; label: string }[] = [
+    { id: 'organization', label: 'Organization' },
+    { id: 'universal', label: 'Universal settings' },
+    { id: 'offices', label: 'Offices' },
+    { id: 'vehicle-types', label: 'Vehicle types' },
+    { id: 'custom-fields', label: 'Custom fields' },
+    { id: 'expenses', label: 'Expense categories' },
+    ...(hasPermission('create', 'accounting') ? [{ id: 'opening' as SettingsTab, label: 'Opening balances' }] : []),
+    { id: 'approvals', label: 'Approval rules' },
+    { id: 'data', label: 'Data export' },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            System Settings
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Settings</h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Display currency, approval thresholds and a read-only export of the data you can access.
+            Organization profile and the settings every office inherits. Base currency: {baseCurrency}.
           </p>
+        </div>
+        <div className="flex gap-2">
+          {!canEdit && <Badge variant="slate">Read-only</Badge>}
+          {organization && organization.setupStatus !== 'completed' && <Badge variant="amber">Setup not finished</Badge>}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
-          <CardHeader>
-            <CardTitle>Display Currency</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-xs">
-            <Select
-              label="Reporting currency (this browser only)"
-              value={currency}
-              onChange={e => {
-                setCurrency(e.target.value);
-                addToast({ type: 'info', title: `Display currency set to ${e.target.value}` });
-              }}
-            >
-              <option value="OMR">OMR - Omani Rial (3 decimals)</option>
-              <option value="USD">USD - US Dollar</option>
-              <option value="EUR">EUR - Euro</option>
-              <option value="SAR">SAR - Saudi Riyal</option>
-              <option value="AED">AED - UAE Dirham</option>
-            </Select>
-            <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
-              This only changes how amounts are formatted for you. Stored amounts are not converted, and each company keeps its own base currency.
-            </p>
-            <Input label="Financial year" value="Per company (see Companies)" disabled />
-          </CardContent>
-        </Card>
+      <Tabs variant="pills" tabs={tabs} activeTab={tab} onChange={id => setTab(id as SettingsTab)} className="overflow-x-auto" />
 
+      <Suspense fallback={<p className="text-xs text-slate-400">Loading…</p>}>
+        {tab === 'organization' && <OrgProfileStep readOnly={!canEdit} />}
+        {tab === 'universal' && <UniversalSettingsStep readOnly={!canEdit} />}
+        {tab === 'offices' && <OfficesStep readOnly={!canEditOffices} onChanged={() => void fleet.reload(['companies'])} />}
+        {tab === 'vehicle-types' && <VehicleTypesEditor readOnly={!canEdit} />}
+        {tab === 'custom-fields' && <FieldBuilder readOnly={!canEdit} />}
+        {tab === 'expenses' && <ExpenseCategoriesStep readOnly={!canEdit} />}
+        {tab === 'opening' && <OpeningBalancesStep currency={baseCurrency} />}
+      </Suspense>
+
+      {tab === 'approvals' && (
         <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
           <CardHeader>
             <CardTitle>Approval Threshold Rules</CardTitle>
@@ -98,9 +115,9 @@ export const SettingsPage: React.FC = () => {
           <CardContent className="space-y-3 text-xs">
             <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
               <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
-              {currentUser.role === 'Super Admin'
-                ? 'Thresholds below decide when a request is raised. Role permissions and per-role signing limits can be changed by Super Admin only.'
-                : 'Read-only. Role permissions and per-role signing limits can be changed by a Super Admin only.'}
+              {isSuperAdmin
+                ? 'Thresholds below decide when a request is raised. Per-role signing limits are set in Users & Roles.'
+                : 'Read-only. Per-role signing limits are set by a Super Admin in Users & Roles.'}
             </p>
             {approvalRules.length === 0 && (
               <p className="text-slate-400">No approval rules are configured. Nothing requires approval until a rule is added.</p>
@@ -123,8 +140,9 @@ export const SettingsPage: React.FC = () => {
             ))}
           </CardContent>
         </Card>
-      </div>
+      )}
 
+      {tab === 'data' && (
       <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -156,6 +174,7 @@ export const SettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };

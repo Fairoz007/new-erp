@@ -131,10 +131,10 @@ await check('Viewer cannot call set_user_companies', () =>
 // Global permission tables
 await check('Company Admin cannot edit role_permissions', () =>
   as(CA, `insert into public.role_permissions (role, module, action) values ('Viewer','payroll','delete')`), true);
-await check('Company Admin cannot edit approval_limits', () =>
-  asChanged(CA, `update public.approval_limits set max_amount = null where role = 'Fleet Manager'`), 'no rows changed');
-await check('Super Admin can edit approval_limits', () =>
-  asChanged(SA, `update public.approval_limits set max_amount = 500 where role = 'Fleet Manager' and module = 'maintenance'`));
+await check('Company Admin cannot edit approval limits', () =>
+  as(CA, `select public.set_role_approval_limits((select id from public.roles where name = 'Fleet Manager'), '[{"module":"maintenance","max_amount":null}]')`), 'only a Super Admin');
+await check('Super Admin can edit approval limits', () =>
+  as(SA, `select public.set_role_approval_limits((select id from public.roles where name = 'Fleet Manager'), '[{"module":"maintenance","max_amount":500}]')`));
 
 // Super Admin
 await check('Super Admin can manage users in any office', () =>

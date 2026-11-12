@@ -13,6 +13,7 @@ import * as hr from '../services/hr';
 import * as system from '../services/system';
 import * as docs from '../services/documents';
 import { useAuth } from './AuthContext';
+import { useOptionalOrg } from './OrgContext';
 import { supabase } from '../lib/supabase';
 
 // All business data lives in Supabase. This provider loads each collection through the
@@ -61,7 +62,6 @@ const PAGE_KEYS: Record<string, CollectionKey[]> = {
 const currentHashPage = (): string => {
   try { return (window.location.hash.replace(/^#/, '').split('?')[0]) || 'dashboard'; } catch { return 'dashboard'; }
 };
-const CURRENCY_KEY = 'erp_display_currency';
 
 interface Collections {
   companies: Company[];
@@ -105,7 +105,6 @@ export interface FleetContextType extends Collections {
   setSelectedCompanyId: (id: string) => void;
   selectedCompany: Company | undefined;
   currency: string;
-  setCurrency: (curr: string) => void;
 
   // Load state
   isLoaded: boolean;                                   // first load finished (successfully or not)
@@ -192,9 +191,6 @@ const FleetContext = createContext<FleetContextType | undefined>(undefined);
 // 'all' (every office the user can see) is represented as undefined in the services
 const toScope = (companyId?: string) => (!companyId || companyId === 'all' ? undefined : companyId);
 
-const readCurrency = (): string => {
-  try { return localStorage.getItem(CURRENCY_KEY) || 'OMR'; } catch { return 'OMR'; }
-};
 
 export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { refresh: refreshAuth, memberCompanyIds, isSuperAdmin, currentUser } = useAuth();
@@ -205,7 +201,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadErrors, setLoadErrors] = useState<Partial<Record<CollectionKey, string>>>({});
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
-  const [currency, setCurrencyState] = useState<string>(readCurrency);
+  const currency = useOptionalOrg()?.baseCurrency ?? 'OMR'; // organization base currency (Setup Wizard step 2)
   const lastLoadedAt = useRef(0);
 
   // Fast memoization cache for ledger and analytical getters
@@ -229,11 +225,6 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     data.tyreEvents,
     data.expenses,
   ]);
-
-  const setCurrency = useCallback((curr: string) => {
-    setCurrencyState(curr);
-    try { localStorage.setItem(CURRENCY_KEY, curr); } catch { /* display preference only */ }
-  }, []);
 
   // Fetch the given collections in parallel. A failing collection keeps its previous rows and is
   // reported in loadErrors; it is never silently replaced by an empty list.
@@ -650,7 +641,6 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setSelectedCompanyId,
     selectedCompany,
     currency,
-    setCurrency,
     isLoaded,
     isRefreshing,
     loadErrors,

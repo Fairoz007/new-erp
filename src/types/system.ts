@@ -1,13 +1,5 @@
-export type UserRole =
-  | 'Super Admin'
-  | 'Company Admin'
-  | 'Fleet Manager'
-  | 'Maintenance Manager'
-  | 'Accountant'
-  | 'Finance Manager'
-  | 'Procurement'
-  | 'Management'
-  | 'Viewer';
+// Role names are data (public.roles); Super Admin is the only name the code relies on.
+export type UserRole = string;
 
 export type Permission =
   | 'view'
@@ -23,6 +15,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  roleId?: string;
+  allOffices?: boolean;
   avatar?: string;
   companyId?: string;
   department: string;
@@ -46,7 +40,7 @@ export interface Company {
   email: string;
   website: string;
   logo: string;
-  currency: 'OMR' | 'USD' | 'EUR' | 'SAR' | 'AED';
+  currency: string;                 // follows the organization base currency unless overriding is allowed
   financialYear: string;
   bankDetails: {
     bankName: string;
@@ -57,6 +51,9 @@ export interface Company {
   };
   notes?: string;
   active: boolean;
+  managerUserId?: string;
+  contacts?: Array<{ name: string; role: string; phone: string; email: string }>;
+  customFields?: Record<string, unknown>;
 }
 
 export interface AuditLog {

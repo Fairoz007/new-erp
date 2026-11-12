@@ -5,7 +5,7 @@ import type { AppPage } from './UIContext';
 import { supabase } from '../lib/supabase';
 import * as authService from '../services/auth';
 import { purgeLegacyCaches } from '../lib/cache';
-import type { ApprovalLimit, Membership, RolePermission } from '../services/auth';
+import type { ApprovalLimit, Membership, Role, RolePermission } from '../services/auth';
 
 // ---------------------------------------------------------------------------
 // Page id -> permission module (role_permissions.module). Source of truth for
@@ -60,6 +60,7 @@ export const MODULE_ALIASES: Record<string, string> = {
   'vehicle-detail': 'vehicles',
   profitability: 'vehicles',
   hr: 'payroll',
+  employees: 'hr',
   users: 'users-roles',
   audit: 'audit-logs',
 };
@@ -93,13 +94,18 @@ interface AuthContextType {
   memberCompanyIds: string[];        // offices the user belongs to (Super Admin sees all regardless)
   memberships: Membership[];         // all memberships visible under RLS (self, or all with users-roles:view)
   isSuperAdmin: boolean;
+  roles: Role[];                     // data-driven roles (public.roles)
   rolePermissions: RolePermission[]; // full matrix (all roles)
   approvalLimits: ApprovalLimit[];
+  roleById: (id: string | null | undefined) => Role | undefined;
+  roleIn: (companyId: string) => Role | undefined; // effective role in one office (mirrors my_role_in)
 
   // Authorisation (UI only: RLS/RPCs enforce the same rules server-side)
-  hasPermission: (permission: Permission, moduleName?: string) => boolean;
+  // hasPermission without an office: true if any of the user's roles grants it (mirrors has_perm);
+  // pass companyId to check one office (mirrors can_in).
+  hasPermission: (permission: Permission, moduleName?: string, companyId?: string) => boolean;
   canAccessPage: (page: AppPage, role?: UserRole) => boolean;
-  canApprove: (module: 'maintenance' | 'invoice' | 'expense', amount: number) => boolean;
+  canApprove: (module: string, amount: number, companyId?: string) => boolean;
 }
 
 const GUEST: User = { id: '', name: '', email: '', role: 'Viewer', department: '', status: 'inactive' };
@@ -118,6 +124,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User>(GUEST);
   const [users, setUsers] = useState<User[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [approvalLimits, setApprovalLimits] = useState<ApprovalLimit[]>([]);
 
@@ -159,6 +166,8 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         setStatus('no-profile');
         return;
       }
+      const roleRows = await authService.fetchRoles(); // first: names are needed to map profiles and grants
+      if (seq !== loadSeq.current) return;
       const [allMembers, perms, limits, profiles] = await Promise.all([
         authService.fetchMemberships(),
         authService.fetchRolePermissions(),
@@ -170,6 +179,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       const me = authService.profileToUser(profile, firstCompany(profile.id));
       setCurrentUser(me);
       setMemberships(allMembers);
+      setRoles(roleRows);
       setRolePermissions(perms);
       setApprovalLimits(limits);
       setUsers(profiles.map(p => authService.profileToUser(p, firstCompany(p.id))));
@@ -189,6 +199,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setCurrentUser(GUEST);
       setUsers([]);
       setMemberships([]);
+      setRoles([]);
       setRolePermissions([]);
       setApprovalLimits([]);
       setStatus('signed-out');
@@ -238,72 +249,93 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   // ---------------------------------------------------------------- authorisation
-  const isSuperAdmin = status === 'ready' && currentUser.role === 'Super Admin'; // mirrors is_super_admin(): active profile only
-
-  const permIndex = useMemo(() => {
-    const idx = new Map<UserRole, Map<string, Set<Permission>>>();
-    for (const rp of rolePermissions) {
-      let byModule = idx.get(rp.role);
-      if (!byModule) idx.set(rp.role, (byModule = new Map()));
-      let actions = byModule.get(rp.module);
-      if (!actions) byModule.set(rp.module, (actions = new Set()));
-      actions.add(rp.action);
-    }
-    return idx;
-  }, [rolePermissions]);
-
-  const roleHas = useCallback(
-    (role: UserRole, module: string, action: Permission): boolean => {
-      if (role === 'Super Admin') return true;
-      return permIndex.get(role)?.get(module)?.has(action) ?? false;
-    },
-    [permIndex]
-  );
-
-  const hasPermission = useCallback(
-    (permission: Permission, moduleName?: string): boolean => {
-      if (status !== 'ready') return false;
-      if (isSuperAdmin) return true;
-      const role = currentUser.role;
-      if (!moduleName) {
-        // No module: true if the role holds this action on any module (legacy semantics; no current call site).
-        const byModule = permIndex.get(role);
-        return !!byModule && Array.from(byModule.values()).some(set => set.has(permission));
-      }
-      return roleHas(role, resolveModule(moduleName), permission);
-    },
-    [status, isSuperAdmin, currentUser.role, permIndex, roleHas]
-  );
-
-  const canAccessPage = useCallback(
-    (page: AppPage, role?: UserRole): boolean => {
-      const r = role ?? currentUser.role;
-      if (!role) {
-        if (status !== 'ready') return false;
-        if (isSuperAdmin) return true;
-      }
-      const module = PAGE_MODULE[page];
-      if (module === undefined) return false; // unknown page id: deny
-      if (module === null) return true;
-      return roleHas(r, module, 'view');
-    },
-    [status, isSuperAdmin, currentUser.role, roleHas]
-  );
-
-  const canApprove = useCallback(
-    (module: 'maintenance' | 'invoice' | 'expense', amount: number): boolean => {
-      if (status !== 'ready') return false;
-      if (isSuperAdmin) return true;
-      const limit = approvalLimits.find(l => l.role === currentUser.role && l.module === module);
-      if (!limit) return false;
-      return limit.maxAmount == null || amount <= limit.maxAmount;
-    },
-    [status, isSuperAdmin, currentUser.role, approvalLimits]
-  );
+  const roleById = useCallback((id: string | null | undefined) => roles.find(r => r.id === id), [roles]);
+  const myRole = roleById(currentUser.roleId);
+  // mirrors is_super_admin(): active profile with the super role
+  const isSuperAdmin = status === 'ready' && (!!myRole?.isSuper || (!myRole && currentUser.role === 'Super Admin'));
 
   const memberCompanyIds = useMemo(
     () => memberships.filter(m => m.userId === currentUser.id).map(m => m.companyId),
     [memberships, currentUser.id]
+  );
+
+  const grantIndex = useMemo(() => {
+    const idx = new Map<string, Set<string>>();
+    for (const rp of rolePermissions) {
+      let set = idx.get(rp.roleId);
+      if (!set) idx.set(rp.roleId, (set = new Set()));
+      set.add(`${rp.module}:${rp.action}`);
+    }
+    return idx;
+  }, [rolePermissions]);
+
+  const roleHasId = useCallback(
+    (roleId: string | null | undefined, module: string, action: Permission): boolean => {
+      if (!roleId) return false;
+      if (roles.find(r => r.id === roleId)?.isSuper) return true;
+      return grantIndex.get(roleId)?.has(`${module}:${action}`) ?? false;
+    },
+    [grantIndex, roles]
+  );
+  const roleNameToId = useCallback((name: string) => roles.find(r => r.name === name)?.id, [roles]);
+
+  // effective role in an office: membership role, else the organization role (members, all-office users)
+  const roleIdIn = useCallback(
+    (companyId: string): string | undefined => {
+      const m = memberships.find(x => x.userId === currentUser.id && x.companyId === companyId);
+      if (m) return m.roleId ?? currentUser.roleId;
+      if (currentUser.allOffices || isSuperAdmin) return currentUser.roleId;
+      return undefined;
+    },
+    [memberships, currentUser.id, currentUser.roleId, currentUser.allOffices, isSuperAdmin]
+  );
+  const roleIn = useCallback((companyId: string) => roleById(roleIdIn(companyId)), [roleById, roleIdIn]);
+
+  // every role the user holds anywhere (organization role + office roles)
+  const myRoleIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (currentUser.roleId) ids.add(currentUser.roleId);
+    for (const m of memberships) if (m.userId === currentUser.id && m.roleId) ids.add(m.roleId);
+    return Array.from(ids);
+  }, [memberships, currentUser.id, currentUser.roleId]);
+
+  const hasPermission = useCallback(
+    (permission: Permission, moduleName?: string, companyId?: string): boolean => {
+      if (status !== 'ready') return false;
+      if (isSuperAdmin) return true;
+      if (!moduleName) {
+        return myRoleIds.some(id => Array.from(grantIndex.get(id) ?? []).some(k => k.endsWith(':' + permission)));
+      }
+      const module = resolveModule(moduleName);
+      if (companyId) return roleHasId(roleIdIn(companyId), module, permission);
+      return myRoleIds.some(id => roleHasId(id, module, permission));
+    },
+    [status, isSuperAdmin, myRoleIds, grantIndex, roleHasId, roleIdIn]
+  );
+
+  const canAccessPage = useCallback(
+    (page: AppPage, role?: UserRole): boolean => {
+      const module = PAGE_MODULE[page];
+      if (module === undefined) return false; // unknown page id: deny
+      if (role) {
+        // preview for a named role (Users & Roles page)
+        return module === null || roleHasId(roleNameToId(role), module, 'view');
+      }
+      if (status !== 'ready') return false;
+      if (isSuperAdmin || module === null) return true;
+      return myRoleIds.some(id => roleHasId(id, module, 'view'));
+    },
+    [status, isSuperAdmin, myRoleIds, roleHasId, roleNameToId]
+  );
+
+  const canApprove = useCallback(
+    (module: string, amount: number, companyId?: string): boolean => {
+      if (status !== 'ready') return false;
+      if (isSuperAdmin) return true;
+      const ids = companyId ? [roleIdIn(companyId)].filter(Boolean) as string[] : myRoleIds;
+      return approvalLimits.some(l => ids.includes(l.roleId) && l.module === module && (l.maxAmount == null || amount <= l.maxAmount));
+    },
+    [status, isSuperAdmin, roleIdIn, myRoleIds, approvalLimits]
   );
 
   const value: AuthContextType = {
@@ -322,8 +354,11 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     memberCompanyIds,
     memberships,
     isSuperAdmin,
+    roles,
     rolePermissions,
     approvalLimits,
+    roleById,
+    roleIn,
     hasPermission,
     canAccessPage,
     canApprove,
