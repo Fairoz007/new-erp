@@ -9,7 +9,7 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useOptionalOrg } from '../../context/OrgContext';
 import { fetchFleetExpiries, EXPIRY_LABEL, type FleetExpiry } from '../../services/drivers';
-import { formatDate, getDaysDifference } from '../../utils/date';
+import { addDaysYmd, formatDate, getDaysDifference } from '../../utils/date';
 
 export const FleetExpiryPanel: React.FC = () => {
   const { selectedCompanyId, companies } = useFleet();
@@ -20,7 +20,7 @@ export const FleetExpiryPanel: React.FC = () => {
 
   useEffect(() => {
     let live = true;
-    const until = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+    const until = addDaysYmd(days);
     fetchFleetExpiries(until).then(r => { if (live) { setRows(r); setError(null); } }).catch(e => { if (live) setError((e as Error).message); });
     return () => { live = false; };
   }, [days]);

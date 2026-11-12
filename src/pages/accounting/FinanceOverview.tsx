@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, todayYmd } from '../../utils/date';
 import { getCompanyBalanceSheet, getCompanyProfitLoss, getTrialBalance } from '../../services/accounting';
 
 const FinanceValue: React.FC<{
@@ -73,7 +73,7 @@ export const FinanceOverview: React.FC = () => {
   const scopedBankAccounts = bankAccounts.filter(account => companyMatches(account.companyId) && account.active);
 
   // All three statements come from the same per-company ledger (opening balances + posted lines).
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const pnl = useMemo(() => getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId, { startDate: `${today.slice(0, 4)}-01-01`, endDate: today }), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
   const balanceSheet = useMemo(() => getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, today), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
   const trialBalance = useMemo(() => getTrialBalance(chartOfAccounts, journalEntries, today, selectedCompanyId), [chartOfAccounts, journalEntries, selectedCompanyId, today]);

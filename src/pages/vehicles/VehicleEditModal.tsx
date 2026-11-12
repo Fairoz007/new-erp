@@ -9,6 +9,7 @@ import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 import { VehicleOperationsFields, validateOps, type VehicleOps } from '../../components/common/VehicleOperationsFields';
 import { invalidateDrivers } from '../../hooks/useDrivers';
 import { useFleet } from '../../context/FleetContext';
+import { todayYmd } from '../../utils/date';
 
 const STATUSES: VehicleStatus[] = ['Active', 'Under Maintenance', 'Accident', 'Inactive', 'Reserved', 'Sold', 'Scrapped'];
 const CATEGORIES: Vehicle['vehicleCategory'][] = ['Executive', 'Operations', 'Logistics', 'Sales', 'Pool', 'Service'];
@@ -71,7 +72,7 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
         department: form.department, location: form.location,
         purchase: form.purchase, depreciation: form.depreciation, oilConfig: form.oilConfig,
         currentMarketValue: form.currentMarketValue,
-        marketValueUpdatedDate: form.currentMarketValue !== vehicle.currentMarketValue ? new Date().toISOString().slice(0, 10) : form.marketValueUpdatedDate,
+        marketValueUpdatedDate: form.currentMarketValue !== vehicle.currentMarketValue ? todayYmd() : form.marketValueUpdatedDate,
         insuranceProvider: form.insuranceProvider, insurancePolicyNumber: form.insurancePolicyNumber,
         insuranceExpiryDate: form.insuranceExpiryDate, insurancePremiumAnnual: form.insurancePremiumAnnual, notes: form.notes,
         customFields: cf.value(),

@@ -8,7 +8,7 @@ import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate, localToday } from '../../utils/date';
+import { addDaysYmd, formatDate, localToday } from '../../utils/date';
 import { getCompanyBalanceSheet, getCompanyProfitLoss } from '../../services/accounting';
 import { fetchLeaveRequests, type LeaveRequest } from '../../services/hrops';
 import { usePendingJournals } from '../approvals/JournalQueue';
@@ -151,7 +151,7 @@ export const HrDashboard: React.FC = () => {
   const [leave, setLeave] = useState<LeaveRequest[]>([]);
   useEffect(() => { if (hasPermission('view', 'leave')) fetchLeaveRequests(new Date().getFullYear()).then(setLeave).catch(() => setLeave([])); }, [hasPermission]);
   const today = localToday();
-  const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const in30 = addDaysYmd(30);
   const onLeave = leave.filter(l => ids.has(l.companyId) && l.status === 'Approved' && l.startDate <= today && l.endDate >= today).length;
   const pending = leave.filter(l => ids.has(l.companyId) && l.status === 'Pending').length;
   const papers = staff.flatMap(e => ([['Civil ID', e.civilIdExpiryDate], ['Passport', e.passportExpiryDate], ['Visa', e.visaExpiryDate], ['Labour card', e.labourCardExpiryDate]] as const)

@@ -1,9 +1,11 @@
-import React, { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode, forwardRef } from 'react';
+import React, { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode, forwardRef, useId } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ChevronDown } from 'lucide-react';
 
 interface InputWrapperProps {
+  /** id of the control: the label points at it and the error / hint get `${id}-error` / `${id}-hint`. */
+  id?: string;
   label?: string;
   error?: string;
   hint?: string;
@@ -15,6 +17,7 @@ interface InputWrapperProps {
 }
 
 export const InputWrapper: React.FC<InputWrapperProps> = ({
+  id,
   label,
   error,
   hint,
@@ -26,9 +29,9 @@ export const InputWrapper: React.FC<InputWrapperProps> = ({
 }) => (
   <div className={twMerge(clsx('flex flex-col gap-1.5', className))}>
     {label && (
-      <label className="text-xs sm:text-sm font-semibold text-slate-100 flex items-center justify-between">
+      <label htmlFor={id} className="text-xs sm:text-sm font-semibold text-slate-100 flex items-center justify-between">
         <span>
-          {label} {required && <span className="text-rose-500 font-bold">*</span>}
+          {label} {required && <span className="text-rose-500 font-bold" aria-hidden="true">*</span>}
         </span>
       </label>
     )}
@@ -38,12 +41,20 @@ export const InputWrapper: React.FC<InputWrapperProps> = ({
       {rightIcon && <div className="absolute right-3.5 text-slate-400 pointer-events-none shrink-0">{rightIcon}</div>}
     </div>
     {error ? (
-      <p className="text-xs text-rose-500 font-medium">{error}</p>
+      <p id={id ? `${id}-error` : undefined} className="text-xs text-rose-600 font-medium" role="alert">{error}</p>
     ) : hint ? (
-      <p className="text-xs text-slate-400">{hint}</p>
+      <p id={id ? `${id}-hint` : undefined} className="text-xs text-slate-400">{hint}</p>
     ) : null}
   </div>
 );
+
+/** id, aria-invalid, aria-describedby and required for a control rendered inside InputWrapper. */
+function useFieldA11y(idProp: string | undefined, error?: string, hint?: string, describedBy?: string) {
+  const auto = useId();
+  const id = idProp ?? `f${auto.replace(/:/g, '')}`;
+  const ids = [describedBy, error ? `${id}-error` : hint ? `${id}-hint` : undefined].filter(Boolean).join(' ') || undefined;
+  return { id, 'aria-invalid': error ? true : undefined, 'aria-describedby': ids } as const;
+}
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -55,11 +66,14 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, leftIcon, rightIcon, pill = false, className, required, ...props }, ref) => {
+  ({ label, error, hint, leftIcon, rightIcon, pill = false, className, required, id: idProp, ...props }, ref) => {
+    const a11y = useFieldA11y(idProp, error, hint, props['aria-describedby']);
     return (
-      <InputWrapper label={label} error={error} hint={hint} required={required} leftIcon={leftIcon} rightIcon={rightIcon}>
+      <InputWrapper id={a11y.id} label={label} error={error} hint={hint} required={required} leftIcon={leftIcon} rightIcon={rightIcon}>
         <input
           ref={ref}
+          aria-required={required || undefined}
+          aria-label={!label && !props['aria-labelledby'] ? (props['aria-label'] ?? props.placeholder) : props['aria-label']}
           className={twMerge(
             clsx(
               'w-full min-h-[40px] h-10 bg-white border border-slate-700 px-3.5 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all disabled:opacity-60 disabled:bg-slate-850',
@@ -71,6 +85,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             )
           )}
           {...props}
+          {...a11y}
         />
       </InputWrapper>
     );
@@ -87,12 +102,14 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, hint, leftIcon, options, children, className, required, ...props }, ref) => {
+  ({ label, error, hint, leftIcon, options, children, className, required, id: idProp, ...props }, ref) => {
+    const a11y = useFieldA11y(idProp, error, hint, props['aria-describedby']);
     return (
-      <InputWrapper label={label} error={error} hint={hint} required={required} leftIcon={leftIcon}>
+      <InputWrapper id={a11y.id} label={label} error={error} hint={hint} required={required} leftIcon={leftIcon}>
         <div className="relative w-full">
           <select
             ref={ref}
+            aria-required={required || undefined}
             className={twMerge(
               clsx(
                 'w-full min-h-[40px] h-10 bg-white border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all disabled:opacity-60 appearance-none cursor-pointer pr-9',
@@ -102,6 +119,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               )
             )}
             {...props}
+            {...a11y}
           >
             {options ? options.map(opt => <option key={opt.value} value={opt.value} disabled={opt.disabled} className="bg-white text-slate-100">{opt.label}</option>) : children}
           </select>
@@ -120,11 +138,13 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, hint, className, required, rows = 3, ...props }, ref) => {
+  ({ label, error, hint, className, required, rows = 3, id: idProp, ...props }, ref) => {
+    const a11y = useFieldA11y(idProp, error, hint, props['aria-describedby']);
     return (
-      <InputWrapper label={label} error={error} hint={hint} required={required}>
+      <InputWrapper id={a11y.id} label={label} error={error} hint={hint} required={required}>
         <textarea
           ref={ref}
+          aria-required={required || undefined}
           rows={rows}
           className={twMerge(
             clsx(
@@ -134,6 +154,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             )
           )}
           {...props}
+          {...a11y}
         />
       </InputWrapper>
     );

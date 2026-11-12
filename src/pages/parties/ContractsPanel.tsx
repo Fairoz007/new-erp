@@ -9,7 +9,7 @@ import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, todayYmd } from '../../utils/date';
 import { useVehicleTypes } from '../../hooks/useVehicleTypes';
 import { useMaster } from '../setup/shared';
 import { partyAvailableIn } from '../../services/finance';
@@ -94,7 +94,7 @@ const ContractModal: React.FC<{
   const taxes = useMaster('taxRates').rows as { id: string; name: string; rate: number; active: boolean }[];
   const officeDefault = contract?.companyId ?? (createOffices.includes(selectedCompanyId) ? selectedCompanyId : createOffices[0] ?? '');
   const [form, setForm] = useState<ContractDraft>(() => contract ? { ...contract } : {
-    companyId: officeDefault, partyType, partyId: party.id, title: '', startDate: new Date().toISOString().slice(0, 10), endDate: '',
+    companyId: officeDefault, partyType, partyId: party.id, title: '', startDate: todayYmd(), endDate: '',
     status: 'Draft', contractValue: null, billingCycle: 'Monthly', paymentTermsDays: party.paymentTermsDays || 30, autoRenew: false,
     noticeDays: 30, documentPath: '', notes: '',
   });

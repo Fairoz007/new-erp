@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { useMaster } from '../../hooks/useMaster';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate, localToday } from '../../utils/date';
+import { addDaysYmd, formatDate, localToday } from '../../utils/date';
 import type { RecurringExpense, ExpenseCategory } from '../../services/org';
 import { generateRecurringExpenses, nextRecurringDate } from '../../services/expenses';
 import { RecurringExpensesEditor } from '../setup/steps/ExpenseCategoriesStep';
@@ -37,7 +37,7 @@ export const MonthlyExpensesPanel: React.FC<{ onOpen: (e: VehicleExpense) => voi
     .filter(x => x.next)
     .sort((a, b) => (a.next! < b.next! ? -1 : 1));
   const drafts = expenses.filter(e => e.recurringExpenseId && e.status === 'Draft' && inScope(e.companyId)).sort((a, b) => a.date.localeCompare(b.date));
-  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const weekAgo = addDaysYmd(-7);
 
   const generate = async () => {
     setBusy(true); setErr(null);

@@ -1,4 +1,5 @@
 import { orgName } from '../lib/branding';
+import { todayYmd } from './date';
 /**
  * Neutralise spreadsheet formula injection: a text cell that starts with = + - @ (or tab / CR)
  * is prefixed with an apostrophe so Excel/Sheets treat it as text. Real numbers and plain numeric
@@ -64,7 +65,7 @@ export function exportToCSV<T extends Record<string, any>>(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `${filename}_${todayYmd()}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -80,7 +81,7 @@ export function exportToJSON(filename: string, data: any): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}_${new Date().toISOString().slice(0, 10)}.json`);
+  link.setAttribute('download', `${filename}_${todayYmd()}.json`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -152,5 +153,5 @@ export async function exportToPDF(
       doc.setTextColor(0);
     },
   });
-  doc.save(`${filename}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  doc.save(`${filename}_${todayYmd()}.pdf`);
 }

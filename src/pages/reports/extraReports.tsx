@@ -11,6 +11,7 @@ import { fetchBudgetVsActual, type BudgetActual } from '../../services/ledger';
 import { fetchFleetExpiries, EXPIRY_LABEL, type FleetExpiry } from '../../services/drivers';
 import { isApprovedExpense } from '../../types/operations';
 import { Row, text, mono, date, money, int, EmptyReport, ReportTable } from './reportKit';
+import { todayYmd } from '../../utils/date';
 
 export interface ReportFilters { office: string; from: string; to: string }
 export interface ExtraReport { id: string; name: string; desc: string; group: string; render: React.FC<ReportFilters> }
@@ -59,7 +60,7 @@ const ExpiryReport: React.FC<ReportFilters> = f => {
   if (err) return <Failed error={err} />;
   if (!fleet) return <Loading />;
   const office = (id?: string) => companies.find(c => c.id === id)?.code ?? '';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const ok = (companyId: string | undefined, due?: string) => !!due && (f.office === 'all' || companyId === f.office) && due <= (f.to || '9999-12-31') && (due >= (f.from || '0000') || due < today);
   const rows: Row[] = [
     ...fleet.filter(x => ok(x.companyId, x.dueDate)).map((x, i) => ({ id: `f${i}`, office: office(x.companyId), item: EXPIRY_LABEL[x.kind], subject: x.label || vehicles.find(v => v.id === x.vehicleId)?.plateNumber || '', due: x.dueDate })),

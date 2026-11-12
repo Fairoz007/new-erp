@@ -65,3 +65,33 @@ export function localToday(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Local calendar dates. `new Date().toISOString().slice(0, 10)` is the UTC date: in Oman (UTC+4)
+// it is still "yesterday" between midnight and 04:00, so forms defaulted to the wrong day and
+// "due in 30 days" windows were shifted. Every business date is a local calendar date.
+// ---------------------------------------------------------------------------------------------
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** 'YYYY-MM-DD' of a Date in the browser's local time zone. */
+export function toYmd(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** Today's local date, 'YYYY-MM-DD'. */
+export function todayYmd(now: Date = new Date()): string {
+  return toYmd(now);
+}
+
+/** Local date `days` calendar days from today (negative = in the past), 'YYYY-MM-DD'. DST-safe. */
+export function addDaysYmd(days: number, from: Date | string = new Date()): string {
+  const base = typeof from === 'string' ? parseDate(from) : new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  return toYmd(new Date(base.getFullYear(), base.getMonth(), base.getDate() + days));
+}
+
+/** Current local month, 'YYYY-MM'. */
+export function currentMonthYm(now: Date = new Date()): string {
+  return toYmd(now).slice(0, 7);
+}
+
+export { parseDate as parseLocalDate };

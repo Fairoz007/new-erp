@@ -2,6 +2,7 @@
 // RLS: module "contracts" per office; only Draft contracts can be deleted; the number (CON-YYYY-###)
 // and currency are assigned by the database. contract_rate() picks the rate for an invoice line.
 import { ServiceError, nul, num, rpcAny, supabase, unwrap, unwrapOne, ymd } from './core';
+import { todayYmd } from '../utils/date';
 
 type Row = Record<string, any>;
 const table = (name: string): any => (supabase as any).from(name);
@@ -76,7 +77,7 @@ export const rowToContract = (r: Row): Contract => ({
 const CONTRACT_SELECT = '*, rates:contract_rates(*)';
 
 /** "Expired" is derived: an Active contract past its end date. */
-export const effectiveContractStatus = (c: Pick<Contract, 'status' | 'endDate'>, today = new Date().toISOString().slice(0, 10)) =>
+export const effectiveContractStatus = (c: Pick<Contract, 'status' | 'endDate'>, today = todayYmd()) =>
   c.status === 'Active' && c.endDate && c.endDate < today ? 'Expired' : c.status;
 
 export async function fetchContracts(partyType: 'Customer' | 'Supplier', partyId: string): Promise<Contract[]> {

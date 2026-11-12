@@ -8,9 +8,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { OfficeTransfer, TRANSFER_AFFECTS, TRANSFER_MODULE, TransferEntity, fetchTransfers, transferToOffice } from '../../services/transfers';
+import { todayYmd } from '../../utils/date';
 
 const NOUN: Record<TransferEntity, string> = { vehicle: 'vehicle', employee: 'employee', client: 'client', supplier: 'supplier' };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayYmd();
 
 interface Props {
   entity: TransferEntity;

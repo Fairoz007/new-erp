@@ -7,6 +7,7 @@ import { useUI } from '../../context/UIContext';
 import { BUCKETS, formatFileSize, validateFile } from '../../services/storage';
 import type { BucketId } from '../../services/storage';
 import type { DocumentCategory } from '../../types/operations';
+import { todayYmd } from '../../utils/date';
 
 export interface UploadedFileMeta {
   /** Local preview URL (blob:) for a freshly picked file; empty for an already stored file. */
@@ -207,7 +208,7 @@ export const HR_DOCUMENT_CATEGORIES: DocumentCategory[] = ['Passport', 'Civil ID
 export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; defaultEmployeeId?: string; onDone: () => void }> = ({ defaultVehicleId, defaultEmployeeId, onDone }) => {
   const { vehicles, employees, companies, selectedCompanyId, addDocument } = useFleet();
   const { addToast } = useUI();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const [form, setForm] = useState({
     documentName: '',
     documentNumber: '',

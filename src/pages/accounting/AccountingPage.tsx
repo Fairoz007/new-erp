@@ -8,7 +8,7 @@ import { Account, JournalEntry } from '../../types/finance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, todayYmd } from '../../utils/date';
 import { Tabs } from '../../components/ui/Tabs';
 import { FinanceOverview } from './FinanceOverview';
 import { useAuth } from '../../context/AuthContext';
@@ -24,7 +24,7 @@ const blankLines = (): FormLine[] => [
 export const AccountingPage: React.FC = () => {
   const { chartOfAccounts, journalEntries, addJournalEntry, reverseJournalEntry, currency, selectedCompanyId, companies } = useFleet();
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
-  const [reverseForm, setReverseForm] = useState({ date: new Date().toISOString().slice(0, 10), reason: '' });
+  const [reverseForm, setReverseForm] = useState({ date: todayYmd(), reason: '' });
   const [reverseError, setReverseError] = useState('');
   const [isReversing, setIsReversing] = useState(false);
   const reversedIds = new Set(journalEntries.map(j => j.reversesEntryId).filter(Boolean) as string[]);
@@ -59,7 +59,7 @@ export const AccountingPage: React.FC = () => {
   const defaultPostingCompany = selectedCompanyId && selectedCompanyId !== 'all' ? selectedCompanyId : '';
   const [journalForm, setJournalForm] = useState({
     companyId: defaultPostingCompany,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayYmd(),
     description: '',
     reference: '',
     lines: blankLines(),
@@ -71,7 +71,7 @@ export const AccountingPage: React.FC = () => {
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.0005 && totalDebit > 0;
 
   const openJournalModal = () => {
-    setJournalForm({ companyId: defaultPostingCompany, date: new Date().toISOString().slice(0, 10), description: '', reference: '', lines: blankLines() });
+    setJournalForm({ companyId: defaultPostingCompany, date: todayYmd(), description: '', reference: '', lines: blankLines() });
     setIsJournalModalOpen(true);
   };
 
@@ -257,7 +257,7 @@ export const AccountingPage: React.FC = () => {
       sortable: false,
       render: (j) => canReverse(j) ? (
         <Button variant="ghost" size="xs" leftIcon={<Undo2 className="w-3 h-3" />}
-          onClick={() => { setReversing(j); setReverseForm({ date: new Date().toISOString().slice(0, 10), reason: '' }); setReverseError(''); }}>
+          onClick={() => { setReversing(j); setReverseForm({ date: todayYmd(), reason: '' }); setReverseError(''); }}>
           Reverse
         </Button>
       ) : reversedIds.has(j.id) ? <span className="text-[10px] text-slate-400">Reversed</span> : null,

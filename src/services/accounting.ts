@@ -13,6 +13,7 @@ import type {
   Account, AccountCategory, BalanceSheetStatement, DepreciationRun, FixedAsset, FixedAssetCategory,
   GeneralLedgerAccountSummary, GeneralLedgerLine, JournalEntry, JournalLine, ProfitLossStatement, TrialBalanceRow,
 } from '../types/finance';
+import { currentMonthYm, todayYmd } from '../utils/date';
 
 const r3 = (v: number) => Math.round((v + Number.EPSILON) * 1000) / 1000;
 const r2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
@@ -368,7 +369,7 @@ export async function runAutoDepreciation(params?: {
 }): Promise<DepreciationRun> {
   const companyId = requireCompany(params?.companyId);
   const period = parsePeriod(params?.period) ?? parsePeriod(params?.periodLabel) ?? parsePeriod(params?.runDate)
-    ?? `${new Date().toISOString().slice(0, 7)}-01`;
+    ?? `${currentMonthYm()}-01`;
   if (params?.periodLabel && !parsePeriod(params.periodLabel) && !params.period) {
     throw new ServiceError(`Period "${params.periodLabel}" is not a month. Use e.g. "August 2026" or 2026-08.`);
   }
@@ -428,13 +429,31 @@ const postedLines = (entries: JournalEntry[], companyId?: string, range: DateRan
   return out;
 };
 
-/** Σ debit / Σ credit per account code over posted lines in range. */
-const movements = (entries: JournalEntry[], companyId?: string, range: DateRange = {}) => {
-  const m = new Map<string, { dr: number; cr: number }>();
+/** Σ debit / Σ credit per account code (summed across the offices in scope). */
+export type Movements = Map<string, { dr: number; cr: number }>;
+
+/** Movements over posted lines in range, from loaded journal entries. */
+export const movements = (entries: JournalEntry[], companyId?: string, range: DateRange = {}): Movements => {
+  const m: Movements = new Map();
   for (const { line } of postedLines(entries, companyId, range)) {
     const cur = m.get(line.accountCode) ?? { dr: 0, cr: 0 };
     cur.dr += line.debit; cur.cr += line.credit;
     m.set(line.accountCode, cur);
+  }
+  return m;
+};
+
+/** Row of ledger_movements(): posted totals per office and account for one date range. */
+export interface MovementRow { company_id: string; account_code: string; debit: number | string; credit: number | string }
+
+/** Movements from ledger_movements() rows (already filtered by range in the database). */
+export const movementsFromRows = (rows: MovementRow[], companyId?: string): Movements => {
+  const m: Movements = new Map();
+  for (const r of rows) {
+    if (!inCompany(companyId, r.company_id)) continue;
+    const cur = m.get(r.account_code) ?? { dr: 0, cr: 0 };
+    cur.dr += num(r.debit); cur.cr += num(r.credit);
+    m.set(r.account_code, cur);
   }
   return m;
 };
@@ -444,7 +463,11 @@ const dayBefore = (d: string) => { const t = new Date(d + 'T00:00:00Z'); t.setUT
 /** Normal-direction balance per code: opening (optional) + posted movements in range. */
 export function accountBalances(accounts: AnyAccount[], entries: JournalEntry[], companyId?: string,
   range: DateRange = {}, includeOpening = true): { account: ScopedAccount; balance: number }[] {
-  const mv = movements(entries, companyId, range);
+  return accountBalancesFrom(accounts, movements(entries, companyId, range), companyId, includeOpening);
+}
+
+export function accountBalancesFrom(accounts: AnyAccount[], mv: Movements, companyId?: string,
+  includeOpening = true): { account: ScopedAccount; balance: number }[] {
   return scopeAccounts(accounts, companyId).map(account => {
     const m = mv.get(account.code) ?? { dr: 0, cr: 0 };
     const move = isDebitNormal(account.category) ? m.dr - m.cr : m.cr - m.dr;
@@ -458,7 +481,11 @@ export function accountBalances(accounts: AnyAccount[], entries: JournalEntry[],
  * old version mixed all-company balances with company-filtered journals).
  */
 export function getTrialBalance(accounts: AnyAccount[], entries: JournalEntry[], asOfDate?: string, companyId?: string) {
-  const mv = movements(entries, companyId, { endDate: asOfDate });
+  return trialBalanceFrom(accounts, movements(entries, companyId, { endDate: asOfDate }), companyId);
+}
+
+/** Trial balance from movements up to the as-of date (ledger_movements(company, null, asOf)). */
+export function trialBalanceFrom(accounts: AnyAccount[], mv: Movements, companyId?: string) {
   const rows: TrialBalanceRow[] = scopeAccounts(accounts, companyId).map(a => {
     const m = mv.get(a.code) ?? { dr: 0, cr: 0 };
     const openingSigned = isDebitNormal(a.category) ? a.opening : -a.opening;   // debit-positive
@@ -542,7 +569,13 @@ const periodText = (range: DateRange) => {
  */
 export function getCompanyProfitLoss(accounts: AnyAccount[], entries: JournalEntry[], companyId?: string,
   range: DateRange = {}): ProfitLossStatement {
-  const bal = accountBalances(accounts, entries, companyId, range, !range.startDate).filter(b => b.balance !== 0);
+  return profitLossFrom(accounts, movements(entries, companyId, range), companyId, range);
+}
+
+/** P&L from movements in the range (ledger_movements(company, start, end)). */
+export function profitLossFrom(accounts: AnyAccount[], mv: Movements, companyId?: string,
+  range: DateRange = {}): ProfitLossStatement {
+  const bal = accountBalancesFrom(accounts, mv, companyId, !range.startDate).filter(b => b.balance !== 0);
   const revenues = bal.filter(b => b.account.category === 'Revenue')
     .map(b => ({ accountCode: b.account.code, accountName: b.account.name, amount: b.balance }));
   const directCosts = bal.filter(b => isDirect(b.account))
@@ -578,8 +611,14 @@ export function getCompanyProfitLoss(accounts: AnyAccount[], entries: JournalEnt
  */
 export function getCompanyBalanceSheet(accounts: AnyAccount[], entries: JournalEntry[], companyId?: string,
   asOfDate?: string): BalanceSheetStatement {
-  const asOf = asOfDate || new Date().toISOString().slice(0, 10);
-  const bal = accountBalances(accounts, entries, companyId, { endDate: asOf });
+  const asOf = asOfDate || todayYmd();
+  return balanceSheetFrom(accounts, movements(entries, companyId, { endDate: asOf }), companyId, asOf);
+}
+
+/** Balance sheet from movements up to asOf (ledger_movements(company, null, asOf)). */
+export function balanceSheetFrom(accounts: AnyAccount[], mv: Movements, companyId: string | undefined,
+  asOf: string): BalanceSheetStatement {
+  const bal = accountBalancesFrom(accounts, mv, companyId);
   const item = (b: { account: ScopedAccount; balance: number }) => ({ name: `${b.account.name} (${b.account.code})`, amount: b.balance });
   const byCode = (code: string) => bal.find(b => b.account.code === code)?.balance ?? 0;
   const total = (xs: { amount: number }[]) => r3(xs.reduce((s, x) => s + x.amount, 0));

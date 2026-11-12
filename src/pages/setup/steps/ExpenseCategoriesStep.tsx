@@ -5,6 +5,7 @@ import type { AccountTemplate, ExpenseCategory, RecurringExpense } from '../../.
 import * as org from '../../../services/org';
 import { MasterEditor } from '../MasterEditor';
 import { Section, errText, useMaster, useOffices } from '../shared';
+import { todayYmd } from '../../../utils/date';
 
 const METHODS = ['Bank Transfer', 'Cash', 'Cheque', 'Card'];
 
@@ -13,7 +14,7 @@ export const RecurringExpensesEditor: React.FC<{ readOnly?: boolean; officeIds?:
   const categories = useMaster('expenseCategories');
   const { offices: all } = useOffices();
   const offices = officeIds ? all.filter(o => officeIds.includes(o.id)) : all;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   if (offices.length === 0) return <p className="text-xs text-slate-400">Add an office first.</p>;
   return (
     <MasterEditor<RecurringExpense>

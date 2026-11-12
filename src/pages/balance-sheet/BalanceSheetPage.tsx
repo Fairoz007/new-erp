@@ -6,12 +6,13 @@ import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
 import { getCompanyBalanceSheet } from '../../services/accounting';
+import { todayYmd } from '../../utils/date';
 
 const Empty: React.FC<{ text: string }> = ({ text }) => <div className="py-2.5 text-slate-400 italic">{text}</div>;
 
 export const BalanceSheetPage: React.FC = () => {
   const { chartOfAccounts, journalEntries, selectedCompanyId, currency } = useFleet();
-  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
+  const [asOfDate, setAsOfDate] = useState(todayYmd());
   // Opening balances + posted journal lines up to the date; no plug figures.
   const bs = useMemo(
     () => getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, asOfDate),

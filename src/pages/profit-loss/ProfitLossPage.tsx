@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, todayYmd } from '../../utils/date';
 import { getCompanyProfitLoss } from '../../services/accounting';
 
 const EmptyRow: React.FC<{ text: string }> = ({ text }) => (
@@ -14,7 +14,7 @@ const EmptyRow: React.FC<{ text: string }> = ({ text }) => (
 
 export const ProfitLossPage: React.FC = () => {
   const { chartOfAccounts, journalEntries, selectedCompanyId, selectedCompany, currency } = useFleet();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const [startDate, setStartDate] = useState(`${new Date().getFullYear()}-01-01`);
   const [endDate, setEndDate] = useState(today);
 

@@ -22,6 +22,7 @@ import { useMaster } from '../../hooks/useMaster';
 import type { ExpenseCategory as ExpenseCategoryRow } from '../../services/org';
 import { EmployeeFormModal } from '../../pages/hr/EmployeeFormModal';
 import { GeneratePayrollModal } from '../../pages/payroll/GeneratePayrollModal';
+import { addDaysYmd, currentMonthYm, toYmd, todayYmd } from '../../utils/date';
 
 export const QuickActionModals: React.FC = () => {
   const { quickModal, closeQuickModal, addToast, selectedVehicleId, paymentInvoiceId, setCurrentPage } = useUI();
@@ -72,8 +73,8 @@ export const QuickActionModals: React.FC = () => {
     model: '',
     variant: '',
     manufacturingYear: new Date().getFullYear(),
-    registrationDate: new Date().toISOString().slice(0, 10),
-    registrationExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    registrationDate: todayYmd(),
+    registrationExpiryDate: addDaysYmd(365),
     countryOfRegistration: 'Oman',
     color: 'White',
     fuelType: 'Petrol' as const,
@@ -116,7 +117,7 @@ export const QuickActionModals: React.FC = () => {
   const [mntForm, setMntForm] = useState({
     vehicleId: defaultVehicle?.id || '',
     companyId: defaultVehicle?.companyId || '',
-    maintenanceDate: new Date().toISOString().slice(0, 10),
+    maintenanceDate: todayYmd(),
     maintenanceType: 'Routine' as MaintenanceType,
     category: 'General Service' as MaintenanceCategory,
     description: '',
@@ -135,7 +136,7 @@ export const QuickActionModals: React.FC = () => {
   const [woForm, setWoForm] = useState({
     vehicleId: defaultVehicle?.id || '',
     companyId: defaultVehicle?.companyId || '',
-    reportedDate: new Date().toISOString().slice(0, 10),
+    reportedDate: todayYmd(),
     problemDescription: '',
     workshop: '',
     supplierId: '',
@@ -148,7 +149,7 @@ export const QuickActionModals: React.FC = () => {
   // 4. ADD OIL CHANGE STATE
   const [oilForm, setOilForm] = useState({
     vehicleId: defaultVehicle?.id || '',
-    date: new Date().toISOString().slice(0, 10),
+    date: todayYmd(),
     odometer: defaultVehicle?.currentMileage || 0,
     oilType: 'Fully Synthetic 5W-30',
     oilBrand: 'Mobil 1 ESP',
@@ -166,7 +167,7 @@ export const QuickActionModals: React.FC = () => {
   const [expForm, setExpForm] = useState({
     vehicleId: defaultVehicle?.id || '',
     companyId: defaultVehicle?.companyId || '',
-    date: new Date().toISOString().slice(0, 10),
+    date: todayYmd(),
     category: 'Fuel' as ExpenseCategory,
     categoryId: '',
     description: '',
@@ -185,7 +186,7 @@ export const QuickActionModals: React.FC = () => {
   const [accForm, setAccForm] = useState({
     vehicleId: defaultVehicle?.id || '',
     companyId: defaultVehicle?.companyId || '',
-    accidentDate: new Date().toISOString().slice(0, 10),
+    accidentDate: todayYmd(),
     accidentTime: '14:00',
     location: '',
     driverName: '',
@@ -209,8 +210,8 @@ export const QuickActionModals: React.FC = () => {
     invoiceType: 'Purchase' as InvoiceType,
     companyId: '',
     partyId: '',
-    invoiceDate: new Date().toISOString().slice(0, 10),
-    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    invoiceDate: todayYmd(),
+    dueDate: addDaysYmd(30),
     referenceNumber: '',
     purchaseOrderNumber: '',
     vehicleId: defaultVehicle?.id || '',
@@ -236,7 +237,7 @@ export const QuickActionModals: React.FC = () => {
   // 8. ADD PAYMENT STATE
   const [paymentForm, setPaymentForm] = useState({
     invoiceId: '',
-    paymentDate: new Date().toISOString().slice(0, 10),
+    paymentDate: todayYmd(),
     amount: 0,
     currency,
     paymentMethod: 'Bank Transfer' as PaymentMethod,
@@ -253,8 +254,8 @@ export const QuickActionModals: React.FC = () => {
   // 12. RUN DEPRECIATION STATE
   const [deprForm, setDeprForm] = useState({
     companyId: '',
-    period: new Date().toISOString().slice(0, 7),
-    runDate: new Date().toISOString().slice(0, 10),
+    period: currentMonthYm(),
+    runDate: todayYmd(),
     notes: '',
     autoPostGL: true,
   });
@@ -344,7 +345,7 @@ export const QuickActionModals: React.FC = () => {
     dotNumber: '',
     treadDepthMm: 0,
     psi: 0,
-    purchaseDate: new Date().toISOString().slice(0, 10),
+    purchaseDate: todayYmd(),
     purchaseCost: 0,
     supplierId: '',
     notes: '',
@@ -355,7 +356,7 @@ export const QuickActionModals: React.FC = () => {
     name: '',
     category: 'Workshop Equipment' as import('../../types/finance').FixedAssetCategory,
     companyId: '',
-    purchaseDate: new Date().toISOString().slice(0, 10),
+    purchaseDate: todayYmd(),
     purchaseCost: 0,
     salvageValue: 0,
     depreciationMethod: 'Straight-Line' as const,
@@ -617,7 +618,7 @@ export const QuickActionModals: React.FC = () => {
         supplierId: oilForm.supplierId,
         supplierName: sup?.name,
         nextOilChangeMileage: Number(oilForm.odometer) + (v.oilConfig?.intervalKm || 10000),
-        nextOilChangeDate: next.toISOString().slice(0, 10),
+        nextOilChangeDate: toYmd(next),
         notes: oilForm.notes,
       });
       addToast({ type: 'success', title: 'Oil Service Saved', message: `Recorded oil service for ${v.plateNumber}.` });

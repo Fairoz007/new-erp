@@ -12,7 +12,7 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate, formatDateTime } from '../../utils/date';
+import { formatDate, formatDateTime, todayYmd } from '../../utils/date';
 import { reviewParty } from '../../services/finance';
 import { postOpeningPartyBalance } from '../../services/org';
 import { PartyEditModal } from '../suppliers/PartyEditModal';
@@ -297,7 +297,7 @@ export const ReviewModal: React.FC<{ decision: 'Approved' | 'Rejected'; name: st
 
 const OpeningBalanceModal: React.FC<{ name: string; kind: Kind; onClose: () => void; onSubmit: (amount: number, date: string, ref: string) => Promise<void> }> = ({ name, kind, onClose, onSubmit }) => {
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayYmd());
   const [ref, setRef] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
