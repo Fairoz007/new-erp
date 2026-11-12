@@ -13,6 +13,8 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
 import { TyreEditModal } from './TyreEditModal';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 type TyreRow = Tyre & { vehiclePlate: string; vehicleName: string };
 
@@ -80,9 +82,9 @@ export const TyreManagementPage: React.FC = () => {
     {
       key: 'treadDepthMm',
       header: 'Tread Depth',
-      align: 'center',
+      align: 'right',
       render: (t) => (
-        <div className="text-center">
+        <div className="text-right">
           <span className={`font-mono font-bold text-sm ${t.treadDepthMm <= 2.0 ? 'text-rose-600' : t.treadDepthMm <= 3.0 ? 'text-amber-700' : 'text-[#086343]'}`}>
             {t.treadDepthMm} mm
           </span>
@@ -130,34 +132,29 @@ export const TyreManagementPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Tyre Inventory & Lifecycle Management
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Track individual tyres by wheel position (FL, FR, RL, RR, Spare), tread wear depths, rotations, and replacement schedules.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {hasPermission('create', 'tyres') && (
-            <Button variant="outline" size="md" onClick={() => openQuickModal('add-tyre')} leftIcon={<Plus className="w-4 h-4" />}>
-              Add Tyre
-            </Button>
-          )}
-          {hasPermission('create', 'work-orders') && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => openQuickModal('add-work-order')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Order Tyre Service
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Tyre Inventory & Lifecycle Management"
+        description="Track individual tyres by wheel position (FL, FR, RL, RR, Spare), tread wear depths, rotations, and replacement schedules."
+        actions={
+          <>
+            {hasPermission('create', 'tyres') && (
+              <Button variant="outline" size="md" onClick={() => openQuickModal('add-tyre')} leftIcon={<Plus className="w-4 h-4" />}>
+                Add Tyre
+              </Button>
+            )}
+            {hasPermission('create', 'work-orders') && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-work-order')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Order Tyre Service
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -199,10 +196,9 @@ export const TyreManagementPage: React.FC = () => {
         filterComponent={
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
-          <select
+          <FilterSelect
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Conditions</option>
             <option value="Critical">Critical Wear Only</option>
@@ -211,7 +207,7 @@ export const TyreManagementPage: React.FC = () => {
             <option value="Fair">Fair</option>
             <option value="Replaced">Replaced</option>
             <option value="Scrapped">Scrapped</option>
-          </select>
+          </FilterSelect>
           </div>
         }
       />

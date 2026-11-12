@@ -354,3 +354,74 @@ payments and manual journals); `expense_page` is covered by its tests instead.
 | Bucket limits applied to existing buckets too (`20261113004000_storage_limits.sql`), private; browser limits equal the bucket limits. | `supabase/tests/storage_limits.test.mjs` |
 | Audit trail: one write per module (vehicles, expenses, invoices, suppliers) leaves an audit row with the user, office and action; users cannot delete audit rows. Tables with `company_id` and no audit trigger: `audit_logs`, `doc_sequences`, `journal_lines` (the journal header is audited), `notifications`, `tyre_events`, `vehicle_timeline` (both are themselves history logs). | `supabase/tests/audit_coverage.test.mjs` |
 | Every callable function with a page size refuses more than 1000 rows; `dashboard_series` is bounded to 400 days. | `supabase/tests/rpc_caps.test.mjs` |
+
+---
+
+## Commit layout from here on
+
+Phases 4, 5, 7, 8 and 9 were worked on in parallel (one worker on page layout, one on exports,
+health, tests and accessibility) and touch the same files (pages carry both the new header and the
+new export call). They are committed together, and each phase below lists what it covers.
+
+## Phase 4: Consistent UI
+
+| Item | How |
+|---|---|
+| Page header | `src/components/ui/PageHeader.tsx` (title, description, actions right, wraps under the title on phones; optional back link and identifier / badge row). Used on 41 list, finance and HR pages and party detail. Primary action last. |
+| List toolbar | Search left, filters, then Columns / Export right. `src/components/ui/FilterControls.tsx` (`FilterSelect`, `FilterInput`) replaces about 40 hand-written toolbar controls with five different class strings. The payments filters moved from their own card into the table toolbar. |
+| Detail header | `src/components/ui/DetailTitle.tsx` for payment, work order, asset, employee and expense modals (icon, title, status badges, identifier). Vehicle detail keeps its own header with the photo and valuation panel; the order (back, title, plate, status, actions) matches. |
+| Tabs | `Tabs` everywhere a page had hand-made tabs (work orders, notifications, general ledger, assets, invoice views, approval queues); `role="tablist"` / `role="tab"` / `aria-selected`. |
+| Numbers | Right-aligned columns use tabular figures in DataTable and in hand-written tables (`index.css`). Tread depth, leave days, odometer and quantities that were centred are right-aligned. |
+| Truncation | DataTable column option `truncate`: ellipsis plus the full text on hover; applied to 23 long text columns. Cards that cut text show the full text on hover; work-order cards wrap long descriptions. |
+| Dead buttons | Searched: buttons without a handler, empty handlers, `href="#"`, TODO / "coming soon", always-disabled buttons, clickable-looking elements without `onClick`. None found. |
+| Labels | Same action, same words: "Add Vehicle", "Create Work Order", "Record Oil Service", "Add Expense", "Create Invoice", "Record Maintenance", "Transfer to office". |
+
+Left as is: title case vs sentence case between modules (different actions), modal titles that
+describe the form, the red "Report Accident" button.
+
+### Defect found (security)
+
+| # | Defect | Fix |
+|---|---|---|
+| D4-1 | The sign-in page had a "Quick Demo Login" panel with three account emails (one a Super Admin) and their shared password written into the code, so the password was in every visitor's JavaScript and in the repository history since `a39a21c`. The secret scan did not look for passwords. | Panel, emails and password removed. The secret scan now fails on a password literal in code (`…PASSWORD… = '…'`); checked against the old file. **The password must be changed on every project where those accounts exist; removing it from the code does not remove it from git history or from deployed bundles.** |
+
+## Phase 5: Accessibility (part 1)
+
+| Item | How | Test |
+|---|---|---|
+| Contrast | Theme greys `slate-400` (secondary text) `#7B8581` → `#626B67` and `slate-500` (muted) `#9CA3AF` → `#666F6B`: at least 4.57:1 on every surface colour of the theme (white, `#F7F8F7`, `#F0F2F1`, `#EFF2F0`, `#E7EBE8`, `#F1F3F2`), was 2.5–3.8:1. Chart axis text likewise. | `e2e/browser/signed-out.spec.ts` (axe found the old values, passes now) |
+| Touch targets | `Button` is at least 44×44 px below 640 px (desktop keeps the compact sizes); sidebar links 44 px on phones; "Forgot password?" 44 px. | same spec at 375 px |
+| Charts | Each dashboard chart is a labelled `figure`; the drawing is hidden from screen readers and the same numbers are in a screen-reader table. | review |
+| Tabs, dialogs, fields | see Phase 3 (dialogs, field labels and errors) and Phase 4 (tabs). | |
+
+## Phase 7: PDF and CSV
+
+| Item | How | Test |
+|---|---|---|
+| CSV | `src/utils/export.ts`: `toCsv` / `downloadCsv` for every export: UTF-8 BOM, CRLF, every cell quoted, formula injection neutralised, the same header with or without rows, raw values (numbers as numbers). The trial balance, general ledger, attendance and cash-flow exports, which built CSV by hand without BOM or injection protection, now use it. | `src/utils/__tests__/export.test.ts` |
+| PDF | One layout in `exportToPDF`: organisation name and logo (when set), title, the filters used, "Generated by <user> on <date>", table header repeated on every page, totals row once at the end, "Page x of y" and the title in the footer. The trial balance passes its filters and totals. | `export.test.ts` (header lines); PDF not opened |
+| Progress and cancel | DataTable server exports already fetch page by page with a progress line and Cancel; the general ledger export likewise. | existing |
+
+Changed behaviour: an export with no rows now produces a file with the header (CSV) or a "No rows"
+table (PDF) instead of a browser alert. Import templates (attendance, bank statement, opening
+balances) are unchanged so re-importing them is unaffected.
+
+Not done: DataTable exports do not yet pass the page's filters to the PDF header (DataTable does
+not know them); printed views (`window.print()` on P&L, balance sheet, reports, invoices) keep
+their print layout.
+
+## Phase 8: Observability (part 2)
+
+| Item | How | Test |
+|---|---|---|
+| Settings → System health | Super Admins only (tab hidden for others; `system_health()` refuses others). Shows the newest migration applied next to the newest one in this build (`__LATEST_MIGRATION__`, from the file names at build time) with "up to date / this app expects … / database is newer", pg_cron jobs with schedule, state, last run and result and any expected job that is not scheduled, bucket privacy, size limit and types, the setup checklist, and the 20 newest browser error reports. | `src/services/__tests__/systemHealth.test.ts`; panel not opened (no database) |
+
+## Phase 9: Tests and CI (part 1)
+
+| Item | How |
+|---|---|
+| Playwright | `@playwright/test` and `@axe-core/playwright` added. `npm run test:browser`: desktop and 375 px projects. `signed-out.spec.ts` runs anywhere (builds against an unreachable placeholder database): axe WCAG 2.1 AA with no serious / critical issue, no horizontal scroll, Tab order, 44 px targets, reduced motion. `roles.spec.ts` signs in once per role on staging and checks every page in the sidebar; skipped without `E2E_BASE_URL`, `E2E_CONFIRM`, `E2E_USERS`; stops if the app calls any project but the confirmed one, refuses production. See `e2e/README.md`. |
+| CI | `.github/workflows/ci.yml`: lint, build, bundle budget, secret scan of the build, unit tests, database tests on every push / PR; the browser job only when started by hand. |
+| Lint | No ESLint configuration exists in the project; `npm run lint` is the type-check plus the secret scan. Adding ESLint rules would change many files without changing behaviour; not done. |
+
+Result here: `test:browser` 4/4 (signed-out screens only); the per-role run needs staging.

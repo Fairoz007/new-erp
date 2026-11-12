@@ -9,6 +9,10 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
 import { consolidateAccounts } from '../../services/accounting';
 import { useGeneralLedgerSummary, useLedgerLines, fetchLedgerLines, usePartyStatement, type GlAccountSummary } from '../../services/queries-system';
+import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
+import { downloadCsv } from '../../utils/export';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Tabs } from '../../components/ui/Tabs';
 
 const PAGE_LINES = 50;
 
@@ -203,7 +207,7 @@ export const GeneralLedgerPage: React.FC = () => {
     setExportProgress({ loaded: 0, total });
     try {
       const headers = ['Account Code', 'Account Name', 'Date', 'JE #', 'Reference', 'Description', 'Vehicle Plate', 'Debit', 'Credit', 'Running Balance'];
-      const rows: string[] = [headers.join(',')];
+      const rows: unknown[][] = [];
       let done = 0;
       for (const acc of glData) {
         if (acc.lineCount === 0) continue;
@@ -211,30 +215,12 @@ export const GeneralLedgerPage: React.FC = () => {
           p => setExportProgress({ loaded: done + p.loaded, total }), ctrl.signal);
         done += lines.length;
         lines.forEach(line => {
-          rows.push(
-            [
-              `"${acc.accountCode}"`,
-              `"${acc.accountName.replace(/"/g, '""')}"`,
-              `"${line.date}"`,
-              `"${line.entryNumber}"`,
-              `"${line.reference || ''}"`,
-              `"${line.description.replace(/"/g, '""')}"`,
-              `"${line.vehiclePlate || ''}"`,
-              line.debit.toFixed(3),
-              line.credit.toFixed(3),
-              line.runningBalance.toFixed(3),
-            ].join(',')
-          );
+          rows.push([acc.accountCode, acc.accountName, line.date, line.entryNumber, line.reference || '', line.description,
+            line.vehiclePlate || '', line.debit, line.credit, line.runningBalance]);
         });
       }
 
-      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `General_Ledger_${startDate}_to_${endDate}.csv`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      downloadCsv(`General_Ledger_${startDate}_to_${endDate}`, headers, rows, { dated: false });
     } catch (e) {
       if ((e as Error).name !== 'AbortError') addToast({ type: 'error', title: 'Export failed', message: (e as Error).message });
     } finally {
@@ -246,53 +232,33 @@ export const GeneralLedgerPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            General Ledger & Sub-Ledgers
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Granular transaction journals, opening/closing balances, vehicle cost allocations, and counterparty statement of accounts.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <Button variant="secondary" size="md" onClick={() => void exportGLCSV()} disabled={!exportProgress && (summary.loading || !!summary.error)}
-            leftIcon={<Download className="w-4 h-4" />}>
-            {exportProgress ? `Cancel export (${exportProgress.loaded.toLocaleString()} / ${exportProgress.total.toLocaleString()})` : 'Export Ledger'}
-          </Button>
-          <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-            Print Statement
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="General Ledger & Sub-Ledgers"
+        description="Granular transaction journals, opening/closing balances, vehicle cost allocations, and counterparty statement of accounts."
+        actions={
+          <>
+            <Button variant="secondary" size="md" onClick={() => void exportGLCSV()} disabled={!exportProgress && (summary.loading || !!summary.error)}
+              leftIcon={<Download className="w-4 h-4" />}>
+              {exportProgress ? `Cancel export (${exportProgress.loaded.toLocaleString()} / ${exportProgress.total.toLocaleString()})` : 'Export Ledger'}
+            </Button>
+            <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
+              Print Statement
+            </Button>
+          </>
+        }
+      />
 
       {/* Tabs */}
-      <div className="flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full w-fit">
-        <button
-          onClick={() => setActiveTab('gl')}
-          className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'gl'
-              ? 'bg-white text-slate-100 shadow-2xs'
-              : 'text-slate-400 hover:text-slate-100'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Chart of Accounts General Ledger</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('party')}
-          className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'party'
-              ? 'bg-white text-slate-100 shadow-2xs'
-              : 'text-slate-400 hover:text-slate-100'
-          }`}
-        >
-          <UserCheck className="w-4 h-4" />
-          <span>Supplier & Customer Sub-Ledgers (SOA)</span>
-        </button>
-      </div>
+      <Tabs
+        variant="segmented"
+        className="w-fit"
+        activeTab={activeTab}
+        onChange={id => setActiveTab(id as typeof activeTab)}
+        tabs={[
+          { id: 'gl', label: 'Chart of Accounts General Ledger', icon: <Layers className="w-4 h-4" /> },
+          { id: 'party', label: 'Supplier & Customer Sub-Ledgers (SOA)', icon: <UserCheck className="w-4 h-4" /> },
+        ]}
+      />
 
       {activeTab === 'gl' ? (
         <>
@@ -327,18 +293,18 @@ export const GeneralLedgerPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Target Account</label>
-                  <input
+                  <FilterInput
                     type="search"
                     value={accountSearch}
                     onChange={e => setAccountSearch(e.target.value)}
                     placeholder="Search code or name..."
                     aria-label="Search accounts"
-                    className="mb-1.5 w-full bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#086343]"
+                    className="mb-1.5 w-full"
                   />
-                  <select
+                  <FilterSelect
                     value={selectedAccountCode}
                     onChange={e => setSelectedAccountCode(e.target.value)}
-                    className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer min-w-[280px]"
+                    className="min-w-[280px]"
                   >
                     <option value="all">-- All Chart of Accounts (Consolidated) --</option>
                     {accountOptions.filter(acc => acc.code === selectedAccountCode || !accountSearch.trim() || `${acc.code} ${acc.name}`.toLowerCase().includes(accountSearch.trim().toLowerCase())).map(acc => (
@@ -346,26 +312,24 @@ export const GeneralLedgerPage: React.FC = () => {
                         {acc.code} - {acc.name} ({acc.category})
                       </option>
                     ))}
-                  </select>
+                  </FilterSelect>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Start Date</label>
-                  <input
+                  <FilterInput
                     type="date"
                     value={startDate}
                     onChange={e => setStartDate(e.target.value)}
-                    className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">End Date</label>
-                  <input
+                  <FilterInput
                     type="date"
                     value={endDate}
                     onChange={e => setEndDate(e.target.value)}
-                    className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343]"
                   />
                 </div>
               </div>
@@ -402,32 +366,31 @@ export const GeneralLedgerPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Party Category</label>
-                  <select
+                  <FilterSelect
                     value={partyType}
                     onChange={e => {
                       const type = e.target.value as any;
                       setPartyType(type);
                       setSelectedPartyId(type === 'Supplier' ? suppliers[0]?.id || '' : customers[0]?.id || '');
                     }}
-                    className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
                   >
                     <option value="Supplier">Suppliers / Vendors (AP Sub-Ledger)</option>
                     <option value="Customer">Customers / Clients (AR Sub-Ledger)</option>
-                  </select>
+                  </FilterSelect>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Select Account Name</label>
-                  <select
+                  <FilterSelect
                     value={effectivePartyId}
                     onChange={e => setSelectedPartyId(e.target.value)}
-                    className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer min-w-[280px]"
+                    className="min-w-[280px]"
                   >
                     {partyType === 'Supplier'
                       ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.vatNumber || s.taxNumber || 'Tax Reg OK'})</option>)
                       : customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.customerType})</option>)
                     }
-                  </select>
+                  </FilterSelect>
                 </div>
               </div>
             </div>

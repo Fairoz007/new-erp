@@ -8,6 +8,8 @@ import { formatCurrency } from '../../utils/financial';
 import { balanceSheetFrom } from '../../services/accounting';
 import { useBalanceSheet } from '../../services/queries';
 import { todayYmd } from '../../utils/date';
+import { FilterInput } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
@@ -33,24 +35,19 @@ export const BalanceSheetPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Balance Sheet (Statement of Financial Position)
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Assets, liabilities and equity from account opening balances plus posted journals up to the selected date.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} aria-label="As of date"
-            className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-100" />
-          <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-            Print Balance Sheet
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Balance Sheet (Statement of Financial Position)"
+        description="Assets, liabilities and equity from account opening balances plus posted journals up to the selected date."
+        actions={
+          <>
+            <FilterInput type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} aria-label="As of date"
+               />
+            <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
+              Print Balance Sheet
+            </Button>
+          </>
+        }
+      />
 
 {!ready ? <StatementLoad loading={q.loading || accountsLoading} error={q.error} onRetry={() => void q.refetch()} /> : (<>
       {/* KPI Cards */}

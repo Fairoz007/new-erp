@@ -13,6 +13,8 @@ import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import type { FinanceInvoice } from '../../services/finance';
 import { PICKER_LIMIT, useDebounced, useInvoiceOptions } from '../../services/queries-expenses';
+import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 // No pre-filled business numbers: the user enters the PO / receipt figures being matched.
 const emptyForm = {
@@ -183,6 +185,7 @@ export const ReconciliationPage: React.FC = () => {
     {
       key: 'notes',
       header: 'Audit Notes',
+      truncate: 'max-w-xs',
       render: (r) => (
         <p className="text-xs text-slate-400 line-clamp-1 max-w-xs">{r.discrepancyReason || r.notes || '-'}</p>
       ),
@@ -192,24 +195,19 @@ export const ReconciliationPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Invoice Reconciliation
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Match supplier invoices against purchase orders (2-way) or goods/services received (3-way). Variances are calculated by the system.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {canCreate && (
-            <Button variant="primary" size="md" onClick={openModal} leftIcon={<Plus className="w-4 h-4" />}>
-              New Reconciliation
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Invoice Reconciliation"
+        description="Match supplier invoices against purchase orders (2-way) or goods/services received (3-way). Variances are calculated by the system."
+        actions={
+          <>
+            {canCreate && (
+              <Button variant="primary" size="md" onClick={openModal} leftIcon={<Plus className="w-4 h-4" />}>
+                New Reconciliation
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -243,20 +241,20 @@ export const ReconciliationPage: React.FC = () => {
         exportFilename="Invoice_Reconciliations"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
+            <FilterSelect aria-label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="all">All Statuses</option>
               <option value="Matched">Matched</option>
               <option value="Partially Matched">Partially Matched</option>
               <option value="Mismatch">Mismatch</option>
               <option value="Pending Review">Pending Review</option>
-            </select>
-            <select aria-label="Matching type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">
+            </FilterSelect>
+            <FilterSelect aria-label="Matching type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
               <option value="all">2-Way & 3-Way</option>
               <option value="2-Way">2-Way</option>
               <option value="3-Way">3-Way</option>
-            </select>
-            <input aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
-            <input aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
+            </FilterSelect>
+            <FilterInput aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}  />
+            <FilterInput aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)}  />
           </div>
         }
       />

@@ -48,7 +48,13 @@ export interface Column<T> {
   value?: (row: T) => unknown;
   /** Server mode: the database column this column sorts by. Without it the column is not sortable in server mode. */
   sortKey?: string;
+  /** Long text (names, descriptions, notes, emails): cut with an ellipsis at a max width (default 16rem, or the
+   *  Tailwind max-width class given) and show the full value as a tooltip. */
+  truncate?: boolean | string;
 }
+
+const alignCls = (align?: 'left' | 'center' | 'right') =>
+  align === 'right' ? 'text-right tabular-nums' : align === 'center' ? 'text-center' : 'text-left';
 
 interface DataTableProps<T> {
   /** Rows (client mode). Ignored when `server` is given. */
@@ -428,9 +434,7 @@ export function DataTable<T extends Record<string, any>>({
                 <th
                   key={col.key}
                   style={{ width: col.width }}
-                  className={`px-6 py-4 select-none ${isSortable(col) ? 'cursor-pointer hover:text-slate-100' : ''} ${
-                    col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                  }`}
+                  className={`px-6 py-4 select-none ${isSortable(col) ? 'cursor-pointer hover:text-slate-100' : ''} ${alignCls(col.align)}`}
                   onClick={() => isSortable(col) && handleSort(col.key)}
                 >
                   <div
@@ -490,16 +494,21 @@ export function DataTable<T extends Record<string, any>>({
                     onRowClick ? 'hover:bg-slate-850/70 cursor-pointer' : 'hover:bg-slate-850/40'
                   }`}
                 >
-                  {activeColumns.map(col => (
-                    <td
-                      key={col.key}
-                      className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                      }`}
-                    >
-                      {col.render ? col.render(row, idx) : row[col.key] ?? '-'}
-                    </td>
-                  ))}
+                  {activeColumns.map(col => {
+                    const content = col.render ? col.render(row, idx) : row[col.key] ?? '-';
+                    return (
+                      <td key={col.key} className={`px-6 py-4 whitespace-nowrap text-sm ${alignCls(col.align)}`}>
+                        {col.truncate ? (
+                          <div
+                            className={`truncate [&_p]:truncate [&_div]:min-w-0 ${typeof col.truncate === 'string' ? col.truncate : 'max-w-[16rem]'} ${col.align === 'right' ? 'ml-auto' : ''}`}
+                            title={nodeToText(content).replace(/\s+/g, ' ').trim() || undefined}
+                          >
+                            {content}
+                          </div>
+                        ) : content}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             ) : (

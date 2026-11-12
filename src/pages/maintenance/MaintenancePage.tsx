@@ -10,6 +10,8 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 
 const MAINTENANCE_CATEGORIES: MaintenanceCategory[] = [
@@ -62,6 +64,7 @@ export const MaintenancePage: React.FC = () => {
     {
       key: 'description',
       header: 'Work Description',
+      truncate: 'max-w-md',
       render: (m) => (
         <div className="max-w-md">
           <p className="text-slate-200 line-clamp-1">{m.description}</p>
@@ -112,29 +115,24 @@ export const MaintenancePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Vehicle Maintenance & Workshop Records
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Complete log of preventive maintenance, emergency breakdown repairs, replacement parts, labour costs, and warranty tracking.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {hasPermission('create', 'maintenance') && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => openQuickModal('add-maintenance')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Record Maintenance
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Vehicle Maintenance & Workshop Records"
+        description="Complete log of preventive maintenance, emergency breakdown repairs, replacement parts, labour costs, and warranty tracking."
+        actions={
+          <>
+            {hasPermission('create', 'maintenance') && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-maintenance')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Record Maintenance
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <DataTable
         data={filteredRecords}
@@ -148,16 +146,15 @@ export const MaintenancePage: React.FC = () => {
         filterComponent={
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
-          <select
+          <FilterSelect
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Service Categories</option>
             {MAINTENANCE_CATEGORIES.map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
-          </select>
+          </FilterSelect>
           </div>
         }
       />

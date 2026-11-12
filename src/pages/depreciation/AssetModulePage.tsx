@@ -13,6 +13,9 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Tabs } from '../../components/ui/Tabs';
 
 const CATEGORIES: FixedAssetCategory[] = ['Fleet Vehicle', 'Workshop Equipment', 'Heavy Machinery', 'IT & GPS Hardware', 'Facility & Garage Fixture', 'Other Fixed Asset'];
 const STATUSES: FixedAsset['status'][] = ['Active', 'Under Maintenance', 'Fully Depreciated', 'Disposed'];
@@ -115,6 +118,7 @@ export const AssetModulePage: React.FC = () => {
     {
       key: 'name',
       header: 'Asset Description',
+      truncate: true,
       render: (a) => (
         <div>
           <p className="font-semibold text-slate-200">{a.name}</p>
@@ -211,31 +215,26 @@ export const AssetModulePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Asset Module & Automatic Depreciation
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Fixed asset register with monthly depreciation runs posted to the GL (Dr each asset's depreciation expense account / Cr its accumulated depreciation account).
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          {canCreate && hasPermission('create', 'accounting') && (
-            <Button variant="outline" size="sm" className="rounded-full" onClick={() => openQuickModal('run-depreciation')}
-              leftIcon={<Play className="w-4 h-4 text-forest-500" />}>
-              Run Auto-Depreciation
-            </Button>
-          )}
-          {canCreate && (
-            <Button variant="primary" size="sm" className="rounded-full shadow-sm" onClick={() => openQuickModal('add-fixed-asset')}
-              leftIcon={<Plus className="w-4 h-4" />}>
-              Add Fixed Asset
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Asset Module & Automatic Depreciation"
+        description="Fixed asset register with monthly depreciation runs posted to the GL (Dr each asset's depreciation expense account / Cr its accumulated depreciation account)."
+        actions={
+          <>
+            {canCreate && hasPermission('create', 'accounting') && (
+              <Button variant="outline" size="md" onClick={() => openQuickModal('run-depreciation')}
+                leftIcon={<Play className="w-4 h-4 text-forest-500" />}>
+                Run Auto-Depreciation
+              </Button>
+            )}
+            {canCreate && (
+              <Button variant="primary" size="md" onClick={() => openQuickModal('add-fixed-asset')}
+                leftIcon={<Plus className="w-4 h-4" />}>
+                Add Fixed Asset
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -250,26 +249,16 @@ export const AssetModulePage: React.FC = () => {
       </div>
 
       {/* Segmented Pill Tabs */}
-      <div className="inline-flex items-center gap-1.5 p-1 bg-slate-850 border border-slate-700 rounded-full">
-        <button
-          onClick={() => setActiveTab('register')}
-          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'register' ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Fixed Asset Register</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('runs')}
-          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
-            activeTab === 'runs' ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <History className="w-3.5 h-3.5" />
-          <span>Depreciation History & GL Postings ({depreciationRuns.length})</span>
-        </button>
-      </div>
+      <Tabs
+        variant="segmented"
+        className="w-fit"
+        activeTab={activeTab}
+        onChange={id => setActiveTab(id as typeof activeTab)}
+        tabs={[
+          { id: 'register', label: 'Fixed Asset Register', icon: <Layers className="w-3.5 h-3.5" /> },
+          { id: 'runs', label: 'Depreciation History & GL Postings', count: depreciationRuns.length, icon: <History className="w-3.5 h-3.5" /> },
+        ]}
+      />
 
       {activeTab === 'register' ? (
         <DataTable
@@ -283,14 +272,13 @@ export const AssetModulePage: React.FC = () => {
           exportFilename="Fixed_Assets_Register"
           emptyMessage="No fixed assets registered for this selection."
           filterComponent={
-            <select
+            <FilterSelect
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
-              className="bg-white border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer shadow-sm"
             >
               <option value="all">All Asset Categories</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </FilterSelect>
           }
         />
       ) : (

@@ -12,6 +12,8 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 
 type OilRow = OilChange & { vehiclePlate: string; vehicleName: string; _companyId?: string };
@@ -114,29 +116,24 @@ export const OilManagementPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Oil Service & Lubrication Tracker
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Track engine oil grades, intervals, and automatic next service calculations with warning levels.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {hasPermission('create', 'oil') && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => openQuickModal('add-oil-change')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Record Oil Service
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Oil Service & Lubrication Tracker"
+        description="Track engine oil grades, intervals, and automatic next service calculations with warning levels."
+        actions={
+          <>
+            {hasPermission('create', 'oil') && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-oil-change')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Record Oil Service
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -176,16 +173,15 @@ export const OilManagementPage: React.FC = () => {
         filterComponent={
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
-          <select
+          <FilterSelect
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Warning Levels</option>
             <option value="Overdue">Overdue Only</option>
             <option value="Due Soon">Due Soon</option>
             <option value="Normal">Normal</option>
-          </select>
+          </FilterSelect>
           </div>
         }
       />

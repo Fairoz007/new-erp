@@ -42,6 +42,7 @@ import { useVehiclePhotoUrls } from '../vehicles/VehiclePhoto';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, todayYmd } from '../../utils/date';
 import { useDashboardSeries, useExpenseTotals, useInvoiceSummary, useProfitLoss } from '../../services/queries';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const FleetDashboard: React.FC = () => {
   const {
@@ -227,38 +228,33 @@ export const FleetDashboard: React.FC = () => {
   return (
     <div className="space-y-7">
       {/* Page Heading and Action Area (Exact Reference Match) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-100">
-            Dashboard
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Plan, prioritize, and manage your enterprise fleet operations and accounting with ease.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {hasPermission('create', 'vehicles') && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => openQuickModal('add-vehicle')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Add Vehicle
-            </Button>
-          )}
-          {canAccessPage('reports') && (
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => setCurrentPage('reports')}
-            >
-              Reports & Export
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Plan, prioritize, and manage your enterprise fleet operations and accounting with ease."
+        actions={
+          <>
+            {canAccessPage('reports') && (
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setCurrentPage('reports')}
+              >
+                Reports & Export
+              </Button>
+            )}
+            {hasPermission('create', 'vehicles') && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-vehicle')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Add Vehicle
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Reference-Styled 4 Stat Metric Cards (First is deep forest green Hero) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -413,7 +409,7 @@ export const FleetDashboard: React.FC = () => {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-100 group-hover:text-[#086343] transition-colors truncate">
+                          <p className="text-xs font-bold text-slate-100 group-hover:text-[#086343] transition-colors truncate" title={veh.assignedDriver || undefined}>
                             {veh.assignedDriver || 'No driver assigned'}
                           </p>
                           <p className="text-[11px] text-slate-400 truncate">
@@ -572,7 +568,7 @@ export const FleetDashboard: React.FC = () => {
                       <Wrench className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-100 truncate group-hover:text-[#086343] transition-colors">
+                      <p className="text-xs font-bold text-slate-100 truncate group-hover:text-[#086343] transition-colors" title={wo.problemDescription || wo.workOrderNumber}>
                         {wo.problemDescription || wo.workOrderNumber}
                       </p>
                       <p className="text-[11px] text-slate-400">

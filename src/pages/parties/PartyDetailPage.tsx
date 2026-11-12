@@ -1,7 +1,7 @@
 // Client / supplier detail page (#customer-detail?id=… / #supplier-detail?id=…): profile, office and
 // sharing, registration review, custom fields, invoices, payments, contracts and history.
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRightLeft, CheckCircle2, FileSignature, Pencil, Receipt, Share2, Wallet, XCircle, History } from 'lucide-react';
+import { ArrowRightLeft, CheckCircle2, FileSignature, Pencil, Receipt, Share2, Wallet, XCircle, History } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
@@ -28,6 +28,7 @@ import { useCustomFields } from '../../hooks/useCustomFields';
 import { formatCustomValue, openFileValue } from '../../components/common/CustomFieldsForm';
 import { ContractsPanel } from './ContractsPanel';
 import type { Customer, Supplier } from '../../types/operations';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 type Kind = 'customer' | 'supplier';
 type Tab = 'overview' | 'invoices' | 'payments' | 'contracts' | 'history';
@@ -108,35 +109,35 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div className="space-y-1">
-          <button type="button" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200" onClick={() => setCurrentPage(module)}>
-            <ArrowLeft className="w-3.5 h-3.5" /> {kind === 'customer' ? 'Clients' : 'Suppliers'}
-          </button>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">{party.name}</h1>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+      <PageHeader
+        back={{ label: kind === 'customer' ? 'Clients' : 'Suppliers', onClick: () => setCurrentPage(module) }}
+        title={party.name}
+        meta={
+          <>
             <span className="font-mono text-slate-300">{code}</span>
             <span className="text-slate-400">· {typeLabel}</span>
             <StatusBadge status={party.status} size="sm" />
             <Badge variant={REG_VARIANT[party.registration.status]}>Registration {party.registration.status.toLowerCase()}</Badge>
             <span className="text-slate-400">· {office?.name ?? '—'} ({SHARING_LABEL[party.sharing].toLowerCase()})</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {party.registration.status === 'Pending' && canApprove && !ownSubmission && (
-            <>
-              <Button size="xs" leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />} onClick={() => setReview('Approved')}>Approve</Button>
-              <Button size="xs" variant="danger" leftIcon={<XCircle className="w-3.5 h-3.5" />} onClick={() => setReview('Rejected')}>Reject</Button>
-            </>
-          )}
-          {canEdit && <Button size="xs" variant="outline" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditing(true)}>Edit</Button>}
-          {canEdit && <Button size="xs" variant="outline" leftIcon={<Share2 className="w-3.5 h-3.5" />} onClick={() => setSharing(true)}>Sharing</Button>}
-          {canTransfer && <Button size="xs" variant="outline" leftIcon={<ArrowRightLeft className="w-3.5 h-3.5" />} onClick={() => setMoving(true)}>Transfer</Button>}
-          {canPostOpening && party.registration.status === 'Approved' && (
-            <Button size="xs" variant="outline" leftIcon={<Wallet className="w-3.5 h-3.5" />} onClick={() => setOpening(true)}>Post opening balance</Button>
-          )}
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            {party.registration.status === 'Pending' && canApprove && !ownSubmission && (
+              <>
+                <Button size="xs" leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />} onClick={() => setReview('Approved')}>Approve</Button>
+                <Button size="xs" variant="danger" leftIcon={<XCircle className="w-3.5 h-3.5" />} onClick={() => setReview('Rejected')}>Reject</Button>
+              </>
+            )}
+            {canEdit && <Button size="xs" variant="outline" leftIcon={<Pencil className="w-3.5 h-3.5" />} onClick={() => setEditing(true)}>Edit</Button>}
+            {canEdit && <Button size="xs" variant="outline" leftIcon={<Share2 className="w-3.5 h-3.5" />} onClick={() => setSharing(true)}>Sharing</Button>}
+            {canTransfer && <Button size="xs" variant="outline" leftIcon={<ArrowRightLeft className="w-3.5 h-3.5" />} onClick={() => setMoving(true)}>Transfer to office</Button>}
+            {canPostOpening && party.registration.status === 'Approved' && (
+              <Button size="xs" variant="outline" leftIcon={<Wallet className="w-3.5 h-3.5" />} onClick={() => setOpening(true)}>Post opening balance</Button>
+            )}
+          </>
+        }
+      />
 
       {party.registration.status !== 'Approved' && (
         <div className={`rounded-xl border p-3 text-xs ${party.registration.status === 'Rejected' ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>

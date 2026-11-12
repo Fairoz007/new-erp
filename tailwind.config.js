@@ -61,8 +61,8 @@ export default {
           100: '#111827', // Reference Primary text
           200: '#1F2937', // Strong text / Headings
           300: '#374151', // Body text
-          400: '#7B8581', // Reference Secondary text
-          500: '#9CA3AF', // Muted / placeholders
+          400: '#626B67', // Secondary text (WCAG AA: >= 4.5:1 on every surface, was #7B8581 at 3.4-3.8:1)
+          500: '#666F6B', // Muted / placeholders (>= 4.5:1 on white and surfaces, was #9CA3AF at 2.5:1)
           600: '#D1D5DB', // Secondary dividers
           700: '#E7EBE8', // Reference Primary borders
           750: '#EFF2F0',

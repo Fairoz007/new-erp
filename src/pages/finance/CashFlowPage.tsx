@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
 import { CashFlowRow, fetchCashFlow } from '../../services/ledger';
+import { downloadCsv } from '../../utils/export';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const SECTIONS = [['Operating', 'Operating activities'], ['Investing', 'Investing activities'], ['Financing', 'Financing activities']] as const;
 
@@ -40,24 +42,21 @@ export const CashFlowPage: React.FC = () => {
   const closing = rows.find(r => r.section === 'Closing')?.amount ?? 0;
   const net = (sec: string) => rows.filter(r => r.section === sec).reduce((t, r) => t + r.amount, 0);
 
-  const exportCsv = () => {
-    const out = [['section', 'line', 'amount'].join(','), ...rows.map(r => [r.section, `"${r.line}"`, r.amount.toFixed(3)].join(','))];
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out.join('\n')], { type: 'text/csv' }));
-    a.download = `Cash_flow_${office?.code ?? ''}_${from}_${to}.csv`; a.click(); URL.revokeObjectURL(a.href);
-  };
+  const exportCsv = () => downloadCsv(`Cash_flow_${office?.code ?? ''}_${from}_${to}`, ['section', 'line', 'amount'],
+    rows.map(r => [r.section, r.line, r.amount]), { dated: false });
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Cash flow statement</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Money in and out of the office's bank and cash accounts, from posted journals.</p>
-        </div>
-        <div className="flex gap-2 print:hidden">
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length || !hasPermission('export', 'financial-statements', officeId)}>CSV</Button>
-          <Button variant="outline" size="sm" leftIcon={<Printer className="w-4 h-4" />} onClick={() => window.print()} disabled={!rows.length}>Print / PDF</Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Cash flow statement"
+        description="Money in and out of the office's bank and cash accounts, from posted journals."
+        actions={
+          <>
+            <Button variant="outline" size="md" leftIcon={<Download className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length || !hasPermission('export', 'financial-statements', officeId)}>CSV</Button>
+            <Button variant="outline" size="md" leftIcon={<Printer className="w-4 h-4" />} onClick={() => window.print()} disabled={!rows.length}>Print / PDF</Button>
+          </>
+        }
+      />
       <div className="flex flex-wrap gap-3 items-end print:hidden">
         <div className="w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
           {offices.length === 0 && <option value="">No office available</option>}

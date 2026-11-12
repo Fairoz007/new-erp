@@ -22,6 +22,8 @@ import {
 } from '../../services/hrops';
 import type { LeaveType } from '../../services/org';
 import type { Employee } from '../../types/hr';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const STATUS_VARIANT = { Pending: 'amber', Approved: 'emerald', Rejected: 'rose', Cancelled: 'slate' } as const;
 
@@ -63,7 +65,7 @@ export const LeavePage: React.FC = () => {
   };
 
   const columns: Column<LeaveRequest>[] = [
-    { key: 'employee', header: 'Employee', value: r => empOf(r.employeeId)?.name ?? '', render: r => {
+    { key: 'employee', header: 'Employee', truncate: true, value: r => empOf(r.employeeId)?.name ?? '', render: r => {
       const e = empOf(r.employeeId);
       return <div><p className="font-semibold text-slate-100">{e?.name ?? '—'}</p><p className="text-[11px] text-slate-400">{e?.employeeCode} · {e?.department}</p></div>;
     } },
@@ -72,7 +74,7 @@ export const LeavePage: React.FC = () => {
       return <span className="text-xs">{t?.name ?? '—'}{t && !t.paid ? <Badge variant="rose" className="ml-1">Unpaid</Badge> : null}</span>;
     } },
     { key: 'startDate', header: 'Dates', render: r => <span className="text-xs">{formatDate(r.startDate)} – {formatDate(r.endDate)}</span> },
-    { key: 'days', header: 'Days', align: 'center' },
+    { key: 'days', header: 'Days', align: 'right' },
     { key: 'reason', header: 'Reason', render: r => (
       <div className="text-xs max-w-xs">
         <p className="text-slate-300 truncate" title={r.reason}>{r.reason || '—'}</p>
@@ -101,18 +103,18 @@ export const LeavePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Leave</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Leave requests, approvals and balances. Approved leave marks attendance; unpaid leave is deducted in payroll.</p>
-        </div>
-        <div className="flex gap-2 items-center">
-          <select aria-label="Year" value={year} onChange={e => setYear(Number(e.target.value))} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold">
-            {[0, 1, 2, 3].map(n => new Date().getFullYear() + 1 - n).map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          {canRequest && <Button size="sm" className="rounded-full" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreating(true)}>New leave request</Button>}
-        </div>
-      </div>
+      <PageHeader
+        title="Leave"
+        description="Leave requests, approvals and balances. Approved leave marks attendance; unpaid leave is deducted in payroll."
+        actions={
+          <>
+            <FilterSelect aria-label="Year" value={year} onChange={e => setYear(Number(e.target.value))}>
+              {[0, 1, 2, 3].map(n => new Date().getFullYear() + 1 - n).map(y => <option key={y} value={y}>{y}</option>)}
+            </FilterSelect>
+            {canRequest && <Button size="md" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreating(true)}>New leave request</Button>}
+          </>
+        }
+      />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Pending requests" value={inOffice.filter(r => r.status === 'Pending').length} subValue="Waiting for a decision" icon={<Clock className="w-4 h-4" />} variant="amber" isHero />
         <StatCard title="On leave today" value={inOffice.filter(r => r.status === 'Approved' && r.startDate <= today && r.endDate >= today).length} subValue="Approved leave covering today" icon={<Plane className="w-4 h-4" />} variant="indigo" />
@@ -124,10 +126,10 @@ export const LeavePage: React.FC = () => {
             searchText={r => `${empOf(r.employeeId)?.name ?? ''} ${empOf(r.employeeId)?.employeeCode ?? ''} ${typeOf(r.leaveTypeId)?.name ?? ''} ${r.reason}`}
             exportFilename={`Leave_${year}`} exportModule="leave" emptyMessage="No leave requests for this year."
             filterComponent={
-              <select aria-label="Status" value={status} onChange={e => setStatus(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold">
+              <FilterSelect aria-label="Status" value={status} onChange={e => setStatus(e.target.value)}>
                 <option value="all">All statuses</option>
                 {Object.keys(STATUS_VARIANT).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              </FilterSelect>
             } />
         : <Balances year={year} types={types.rows} />}
       {creating && <RequestModal year={year} types={types.rows} onClose={() => setCreating(false)} onSaved={load} />}

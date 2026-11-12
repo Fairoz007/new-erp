@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import { downloadDocument } from '../../services/documents';
 import { formatDate } from '../../utils/date';
 import { HR_DOCUMENT_CATEGORIES } from '../../components/common/DocumentUploadZone';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const DocumentsPage: React.FC = () => {
   const { documents, deleteDocument, selectedCompanyId } = useFleet();
@@ -64,6 +66,7 @@ export const DocumentsPage: React.FC = () => {
     {
       key: 'documentName',
       header: 'Document Name / Number',
+      truncate: true,
       render: (d) => (
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-950/70 text-indigo-400 border border-indigo-800/60 shrink-0">
@@ -175,30 +178,24 @@ export const DocumentsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Digital Document & Compliance Repository
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Store and monitor Mulkiya registration cards, commercial vehicle insurance policies, road permits, and warranties.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {canUpload && (
-            <Button
-              variant="primary"
-              size="sm"
-              className="rounded-full shadow-sm"
-              onClick={() => openQuickModal('upload-document')}
-              leftIcon={<Upload className="w-4 h-4" />}
-            >
-              Upload Document
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Digital Document & Compliance Repository"
+        description="Store and monitor Mulkiya registration cards, commercial vehicle insurance policies, road permits, and warranties."
+        actions={
+          <>
+            {canUpload && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('upload-document')}
+                leftIcon={<Upload className="w-4 h-4" />}
+              >
+                Upload Document
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <DataTable
         data={filteredDocs}
@@ -210,10 +207,9 @@ export const DocumentsPage: React.FC = () => {
         searchFields={['documentName', 'documentNumber', 'vehiclePlate', 'employeeName', 'category']}
         exportFilename="Documents_Register"
         filterComponent={
-          <select
+          <FilterSelect
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="bg-white border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer shadow-sm"
           >
             <option value="all">All Document Categories</option>
             <option value="Registration">Registration (Mulkiya)</option>
@@ -225,7 +221,7 @@ export const DocumentsPage: React.FC = () => {
             <option value="hr">HR documents (any employee)</option>
             {HR_DOCUMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             <option value="Other">Other</option>
-          </select>
+          </FilterSelect>
         }
       />
     </div>

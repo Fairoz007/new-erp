@@ -16,6 +16,7 @@ import { expenseSource, invoiceSource, paymentSource, useExpenseTotals } from '.
 import { useTaxByMonth } from '../../services/queries-reports';
 import type { ServerSource } from '../../lib/serverList';
 import type { Vehicle } from '../../types/vehicle';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 // Registers are paged, sorted and searched in the database; exports fetch every filtered row.
 const mapSource = <T, R>(src: ServerSource<T>, map: (row: T) => R): ServerSource<R> => ({
@@ -369,28 +370,22 @@ export const ReportsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Reports
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Live data for the chosen office and dates. Every table exports to CSV and PDF.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={() => window.print()}
-            leftIcon={<Printer className="w-4 h-4 text-forest-500" />}
-          >
-            Print Report
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Reports"
+        description="Live data for the chosen office and dates. Every table exports to CSV and PDF."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => window.print()}
+              leftIcon={<Printer className="w-4 h-4 text-forest-500" />}
+            >
+              Print Report
+            </Button>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap gap-3 items-end print:hidden">
         <div className="w-56"><Select label="Office" value={office} onChange={e => setOffice(e.target.value)}>

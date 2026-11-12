@@ -78,6 +78,20 @@ const kFormat = (val: number) => (Math.abs(val) >= 1000 ? `${val / 1000}k` : `${
 // 1. Revenue vs operating cost (last 6 months). Revenue = sales invoices (credit notes deducted,
 //    cancelled excluded); cost = approved vehicle expenses + maintenance records. `series` holds
 //    those daily totals (dashboard_series) covering at least the last 6 calendar months.
+
+// Text alternative for a chart (WCAG 1.1.1): the drawing is hidden from screen readers and the same
+// numbers are given as a table that only screen readers read.
+const ChartFigure: React.FC<{ label: string; columns: string[]; rows: (string | number)[][]; className?: string; children: React.ReactNode }> = ({ label, columns, rows, className, children }) => (
+  <figure role="group" aria-label={label} className={className ?? 'h-[250px] w-full'}>
+    <div aria-hidden="true" className="h-full w-full">{children}</div>
+    <table className="sr-only">
+      <caption>{label}</caption>
+      <thead><tr>{columns.map(c => <th key={c} scope="col">{c}</th>)}</tr></thead>
+      <tbody>{rows.map((r, i) => <tr key={i}>{r.map((v, j) => j === 0 ? <th key={j} scope="row">{v}</th> : <td key={j}>{typeof v === 'number' ? v.toFixed(3) : v}</td>)}</tr>)}</tbody>
+    </table>
+  </figure>
+);
+
 export const RevenueVsExpenseChart: React.FC<{ series: DaySeries[] }> = ({ series }) => {
   const data = lastMonths(6).map(m => {
     const days = series.filter(d => ym(d.day) === m.key);
@@ -90,7 +104,7 @@ export const RevenueVsExpenseChart: React.FC<{ series: DaySeries[] }> = ({ serie
   }
 
   return (
-    <div className="h-[250px] w-full">
+    <ChartFigure label={'Revenue and operating cost, last 6 months'} columns={['Month', 'Revenue', 'Expenses']} rows={data.map(d => [d.month, d.Revenue, d.Expenses])}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
@@ -99,20 +113,20 @@ export const RevenueVsExpenseChart: React.FC<{ series: DaySeries[] }> = ({ serie
               <stop offset="95%" stopColor="#086343" stopOpacity={0.0} />
             </linearGradient>
             <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#7B8581" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#7B8581" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#626B67" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#626B67" stopOpacity={0.0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
-          <XAxis dataKey="month" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
+          <XAxis dataKey="month" stroke="#626B67" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
+          <YAxis stroke="#626B67" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#626B67' }} />
           <Area type="monotone" dataKey="Revenue" stroke="#086343" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
-          <Area type="monotone" dataKey="Expenses" stroke="#7B8581" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
+          <Area type="monotone" dataKey="Expenses" stroke="#626B67" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </ChartFigure>
   );
 };
 
@@ -135,8 +149,10 @@ export const ReferencePillBarChart: React.FC<{
   if (max <= 0) return <EmptyChart height={230} message="No expenses or maintenance recorded in the last 7 days." />;
 
   return (
-    <div className="w-full flex flex-col justify-between h-[230px] pt-4">
-      <div className="flex items-end justify-between gap-2.5 h-[170px] px-2 sm:px-4">
+    <figure role="group" aria-label="Operating spend per day, last 7 days" className="w-full flex flex-col justify-between h-[230px] pt-4">
+      <table className="sr-only"><caption>Operating spend per day, last 7 days</caption><thead><tr><th scope="col">Date</th><th scope="col">Amount</th></tr></thead>
+        <tbody>{days.map(d => <tr key={d.key}><th scope="row">{d.key}</th><td>{formatCurrency(d.amount, currency)}</td></tr>)}</tbody></table>
+      <div aria-hidden="true" className="flex items-end justify-between gap-2.5 h-[170px] px-2 sm:px-4">
         {days.map((item, index) => {
           const heightPercent = item.amount > 0 ? Math.max(6, Math.round((item.amount / max) * 100)) : 2;
           const isPeak = item.amount === max;
@@ -158,7 +174,7 @@ export const ReferencePillBarChart: React.FC<{
           );
         })}
       </div>
-    </div>
+    </figure>
   );
 };
 
@@ -181,20 +197,20 @@ export const MaintenanceTrendChart: React.FC<{ maintenanceRecords: MaintenanceRe
   }
 
   return (
-    <div className="h-[250px] w-full">
+    <ChartFigure label={'Maintenance cost by month and type, last 6 months'} columns={['Month', 'Routine', 'Corrective', 'Breakdown']} rows={data.map(d => [d.month, d.Routine, d.Corrective, d.Breakdown])}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
-          <XAxis dataKey="month" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} />
+          <XAxis dataKey="month" stroke="#626B67" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
+          <YAxis stroke="#626B67" fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#626B67' }} />
           <Bar dataKey="Routine" stackId="a" fill="#086343" radius={[0, 0, 0, 0]} barSize={20} />
           <Bar dataKey="Corrective" stackId="a" fill="#D9A441" radius={[0, 0, 0, 0]} barSize={20} />
           <Bar dataKey="Breakdown" stackId="a" fill="#D94B4B" radius={[6, 6, 0, 0]} barSize={20} />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ChartFigure>
   );
 };
 
@@ -214,13 +230,13 @@ export const AssetDepreciationChart: React.FC = () => {
   if (data.length === 0) return <EmptyChart message="No fixed assets registered yet." />;
 
   return (
-    <div className="h-[250px] w-full">
+    <ChartFigure label={'Fixed assets by purchase year: historical cost and net book value'} columns={['Purchase year', 'Historical cost', 'Net book value']} rows={data.map(d => [d.year, d.Cost, d.BookValue])}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
           <defs>
             <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#7B8581" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#7B8581" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#626B67" stopOpacity={0.15} />
+              <stop offset="95%" stopColor="#626B67" stopOpacity={0.0} />
             </linearGradient>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#086343" stopOpacity={0.25} />
@@ -228,14 +244,14 @@ export const AssetDepreciationChart: React.FC = () => {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
-          <XAxis dataKey="year" stroke="#7B8581" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#7B8581" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
+          <XAxis dataKey="year" stroke="#626B67" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
+          <YAxis stroke="#626B67" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#7B8581' }} />
-          <Area type="monotone" dataKey="Cost" name="Historical Cost" stroke="#7B8581" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#626B67' }} />
+          <Area type="monotone" dataKey="Cost" name="Historical Cost" stroke="#626B67" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />
           <Area type="monotone" dataKey="BookValue" name="Net Book Value" stroke="#086343" strokeWidth={2.5} fillOpacity={1} fill="url(#colorValue)" />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </ChartFigure>
   );
 };

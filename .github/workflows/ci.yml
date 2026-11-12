@@ -1,0 +1,67 @@
+# Checks on every push and pull request; the browser suite only when started by hand.
+# Nothing here connects to a Supabase project except the manual browser job, which runs against
+# the STAGING deploy given in the repository secrets and refuses the production project.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: Run the Playwright suite (signed-out screens; per role on staging when the secrets are set)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Lint (type-check and secret scan)
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Bundle budget
+        run: npm run bundle:check
+      - name: Secret scan of the build
+        run: npm run scan:secrets
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Database tests (PGlite, every migration)
+        run: npm run test:db
+
+  browser:
+    if: github.event_name == 'workflow_dispatch' && inputs.browser
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Playwright (desktop and 375 px, axe)
+        run: npm run test:browser
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_CONFIRM: ${{ secrets.E2E_CONFIRM }}
+          E2E_USERS: ${{ secrets.E2E_USERS }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results
+          retention-days: 7

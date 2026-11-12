@@ -10,6 +10,7 @@ import { CompanyFormModal } from './CompanyFormModal';
 import { useCustomFields } from '../../hooks/useCustomFields';
 import { formatCustomValue } from '../../components/common/CustomFieldsForm';
 import { useOfficeRecordCounts } from '../../services/queries-system';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const CompaniesPage: React.FC = () => {
   const { companies, selectedCompanyId, setSelectedCompanyId, addCompany, updateCompany } = useFleet();
@@ -43,33 +44,27 @@ export const CompaniesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Offices & Branches Management
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Corporate organizational structure: each office keeps its own fleet, records, chart of accounts and document numbering.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Button
-            variant={selectedCompanyId === 'all' ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedCompanyId('all')}
-            className="cursor-pointer rounded-full"
-          >
-            <Layers className="w-4 h-4 mr-1.5" />
-            {selectedCompanyId === 'all' ? 'Viewing Consolidated (All Offices)' : 'Switch to Consolidated View'}
-          </Button>
-          {canCreate && (
-            <Button variant="primary" size="sm" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />}>
-              Add Office
+      <PageHeader
+        title="Offices & Branches Management"
+        description="Corporate organizational structure: each office keeps its own fleet, records, chart of accounts and document numbering."
+        actions={
+          <>
+            <Button
+              variant={selectedCompanyId === 'all' ? 'primary' : 'outline'}
+              size="md"
+              onClick={() => setSelectedCompanyId('all')}
+              leftIcon={<Layers className="w-4 h-4" />}
+            >
+              {selectedCompanyId === 'all' ? 'Viewing Consolidated (All Offices)' : 'Switch to Consolidated View'}
             </Button>
-          )}
-        </div>
-      </div>
+            {canCreate && (
+              <Button variant="primary" size="md" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />}>
+                Add Office
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Group totals (counted in the database) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

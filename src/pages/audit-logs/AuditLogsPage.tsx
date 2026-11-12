@@ -7,6 +7,8 @@ import { AuditLog } from '../../types/system';
 import { useFleet } from '../../context/FleetContext';
 import { formatDateTime } from '../../utils/date';
 import { auditLogSource } from '../../services/queries-system';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const AuditLogsPage: React.FC = () => {
   const { selectedCompanyId } = useFleet();
@@ -60,6 +62,7 @@ export const AuditLogsPage: React.FC = () => {
       key: 'entityType',
       sortKey: 'entity_label',
       header: 'Target Entity',
+      truncate: true,
       render: (l) => (
         <div>
           <span className="font-semibold text-slate-200">{l.entityType}</span>
@@ -70,6 +73,7 @@ export const AuditLogsPage: React.FC = () => {
     {
       key: 'details',
       header: 'Audit Event Details',
+      truncate: 'max-w-md',
       render: (l) => <span className="text-slate-300 text-xs">{l.details}</span>,
     },
   ];
@@ -77,16 +81,10 @@ export const AuditLogsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Immutable Audit Trail & Activity Logs
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Append-only record of every create, update and delete captured by database triggers, including approvals, payments and ledger entries.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Immutable Audit Trail & Activity Logs"
+        description="Append-only record of every create, update and delete captured by database triggers, including approvals, payments and ledger entries."
+      />
 
       <DataTable
         server={source}
@@ -98,10 +96,9 @@ export const AuditLogsPage: React.FC = () => {
         exportFilename="Audit_Logs"
         exportModule="audit-logs"
         filterComponent={
-          <select
+          <FilterSelect
             value={actionFilter}
             onChange={e => setActionFilter(e.target.value)}
-            className="bg-white border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer shadow-sm"
           >
             <option value="all">All Action Types</option>
             <option value="CREATE">CREATE</option>
@@ -111,7 +108,7 @@ export const AuditLogsPage: React.FC = () => {
             <option value="REJECT">REJECT</option>
             <option value="PAYMENT">PAYMENT</option>
             <option value="RECONCILE">RECONCILE</option>
-          </select>
+          </FilterSelect>
         }
       />
     </div>

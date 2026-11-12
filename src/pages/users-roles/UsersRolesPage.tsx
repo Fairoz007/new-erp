@@ -6,6 +6,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { useAuth } from '../../context/AuthContext';
 import { UsersStep } from '../setup/steps/UsersStep';
 import { RolesEditor } from '../setup/RolesEditor';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const UsersRolesPage: React.FC = () => {
   const { hasPermission, users, roles } = useAuth();
@@ -14,15 +15,15 @@ export const UsersRolesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Users & Roles</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Invite people, choose their offices and the role they hold in each, and define what every role may do.
-          </p>
-        </div>
-        {!canEdit && <Badge variant="slate">Read-only</Badge>}
-      </div>
+      <PageHeader
+        title="Users & Roles"
+        description="Invite people, choose their offices and the role they hold in each, and define what every role may do."
+        actions={
+          <>
+            {!canEdit && <Badge variant="slate">Read-only</Badge>}
+          </>
+        }
+      />
       <Tabs variant="pills" activeTab={tab} onChange={id => setTab(id as 'users' | 'roles')}
         tabs={[{ id: 'users', label: 'Users', count: users.length }, { id: 'roles', label: 'Roles & permissions', count: roles.length }]} />
       {tab === 'users' ? <UsersStep /> : <RolesEditor />}

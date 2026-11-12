@@ -9,7 +9,9 @@ import { formatDate, localToday } from '../../utils/date';
 import { useUI } from '../../context/UIContext';
 import { trialBalanceFrom } from '../../services/accounting';
 import { useTrialBalance } from '../../services/queries';
-import { exportToPDF } from '../../utils/export';
+import { downloadCsv, exportToPDF } from '../../utils/export';
+import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
@@ -51,49 +53,21 @@ export const TrialBalancePage: React.FC = () => {
   const exportCSV = () => {
     if (!ready) return;
     const headers = ['Account Code', 'Account Name', 'Category', 'Opening Debit', 'Opening Credit', 'Period Debit', 'Period Credit', 'Closing Debit', 'Closing Credit'];
-    const csvRows = [
-      headers.join(','),
-      ...filteredRows.map(r =>
-        [
-          `"${r.accountCode}"`,
-          `"${r.accountName.replace(/"/g, '""')}"`,
-          `"${r.category}"`,
-          r.openingDebit.toFixed(3),
-          r.openingCredit.toFixed(3),
-          r.periodDebit.toFixed(3),
-          r.periodCredit.toFixed(3),
-          r.closingDebit.toFixed(3),
-          r.closingCredit.toFixed(3),
-        ].join(',')
-      ),
-      [
-        '"TOTAL"',
-        '""',
-        '""',
-        shown.totalOpeningDebit.toFixed(3),
-        shown.totalOpeningCredit.toFixed(3),
-        shown.totalPeriodDebit.toFixed(3),
-        shown.totalPeriodCredit.toFixed(3),
-        shown.totalClosingDebit.toFixed(3),
-        shown.totalClosingCredit.toFixed(3),
-      ].join(','),
-    ];
-
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Trial_Balance_${asOfDate}.csv`;
-    link.click();
+    const rows: unknown[][] = filteredRows.map(r => [r.accountCode, r.accountName, r.category,
+      r.openingDebit, r.openingCredit, r.periodDebit, r.periodCredit, r.closingDebit, r.closingCredit]);
+    rows.push(['TOTAL', '', '', shown.totalOpeningDebit, shown.totalOpeningCredit, shown.totalPeriodDebit,
+      shown.totalPeriodCredit, shown.totalClosingDebit, shown.totalClosingCredit]);
+    downloadCsv(`Trial_Balance_${asOfDate}`, headers, rows, { dated: false });
   };
 
   const exportPDF = () => {
     if (!ready) return;
     const f = (n: number) => (n > 0 ? n.toFixed(3) : '-');
     const rows = filteredRows.map(r => [r.accountCode, r.accountName, r.category, f(r.openingDebit), f(r.openingCredit), f(r.periodDebit), f(r.periodCredit), f(r.closingDebit), f(r.closingCredit)]);
-    rows.push(['', 'TOTAL', '', shown.totalOpeningDebit.toFixed(3), shown.totalOpeningCredit.toFixed(3), shown.totalPeriodDebit.toFixed(3), shown.totalPeriodCredit.toFixed(3), shown.totalClosingDebit.toFixed(3), shown.totalClosingCredit.toFixed(3)]);
+    const totals = ['', 'TOTAL', '', shown.totalOpeningDebit.toFixed(3), shown.totalOpeningCredit.toFixed(3), shown.totalPeriodDebit.toFixed(3), shown.totalPeriodCredit.toFixed(3), shown.totalClosingDebit.toFixed(3), shown.totalClosingCredit.toFixed(3)];
     void exportToPDF('Trial_Balance', 'Trial Balance Statement', ['Code', 'Account', 'Category', 'Opening Dr', 'Opening Cr', 'Period Dr', 'Period Cr', 'Closing Dr', 'Closing Cr'], rows,
-      { subtitle: `As of ${asOfDate} (${currency})`, rightAlign: [3, 4, 5, 6, 7, 8] });
+      { subtitle: `As of ${asOfDate} (${currency})`, rightAlign: [3, 4, 5, 6, 7, 8], totals,
+        filters: [['Category', filterCategory === 'all' ? '' : filterCategory], ['Zero balances', hideZero ? 'hidden' : '']] });
   };
 
   const handlePrint = () => {
@@ -103,28 +77,23 @@ export const TrialBalancePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Trial Balance Statement
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Opening = account opening balances; movements = posted journal lines dated on or before the as-of date; closing = opening + movements.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <Button variant="secondary" size="md" onClick={exportCSV} leftIcon={<Download className="w-4 h-4" />}>
-            Export CSV
-          </Button>
-          <Button variant="secondary" size="md" onClick={exportPDF} leftIcon={<Download className="w-4 h-4" />}>
-            Download PDF
-          </Button>
-          <Button variant="primary" size="md" onClick={handlePrint} leftIcon={<Printer className="w-4 h-4" />}>
-            Print Statement
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Trial Balance Statement"
+        description="Opening = account opening balances; movements = posted journal lines dated on or before the as-of date; closing = opening + movements."
+        actions={
+          <>
+            <Button variant="secondary" size="md" onClick={exportCSV} leftIcon={<Download className="w-4 h-4" />}>
+              Export CSV
+            </Button>
+            <Button variant="secondary" size="md" onClick={exportPDF} leftIcon={<Download className="w-4 h-4" />}>
+              Download PDF
+            </Button>
+            <Button variant="primary" size="md" onClick={handlePrint} leftIcon={<Printer className="w-4 h-4" />}>
+              Print Statement
+            </Button>
+          </>
+        }
+      />
 
 {!ready ? <StatementLoad loading={q.loading || accountsLoading} error={q.error} onRetry={() => void q.refetch()} /> : (<>
       {/* KPI Cards */}
@@ -197,20 +166,18 @@ export const TrialBalancePage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400 font-semibold">As of Date:</span>
-              <input
+              <FilterInput
                 type="date"
                 value={asOfDate}
                 onChange={e => setAsOfDate(e.target.value)}
-                className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343]"
               />
             </div>
 
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-slate-400" />
-              <select
+              <FilterSelect
                 value={filterCategory}
                 onChange={e => setFilterCategory(e.target.value)}
-                className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-100 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
               >
                 <option value="all">All Categories</option>
                 <option value="Asset">Assets</option>
@@ -218,7 +185,7 @@ export const TrialBalancePage: React.FC = () => {
                 <option value="Equity">Equity</option>
                 <option value="Revenue">Revenue</option>
                 <option value="Expense">Expenses</option>
-              </select>
+              </FilterSelect>
             </div>
 
             <label className="flex items-center gap-2 text-xs text-slate-300 font-semibold cursor-pointer">

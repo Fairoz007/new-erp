@@ -13,6 +13,7 @@ import { useUI } from '../../context/UIContext';
 import { formatDateTime } from '../../utils/date';
 import { AccountingPeriod, closePeriod, fetchPeriods, reopenPeriod } from '../../services/ledger';
 import { tableCls, tdCls, thCls } from '../setup/shared';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -51,10 +52,7 @@ export const PeriodClosePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Period close</h1>
-        <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Close a month once its books are final. Nothing can be posted into a closed month until it is reopened.</p>
-      </div>
+      <PageHeader title="Period close" description="Close a month once its books are final. Nothing can be posted into a closed month until it is reopened." />
       <div className="flex flex-wrap gap-3 items-end">
         <div className="w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
           {offices.length === 0 && <option value="">No office available</option>}

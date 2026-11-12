@@ -11,6 +11,7 @@ import { TransferOfficeModal, TransferHistory, useCanTransfer } from '../../comp
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, getDaysDifference } from '../../utils/date';
 import { employeeGratuity } from '../../services/hr';
+import { DetailTitle } from '../../components/ui/DetailTitle';
 
 interface EmployeeDetailModalProps {
   employee: Employee | null;
@@ -50,20 +51,12 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm shrink-0 border border-purple-500/20">
-            <Users className="w-5 h-5 text-purple-700" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-100">{employee.name}</h2>
-              <StatusBadge status={employee.status} size="sm" />
-            </div>
-            <p className="text-xs text-slate-400 font-mono">
-              Code: {employee.employeeCode} • {employee.designation} ({employee.department})
-            </p>
-          </div>
-        </div>
+        <DetailTitle
+          icon={<Users className="w-5 h-5" />}
+          title={employee.name}
+          badges={<StatusBadge status={employee.status} size="sm" />}
+          meta={<>Code: {employee.employeeCode} • {employee.designation} ({employee.department})</>}
+        />
       }
       size="xl"
       footer={

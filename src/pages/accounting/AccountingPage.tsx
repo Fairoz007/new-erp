@@ -16,6 +16,7 @@ import { FinanceOverview } from './FinanceOverview';
 import { useAuth } from '../../context/AuthContext';
 import { consolidateAccounts } from '../../services/accounting';
 import { journalRegisterSource, useJournalCount, type JournalListRow } from '../../services/queries-dashboards';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 type FormLine = { id: string; accountCode: string; debit: number; credit: number; description: string };
 
@@ -188,6 +189,7 @@ export const AccountingPage: React.FC = () => {
     {
       key: 'name',
       header: 'Account Title',
+      truncate: true,
       render: (a) => (
         <div>
           <span className="font-semibold text-slate-200">{a.name}</span>
@@ -238,6 +240,7 @@ export const AccountingPage: React.FC = () => {
       key: 'description',
       sortKey: 'description',
       header: 'Description & Reference',
+      truncate: 'max-w-md',
       render: (j) => (
         <div className="max-w-md">
           <p className="font-medium text-slate-200">{j.description}</p>
@@ -301,40 +304,34 @@ export const AccountingPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Finance Control Center
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Financial position, period controls, accounts, and double-entry postings in one precise workspace.
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <Tabs
-            variant="segmented"
-            activeTab={activeTab}
-            onChange={id => setActiveTab(id as 'overview' | 'coa' | 'journal')}
-            tabs={[
-              { id: 'overview', label: 'Overview' },
-              { id: 'coa', label: 'Accounts' },
-              { id: 'journal', label: 'Journals', count: journalCount.data },
-            ]}
-          />
-
-          {hasPermission('create', 'accounting') && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={openJournalModal}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Post Journal Entry
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Finance Control Center"
+        description="Financial position, period controls, accounts, and double-entry postings in one precise workspace."
+        actions={
+          <>
+            <Tabs
+              variant="segmented"
+              activeTab={activeTab}
+              onChange={id => setActiveTab(id as 'overview' | 'coa' | 'journal')}
+              tabs={[
+                { id: 'overview', label: 'Overview' },
+                { id: 'coa', label: 'Accounts' },
+                { id: 'journal', label: 'Journals', count: journalCount.data },
+              ]}
+            />
+            {hasPermission('create', 'accounting') && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={openJournalModal}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Post Journal Entry
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {activeTab === 'overview' && <FinanceOverview />}
 

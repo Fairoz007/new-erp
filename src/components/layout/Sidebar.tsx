@@ -232,7 +232,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onClick={() => handleNavClick(item.id)}
                       title={isCollapsed ? item.label : undefined}
                       aria-current={isActive ? 'page' : undefined}
-                      className={`w-full min-h-[42px] relative flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3'} rounded-xl text-xs sm:text-[13px] transition-all group cursor-pointer ${
+                      className={`w-full min-h-[44px] lg:min-h-[42px] relative flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-3'} rounded-xl text-xs sm:text-[13px] transition-all group cursor-pointer ${
                         isActive
                           ? 'bg-white text-slate-100 font-bold shadow-2xs'
                           : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 font-medium'

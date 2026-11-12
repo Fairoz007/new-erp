@@ -12,6 +12,7 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { getVehicleFinancialSummaryFromTotals } from '../../services/fleet';
 import { useVehicleTotals } from '../../services/queries-reports';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 interface VehicleProfitabilityRow {
   vehicle: Vehicle;
@@ -153,17 +154,15 @@ export const VehicleProfitabilityPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Vehicle Profitability & ROI Intelligence
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Identify high-cost underperforming units, cost-per-kilometer metrics, and rule-based replacement vs maintenance flags (maintenance cost per KM above 0.015 / 0.025 {currency}, or operating cost above 70% of purchase value).
-          </p>
-        </div>
-        <div className="shrink-0">{vt.ui}</div>
-      </div>
+      <PageHeader
+        title="Vehicle Profitability & ROI Intelligence"
+        description={<>Identify high-cost underperforming units, cost-per-kilometer metrics, and rule-based replacement vs maintenance flags (maintenance cost per KM above 0.015 / 0.025 {currency}, or operating cost above 70% of purchase value).</>}
+        actions={
+          <>
+            <div className="shrink-0">{vt.ui}</div>
+          </>
+        }
+      />
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import * as authService from '../services/auth';
 import { purgeLegacyCaches } from '../lib/cache';
 import type { ApprovalLimit, Membership, Role, RolePermission } from '../services/auth';
+import { setReportUser } from '../lib/branding';
 
 // ---------------------------------------------------------------------------
 // Page id -> permission module (role_permissions.module). Source of truth for
@@ -141,6 +142,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User>(GUEST);
   const currentUserIdRef = useRef<string>('');
   currentUserIdRef.current = currentUser.id;
+  useEffect(() => { setReportUser(currentUser.id ? currentUser.name : ''); }, [currentUser.id, currentUser.name]);
   statusRef.current = status;
   const [users, setUsers] = useState<User[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);

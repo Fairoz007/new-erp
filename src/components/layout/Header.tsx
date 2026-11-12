@@ -39,18 +39,18 @@ const QUICK_ADD_GROUPS: { title: string; items: QuickAddItem[] }[] = [
   {
     title: 'Fleet & Workshop',
     items: [
-      { type: 'add-vehicle', label: 'Add New Vehicle', icon: Car, iconClass: 'text-[#086343]', page: 'vehicles', module: 'vehicles' },
+      { type: 'add-vehicle', label: 'Add Vehicle', icon: Car, iconClass: 'text-[#086343]', page: 'vehicles', module: 'vehicles' },
       { type: 'add-maintenance', label: 'Record Maintenance', icon: Wrench, iconClass: 'text-[#086343]', page: 'maintenance', module: 'maintenance' },
       { type: 'add-work-order', label: 'Create Work Order', icon: Wrench, iconClass: 'text-amber-500', page: 'work-orders', module: 'work-orders' },
-      { type: 'add-oil-change', label: 'Record Oil Change', icon: Droplet, iconClass: 'text-amber-500', page: 'oil-management', module: 'oil' },
+      { type: 'add-oil-change', label: 'Record Oil Service', icon: Droplet, iconClass: 'text-amber-500', page: 'oil-management', module: 'oil' },
       { type: 'add-accident', label: 'Report Accident', icon: AlertTriangle, iconClass: 'text-rose-500', page: 'accidents', module: 'accidents' },
     ],
   },
   {
     title: 'Finance & Docs',
     items: [
-      { type: 'add-expense', label: 'Add Vehicle Expense', icon: Receipt, iconClass: 'text-[#086343]', page: 'expenses', module: 'expenses' },
-      { type: 'add-invoice', label: 'Create New Invoice', icon: FileText, iconClass: 'text-[#086343]', page: 'invoices', module: 'invoices' },
+      { type: 'add-expense', label: 'Add Expense', icon: Receipt, iconClass: 'text-[#086343]', page: 'expenses', module: 'expenses' },
+      { type: 'add-invoice', label: 'Create Invoice', icon: FileText, iconClass: 'text-[#086343]', page: 'invoices', module: 'invoices' },
       { type: 'upload-document', label: 'Upload Document', icon: Upload, iconClass: 'text-blue-500', page: 'documents', module: 'documents' },
     ],
   },

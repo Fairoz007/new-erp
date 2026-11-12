@@ -13,6 +13,8 @@ import { useAuth } from '../../context/AuthContext';
 import { VehiclePhoto, useVehiclePhotoUrls } from './VehiclePhoto';
 import { VehicleEditModal } from './VehicleEditModal';
 import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const VehiclesPage: React.FC = () => {
   const { vehicles, selectedCompanyId, currency, updateVehicle } = useFleet();
@@ -145,29 +147,24 @@ export const VehiclesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Vehicles Fleet Master Database
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Manage company vehicles, operational assignments, mileage records, financial summaries, and life cycles.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {canCreate && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => openQuickModal('add-vehicle')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Add New Vehicle
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Vehicles Fleet Master Database"
+        description="Manage company vehicles, operational assignments, mileage records, financial summaries, and life cycles."
+        actions={
+          <>
+            {canCreate && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-vehicle')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Add Vehicle
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Fleet Table */}
       <DataTable
@@ -187,10 +184,9 @@ export const VehiclesPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
           <div className="flex items-center gap-1.5">
-            <select
+            <FilterSelect
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Fleet Statuses</option>
               <option value="Active">Active Only</option>
@@ -200,7 +196,7 @@ export const VehiclesPage: React.FC = () => {
               <option value="Reserved">Reserved</option>
               <option value="Sold">Sold</option>
               <option value="Scrapped">Scrapped</option>
-            </select>
+            </FilterSelect>
           </div>
           </div>
         }

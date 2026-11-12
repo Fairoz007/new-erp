@@ -18,6 +18,8 @@ import {
   ATTENDANCE_STATUSES, Attendance, AttendanceInput, AttendanceStatus, deleteAttendance, fetchAttendance, saveAttendance, validateAttendance,
 } from '../../services/hrops';
 import type { Employee } from '../../types/hr';
+import { downloadCsv } from '../../utils/export';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const shiftDay = (d: string, n: number) => { const x = new Date(`${d}T00:00:00`); x.setDate(x.getDate() + n); return x.toLocaleDateString('en-CA'); };
 const monthRange = (d: string) => {
@@ -57,13 +59,15 @@ export const AttendancePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Attendance</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Daily attendance and overtime. Approved leave is filled in automatically; overtime and absences feed payroll.</p>
-        </div>
-        {canEdit && <Button size="sm" variant="outline" className="rounded-full" leftIcon={<Upload className="w-4 h-4" />} onClick={() => setImporting(true)}>Import CSV</Button>}
-      </div>
+      <PageHeader
+        title="Attendance"
+        description="Daily attendance and overtime. Approved leave is filled in automatically; overtime and absences feed payroll."
+        actions={
+          <>
+            {canEdit && <Button size="md" variant="outline" leftIcon={<Upload className="w-4 h-4" />} onClick={() => setImporting(true)}>Import CSV</Button>}
+          </>
+        }
+      />
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-56">
           <Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
@@ -205,13 +209,8 @@ const MonthSummary: React.FC<{ staff: Employee[]; rows: Attendance[]; label: str
     const mine = byEmployee.get(id) ?? [];
     return { by: Object.fromEntries(cols.map(c => [c, mine.filter(r => r.status === c).length])) as Record<AttendanceStatus, number>, ot: mine.reduce((t, r) => t + r.overtimeHours, 0), n: mine.length };
   };
-  const exportCsv = () => {
-    const lines = [['employee_code', 'name', ...cols, 'overtime_hours'].join(',')];
-    for (const e of staff) { const s = sum(e.id); lines.push([e.employeeCode, `"${e.name.replace(/"/g, '""')}"`, ...cols.map(c => s.by[c]), s.ot].join(',')); }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
-    a.download = `Attendance_${label.replace(/\s+/g, '_')}.csv`; a.click(); URL.revokeObjectURL(a.href);
-  };
+  const exportCsv = () => downloadCsv(`Attendance_${label.replace(/\s+/g, '_')}`, ['employee_code', 'name', ...cols, 'overtime_hours'],
+    staff.map(e => { const s = sum(e.id); return [e.employeeCode, e.name, ...cols.map(c => s.by[c]), s.ot]; }), { dated: false });
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/40">
       <div className="flex items-center justify-between p-3 border-b border-slate-700">

@@ -19,6 +19,7 @@ import {
   createBankStatement, deleteBankStatement, deleteStatementLine, fetchBankStatements, fetchBookLines, fetchStatementLines,
   matchStatementLine, validateStatementLine,
 } from '../../services/ledger';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const BankReconciliationPage: React.FC = () => {
   const { bankAccounts, selectedCompanyId, currency } = useFleet();
@@ -41,13 +42,15 @@ export const BankReconciliationPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Bank reconciliation</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Match bank statement lines to the ledger, book what is missing, then lock the statement.</p>
-        </div>
-        {bank && hasPermission('create', 'reconciliation', bank.companyId) && <Button size="sm" className="rounded-full" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreating(true)}>New statement</Button>}
-      </div>
+      <PageHeader
+        title="Bank reconciliation"
+        description="Match bank statement lines to the ledger, book what is missing, then lock the statement."
+        actions={
+          <>
+            {bank && hasPermission('create', 'reconciliation', bank.companyId) && <Button size="md" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreating(true)}>New statement</Button>}
+          </>
+        }
+      />
       <div className="w-80">
         <Select label="Bank account" value={bankId} onChange={e => { setBankId(e.target.value); setOpenId(null); }}>
           {banks.length === 0 && <option value="">No bank account you can reconcile</option>}

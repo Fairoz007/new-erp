@@ -15,6 +15,8 @@ const PATTERNS = [
   ['Slack token', /\bxox[baprs]-[0-9A-Za-z-]{10,}/],
   ['Google API key', /\bAIza[0-9A-Za-z_-]{35}\b/],
   ['Supabase secret key', /\bsb_secret_[0-9A-Za-z_-]{20,}/],
+  // a password written into code, e.g. const DEMO_PASSWORD = '…' or password: '…' (tests read theirs from the environment)
+  ['hard-coded password', /\b[A-Z_]*PASSWORD[A-Z_]*\s*[:=]\s*['"`][^'"`\s$]{8,}['"`]/],
   ['Postgres URL with password', /postgres(ql)?:\/\/[^:\s/]+:[^@\s/]{6,}@[^\s'"]+/],
 ];
 // JWTs: allowed only when their role is anon (public client key)

@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useFleet } from '../context/FleetContext';
 import { useVehicleTypes } from './useVehicleTypes';
+import { FilterSelect } from '../components/ui/FilterControls';
 
 export function useVehicleTypeFilter() {
   const { vehicles } = useFleet();
@@ -11,11 +12,10 @@ export function useVehicleTypeFilter() {
   const typeOf = useMemo(() => new Map(vehicles.map(v => [v.id, v.vehicleType])), [vehicles]);
   const matches = (vehicleId?: string | null) => typeName === 'all' || (!!vehicleId && typeOf.get(vehicleId) === typeName);
   const ui = (
-    <select aria-label="Vehicle type" value={typeName} onChange={e => setTypeName(e.target.value)}
-      className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer">
+    <FilterSelect aria-label="Vehicle type" value={typeName} onChange={e => setTypeName(e.target.value)}>
       <option value="all">All vehicle types</option>
       {types.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-    </select>
+    </FilterSelect>
   );
   return { typeName, matches, ui };
 }

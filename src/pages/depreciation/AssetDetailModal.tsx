@@ -11,6 +11,8 @@ import { formatDate, localToday } from '../../utils/date';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { disposeFixedAsset } from '../../services/ledger';
 import { RecordSelect, bankOption } from '../../components/ui/RecordSelect';
+import { DetailTitle } from '../../components/ui/DetailTitle';
+import { Badge } from '../../components/ui/Badge';
 
 interface AssetDetailModalProps {
   asset: FixedAsset | null;
@@ -64,30 +66,16 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-forest-100 text-forest-700 flex items-center justify-center font-bold text-sm shrink-0 border border-forest-500/20">
-            <Sparkles className="w-5 h-5 text-forest-700" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-100">{asset.name}</h2>
-              <span
-                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  asset.status === 'Active'
-                    ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800'
-                    : asset.status === 'Fully Depreciated'
-                    ? 'bg-amber-950/70 text-amber-300 border border-amber-800'
-                    : 'bg-rose-950/70 text-rose-300 border border-rose-800'
-                }`}
-              >
-                {asset.status}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 font-mono">
-              Asset Tag: {asset.assetCode} • {asset.category}
-            </p>
-          </div>
-        </div>
+        <DetailTitle
+          icon={<Sparkles className="w-5 h-5" />}
+          title={asset.name}
+          badges={
+            <Badge size="sm" variant={asset.status === 'Active' ? 'emerald' : asset.status === 'Fully Depreciated' ? 'amber' : 'rose'}>
+              {asset.status}
+            </Badge>
+          }
+          meta={<>Asset Tag: {asset.assetCode} • {asset.category}</>}
+        />
       }
       size="xl"
       footer={

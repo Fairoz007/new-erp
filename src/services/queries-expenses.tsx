@@ -14,6 +14,7 @@ import { useQuery } from '../lib/queryCache';
 import { runPage, type ListPage, type ServerSource } from '../lib/serverList';
 import type { Payment } from '../types/finance';
 import type { VehicleExpense } from '../types/operations';
+import { FilterInput, FilterSelect } from '../components/ui/FilterControls';
 
 type Row = Record<string, any>;
 const db = supabase as any;
@@ -95,27 +96,26 @@ export function useServerCustomFieldFilter(defs: FieldDefinition[]) {
     ? { key: def.key, type: def.fieldType, value: debValue, to: debTo }
     : undefined;
 
-  const cls = 'h-9 rounded-full border border-slate-700 bg-white px-3 text-xs text-slate-100';
   const ui = filterable.length === 0 ? null : (
     <div className="flex flex-wrap items-center gap-2">
-      <select aria-label="Filter by custom field" className={cls} value={fieldKey} onChange={e => { setFieldKey(e.target.value); setValue(''); setTo(''); }}>
+      <FilterSelect aria-label="Filter by custom field" value={fieldKey} onChange={e => { setFieldKey(e.target.value); setValue(''); setTo(''); }}>
         <option value="">Filter by field…</option>
         {filterable.map(d => <option key={d.id} value={d.key}>{d.label}</option>)}
-      </select>
+      </FilterSelect>
       {def && (def.fieldType === 'dropdown' || def.fieldType === 'boolean') && (
-        <select aria-label={def.label} className={cls} value={value} onChange={e => setValue(e.target.value)}>
+        <FilterSelect aria-label={def.label} value={value} onChange={e => setValue(e.target.value)}>
           <option value="">Any</option>
           {(def.fieldType === 'boolean' ? ['yes', 'no'] : def.options).map(o => <option key={o} value={o}>{def.fieldType === 'boolean' ? (o === 'yes' ? 'Yes' : 'No') : o}</option>)}
-        </select>
+        </FilterSelect>
       )}
       {def && (def.fieldType === 'number' || def.fieldType === 'date') && (
         <>
-          <input aria-label={`${def.label} from`} className={cls} type={def.fieldType} value={value} onChange={e => setValue(e.target.value)} placeholder="From" />
-          <input aria-label={`${def.label} to`} className={cls} type={def.fieldType} value={to} onChange={e => setTo(e.target.value)} placeholder="To" />
+          <FilterInput aria-label={`${def.label} from`} type={def.fieldType} value={value} onChange={e => setValue(e.target.value)} placeholder="From" />
+          <FilterInput aria-label={`${def.label} to`} type={def.fieldType} value={to} onChange={e => setTo(e.target.value)} placeholder="To" />
         </>
       )}
       {def && def.fieldType === 'text' && (
-        <input aria-label={def.label} className={cls} value={value} onChange={e => setValue(e.target.value)} placeholder="Contains…" />
+        <FilterInput aria-label={def.label} value={value} onChange={e => setValue(e.target.value)} placeholder="Contains…" />
       )}
       {def && (value !== '' || to !== '') && (
         <button type="button" className="text-xs text-slate-400 hover:underline" onClick={() => { setValue(''); setTo(''); }}>Clear</button>

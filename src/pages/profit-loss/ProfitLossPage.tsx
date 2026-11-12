@@ -8,6 +8,8 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate, todayYmd } from '../../utils/date';
 import { profitLossFrom } from '../../services/accounting';
 import { useProfitLoss } from '../../services/queries';
+import { FilterInput } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
@@ -38,30 +40,25 @@ export const ProfitLossPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Profit & Loss Statement (Income Statement)
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Posted revenue and expense movements for the selected period, grouped by account category.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Calendar className="w-4 h-4" />
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} aria-label="Start date"
-              className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-100" />
-            <span>to</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} aria-label="End date"
-              className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-100" />
-          </div>
-          <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-            Print Statement
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Profit & Loss Statement (Income Statement)"
+        description="Posted revenue and expense movements for the selected period, grouped by account category."
+        actions={
+          <>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Calendar className="w-4 h-4" />
+              <FilterInput type="date" value={startDate} onChange={e => setStartDate(e.target.value)} aria-label="Start date"
+                 />
+              <span>to</span>
+              <FilterInput type="date" value={endDate} onChange={e => setEndDate(e.target.value)} aria-label="End date"
+                 />
+            </div>
+            <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
+              Print Statement
+            </Button>
+          </>
+        }
+      />
 
 {!ready ? <StatementLoad loading={q.loading || accountsLoading} error={q.error} onRetry={() => void q.refetch()} /> : (<>
       {/* KPI Cards */}

@@ -10,6 +10,7 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency, calculateDepreciationSchedule, calculateCurrentBookValue } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const DepreciationPage: React.FC = () => {
   const { vehicles: allVehicles, currency, selectedCompanyId } = useFleet();
@@ -105,16 +106,10 @@ export const DepreciationPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Vehicle Asset Depreciation Engine
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Estimated vehicle book values calculated from each vehicle's purchase and depreciation settings. These figures are not posted to the ledger: posted depreciation lives in Fixed Assets (run_depreciation).
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Vehicle Asset Depreciation Engine"
+        description="Estimated vehicle book values calculated from each vehicle's purchase and depreciation settings. These figures are not posted to the ledger: posted depreciation lives in Fixed Assets (run_depreciation)."
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

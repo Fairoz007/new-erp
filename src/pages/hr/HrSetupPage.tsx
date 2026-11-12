@@ -12,6 +12,7 @@ import * as org from '../../services/org';
 import type { Department, Designation, LeaveType, PayComponent } from '../../services/org';
 import { MasterEditor } from '../setup/MasterEditor';
 import { NoticeBar, Section, errText, useMaster, useNotice } from '../setup/shared';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const HrSetupPage: React.FC = () => {
   const { hasPermission } = useAuth();
@@ -23,10 +24,7 @@ export const HrSetupPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">HR setup</h1>
-        <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Lists and rules used by employees, leave and payroll in every office.</p>
-      </div>
+      <PageHeader title="HR setup" description="Lists and rules used by employees, leave and payroll in every office." />
       <Tabs variant="pills" className="overflow-x-auto" activeTab={tab} onChange={setTab}
         tabs={[{ id: 'departments', label: 'Departments' }, { id: 'designations', label: 'Designations' }, { id: 'leave', label: 'Leave types' },
           { id: 'pay', label: 'Allowances & deductions' }, { id: 'rules', label: 'Payroll rules' }]} />

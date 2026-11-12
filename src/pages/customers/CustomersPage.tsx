@@ -20,6 +20,8 @@ import { PartySharingModal } from '../../components/common/PartySharingModal';
 import { TransferOfficeModal } from '../../components/common/TransferOfficeModal';
 import { ArrowRightLeft, Share2 } from 'lucide-react';
 import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const CustomersPage: React.FC = () => {
   const { customers: allCustomers, currency, updateCustomer, companies, selectedCompanyId } = useFleet();
@@ -67,6 +69,7 @@ export const CustomersPage: React.FC = () => {
     {
       key: 'name',
       header: 'Customer / Client',
+      truncate: true,
       render: (c) => (
         <div className="cursor-pointer group" onClick={() => openPartyDetail('customer', c.id)}>
           <span className="font-bold text-slate-100 group-hover:text-forest-400 transition-colors">{c.name}</span>
@@ -94,6 +97,7 @@ export const CustomersPage: React.FC = () => {
     {
       key: 'contact',
       header: 'Contact Person & Phone',
+      truncate: true,
       render: (c) => (
         <div>
           <p className="text-slate-200">{c.contactPerson}</p>
@@ -190,49 +194,42 @@ export const CustomersPage: React.FC = () => {
   const pendingCount = customers.filter(p => p.registration.status === 'Pending').length;
   const officeCode = (id: string) => companies.find(o => o.id === id)?.code ?? '';
   const regSelect = (
-    <select aria-label="Registration status" value={regFilter} onChange={e => setRegFilter(e.target.value as typeof regFilter)}
-      className="h-9 rounded-full border border-slate-700 bg-white px-3 text-xs text-slate-200">
+    <FilterSelect aria-label="Registration status" value={regFilter} onChange={e => setRegFilter(e.target.value as typeof regFilter)}>
       <option value="all">All registrations</option>
       <option value="Pending">Awaiting approval</option>
       <option value="Approved">Approved</option>
       <option value="Rejected">Rejected</option>
-    </select>
+    </FilterSelect>
   );
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Customer Accounts & Client Directory
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Commercial fleet clients, contract terms, credit limits and accounts receivable (AR).
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={() => exportPartiesCsv('customer', cfRows, cfList.defs, officeCode)}
-            leftIcon={<Download className="w-4 h-4" />}>Export all fields</Button>
-          {canImport && (
-            <Button variant="outline" size="sm" className="rounded-full" onClick={() => setImporting(true)} leftIcon={<Upload className="w-4 h-4" />}>
-              Import CSV
-            </Button>
-          )}
-          {canCreate && (
-            <Button
-              variant="primary"
-              size="sm"
-              className="rounded-full shadow-sm"
-              onClick={() => openQuickModal('add-customer')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Add Customer
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Customer Accounts & Client Directory"
+        description="Commercial fleet clients, contract terms, credit limits and accounts receivable (AR)."
+        actions={
+          <>
+            <Button variant="outline" size="md" onClick={() => exportPartiesCsv('customer', cfRows, cfList.defs, officeCode)}
+              leftIcon={<Download className="w-4 h-4" />}>Export all fields</Button>
+            {canImport && (
+              <Button variant="outline" size="md" onClick={() => setImporting(true)} leftIcon={<Upload className="w-4 h-4" />}>
+                Import CSV
+              </Button>
+            )}
+            {canCreate && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-customer')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Add Customer
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {pendingCount > 0 && (
         <button type="button" onClick={() => setRegFilter('Pending')}

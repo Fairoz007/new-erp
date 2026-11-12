@@ -3,6 +3,7 @@ import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Plus, CheckCircle2, Eye } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { Tabs } from '../../components/ui/Tabs';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { WorkOrder, WorkOrderStatus } from '../../types/maintenance';
 import { useFleet } from '../../context/FleetContext';
@@ -11,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { WorkOrderDetailModal } from './WorkOrderDetailModal';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const WorkOrdersPage: React.FC = () => {
   const { workOrders, updateWorkOrderStatus, selectedCompanyId, currency } = useFleet();
@@ -83,75 +85,51 @@ export const WorkOrdersPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Maintenance Work Orders
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Dispatch, track workshop jobs, approve multi-tier repair estimates, and mark completed jobs to generate their maintenance record.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-3.5 py-1.5 text-xs rounded-full font-bold cursor-pointer transition-all ${
-                viewMode === 'list' ? 'bg-white text-slate-100 shadow-2xs' : 'text-slate-400 hover:text-slate-100'
-              }`}
-            >
-              List View
-            </button>
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`px-3.5 py-1.5 text-xs rounded-full font-bold cursor-pointer transition-all ${
-                viewMode === 'kanban' ? 'bg-white text-slate-100 shadow-2xs' : 'text-slate-400 hover:text-slate-100'
-              }`}
-            >
-              Kanban Board
-            </button>
-          </div>
-
-          {canCreate && (
-            <Button
-              variant="primary"
-              size="sm"
-              className="rounded-full shadow-sm"
-              onClick={() => openQuickModal('add-work-order')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              New Work Order
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Maintenance Work Orders"
+        description="Dispatch, track workshop jobs, approve multi-tier repair estimates, and mark completed jobs to generate their maintenance record."
+        actions={
+          <>
+            <Tabs
+              variant="segmented"
+              activeTab={viewMode}
+              onChange={id => setViewMode(id as 'list' | 'kanban')}
+              tabs={[{ id: 'list', label: 'List View' }, { id: 'kanban', label: 'Kanban Board' }]}
+            />
+            {canCreate && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-work-order')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Create Work Order
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-700 rounded-2xl shadow-card text-xs">
         <span className="text-slate-400 font-semibold px-1">Filter View:</span>
-        {[
-          { id: 'open', label: 'Open Jobs' },
-          { id: 'all', label: 'All Jobs' },
-          { id: 'Requested', label: 'Requested' },
-          { id: 'Approved', label: 'Approved' },
-          { id: 'In Progress', label: 'In Workshop' },
-          { id: 'Waiting for Parts', label: 'Waiting for Parts' },
-          { id: 'Completed', label: 'Completed' },
-          { id: 'Cancelled', label: 'Cancelled' },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => { setStatusFilter(tab.id); setShown(40); }}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              statusFilter === tab.id
-                ? 'bg-[#086343] text-white shadow-2xs'
-                : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <Tabs
+          variant="pills"
+          ariaLabel="Work order status"
+          className="pb-0 min-w-0 max-w-full"
+          activeTab={statusFilter}
+          onChange={id => { setStatusFilter(id); setShown(40); }}
+          tabs={[
+            { id: 'open', label: 'Open Jobs' },
+            { id: 'all', label: 'All Jobs' },
+            { id: 'Requested', label: 'Requested' },
+            { id: 'Approved', label: 'Approved' },
+            { id: 'In Progress', label: 'In Workshop' },
+            { id: 'Waiting for Parts', label: 'Waiting for Parts' },
+            { id: 'Completed', label: 'Completed' },
+            { id: 'Cancelled', label: 'Cancelled' },
+          ]}
+        />
         <span className="ml-auto">{vt.ui}</span>
       </div>
 
@@ -172,7 +150,7 @@ export const WorkOrdersPage: React.FC = () => {
               className="p-5 rounded-2xl bg-white border border-slate-700 hover:border-forest-500/40 shadow-card transition-all"
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-2 flex-1 cursor-pointer" onClick={() => setViewingOrder(wo)}>
+                <div className="space-y-2 flex-1 min-w-0 cursor-pointer" onClick={() => setViewingOrder(wo)}>
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="font-mono font-bold text-sm text-slate-100 hover:text-forest-400 transition-colors">
                       {wo.workOrderNumber}
@@ -197,7 +175,7 @@ export const WorkOrdersPage: React.FC = () => {
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-300 leading-relaxed font-semibold">{wo.problemDescription}</p>
+                  <p className="text-xs text-slate-300 leading-relaxed font-semibold break-words">{wo.problemDescription}</p>
 
                   <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-400 font-medium">
                     <span>Workshop: <strong className="text-slate-200">{wo.workshop}</strong></span>

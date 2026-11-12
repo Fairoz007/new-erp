@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 @layer base {
+  /* Right-aligned table cells hold amounts, quantities and counts: equal-width digits so columns line up. */
+  th.text-right,
+  td.text-right {
+    font-variant-numeric: tabular-nums;
+  }
   body {
     @apply antialiased font-sans;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";

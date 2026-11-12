@@ -18,6 +18,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useCustomFields, withCustomColumns } from '../../hooks/useCustomFields';
 import { expenseSource, useExpenseSummary, type ExpenseFilter } from '../../services/queries';
 import { useExpensePageFigures, useOpenExpense, useServerCustomFieldFilter } from '../../services/queries-expenses';
+import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 
 const mimeOf = (name: string): string => {
@@ -128,6 +130,7 @@ export const ExpensesPage: React.FC = () => {
       key: 'description',
       sortKey: 'description',
       header: 'Description',
+      truncate: 'max-w-md',
       render: (e) => (
         <div className="max-w-md">
           <p className="text-slate-200 font-medium line-clamp-1">{e.description}</p>
@@ -197,29 +200,24 @@ export const ExpensesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Expenses
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Office, vehicle and staff expenses with receipts. Expenses within your limit post to the ledger when submitted; larger ones go to Approvals.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {canCreate && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => openQuickModal('add-expense')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Add Expense
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Expenses"
+        description="Office, vehicle and staff expenses with receipts. Expenses within your limit post to the ledger when submitted; larger ones go to Approvals."
+        actions={
+          <>
+            {canCreate && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-expense')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Add Expense
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -284,21 +282,19 @@ export const ExpensesPage: React.FC = () => {
         exportFilename="Expenses_Register"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <FilterSelect
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Expense Categories</option>
               {categoryNames.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </select>
-            <select
+            </FilterSelect>
+            <FilterSelect
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               aria-label="Status"
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All statuses</option>
               <option value="Draft">Draft</option>
@@ -306,27 +302,25 @@ export const ExpensesPage: React.FC = () => {
               <option value="Approved">Approved</option>
               <option value="unpaid">Approved, not paid</option>
               <option value="Rejected">Rejected</option>
-            </select>
-            <select
+            </FilterSelect>
+            <FilterSelect
               value={receiptFilter}
               onChange={e => setReceiptFilter(e.target.value)}
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Vouchers</option>
               <option value="with-receipt">With Attached Bill Scan</option>
               <option value="no-receipt">Without Receipt</option>
-            </select>
-            <select
+            </FilterSelect>
+            <FilterSelect
               value={vehicleFilter}
               onChange={e => setVehicleFilter(e.target.value)}
               aria-label="Vehicle"
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Vehicles</option>
               {scopedVehicles.map(v => <option key={v.id} value={v.id}>{v.plateNumber}</option>)}
-            </select>
-            <input aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
-            <input aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200" />
+            </FilterSelect>
+            <FilterInput aria-label="From date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}  />
+            <FilterInput aria-label="To date" type="date" value={toDate} onChange={e => setToDate(e.target.value)}  />
           </div>
         }
       />

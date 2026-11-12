@@ -11,6 +11,8 @@ import { PaymentDetailModal } from './PaymentDetailModal';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { paymentListSource, usePaymentTotals, type PaymentListFilter } from '../../services/queries-expenses';
+import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const PaymentsPage: React.FC = () => {
   const { bankAccounts, currency, selectedCompanyId } = useFleet();
@@ -95,6 +97,7 @@ export const PaymentsPage: React.FC = () => {
       key: 'party',
       sortKey: 'party_name',
       header: 'Beneficiary / Customer',
+      truncate: true,
       render: (p) => (
         <div>
           <span className="font-bold text-slate-200">{p.partyName}</span>
@@ -156,30 +159,24 @@ export const PaymentsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Payments & Disbursals Register
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Accounts Payable disbursals, customer collections, and real-time bank reconciliation statements.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {canCreate && (
-            <Button
-              variant="primary"
-              size="sm"
-              className="rounded-full shadow-sm"
-              onClick={() => openQuickModal('add-payment')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Record Payment
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Payments & Disbursals Register"
+        description="Accounts Payable disbursals, customer collections, and real-time bank reconciliation statements."
+        actions={
+          <>
+            {canCreate && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => openQuickModal('add-payment')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Record Payment
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -211,61 +208,6 @@ export const PaymentsPage: React.FC = () => {
         </p>
       )}
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-700 rounded-2xl shadow-card text-xs">
-        <span className="text-slate-400 font-semibold px-1">Filter by:</span>
-        <select
-          value={methodFilter}
-          onChange={e => setMethodFilter(e.target.value)}
-          className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer"
-        >
-          <option value="all">All Methods</option>
-          {methods.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select
-          value={bankFilter}
-          onChange={e => setBankFilter(e.target.value)}
-          className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer"
-        >
-          <option value="all">All Bank Accounts</option>
-          {scopedBanks.map(b => <option key={b.id} value={b.id}>{b.bankName} - {b.accountName}</option>)}
-        </select>
-        <select
-          value={partyFilter}
-          onChange={e => setPartyFilter(e.target.value)}
-          className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer"
-        >
-          <option value="all">All Parties</option>
-          <option value="Supplier">Suppliers (AP)</option>
-          <option value="Customer">Customers (AR)</option>
-        </select>
-        <div className="flex items-center gap-1.5">
-          <input
-            type="date"
-            value={fromDate}
-            onChange={e => setFromDate(e.target.value)}
-            className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20"
-            title="From date"
-          />
-          <span className="text-slate-500">to</span>
-          <input
-            type="date"
-            value={toDate}
-            onChange={e => setToDate(e.target.value)}
-            className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-forest-500/20"
-            title="To date"
-          />
-        </div>
-        {filtersActive && (
-          <button
-            onClick={() => { setMethodFilter('all'); setBankFilter('all'); setPartyFilter('all'); setFromDate(''); setToDate(''); }}
-            className="text-xs font-bold text-[#086343] hover:underline cursor-pointer ml-auto px-2"
-          >
-            Reset Filters
-          </button>
-        )}
-      </div>
-
       {/* Payments Table */}
       <DataTable
         server={source}
@@ -274,6 +216,37 @@ export const PaymentsPage: React.FC = () => {
         title="Transaction Records"
         searchPlaceholder="Search payments by reference, invoice #, party, cheque #..."
         exportFilename="Payments_Register"
+        filterComponent={
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterSelect aria-label="Payment method" value={methodFilter} onChange={e => setMethodFilter(e.target.value)}>
+              <option value="all">All Methods</option>
+              {methods.map(m => <option key={m} value={m}>{m}</option>)}
+            </FilterSelect>
+            <FilterSelect aria-label="Bank account" value={bankFilter} onChange={e => setBankFilter(e.target.value)}>
+              <option value="all">All Bank Accounts</option>
+              {scopedBanks.map(b => <option key={b.id} value={b.id}>{b.bankName} - {b.accountName}</option>)}
+            </FilterSelect>
+            <FilterSelect aria-label="Party type" value={partyFilter} onChange={e => setPartyFilter(e.target.value)}>
+              <option value="all">All Parties</option>
+              <option value="Supplier">Suppliers (AP)</option>
+              <option value="Customer">Customers (AR)</option>
+            </FilterSelect>
+            <div className="flex items-center gap-1.5">
+              <FilterInput type="date" aria-label="From date" title="From date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
+              <span className="text-xs text-slate-500">to</span>
+              <FilterInput type="date" aria-label="To date" title="To date" value={toDate} onChange={e => setToDate(e.target.value)} />
+            </div>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={() => { setMethodFilter('all'); setBankFilter('all'); setPartyFilter('all'); setFromDate(''); setToDate(''); }}
+                className="text-xs font-bold text-[#086343] hover:underline cursor-pointer px-2"
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
+        }
       />
 
       <PaymentDetailModal

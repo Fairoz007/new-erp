@@ -67,3 +67,25 @@ summary lists every step that could not be undone; leftovers are identifiable by
 
 The approval rule exists only for the duration of the run, but while it exists it affects any
 maintenance work order of 7777 OMR or more created by someone else. Run on a quiet dev project.
+
+---
+
+# Browser suite (Playwright + axe)
+
+`npm run test:browser` runs `e2e/browser/*.spec.ts` at desktop (1280 px) and phone (375 px) width.
+
+| Spec | Runs | Checks |
+|---|---|---|
+| `signed-out.spec.ts` | always (locally it builds the app against an unreachable placeholder database) | sign-in page: axe WCAG 2.1 AA with no serious or critical issues, no horizontal scroll, Tab order, 44 px touch targets at 375 px, no endless animation with reduced motion |
+| `roles.spec.ts` | only with the staging variables below | signs in once per role and opens every page in that role's sidebar: axe, no horizontal scroll, 44 px touch targets at 375 px, no uncaught errors |
+
+Staging variables (environment or CI secrets only, never in a file):
+
+| Variable | Value |
+|---|---|
+| `E2E_BASE_URL` | URL of the staging deploy of this app |
+| `E2E_CONFIRM` | the staging project ref; the run stops if the app calls any other Supabase project, and it refuses `fpeniljpqigpeqtsgizr` |
+| `E2E_USERS` | `{"Super Admin": {"email": "…", "password": "…"}, "Accountant": {…}, …}` one test user per role |
+
+First run on a machine: `npx playwright install chromium`. In CI the suite is the manual
+`browser` job of `.github/workflows/ci.yml` (Actions → CI → Run workflow).

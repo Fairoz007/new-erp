@@ -9,6 +9,7 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { DetailTitle } from '../../components/ui/DetailTitle';
 
 interface WorkOrderDetailModalProps {
   order: WorkOrder | null;
@@ -46,23 +47,19 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-sm shrink-0 border border-amber-500/20">
-            <ClipboardList className="w-5 h-5 text-amber-500" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-slate-100">Work Order: {order.workOrderNumber}</h2>
+        <DetailTitle
+          icon={<ClipboardList className="w-5 h-5" />}
+          title={<>Work Order: {order.workOrderNumber}</>}
+          badges={
+            <>
               <StatusBadge status={order.status} size="sm" />
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${priorityStyles[order.priority]}`}>
                 {order.priority}
               </span>
-            </div>
-            <p className="text-xs text-slate-400 font-mono">
-              Vehicle: {order.vehiclePlate || vehicle?.plateNumber || 'Not specified'} • Reported on {formatDate(order.reportedDate)}
-            </p>
-          </div>
-        </div>
+            </>
+          }
+          meta={<>Vehicle: {order.vehiclePlate || vehicle?.plateNumber || 'Not specified'} • Reported on {formatDate(order.reportedDate)}</>}
+        />
       }
       size="xl"
       footer={

@@ -9,6 +9,8 @@ import { useAuth } from '../../context/AuthContext';
 import { formatDateTime } from '../../utils/date';
 import { useNotificationFeed, useNotificationCounts } from '../../services/queries-system';
 import type { NotificationItem } from '../../types/system';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Tabs } from '../../components/ui/Tabs';
 
 export const NotificationsPage: React.FC = () => {
   // refreshExpiryNotifications: new FleetContext function (wraps services/system.refreshExpiryNotifications, affects ['notifications'])
@@ -70,68 +72,42 @@ export const NotificationsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Alerts & Notifications Center
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            System generated alerts for approvals, expiring registrations, insurance and documents, and overdue invoices.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {canRefresh && (
-            <Button variant="secondary" size="sm" className="rounded-full" onClick={handleRefresh} disabled={busy}>
-              Refresh expiry alerts
+      <PageHeader
+        title="Alerts & Notifications Center"
+        description="System generated alerts for approvals, expiring registrations, insurance and documents, and overdue invoices."
+        actions={
+          <>
+            {canRefresh && (
+              <Button variant="secondary" size="md" onClick={handleRefresh} disabled={busy}>
+                Refresh expiry alerts
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="md"
+              disabled={busy || c.unread === 0}
+              onClick={handleMarkAll}
+              leftIcon={<CheckCheck className="w-4 h-4 text-forest-500" />}
+            >
+              Mark All as Read
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            disabled={busy || c.unread === 0}
-            onClick={handleMarkAll}
-            leftIcon={<CheckCheck className="w-4 h-4 text-forest-500" />}
-          >
-            Mark All as Read
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Segmented Filter Tabs */}
-      <div className="inline-flex items-center gap-1.5 p-1 bg-slate-850 border border-slate-700 rounded-full">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-            filter === 'all'
-              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          All ({c.total})
-        </button>
-        <button
-          onClick={() => setFilter('unread')}
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-            filter === 'unread'
-              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Unread ({c.unread})
-        </button>
-        <button
-          onClick={() => setFilter('critical')}
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all ${
-            filter === 'critical'
-              ? 'bg-white text-forest-600 shadow-sm border border-slate-700/60'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Critical ({c.critical})
-        </button>
-      </div>
+      <Tabs
+        variant="segmented"
+        className="w-fit"
+        ariaLabel="Notification filter"
+        activeTab={filter}
+        onChange={id => setFilter(id as typeof filter)}
+        tabs={[
+          { id: 'all', label: 'All', count: c.total },
+          { id: 'unread', label: 'Unread', count: c.unread },
+          { id: 'critical', label: 'Critical', count: c.critical },
+        ]}
+      />
 
       {/* Notifications List */}
       <div className="space-y-3">

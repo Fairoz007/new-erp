@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { readdirSync } from 'fs';
 
 /**
  * Content-Security-Policy for production builds, as a <meta> tag (the app is static files, so
@@ -36,7 +37,12 @@ function cspPlugin(supabaseUrl: string | undefined): Plugin {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), ['VITE_', 'NEXT_PUBLIC_']);
+  // The newest migration in this build, shown by Settings → System health next to the newest one
+  // applied to the database (a deploy whose migrations were not pushed shows the difference).
+  const migrations = readdirSync(path.resolve(__dirname, 'supabase/migrations')).filter(f => f.endsWith('.sql')).sort();
+  const latestMigration = (migrations[migrations.length - 1] ?? '').split('_')[0];
   return {
+    define: { __LATEST_MIGRATION__: JSON.stringify(latestMigration), __MIGRATION_COUNT__: migrations.length },
     plugins: [react(), cspPlugin(env.VITE_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL)],
     // Expose NEXT_PUBLIC_* vars (Supabase dashboard naming) alongside Vite's default VITE_*
     envPrefix: ['VITE_', 'NEXT_PUBLIC_'],

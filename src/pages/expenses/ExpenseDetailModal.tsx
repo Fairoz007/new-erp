@@ -13,6 +13,7 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
 import { VehicleExpense } from '../../types/operations';
 import { deleteExpense, payExpense, reviewExpense, submitExpense } from '../../services/expenses';
+import { DetailTitle } from '../../components/ui/DetailTitle';
 
 export const EXPENSE_RELOAD = ['expenses', 'timeline', 'journalEntries', 'chartOfAccounts', 'bankAccounts', 'notifications'] as const;
 
@@ -56,7 +57,7 @@ export const ExpenseDetailModal: React.FC<{ expense: VehicleExpense; onClose: ()
 
   return (
     <Modal isOpen onClose={busy ? () => undefined : onClose} size="md"
-      title={<div className="flex items-center gap-2"><span>{e.expenseNumber}</span><StatusBadge status={e.status} size="sm" /><StatusBadge status={e.paymentStatus} size="sm" /></div>}
+      title={<DetailTitle title={e.expenseNumber} badges={<><StatusBadge status={e.status} size="sm" /><StatusBadge status={e.paymentStatus} size="sm" /></>} />}
       description={e.description}>
       <div className="space-y-4">
         <div>

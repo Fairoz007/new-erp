@@ -12,6 +12,8 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
 import { AccidentUpdateModal } from './AccidentUpdateModal';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export const AccidentsPage: React.FC = () => {
   const { accidents, currency, selectedCompanyId, updateAccident } = useFleet();
@@ -59,7 +61,7 @@ export const AccidentsPage: React.FC = () => {
       render: (a) => (
         <div>
           <span className="font-bold text-slate-200">{a.accidentType}</span>
-          <p className="text-[11px] text-slate-400 truncate max-w-xs">{a.location}</p>
+          <p className="text-[11px] text-slate-400 truncate max-w-xs" title={a.location}>{a.location}</p>
         </div>
       ),
     },
@@ -134,29 +136,24 @@ export const AccidentsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Accident & Insurance Claims Management
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Track collision reports, police documentation, third-party liabilities, insurance recoveries, downtime days, and net costs.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {hasPermission('create', 'accidents') && (
-            <Button
-              variant="danger"
-              size="md"
-              onClick={() => openQuickModal('add-accident')}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Report Accident
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Accident & Insurance Claims Management"
+        description="Track collision reports, police documentation, third-party liabilities, insurance recoveries, downtime days, and net costs."
+        actions={
+          <>
+            {hasPermission('create', 'accidents') && (
+              <Button
+                variant="danger"
+                size="md"
+                onClick={() => openQuickModal('add-accident')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Report Accident
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -197,10 +194,9 @@ export const AccidentsPage: React.FC = () => {
         filterComponent={
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
-          <select
+          <FilterSelect
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
           >
             <option value="all">All Claim Statuses</option>
             <option value="Under Repair">Under Repair</option>
@@ -210,7 +206,7 @@ export const AccidentsPage: React.FC = () => {
             <option value="Repair Approved">Repair Approved</option>
             <option value="Completed">Completed</option>
             <option value="Closed">Closed</option>
-          </select>
+          </FilterSelect>
           </div>
         }
       />

@@ -215,7 +215,7 @@ export const FinanceOverview: React.FC = () => {
               <button key={invoice.id} onClick={() => setCurrentPage('invoices')} className="grid w-full grid-cols-[1fr_auto] gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-850 sm:px-6">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-100">{invoice.partyName}</p>
+                    <p className="truncate text-sm font-semibold text-slate-100" title={invoice.partyName}>{invoice.partyName}</p>
                     <Badge variant={invoice.paymentStatus === 'Overdue' ? 'rose' : 'amber'} size="sm">{invoice.paymentStatus}</Badge>
                   </div>
                   <p className="mt-1 text-xs text-slate-400">{invoice.invoiceNumber} · Due {formatDate(invoice.dueDate)}</p>
@@ -271,7 +271,7 @@ export const FinanceOverview: React.FC = () => {
                 <p className="mt-1 text-xs text-slate-400">{formatDate(entry.date)}</p>
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-100">{entry.description}</p>
+                <p className="truncate text-sm font-medium text-slate-100" title={entry.description}>{entry.description}</p>
                 <p className="mt-1 text-xs text-slate-400">{entry.sourceModule || 'Manual'} · {entry.postedBy}</p>
               </div>
               <div className="flex items-center justify-between gap-3 sm:justify-end">

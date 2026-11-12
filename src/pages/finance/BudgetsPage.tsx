@@ -17,6 +17,7 @@ import { tableCls, tdCls, thCls } from '../setup/shared';
 import {
   Budget, BudgetActual, createBudget, deleteBudget, fetchBudgetVsActual, fetchBudgets, reviewBudget, saveBudgetAccount, submitBudget,
 } from '../../services/ledger';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const STATUS_VARIANT = { Draft: 'slate', Submitted: 'amber', Approved: 'emerald', Rejected: 'rose' } as const;
@@ -44,13 +45,15 @@ export const BudgetsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Budgets</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Monthly budgets per account, approved by finance, compared with actual postings.</p>
-        </div>
-        {officeId && hasPermission('create', 'budgets', officeId) && <Button size="sm" className="rounded-full" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreating(true)}>New budget</Button>}
-      </div>
+      <PageHeader
+        title="Budgets"
+        description="Monthly budgets per account, approved by finance, compared with actual postings."
+        actions={
+          <>
+            {officeId && hasPermission('create', 'budgets', officeId) && <Button size="md" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setCreating(true)}>New budget</Button>}
+          </>
+        }
+      />
       <div className="flex flex-wrap gap-3 items-end">
         <div className="w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
           {offices.length === 0 && <option value="">No office available</option>}

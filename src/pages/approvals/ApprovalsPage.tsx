@@ -13,6 +13,8 @@ import { formatDate } from '../../utils/date';
 import { RegistrationQueue, usePendingRegistrations } from '../parties/RegistrationQueue';
 import { JournalQueue, usePendingJournals } from './JournalQueue';
 import { ExpenseQueue, usePendingExpenses } from './ExpenseQueue';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Tabs } from '../../components/ui/Tabs';
 
 export const ApprovalsPage: React.FC = () => {
   const { approvalRequests: allRequests, processApproval, currency, selectedCompanyId } = useFleet();
@@ -75,30 +77,24 @@ export const ApprovalsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Multi-Tier Authorization & Approval Queue
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Sign off on work orders, invoices and expenses that exceed the approval thresholds configured in Settings.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Multi-Tier Authorization & Approval Queue"
+        description="Sign off on work orders, invoices and expenses that exceed the approval thresholds configured in Settings."
+      />
 
-      <div className="flex flex-wrap items-center gap-2" role="tablist">
-        {([['Pending', `Pending (${pendingCount})`], ['all', `History (${approvalRequests.length})`], ['registrations', `Registrations (${pendingRegistrations})`], ['journals', `Journals (${pendingJournals.rows.length})`], ['expenses', `Expenses (${pendingExpenses.length})`]] as const).map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={statusView === id}
-            onClick={() => { setStatusView(id); setShown(25); }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold border cursor-pointer ${statusView === id ? 'bg-[#086343] text-white border-[#086343]' : 'bg-white text-slate-300 border-slate-700'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        variant="pills"
+        ariaLabel="Approval queues"
+        activeTab={statusView}
+        onChange={id => { setStatusView(id as typeof statusView); setShown(25); }}
+        tabs={[
+          { id: 'Pending', label: 'Pending', count: pendingCount },
+          { id: 'all', label: 'History', count: approvalRequests.length },
+          { id: 'registrations', label: 'Registrations', count: pendingRegistrations },
+          { id: 'journals', label: 'Journals', count: pendingJournals.rows.length },
+          { id: 'expenses', label: 'Expenses', count: pendingExpenses.length },
+        ]}
+      />
 
       {/* Approval Requests List */}
       {statusView === 'registrations' ? <RegistrationQueue /> : statusView === 'expenses' ? <ExpenseQueue /> : statusView === 'journals' ? <JournalQueue onChanged={() => void pendingJournals.reload()} /> : (

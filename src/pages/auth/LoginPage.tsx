@@ -8,12 +8,6 @@ import { AuthShell, AuthNotice } from './AuthShell';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const DEMO_ACCOUNTS = [
-  { role: 'Super Admin', email: 'superadmin@hakim.com', desc: 'Full System' },
-  { role: 'Fleet Manager', email: 'fleetmanager@hakim.com', desc: 'Fleet & Ops' },
-  { role: 'Accountant', email: 'accounts@hakim.com', desc: 'Finance & GL' },
-];
-const DEMO_PASSWORD = '7YlY6CbYP32rM^lIhi';
 
 // Email + password sign-in and password-reset request. No self sign-up: administrators invite users.
 export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
@@ -160,34 +154,11 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
             setMode('reset');
             setError(null);
           }}
-          className="font-semibold text-[#086343] hover:text-[#06452F] cursor-pointer"
+          className="font-semibold text-[#086343] hover:text-[#06452F] cursor-pointer min-h-[44px] sm:min-h-0 inline-flex items-center"
         >
           Forgot password?
         </button>
         <span className="text-slate-400">No account? Ask your administrator.</span>
-      </div>
-      <div className="pt-3 border-t border-slate-700/60">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Quick Demo Login</span>
-          <span className="text-[10px] text-emerald-400 font-mono">1-Click</span>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {DEMO_ACCOUNTS.map(acc => (
-            <button
-              key={acc.role}
-              type="button"
-              onClick={() => {
-                setEmail(acc.email);
-                setPassword(DEMO_PASSWORD);
-                setError(null);
-              }}
-              className="px-2 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-left transition text-slate-200 group cursor-pointer"
-            >
-              <div className="text-[11px] font-semibold text-emerald-400 group-hover:text-emerald-300 truncate">{acc.role}</div>
-              <div className="text-[9px] text-slate-400 truncate">{acc.desc}</div>
-            </button>
-          ))}
-        </div>
       </div>
     </AuthShell>
   );

@@ -12,6 +12,9 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { invoiceSource, useInvoiceSummary, fetchAllOf, type InvoiceFilter } from '../../services/queries';
 import { useQuery } from '../../lib/queryCache';
+import { FilterSelect } from '../../components/ui/FilterControls';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Tabs } from '../../components/ui/Tabs';
 
 export const InvoicesPage: React.FC = () => {
   const { selectedCompanyId, currency, submitInvoice } = useFleet();
@@ -134,6 +137,7 @@ export const InvoicesPage: React.FC = () => {
       key: 'partyName',
       sortKey: 'party_name',
       header: 'Billed To / From',
+      truncate: true,
       render: (inv) => (
         <div>
           <p className="font-bold text-slate-200">{inv.partyName}</p>
@@ -260,27 +264,22 @@ export const InvoicesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Invoice & Purchase Bill Management
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Supplier purchase bills and customer invoices. Totals and VAT are calculated from the invoice lines; invoices reach the ledger when approved.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {canCreate && <Button
-            variant="primary"
-            size="md"
-            onClick={() => openQuickModal('add-invoice')}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Create Invoice
-          </Button>}
-        </div>
-      </div>
+      <PageHeader
+        title="Invoice & Purchase Bill Management"
+        description="Supplier purchase bills and customer invoices. Totals and VAT are calculated from the invoice lines; invoices reach the ledger when approved."
+        actions={
+          <>
+            {canCreate && <Button
+              variant="primary"
+              size="md"
+              onClick={() => openQuickModal('add-invoice')}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Create Invoice
+            </Button>}
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -308,21 +307,13 @@ export const InvoicesPage: React.FC = () => {
       </div>
 
       {/* Pending invoices: view tabs, ageing and biggest open balances */}
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Invoice views">
-        {VIEWS.map(v => (
-          <button
-            key={v.id}
-            role="tab"
-            aria-selected={invoiceView === v.id}
-            onClick={() => setInvoiceView(v.id)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
-              invoiceView === v.id ? 'bg-[#086343] text-white border-[#086343]' : 'bg-white text-slate-300 border-slate-700 hover:bg-slate-850'
-            }`}
-          >
-            {v.label} <span className="opacity-70">({v.count})</span>
-          </button>
-        ))}
-      </div>
+      <Tabs
+        variant="pills"
+        ariaLabel="Invoice views"
+        activeTab={invoiceView}
+        onChange={id => setInvoiceView(id as typeof invoiceView)}
+        tabs={VIEWS.map(v => ({ id: v.id, label: v.label, count: v.count }))}
+      />
 
       {invoiceView === 'approval' && approvable.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
@@ -366,7 +357,7 @@ export const InvoicesPage: React.FC = () => {
               <ul className="space-y-2">
                 {pendingByParty.map(p => (
                   <li key={`${p.type}-${p.name}`} className="flex items-center justify-between text-xs">
-                    <span className="min-w-0"><span className="font-semibold text-slate-200 truncate block">{p.name}</span><span className="text-slate-400">{p.type} · {p.count} invoice{p.count === 1 ? '' : 's'}</span></span>
+                    <span className="min-w-0"><span className="font-semibold text-slate-200 truncate block" title={p.name}>{p.name}</span><span className="text-slate-400">{p.type} · {p.count} invoice{p.count === 1 ? '' : 's'}</span></span>
                     <span className="font-bold text-[#D9A441] shrink-0 ml-3">{formatCurrency(p.total, currency)}</span>
                   </li>
                 ))}
@@ -386,19 +377,17 @@ export const InvoicesPage: React.FC = () => {
         exportFilename="Invoices_Register"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <FilterSelect
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Types (AP & AR)</option>
               <option value="Purchase">Purchase Bills (Suppliers)</option>
               <option value="Sales">Sales Invoices (Customers)</option>
-            </select>
-            <select
+            </FilterSelect>
+            <FilterSelect
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Payment Statuses</option>
               <option value="Unpaid">Unpaid</option>
@@ -406,11 +395,10 @@ export const InvoicesPage: React.FC = () => {
               <option value="Partially Paid">Partially Paid</option>
               <option value="Paid">Paid</option>
               <option value="Cancelled">Cancelled</option>
-            </select>
-            <select
+            </FilterSelect>
+            <FilterSelect
               value={approvalFilter}
               onChange={e => setApprovalFilter(e.target.value)}
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Approval States</option>
               <option value="Draft">Draft</option>
@@ -418,16 +406,15 @@ export const InvoicesPage: React.FC = () => {
               <option value="Approved">Approved (posted)</option>
               <option value="Rejected">Rejected</option>
               <option value="Cancelled">Cancelled</option>
-            </select>
-            <select
+            </FilterSelect>
+            <FilterSelect
               value={attachmentFilter}
               onChange={e => setAttachmentFilter(e.target.value)}
-              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Attachments</option>
               <option value="with-attachment">With Attachment</option>
               <option value="no-attachment">No Attachment</option>
-            </select>
+            </FilterSelect>
           </div>
         }
       />

@@ -13,6 +13,7 @@ import { exportToJSON } from '../../utils/export';
 import type { CollectionKey } from '../../services/core';
 import { expenseSource, paymentSource, fetchAllOf } from '../../services/queries';
 import { fetchAllInvoicesForExport, fetchAllJournalsForExport } from '../../services/queries-system';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 // Collections held in the app (loaded on first read); the large tables are fetched from the
 // database page by page (≤1000 rows per request) when the export runs.
@@ -33,12 +34,13 @@ const EXPORT_ORDER = ['companies', 'vehicles', 'tyres', 'tyreEvents', 'oilChange
 const OrgProfileStep = lazy(() => import('../setup/steps/OrgProfileStep').then(m => ({ default: m.OrgProfileStep })));
 const UniversalSettingsStep = lazy(() => import('../setup/steps/UniversalSettingsStep').then(m => ({ default: m.UniversalSettingsStep })));
 const OfficesStep = lazy(() => import('../setup/steps/OfficesStep').then(m => ({ default: m.OfficesStep })));
+const SystemHealthPanel = lazy(() => import('./SystemHealthPanel'));
 const VehicleTypesEditor = lazy(() => import('../setup/steps/VehicleTypesStep').then(m => ({ default: m.VehicleTypesEditor })));
 const FieldBuilder = lazy(() => import('../setup/FieldBuilder').then(m => ({ default: m.FieldBuilder })));
 const ExpenseCategoriesStep = lazy(() => import('../setup/steps/ExpenseCategoriesStep').then(m => ({ default: m.ExpenseCategoriesStep })));
 const OpeningBalancesStep = lazy(() => import('../setup/steps/OpeningBalancesStep').then(m => ({ default: m.OpeningBalancesStep })));
 
-type SettingsTab = 'organization' | 'universal' | 'offices' | 'vehicle-types' | 'custom-fields' | 'expenses' | 'opening' | 'approvals' | 'data';
+type SettingsTab = 'organization' | 'universal' | 'offices' | 'vehicle-types' | 'custom-fields' | 'expenses' | 'opening' | 'approvals' | 'data' | 'health';
 export const SettingsPage: React.FC = () => {
   const fleet = useFleet();
   const { approvalRules } = fleet;
@@ -102,22 +104,21 @@ export const SettingsPage: React.FC = () => {
     ...(hasPermission('create', 'accounting') ? [{ id: 'opening' as SettingsTab, label: 'Opening balances' }] : []),
     { id: 'approvals', label: 'Approval rules' },
     { id: 'data', label: 'Data export' },
+    ...(isSuperAdmin ? [{ id: 'health' as SettingsTab, label: 'System health' }] : []),
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Settings</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Organization profile and the settings every office inherits. Base currency: {baseCurrency}.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {!canEdit && <Badge variant="slate">Read-only</Badge>}
-          {organization && organization.setupStatus !== 'completed' && <Badge variant="amber">Setup not finished</Badge>}
-        </div>
-      </div>
+      <PageHeader
+        title="Settings"
+        description={<>Organization profile and the settings every office inherits. Base currency: {baseCurrency}.</>}
+        actions={
+          <>
+            {!canEdit && <Badge variant="slate">Read-only</Badge>}
+            {organization && organization.setupStatus !== 'completed' && <Badge variant="amber">Setup not finished</Badge>}
+          </>
+        }
+      />
 
       <Tabs variant="pills" tabs={tabs} activeTab={tab} onChange={id => setTab(id as SettingsTab)} className="overflow-x-auto" />
 
@@ -129,6 +130,7 @@ export const SettingsPage: React.FC = () => {
         {tab === 'custom-fields' && <FieldBuilder readOnly={!canEdit} />}
         {tab === 'expenses' && <ExpenseCategoriesStep readOnly={!canEdit} />}
         {tab === 'opening' && <OpeningBalancesStep currency={baseCurrency} />}
+        {tab === 'health' && isSuperAdmin && <SystemHealthPanel />}
       </Suspense>
 
       {tab === 'approvals' && (

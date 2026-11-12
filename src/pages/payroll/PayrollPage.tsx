@@ -20,6 +20,7 @@ import {
 } from '../../services/hr';
 import { GeneratePayrollModal } from './GeneratePayrollModal';
 import { toPayslip } from './payslip';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 const STATUS_VARIANT: Record<string, 'slate' | 'amber' | 'blue' | 'emerald' | 'rose'> = {
   Draft: 'slate', 'Under Review': 'amber', Approved: 'blue', Paid: 'emerald', Cancelled: 'rose',
@@ -55,13 +56,15 @@ export const PayrollPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Payroll</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Prepare, review, approve and pay monthly salaries. Approval posts the journal; payment comes from a bank account.</p>
-        </div>
-        {canPrepare && <Button size="sm" className="rounded-full" leftIcon={<Play className="w-4 h-4" />} onClick={() => setGenerating(true)}>Prepare payroll</Button>}
-      </div>
+      <PageHeader
+        title="Payroll"
+        description="Prepare, review, approve and pay monthly salaries. Approval posts the journal; payment comes from a bank account."
+        actions={
+          <>
+            {canPrepare && <Button size="md" leftIcon={<Play className="w-4 h-4" />} onClick={() => setGenerating(true)}>Prepare payroll</Button>}
+          </>
+        }
+      />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title={`Net salaries ${year}`} value={formatCurrency(ytd.reduce((t, r) => t + r.totalNetPayout, 0), currency)} subValue={`${ytd.length} approved or paid month(s)`} icon={<Calculator className="w-4 h-4" />} variant="indigo" isHero />
         <StatCard title="Waiting for approval" value={runs.filter(r => r.status === 'Under Review').length} subValue="Submitted payroll runs" icon={<Send className="w-4 h-4" />} variant="amber" />
@@ -99,7 +102,7 @@ const RunModal: React.FC<{ run: PayrollRun; onClose: () => void; onChanged: () =
   };
 
   const cols: Column<PayrollLineItem>[] = [
-    { key: 'employeeName', header: 'Employee', render: i => (
+    { key: 'employeeName', header: 'Employee', truncate: true, render: i => (
       <div><p className="font-semibold text-slate-100">{i.employeeName}</p><p className="text-[11px] text-slate-400">{i.employeeCode} · {i.designation}{i.daysWorked != null && i.daysWorked < 28 ? ` · ${i.daysWorked} days` : ''}</p></div>
     ) },
     { key: 'basicSalary', header: 'Basic', align: 'right', render: i => <span className="font-mono text-xs">{i.basicSalary.toFixed(3)}</span> },

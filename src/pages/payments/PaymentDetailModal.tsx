@@ -8,6 +8,7 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useInvoiceById } from '../../services/queries-expenses';
+import { DetailTitle } from '../../components/ui/DetailTitle';
 
 interface PaymentDetailModalProps {
   payment: Payment | null;
@@ -35,19 +36,11 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-500/20">
-            <CreditCard className="w-5 h-5 text-emerald-700" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-100">
-              Payment Voucher: {payment.paymentNumber}
-            </h2>
-            <p className="text-xs text-slate-400 font-mono">
-              Recorded on {formatDate(payment.paymentDate)} • {payment.partyType} {payment.partyType === 'Supplier' ? 'Disbursal' : 'Collection'}
-            </p>
-          </div>
-        </div>
+        <DetailTitle
+          icon={<CreditCard className="w-5 h-5" />}
+          title={<>Payment Voucher: {payment.paymentNumber}</>}
+          meta={<>Recorded on {formatDate(payment.paymentDate)} • {payment.partyType} {payment.partyType === 'Supplier' ? 'Disbursal' : 'Collection'}</>}
+        />
       }
       size="lg"
       footer={

@@ -29,11 +29,12 @@ export const Button: React.FC<ButtonProps> = ({
 
   const shapeStyles = pill ? 'rounded-full' : 'rounded-xl';
 
+  // phones: every button is at least 44x44 px (WCAG 2.5.5); desktop keeps the compact sizes
   const sizeStyles = {
-    xs: 'text-xs px-3 py-1 min-h-[32px] gap-1.5',
-    sm: 'text-xs sm:text-sm px-4 py-1.5 min-h-[36px] gap-1.5',
-    md: 'text-sm px-5 py-2 min-h-[40px] gap-2',
-    lg: 'text-sm sm:text-base px-6 py-2.5 min-h-[44px] gap-2.5',
+    xs: 'text-xs px-3 py-1 min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-0 gap-1.5',
+    sm: 'text-xs sm:text-sm px-4 py-1.5 min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-0 gap-1.5',
+    md: 'text-sm px-5 py-2 min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-0 gap-2',
+    lg: 'text-sm sm:text-base px-6 py-2.5 min-h-[44px] min-w-[44px] gap-2.5',
   };
 
   const variantStyles = {

@@ -16,6 +16,8 @@ interface TabsProps {
   onChange: (id: string) => void;
   variant?: 'underline' | 'pills' | 'segmented';
   className?: string;
+  /** Accessible name of the tab list. */
+  ariaLabel?: string;
 }
 
 export const Tabs: React.FC<TabsProps> = ({
@@ -24,15 +26,19 @@ export const Tabs: React.FC<TabsProps> = ({
   onChange,
   variant = 'underline',
   className,
+  ariaLabel,
 }) => {
   if (variant === 'segmented') {
     return (
-      <div className={twMerge(clsx('flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full gap-1 overflow-x-auto', className))}>
+      <div role="tablist" aria-label={ariaLabel} className={twMerge(clsx('flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full gap-1 overflow-x-auto', className))}>
         {tabs.map(tab => {
           const isActive = tab.id === activeTab;
           return (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => !tab.disabled && onChange(tab.id)}
               disabled={tab.disabled}
               className={clsx(
@@ -64,12 +70,15 @@ export const Tabs: React.FC<TabsProps> = ({
 
   if (variant === 'pills') {
     return (
-      <div className={twMerge(clsx('flex items-center gap-2 overflow-x-auto pb-1', className))}>
+      <div role="tablist" aria-label={ariaLabel} className={twMerge(clsx('flex items-center gap-2 overflow-x-auto pb-1', className))}>
         {tabs.map(tab => {
           const isActive = tab.id === activeTab;
           return (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => !tab.disabled && onChange(tab.id)}
               disabled={tab.disabled}
               className={clsx(
@@ -101,12 +110,15 @@ export const Tabs: React.FC<TabsProps> = ({
 
   // Underline
   return (
-    <div className={twMerge(clsx('flex items-center border-b border-slate-700 gap-6 overflow-x-auto', className))}>
+    <div role="tablist" aria-label={ariaLabel} className={twMerge(clsx('flex items-center border-b border-slate-700 gap-6 overflow-x-auto', className))}>
       {tabs.map(tab => {
         const isActive = tab.id === activeTab;
         return (
           <button
             key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
             onClick={() => !tab.disabled && onChange(tab.id)}
             disabled={tab.disabled}
             className={clsx(

@@ -16,6 +16,7 @@ import { useDrivers, invalidateDrivers } from '../../hooks/useDrivers';
 import { deleteDriver, saveDriver, DRIVER_STATUSES, type Driver, type DriverDraft } from '../../services/drivers';
 import { formatDate, getDaysDifference } from '../../utils/date';
 import { useOptionalOrg } from '../../context/OrgContext';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export function licenceBadge(expiry: string, alertDays: number) {
   const days = getDaysDifference(expiry);
@@ -55,7 +56,7 @@ export const DriversPage: React.FC = () => {
   };
 
   const columns: Column<Driver>[] = [
-    { key: 'name', header: 'Driver', render: d => (
+    { key: 'name', header: 'Driver', truncate: true, render: d => (
       <div><p className="font-bold text-slate-100">{d.name}</p><p className="text-[11px] text-slate-400">{officeName(d.companyId)}</p></div>
     ) },
     { key: 'licenceNumber', header: 'Licence', render: d => (
@@ -82,18 +83,20 @@ export const DriversPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">Drivers</h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Employees who drive, their licences and the vehicle each one drives. Assign drivers on the vehicle.</p>
-        </div>
-        {canCreate && (
-          <Button size="sm" className="rounded-full" leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => setEditing({ companyId: selectedCompanyId === 'all' ? '' : selectedCompanyId, employeeId: '', licenceNumber: '', licenceClass: '', licenceIssueDate: '', licenceExpiryDate: '', status: 'Active', notes: '' })}>
-            Add driver
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Drivers"
+        description="Employees who drive, their licences and the vehicle each one drives. Assign drivers on the vehicle."
+        actions={
+          <>
+            {canCreate && (
+              <Button size="md" leftIcon={<Plus className="w-4 h-4" />}
+                onClick={() => setEditing({ companyId: selectedCompanyId === 'all' ? '' : selectedCompanyId, employeeId: '', licenceNumber: '', licenceClass: '', licenceIssueDate: '', licenceExpiryDate: '', status: 'Active', notes: '' })}>
+                Add driver
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Active drivers" value={drivers.filter(d => d.status === 'Active').length} subValue={`${unassigned} without a vehicle`} icon={<IdCard className="w-4 h-4" />} variant="indigo" isHero />

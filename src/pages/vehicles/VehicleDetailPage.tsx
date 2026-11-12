@@ -135,15 +135,15 @@ export const VehicleDetailPage: React.FC = () => {
     { key: 'date', header: 'Date', sortKey: 'date', render: exp => formatDate(exp.date) },
     { key: 'category', header: 'Category', sortKey: 'category', render: exp => (
       <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold text-[11px]">{exp.category}</span>) },
-    { key: 'description', header: 'Description', sortKey: 'description', render: exp => <span className="text-slate-200 font-medium">{exp.description}</span> },
-    { key: 'supplierName', header: 'Supplier / Merchant', sortKey: 'supplier_name', render: exp => <span className="text-slate-400">{exp.supplierName || '-'}</span> },
+    { key: 'description', header: 'Description', truncate: 'max-w-md', sortKey: 'description', render: exp => <span className="text-slate-200 font-medium">{exp.description}</span> },
+    { key: 'supplierName', header: 'Supplier / Merchant', truncate: true, sortKey: 'supplier_name', render: exp => <span className="text-slate-400">{exp.supplierName || '-'}</span> },
     { key: 'paymentMethod', header: 'Payment Method', render: exp => <span className="text-slate-400">{exp.paymentMethod}</span> },
     { key: 'total', header: 'Total', align: 'right', sortKey: 'total', render: exp => <span className="font-bold text-slate-100">{formatCurrency(exp.total, currency)}</span> },
   ];
   const invoiceColumns: Column<FinanceInvoice>[] = [
     { key: 'invoiceNumber', header: 'Invoice #', sortKey: 'invoice_number', render: inv => <span className="font-mono font-bold text-slate-100">{inv.invoiceNumber}</span> },
     { key: 'invoiceType', header: 'Type', sortKey: 'invoice_type', render: inv => inv.invoiceType },
-    { key: 'partyName', header: 'Party', sortKey: 'party_name', render: inv => <span className="text-slate-200">{inv.partyName}</span> },
+    { key: 'partyName', header: 'Party', truncate: true, sortKey: 'party_name', render: inv => <span className="text-slate-200">{inv.partyName}</span> },
     { key: 'invoiceDate', header: 'Date', sortKey: 'invoice_date', render: inv => formatDate(inv.invoiceDate) },
     { key: 'dueDate', header: 'Due Date', sortKey: 'due_date', render: inv => formatDate(inv.dueDate) },
     { key: 'grandTotal', header: 'Amount', align: 'right', sortKey: 'grand_total', render: inv => <span className="font-bold">{formatCurrency(inv.grandTotal, currency)}</span> },
@@ -552,7 +552,7 @@ export const VehicleDetailPage: React.FC = () => {
             <h3 className="text-sm font-bold text-slate-200">Historical Maintenance Records ({vehicleMaintenance.length})</h3>
             {hasPermission('create', 'maintenance') && (
               <Button variant="primary" size="sm" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Plus className="w-4 h-4" />}>
-                Add Maintenance Entry
+                Record Maintenance
               </Button>
             )}
           </div>
@@ -689,9 +689,9 @@ export const VehicleDetailPage: React.FC = () => {
                 <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-700/60 uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Odometer</th>
+                    <th className="px-4 py-3 text-right">Odometer</th>
                     <th className="px-4 py-3">Oil Product</th>
-                    <th className="px-4 py-3 text-center">Quantity</th>
+                    <th className="px-4 py-3 text-right">Quantity</th>
                     <th className="px-4 py-3 text-right">Cost</th>
                     <th className="px-4 py-3 text-right">Next Due KM</th>
                     <th className="px-4 py-3 text-center">Status</th>
@@ -701,9 +701,9 @@ export const VehicleDetailPage: React.FC = () => {
                   {vehicleOilChanges.map(o => (
                     <tr key={o.id}>
                       <td className="px-4 py-3">{formatDate(o.date)}</td>
-                      <td className="px-4 py-3 font-mono">{o.odometer.toLocaleString()} KM</td>
+                      <td className="px-4 py-3 text-right font-mono">{o.odometer.toLocaleString()} KM</td>
                       <td className="px-4 py-3 font-medium text-slate-200">{o.oilBrand} ({o.oilGrade})</td>
-                      <td className="px-4 py-3 text-center">{o.quantityLitres} L</td>
+                      <td className="px-4 py-3 text-right">{o.quantityLitres} L</td>
                       <td className="px-4 py-3 text-right font-semibold">{formatCurrency(o.totalCost, currency)}</td>
                       <td className="px-4 py-3 text-right font-mono text-indigo-300">{o.nextOilChangeMileage.toLocaleString()} KM</td>
                       <td className="px-4 py-3 text-center"><StatusBadge status={o.status} size="sm" /></td>
@@ -787,7 +787,7 @@ export const VehicleDetailPage: React.FC = () => {
                   <tr>
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Event Type</th>
-                    <th className="px-4 py-3">Odometer</th>
+                    <th className="px-4 py-3 text-right">Odometer</th>
                     <th className="px-4 py-3">Positions</th>
                     <th className="px-4 py-3 text-right">Cost</th>
                     <th className="px-4 py-3">Technician / Supplier</th>
@@ -798,7 +798,7 @@ export const VehicleDetailPage: React.FC = () => {
                     <tr key={te.id}>
                       <td className="px-4 py-3">{formatDate(te.date)}</td>
                       <td className="px-4 py-3 font-semibold text-slate-200">{te.eventType}</td>
-                      <td className="px-4 py-3 font-mono">{te.odometer.toLocaleString()} KM</td>
+                      <td className="px-4 py-3 text-right font-mono">{te.odometer.toLocaleString()} KM</td>
                       <td className="px-4 py-3">{te.tyrePositionsAffected.join(', ')}</td>
                       <td className="px-4 py-3 text-right font-bold">{formatCurrency(te.cost, currency)}</td>
                       <td className="px-4 py-3 text-slate-400">{te.technician || te.supplierName}</td>
@@ -1041,7 +1041,7 @@ export const VehicleDetailPage: React.FC = () => {
                       <span className="text-[10px] text-amber-400 font-bold">Expiring Soon</span>
                     ) : null}
                   </div>
-                  <h4 className="text-xs font-bold text-slate-100 mt-2 truncate">{doc.documentName}</h4>
+                  <h4 className="text-xs font-bold text-slate-100 mt-2 truncate" title={doc.documentName}>{doc.documentName}</h4>
                   {doc.documentNumber && <p className="text-[10px] text-slate-400 font-mono">No: {doc.documentNumber}</p>}
                 </div>
 
