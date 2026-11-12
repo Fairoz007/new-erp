@@ -15,9 +15,9 @@ import { useCustomFields } from '../../hooks/useCustomFields';
 import { formatCustomValue, normaliseCustomValues, validateCustomValues } from '../../components/common/CustomFieldsForm';
 import type { FieldDefinition } from '../../services/org';
 import type { Customer, PartySharing, Supplier, SupplierType } from '../../types/operations';
+import { SUPPLIER_TYPES } from '../../types/operations';
 
 type Kind = 'customer' | 'supplier';
-const SUPPLIER_TYPES: SupplierType[] = ['Vehicle Dealer', 'Garage', 'Workshop', 'Tyre Supplier', 'Oil Supplier', 'Parts Supplier', 'Insurance Company', 'Fuel Supplier', 'Rental Company', 'Other'];
 const CUSTOMER_TYPES: Customer['customerType'][] = ['Corporate', 'Individual', 'Government', 'Partner'];
 const BASE_COLS = ['code', 'name', 'type', 'contact_person', 'phone', 'email', 'address', 'city', 'country', 'vat_number', 'cr_number',
   'tax_number', 'payment_terms_days', 'credit_limit', 'status', 'home_office', 'sharing', 'notes'];

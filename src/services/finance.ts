@@ -569,6 +569,7 @@ export async function fetchBankAccounts(): Promise<BankAccount[]> {
     currentBalance: balances.get(r.id) ?? num(r.opening_balance),
     accountType: r.account_type,
     active: !!r.active,
+    glAccountCode: r.gl_account_code ?? undefined,
   }));
 }
 

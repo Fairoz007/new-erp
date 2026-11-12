@@ -80,26 +80,20 @@ export function calculateDepreciationSchedule(vehicle: Vehicle): DepreciationSch
 /**
  * Calculate current book value of a vehicle based on elapsed time
  */
-export function calculateCurrentBookValue(vehicle: Vehicle): { bookValue: number; accumulatedDepreciation: number } {
+export function calculateCurrentBookValue(vehicle: Vehicle, asOf?: Date): { bookValue: number; accumulatedDepreciation: number } {
   const schedule = calculateDepreciationSchedule(vehicle);
   if (!schedule.length) {
     return { bookValue: vehicle.purchase.purchaseValue || 0, accumulatedDepreciation: 0 };
   }
 
-  const currentYear = new Date().getFullYear();
-  let latestRow = schedule[0];
-
-  for (const row of schedule) {
-    if (row.year <= currentYear) {
-      latestRow = row;
-    }
-  }
-
-  // If before first year
-  if (currentYear < schedule[0].year) {
+  // Each row is charged on 31 December of its year: only rows dated on or before today count
+  // (a vehicle bought this year has no depreciation until the year closes).
+  const today = asOf ?? new Date();
+  const charged = schedule.filter(row => new Date(row.year, 11, 31) <= today);
+  if (!charged.length) {
     return { bookValue: vehicle.purchase.purchaseValue || 0, accumulatedDepreciation: 0 };
   }
-
+  const latestRow = charged[charged.length - 1];
   return {
     bookValue: latestRow.closingValue,
     accumulatedDepreciation: latestRow.accumulatedDepreciation,

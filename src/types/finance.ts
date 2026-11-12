@@ -152,6 +152,8 @@ export interface BankAccount {
   currentBalance: number;
   accountType: 'Current' | 'Savings' | 'Petty Cash' | 'Credit Facility';
   active: boolean;
+  /** Ledger account the bank account posts to (e.g. "1020"). */
+  glAccountCode?: string;
 }
 
 export type AccountCategory = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
@@ -176,6 +178,8 @@ export interface JournalLine {
   description?: string;
   vehicleId?: string;
   costCentre?: string;
+  /** Bank account the line moves (lines on a bank GL account), so the bank balance follows the ledger. */
+  bankAccountId?: string;
 }
 
 export interface JournalEntry {

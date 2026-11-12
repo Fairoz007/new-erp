@@ -6,6 +6,9 @@ import { setup, seedFixtures, IDS } from './harness.mjs';
 
 const dir = process.argv[2] || 'supabase/migrations';
 const t = await setup(dir);
+// These checks cover the numbering mechanics with the formats as first installed (no office code);
+// office_numbers.test.mjs covers the office code that 20261113007000 turns on.
+await t.db.exec(`update public.document_formats set include_office_code = false;`);
 const { db, check, as, tx, asServer, assert } = t;
 await seedFixtures(db);
 const { ADMIN, VIEWER, FLEET, OTHER, HO, DQ } = IDS;
@@ -248,6 +251,7 @@ await check('remote apply order: migration applies last and keeps other slots\' 
                         'mark_all_notifications_read','media_can_write','storage_entity')
       and not has_function_privilege('authenticated', p.oid, 'execute')`)).bad;
   assert(!lost, 'lost grants: ' + lost);
+  await r.db.exec(`update public.document_formats set include_office_code = false;`);
   await seedFixtures(r.db);
   await r.tx(ADMIN, vehicleSql(HO, 'R-1'));
   const c = (await q(`select vehicle_code from vehicles where plate_number='R-1'`)).vehicle_code;

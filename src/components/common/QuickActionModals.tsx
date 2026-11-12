@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Car, Wrench, Fuel, AlertTriangle, FileText, DollarSign, Upload, Disc, Droplet, Building2, BookOpen, Users, Calculator, Sparkles, Percent, Tag, Truck } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -14,7 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { MaintenanceCategory, MaintenanceType, WorkOrderPriority } from '../../types/maintenance';
-import { ExpenseCategory } from '../../types/operations';
+import { ExpenseCategory, SUPPLIER_TYPES } from '../../types/operations';
 import { InvoiceType, PaymentMethod } from '../../types/finance';
 import { EmployeeDepartment } from '../../types/hr';
 import { VehicleOperationsFields, EMPTY_OPS, validateOps, type VehicleOps } from './VehicleOperationsFields';
@@ -112,12 +112,12 @@ export const QuickActionModals: React.FC = () => {
     variant: '',
     manufacturingYear: new Date().getFullYear(),
     registrationDate: todayYmd(),
-    registrationExpiryDate: addDaysYmd(365),
+    registrationExpiryDate: '',   // not asked here: no invented expiry (it would raise renewal alerts)
     countryOfRegistration: 'Oman',
-    color: 'White',
+    color: '',
     fuelType: 'Petrol' as const,
     transmission: 'Automatic' as const,
-    engineCapacityCc: 2500,
+    engineCapacityCc: NaN,        // not asked here: saved as empty, not a guessed 2500 cc
     numberOfSeats: 0, // 0 = the vehicle type's seat capacity (set by the database)
     currentMileage: 0,
     initialOdometer: 0,
@@ -131,8 +131,8 @@ export const QuickActionModals: React.FC = () => {
     usefulLifeYears: 5,
     salvageValue: 0,
     oilIntervalKm: 10000,
-    oilBrand: 'Mobil 1 ESP',
-    oilGrade: '5W-30',
+    oilBrand: '',
+    oilGrade: '',
   });
 
   // Optional vehicle photo: uploaded to the private `media` bucket on save
@@ -189,10 +189,10 @@ export const QuickActionModals: React.FC = () => {
     vehicleId: defaultVehicle?.id || '',
     date: todayYmd(),
     odometer: defaultVehicle?.currentMileage || 0,
-    oilType: 'Fully Synthetic 5W-30',
-    oilBrand: 'Mobil 1 ESP',
-    oilGrade: '5W-30',
-    quantityLitres: 6.5,
+    oilType: '',
+    oilBrand: '',
+    oilGrade: '',
+    quantityLitres: NaN, // blank until entered (no assumed quantity)
     oilCost: 0,
     filterCost: 0,
     labourCost: 0,
@@ -225,7 +225,7 @@ export const QuickActionModals: React.FC = () => {
     vehicleId: defaultVehicle?.id || '',
     companyId: defaultVehicle?.companyId || '',
     accidentDate: todayYmd(),
-    accidentTime: '14:00',
+    accidentTime: '', // blank until entered
     location: '',
     driverName: '',
     accidentDescription: '',
@@ -408,6 +408,26 @@ export const QuickActionModals: React.FC = () => {
     assignedVehicleId: '',
     notes: '',
   });
+
+  // Every form starts blank when it opens: without this a second "Add" kept the previous entry's values
+  // (a second supplier silently got the first one's contact and phone). Declared before the effects
+  // below, which then preselect the office, the vehicle on screen or the invoice being paid.
+  const blankForms = useRef({
+    vehicle: vehicleForm, mnt: mntForm, wo: woForm, oil: oilForm, exp: expForm, acc: accForm, invoice: invoiceForm,
+    payment: paymentForm, depr: deprForm, supplier: supplierForm, customer: customerForm, tyre: tyreForm, asset: assetForm,
+  });
+  useEffect(() => {
+    if (!quickModal) return;
+    const b = blankForms.current;
+    const today = todayYmd();
+    const dated = <T extends object>(f: T): T => Object.fromEntries(Object.entries(f).map(([k, v]) =>
+      [k, /date$/i.test(k) && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && v === b.vehicle.registrationDate ? today : v])) as T;
+    setVehicleForm(dated(b.vehicle)); setVehicleOps(EMPTY_OPS); setVehiclePhoto(null); setVehiclePhotoError('');
+    setMntForm(dated(b.mnt)); setWoForm(dated(b.wo)); setOilForm(dated(b.oil)); setExpForm(dated(b.exp)); setAccForm(dated(b.acc));
+    setInvoiceForm(dated(b.invoice)); setPaymentForm(dated(b.payment)); setDeprForm(dated(b.depr));
+    setSupplierForm(b.supplier); setCustomerForm(b.customer); setTyreForm(dated(b.tyre)); setAssetForm(dated(b.asset));
+    setPickedPayInvoice(null); setPayInvoiceSearch('');
+  }, [quickModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!quickModal) return;
@@ -651,9 +671,10 @@ export const QuickActionModals: React.FC = () => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === oilForm.vehicleId);
     const sup = suppliers.find(s => s.id === oilForm.supplierId);
-    if (!checkForm(validate({ vehicleId: v?.id, date: oilForm.date }, {
+    if (!checkForm(validate({ vehicleId: v?.id, date: oilForm.date, odometer: oilForm.odometer }, {
       vehicleId: [required('Vehicle')],
       date: [required('Date')],
+      odometer: [positive('Odometer')], // the next service is due at odometer + interval
     }))) return;
     run('Oil Service Not Saved', async () => {
       if (!v) throw new Error('Select a vehicle.');
@@ -667,7 +688,7 @@ export const QuickActionModals: React.FC = () => {
         oilType: oilForm.oilType,
         oilBrand: oilForm.oilBrand,
         oilGrade: oilForm.oilGrade,
-        quantityLitres: Number(oilForm.quantityLitres),
+        quantityLitres: Number.isFinite(oilForm.quantityLitres) ? Number(oilForm.quantityLitres) : 0,
         oilCost: Number(oilForm.oilCost),
         filterCost: Number(oilForm.filterCost),
         labourCost: Number(oilForm.labourCost),
@@ -1194,7 +1215,7 @@ export const QuickActionModals: React.FC = () => {
       >
         <form onSubmit={handleCreateMaintenance} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <RecordSelect label="Vehicle" value={mntForm.vehicleId} onChange={v => setMntForm({ ...mntForm, vehicleId: v, companyId: officeOfVehicle(v) || mntForm.companyId })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
+            <RecordSelect label="Vehicle" value={mntForm.vehicleId} onChange={v => setMntForm({ ...mntForm, vehicleId: v, companyId: officeOfVehicle(v) || mntForm.companyId, odometerReading: vehicles.find(x => x.id === v)?.currentMileage || 0 })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
             <Select label="Category" value={mntForm.category} onChange={e => setMntForm({ ...mntForm, category: e.target.value as any })}>
               <option value="General Service">General Service</option>
               <option value="Brake Service">Brake Service</option>
@@ -1223,7 +1244,7 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
             <Input label={`Parts (${currency})`} type="number" step="0.001" value={mntForm.partsCost} onChange={e => setMntForm({ ...mntForm, partsCost: Number(e.target.value) })} />
             <Input label={`Labour (${currency})`} type="number" step="0.001" value={mntForm.labourCost} onChange={e => setMntForm({ ...mntForm, labourCost: Number(e.target.value) })} />
-            <Input label={`Tax 5% (${currency})`} type="number" step="0.001" value={mntForm.tax} onChange={e => setMntForm({ ...mntForm, tax: Number(e.target.value) })} />
+            <Input label={`Tax (${currency})`} type="number" step="0.001" value={mntForm.tax} onChange={e => setMntForm({ ...mntForm, tax: Number(e.target.value) })} />
             <Input label={`Discount (${currency})`} type="number" step="0.001" value={mntForm.discount} onChange={e => setMntForm({ ...mntForm, discount: Number(e.target.value) })} />
             <Select label="Payment Status" value={mntForm.paymentStatus} onChange={e => setMntForm({ ...mntForm, paymentStatus: e.target.value as any })}>
               <option value="Unpaid">Unpaid (Credit)</option>
@@ -1288,8 +1309,8 @@ export const QuickActionModals: React.FC = () => {
       >
         <form onSubmit={handleCreateOilChange} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <RecordSelect label="Vehicle" value={oilForm.vehicleId} onChange={v => setOilForm({ ...oilForm, vehicleId: v })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
-            <Input label="Odometer (KM)" type="number" value={oilForm.odometer} onChange={e => setOilForm({ ...oilForm, odometer: Number(e.target.value) })} required />
+            <RecordSelect label="Vehicle" value={oilForm.vehicleId} onChange={v => setOilForm({ ...oilForm, vehicleId: v, odometer: vehicles.find(x => x.id === v)?.currentMileage || 0 })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
+            <Input label="Odometer (KM)" type="number" min={1} value={oilForm.odometer} onChange={e => setOilForm({ ...oilForm, odometer: Number(e.target.value) })} required {...fe('odometer')} />
             <Input label="Date" type="date" value={oilForm.date} onChange={e => setOilForm({ ...oilForm, date: e.target.value })} required {...fe('date')} />
           </div>
 
@@ -1303,7 +1324,7 @@ export const QuickActionModals: React.FC = () => {
             <Input label={`Oil Cost (${currency})`} type="number" step="0.001" value={oilForm.oilCost} onChange={e => setOilForm({ ...oilForm, oilCost: Number(e.target.value) })} />
             <Input label={`Filter Cost (${currency})`} type="number" step="0.001" value={oilForm.filterCost} onChange={e => setOilForm({ ...oilForm, filterCost: Number(e.target.value) })} />
             <Input label={`Labour Cost (${currency})`} type="number" step="0.001" value={oilForm.labourCost} onChange={e => setOilForm({ ...oilForm, labourCost: Number(e.target.value) })} />
-            <Input label={`Tax 5% (${currency})`} type="number" step="0.001" value={oilForm.tax} onChange={e => setOilForm({ ...oilForm, tax: Number(e.target.value) })} />
+            <Input label={`Tax (${currency})`} type="number" step="0.001" value={oilForm.tax} onChange={e => setOilForm({ ...oilForm, tax: Number(e.target.value) })} />
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
@@ -1465,10 +1486,10 @@ export const QuickActionModals: React.FC = () => {
             <Input label="Reference / PO #" placeholder="e.g. PO-2026-8812" value={invoiceForm.referenceNumber} onChange={e => setInvoiceForm({ ...invoiceForm, referenceNumber: e.target.value })} />
           </div>
 
-          {/* Document Upload Zone with OCR Autofill */}
+          {/* Attachment only: the file is stored with the invoice; nothing is read from it */}
           <DocumentUploadZone
             label="Upload Purchase Bill / Scanned Invoice Document"
-            description="Drag & drop or select sample invoice to auto-extract reference, items, and tax totals"
+            description="Attach the bill or invoice document. Enter the reference and line below."
             value={invoiceForm.attachment}
             onChange={file => setInvoiceForm({ ...invoiceForm, attachment: file })}
           />
@@ -1743,12 +1764,7 @@ export const QuickActionModals: React.FC = () => {
               value={supplierForm.supplierType}
               onChange={e => setSupplierForm({ ...supplierForm, supplierType: e.target.value as any })}
             >
-              <option value="Garage">Garage / Workshop</option>
-              <option value="Spare Parts">Spare Parts Vendor</option>
-              <option value="Fuel Station">Fuel Station</option>
-              <option value="Insurance Company">Insurance Company</option>
-              <option value="Tyre Dealer">Tyre Dealer</option>
-              <option value="Vehicle Dealership">Vehicle Dealership</option>
+              {SUPPLIER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </Select>
           </div>
 

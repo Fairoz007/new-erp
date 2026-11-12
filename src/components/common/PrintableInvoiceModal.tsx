@@ -7,6 +7,7 @@ import { StatusBadge } from './StatusBadge';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
+import { useOptionalOrg } from '../../context/OrgContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { createDebitNote } from '../../services/ledger';
@@ -19,6 +20,7 @@ export const PrintableInvoiceModal: React.FC = () => {
   const { companies, duplicateInvoice, createCreditNote, updateInvoice, submitInvoice, reload } = useFleet();
   const { viewingInvoiceId, closeInvoiceModal, addToast, openInvoiceModal, openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
+  const orgCtx = useOptionalOrg();
   const printableRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [cnOpen, setCnOpen] = useState(false);
@@ -70,6 +72,18 @@ export const PrintableInvoiceModal: React.FC = () => {
   }
 
   const company = companies.find(c => c.id === invoice.companyId);
+  const org = orgCtx?.organization ?? null;
+  const officeName = company?.name || invoice.companyName;
+  const officeAddress = company ? [company.address, company.city, company.country].filter(Boolean).join(', ') : '';
+  const seller = {
+    name: org?.legalName || org?.tradeName || officeName,
+    branch: org && (org.legalName || org.tradeName) ? officeName : '',
+    address: officeAddress || (org ? [org.address, org.city, org.country].filter(Boolean).join(', ') : ''),
+    cr: company?.registrationNumber || org?.crNumber || '',
+    vat: company?.vatNumber || org?.vatNumber || '',
+    phone: company?.phone || org?.phone || '',
+    email: company?.email || org?.email || '',
+  };
   const canCreate = hasPermission('create', 'invoices');
   const canEdit = hasPermission('edit', 'invoices');
   const isPosted = invoice.approvalStatus === 'Approved';
@@ -238,22 +252,25 @@ export const PrintableInvoiceModal: React.FC = () => {
         {/* Header Letterhead */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b-2 border-slate-900">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-xl tracking-tighter shrink-0">
-              {(company?.code || invoice.companyName || '?').slice(0, 3)}
-            </div>
+            {orgCtx?.logoUrl && org?.letterhead?.showLogo !== false ? (
+              <img src={orgCtx.logoUrl} alt="" className="w-14 h-14 rounded-lg object-contain bg-white border border-slate-200 shrink-0" />
+            ) : (
+              <div className="w-14 h-14 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-xl tracking-tighter shrink-0">
+                {(company?.code || invoice.companyName || '?').slice(0, 3)}
+              </div>
+            )}
             <div>
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">{company?.name || invoice.companyName}</h2>
-              {company && (
-                <>
-                  <p className="text-slate-600 mt-0.5">{[company.address, company.city, company.country].filter(Boolean).join(', ')}</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-500">
-                    {company.registrationNumber && <span><strong>CR:</strong> {company.registrationNumber}</span>}
-                    {company.vatNumber && <span><strong>VAT No:</strong> {company.vatNumber}</span>}
-                    {company.phone && <span><strong>Phone:</strong> {company.phone}</span>}
-                    {company.email && <span><strong>Email:</strong> {company.email}</span>}
-                  </div>
-                </>
-              )}
+              {/* The seller is the organization (legal name, CR, VAT); the office is the issuing branch.
+                  Office details are used where the office has its own, the organization's otherwise. */}
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">{seller.name}</h2>
+              {seller.branch && <p className="text-slate-700 font-semibold mt-0.5">{seller.branch}</p>}
+              <p className="text-slate-600 mt-0.5">{seller.address}</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-500">
+                {seller.cr && <span><strong>CR:</strong> {seller.cr}</span>}
+                {seller.vat && <span><strong>VAT No:</strong> {seller.vat}</span>}
+                {seller.phone && <span><strong>Phone:</strong> {seller.phone}</span>}
+                {seller.email && <span><strong>Email:</strong> {seller.email}</span>}
+              </div>
             </div>
           </div>
 

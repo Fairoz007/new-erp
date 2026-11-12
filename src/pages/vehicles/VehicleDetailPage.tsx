@@ -351,7 +351,7 @@ export const VehicleDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-slate-400 block">Engine Capacity</span>
-                    <span className="font-semibold text-slate-200">{vehicle.engineCapacityCc} CC</span>
+                    <span className="font-semibold text-slate-200">{vehicle.engineCapacityCc ? `${vehicle.engineCapacityCc} CC` : 'Not recorded'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block">Transmission</span>
@@ -526,7 +526,7 @@ export const VehicleDetailPage: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Reported: {formatDate(wo.reportedDate)} • Workshop: {wo.workshop || 'Internal'} • Tech: {wo.assignedTechnician || 'Unassigned'}
+                        Reported: {formatDate(wo.reportedDate)} • Workshop: {wo.workshop || wo.supplierName || 'Not assigned'} • Tech: {wo.assignedTechnician || 'Unassigned'}
                       </p>
                     </CardHeader>
                     <CardContent className="space-y-2 text-xs">

@@ -179,7 +179,7 @@ export const WorkOrdersPage: React.FC = () => {
                   <p className="text-xs text-slate-300 leading-relaxed font-semibold break-words">{wo.problemDescription}</p>
 
                   <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-slate-400 font-medium">
-                    <span>Workshop: <strong className="text-slate-200">{wo.workshop}</strong></span>
+                    <span>Workshop: <strong className="text-slate-200">{wo.workshop || wo.supplierName || 'Not assigned'}</strong></span>
                     <span>Requested: {formatDate(wo.reportedDate)}{wo.requestedByName ? ` by ${wo.requestedByName}` : ''}</span>
                     {wo.expectedCompletion && <span>Target: {formatDate(wo.expectedCompletion)}</span>}
                     {wo.partsRequired && <span>Parts: {wo.partsRequired}</span>}

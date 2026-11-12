@@ -211,6 +211,7 @@ const RequestModal: React.FC<{ year: number; types: LeaveType[]; onClose: () => 
           <Input label="To" type="date" value={v.endDate} min={v.startDate} onChange={e => setV({ ...v, endDate: e.target.value })} />
         </div>
         {days > 0 && <p className="text-xs text-slate-300">{days} calendar day(s)</p>}
+        {v.startDate && v.endDate && v.endDate < v.startDate && <p className="text-xs text-rose-500" role="alert">The To date is before the From date.</p>}
         <BalanceLine b={b} loading={loading} />
         <Textarea label="Reason" value={v.reason} onChange={e => setV({ ...v, reason: e.target.value })} />
         <div className="flex items-center gap-2">

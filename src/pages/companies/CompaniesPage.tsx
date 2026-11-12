@@ -143,7 +143,7 @@ export const CompaniesPage: React.FC = () => {
                       )}
                     </div>
                     <span className="text-[11px] text-slate-400 font-mono">
-                      Code: {comp.code} • {comp.city}, {comp.state}, {comp.country}
+                      Code: {comp.code}{[comp.city, comp.state, comp.country].some(Boolean) ? ` • ${[comp.city, comp.state, comp.country].filter(Boolean).join(', ')}` : ''}
                     </span>
                   </div>
                 </div>
@@ -192,15 +192,15 @@ export const CompaniesPage: React.FC = () => {
                 <div className="space-y-2 pt-1 bg-slate-850/40 p-3 rounded-xl border border-slate-700/60">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Commercial Registration (CR):</span>
-                    <span className="font-mono font-semibold text-slate-200">{comp.registrationNumber}</span>
+                    <span className="font-mono font-semibold text-slate-200">{comp.registrationNumber || '—'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">VAT Identification:</span>
-                    <span className="font-mono font-semibold text-slate-200">{comp.vatNumber}</span>
+                    <span className="font-mono font-semibold text-slate-200">{comp.vatNumber || '—'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Financial Fiscal Period:</span>
-                    <span className="text-slate-300 font-medium">{comp.financialYear}</span>
+                    <span className="text-slate-300 font-medium">{comp.financialYear || '—'}</span>
                   </div>
                 </div>
 
@@ -217,18 +217,25 @@ export const CompaniesPage: React.FC = () => {
 
                 {/* Contact info */}
                 <div className="pt-2 border-t border-slate-700/80 text-[11px] text-slate-400 space-y-1.5">
-                  <p className="flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{comp.address}, {comp.city}</span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{comp.phone}</span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{comp.email}</span>
-                  </p>
+                  {[comp.address, comp.city].some(Boolean) && (
+                    <p className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{[comp.address, comp.city].filter(Boolean).join(', ')}</span>
+                    </p>
+                  )}
+                  {comp.phone && (
+                    <p className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{comp.phone}</span>
+                    </p>
+                  )}
+                  {comp.email && (
+                    <p className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{comp.email}</span>
+                    </p>
+                  )}
+                  {![comp.address, comp.city, comp.phone, comp.email].some(Boolean) && <p>No contact details recorded.</p>}
                 </div>
               </CardContent>
             </Card>

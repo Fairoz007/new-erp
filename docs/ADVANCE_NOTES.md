@@ -600,3 +600,71 @@ company works on shared data); their roles are unchanged.
 |---|---|---|
 | Every wizard step showed "Progress not saved: UPDATE requires a WHERE clause". Supabase's pg_safeupdate refuses UPDATE/DELETE without WHERE, also inside functions; PGlite does not, so tests missed it. `complete_setup` (Finish) and `_payroll_fill` (payroll) had the same statement | `20261113006000_where_clauses.sql` adds an explicit WHERE to the three statements, nothing else (pushed) | `where_clauses.test.mjs` scans every function body; fails on all three without the migration. Seen live: progress saves, Finish completes |
 | "Save & continue" on steps 1 and 2 left unsaved edits behind (step 1 refused with "Save the organization profile to continue") | Steps with their own form register their save while they have unsaved edits; "Save & continue" saves first and moves on only if the save succeeds | Seen live: edited profile saved by "Save & continue" alone |
+
+### Module-by-module inspection on the hosted project (2026-11-12)
+
+Signed in as a Super Admin on the local dev server against the project, every module was used the
+way a user would: records added, edited, approved, posted, paid, printed and exported. Sample
+records are named "Sample…" so they can be told apart from real data. Migrations
+`20261113007000` to `20261113010000` were pushed; `supabase migration list` shows none pending.
+
+What was exercised, end to end:
+
+| Area | Flow | Result |
+|---|---|---|
+| Vehicles | add one per office, edit, delete (confirm) | codes VH-HO-001, VH-DQM-001, VH-NSF-001 |
+| Suppliers / customers | add, edit (contact, phone, type), form opens blank for the next one | ok after fixes below |
+| Employees | add (validation, gross, PASI, gratuity) | EMP-HO-001; gross 425.000, net 400.500 |
+| Work orders | create, approve, start, complete → maintenance record and supplier bill | WO-HO-2026-001, MNT-HO-2026-001, bill 45.000 |
+| Purchase bill | approve & post, pay from bank | Dr 5000 / Cr 2010 45.000; PAY-HO-2026-0001 |
+| Bank account | Settings → Opening balances CSV | posted; offered in the payment form at once (fix below) |
+| Sales invoice | create (zero total refused), 5% VAT, part payment, overpayment refused, print, credit note | INV-HO-2026-0001 1,260.000; paid 500; CN 105; balance 655.000 |
+| Trial balance | totals and CSV/PDF export | 6,155.000 each side, matches the postings by hand; CSV and PDF files produced |
+| Expenses | save & submit, submit draft, pay, second office | EXP-HO-2026-0001, EXP-DQM-2026-0001 (fix below) |
+| Payroll | prepare, approve & post, pay | 19 of 30 days: basic 221.667, allowances 47.500, PASI 15.517, net 253.650 |
+| Leave | request, date check, approve refused (November payroll approved, attendance closed), withdraw | ok |
+| Fixed assets | register, depreciation October, same month again refused | FA-HO-001, 20.000/month, DEP-HO-2026-01 |
+| Manual journal | unbalanced refused, balanced posted | JE-HO-2026-0012 |
+| Budgets | create, monthly amounts, submit, approve, budget vs actual | 5010 budget 100.000 to date vs 14.160 actual |
+| Oil, tyres, accidents | add one each | ok after fixes below |
+| Period close | close September (Nisfa), reopen needs a reason | ok |
+| Documents | upload PDF, view (signed link), download | ok after the storage fix below |
+
+Defects found and fixed:
+
+| Defect | Fix | Test |
+|---|---|---|
+| Two offices issued the same numbers (VH-001, INV-2026-0001…) because the office code was off in the numbering formats | `20261113007000_office_code_in_numbers.sql`: office-scoped formats include the office code (default and existing rows). Four older tests pinned the old format and now switch it off for their checks | `office_numbers.test.mjs` |
+| The supplier bill raised from a maintenance record and the depreciation batch number were built from a fixed prefix (`PINV-2026-0001`, `DEP-2026-01`) and ignored the formats | `20261113008000_numbering_formats.sql` uses `doc_prefix`/`doc_pad` in both functions. Numbers already issued are kept (the sample bill stays PINV-2026-0001) | `office_numbers.test.mjs` scans every function for a fixed prefix (fails on both without the migration); `fleet.test.mjs` now expects PINV-HO-2026-… |
+| "Save Expense" saved a draft and then failed: "already saved … submitted twice". The form's request key was sent with the insert and again with `submit_expense`, whose journal insert found the key used | `20261113009000_request_key_per_table.sql`: a key is claimed once per table. A repeated save is still refused at the first insert | `request_key_steps.test.mjs` (fails without the migration with the live message) |
+| Every upload failed ("stored file could not be found"): clearing the stored files with `supabase storage rm -r` on 2026-11-12 had deleted the `documents` and `media` buckets themselves | `20261113010000_storage_buckets.sql` recreates both with the same limits (policies were untouched) | `storage_buckets.test.mjs`; seen live: upload, view and download work |
+| Book value charged a full year of depreciation for a vehicle bought today | `calculateCurrentBookValue` counts only year-end rows dated on or before the as-of date (number changes: a vehicle bought this year shows its cost until 31 Dec) | `src/utils/__tests__/bookValue.test.ts` |
+| Quick forms kept the previous entry (a second supplier inherited contact and phone) | Every quick form is reset when it opens; dates set to today | Seen live: Add Supplier opens blank |
+| Invented defaults: vehicle registration expiry, colour, engine 0 cc, oil brand/grade, oil type "Fully Synthetic 5W-30", oil quantity 6.5 l, accident time 14:00 | Blank until entered; engine size shows "Not recorded" | Seen live |
+| Add Supplier offered types the rest of the app does not know ("Fuel Station", "Spare Parts"…); Edit then showed the first type in the list instead | One list (`SUPPLIER_TYPES`) for add, edit and CSV import; Edit shows a stored type outside the list as it is | Seen live; SUP-002 corrected to Fuel Supplier |
+| Work order list and vehicle page showed an empty "Workshop:" when a supplier was chosen | Show the supplier's name; "Not assigned" when none ("Internal Workshop" was not a recorded fact) | Seen live |
+| A bank account added in Settings → Opening balances was not offered in the payment form until reload | The importer refreshes the loaded lists after posting | Seen live |
+| Printed invoices showed only the office ("HO Head Office"), without the company's legal name or VAT number | The letterhead shows the organization's legal name with the office as branch; CR, VAT, phone and email fall back to the organization's when the office has none; logo shown when uploaded | Seen live: Al Hakim National LLC, VAT No OM1100482910 |
+| Invoice upload box promised to "auto-extract reference, items, and tax totals" (there is no such feature) | Text says the file is attached only | — |
+| Oil service saved with odometer 0 (next service due at 10,000 km) because picking a vehicle did not fill its reading | Picking a vehicle fills its current reading (oil and maintenance forms); oil odometer must be above zero | Seen live: 45,250 → next 55,250 |
+| "Tax 5%" labels on oil and maintenance forms (the rate is whatever the supplier charged) | "Tax (OMR)" | — |
+| A manual journal on the bank's ledger account (1020) did not name the bank account, so the bank balance (dashboard "Cash in bank", payment forms, bank reconciliation) left it out: 5,187.190 shown against 5,185.690 in the ledger. Bank reconciliation's hint "book the item as a journal on this bank account" could not be followed | A journal line on a ledger account that a bank account of the office posts to names that bank account (chosen automatically when there is one, required when there are several); `post_journal_entry` already checked and stored it | `src/services/__tests__/journalBankLine.test.ts` (fails without the change). Seen live: the sample journal was reversed and posted again; bank balance = ledger 1020 = 5,185.690 |
+| At 375 px Payroll, Leave, Attendance, Users & Roles and Fixed Assets scrolled sideways (by up to 727 px): hidden (sr-only) labels in table headers were positioned against the page instead of the table's scroll area; the Fixed Assets tab strip was wider than the screen | Every horizontal scroll area is the positioning parent of its content (`index.css`, components layer; no popover sits inside one); segmented tabs never exceed their container (`Tabs.tsx`) | Measured live at 375 px on every page in the menu (see below) |
+| Leave request: To before From only disabled the button | A message says why | Seen live |
+| Journal form: lines after the first had no accessible name; "Company" where the app says "Office" | Labels per line; "Office" | — |
+| Small text: employee bank "Direct Disbursal" when none, tyre "SN:" with no serial, accident "Claim: Pending" with no claim, office cards with empty CR/VAT/contact lines | Shown as "-"/"n/a", hidden or "No contact details recorded." | — |
+
+Checked and correct: the dashboard and P&L "net profit to date" leave out November payroll because the payroll journal is dated the last day of the month (30 Nov), after today.
+
+Left as they are (by design or a new feature, not a defect): the client and supplier statement
+orders lines of the same day by reference, so a credit note (CN-…) is listed before its invoice
+(INV-…) and the running balance dips below zero on that line (totals and closing balance are right); there is no form to add a bank account
+outside Settings → Opening balances (CSV); the invoice form shows no VAT preview before saving (the
+database applies the office's default rate, shown on the saved invoice); journal requests
+(`JR-YYYY-…`, waiting for approval) and payroll runs (`PR-YYYY-MM`) have no numbering format and so
+no office code; gratuity counts the joining day.
+
+Not verified in this pass: Users & Roles changes and invitations (would email real people), the
+Arabic layout, attendance entry, bank reconciliation matching, 3-way reconciliation, customer and
+supplier statements printed, and every report's export (all 26 reports open without errors;
+the trial balance CSV and PDF were produced). At 375 px only the sideways-scroll check was run.

@@ -306,6 +306,7 @@ export async function addJournalEntry(entry: Omit<JournalEntry, 'id' | 'entryNum
       description: l.description || null,
       vehicle_id: l.vehicleId || null,
       cost_centre: l.costCentre || null,
+      bank_account_id: l.bankAccountId || null,
     })),
     p_reference: entry.reference || null,
   });

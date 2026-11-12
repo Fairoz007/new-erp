@@ -72,7 +72,7 @@ export const AccidentsPage: React.FC = () => {
       render: (a) => (
         <div>
           <span className="font-mono text-xs text-slate-300">Police: {a.policeReportNumber || 'n/a'}</span>
-          <p className="text-[10px] text-slate-400">Claim: {a.insuranceClaimNumber || 'Pending'}</p>
+          <p className="text-[10px] text-slate-400">Claim: {a.insuranceClaimNumber || 'n/a'}</p>
         </div>
       ),
     },

@@ -104,6 +104,13 @@
 }
 
 @layer components {
+  /* A horizontal scroll area is the positioning parent of what it scrolls, so hidden (sr-only)
+     labels inside wide tables stay inside it instead of widening the page on phones. In the
+     components layer: an explicit sticky/fixed/absolute utility on the same element still wins. */
+  .overflow-x-auto {
+    position: relative;
+  }
+
   .page-title {
     @apply text-2xl font-bold tracking-tight text-slate-100;
   }

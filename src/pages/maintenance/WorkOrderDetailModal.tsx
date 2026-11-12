@@ -184,7 +184,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Workshop / Service Centre</span>
-              <span className="font-semibold text-slate-200">{order.workshop || order.supplierName || 'Internal Workshop'}</span>
+              <span className="font-semibold text-slate-200">{order.workshop || order.supplierName || 'Not assigned'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Target Completion</span>

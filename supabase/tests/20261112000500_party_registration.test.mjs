@@ -4,6 +4,9 @@
 import { setup, seedFixtures, IDS } from './harness.mjs';
 
 const t = await setup(process.argv[2] || 'supabase/migrations', { quiet: true });
+// These checks cover the numbering mechanics with the formats as first installed (no office code);
+// office_numbers.test.mjs covers the office code that 20261113007000 turns on.
+await t.db.exec(`update public.document_formats set include_office_code = false;`);
 const { db, check, tx, as, asServer, assert } = t;
 await seedFixtures(db);
 const { ADMIN, FLEET, OTHER, HO, DQ } = IDS;

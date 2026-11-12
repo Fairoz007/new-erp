@@ -10,6 +10,7 @@ import { Input } from '../../../components/ui/Input';
 import { Badge } from '../../../components/ui/Badge';
 import { supabase } from '../../../lib/supabase';
 import * as org from '../../../services/org';
+import { useOptionalFleet } from '../../../context/FleetContext';
 import type { Company } from '../../../types/system';
 import { NoticeBar, Section, downloadText, errText, parseCsv, tableCls, tdCls, thCls, useNotice, useOffices } from '../shared';
 
@@ -97,6 +98,9 @@ const Importer: React.FC<{ kind: Kind; offices: Company[]; goLive: string; curre
   const [fileName, setFileName] = useState('');
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useNotice();
+  // In Settings (inside the app) the loaded lists are refreshed after posting, so a new bank
+  // account is offered in the payment form at once; the Setup Wizard has no loaded lists.
+  const fleet = useOptionalFleet();
 
   const load = async (file?: File) => {
     if (!file) return;
@@ -153,6 +157,8 @@ const Importer: React.FC<{ kind: Kind; offices: Company[]; goLive: string; curre
       setRows([...next]);
     }
     setRunning(false);
+    if (ok && fleet) void fleet.reload(kind === 'banks' ? ['bankAccounts', 'chartOfAccounts']
+      : kind === 'parties' ? ['customers', 'suppliers', 'invoices', 'chartOfAccounts'] : ['fixedAssets', 'chartOfAccounts']);
     const failed = next.filter(r => r.status === 'failed').length;
     setNotice(failed ? { tone: 'error', text: `${ok} posted, ${failed} failed. Fix the failed rows in the file and import it again (posted rows are skipped only within this screen).` }
       : { tone: 'success', text: `${ok} row(s) posted.` });

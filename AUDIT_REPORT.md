@@ -260,3 +260,32 @@ turn on leaked-password protection, rotate the demo password (O.2), and sign in 
 On the owner's instruction (development stage) all business data and the 1,645 stored files were
 removed from `fpeniljpqigpeqtsgizr`; the 9 accounts, their roles and the built-in settings were kept.
 The Setup Wizard runs again for the Super Admin. Details: `docs/ADVANCE_NOTES.md`.
+
+Correction (found in section S): the file clear-down also deleted the `documents` and `media`
+buckets; `20261113010000_storage_buckets.sql` recreates them with their limits.
+
+## S. Module inspection on the hosted project (2026-11-12)
+
+Every module was used signed in as a Super Admin against `fpeniljpqigpeqtsgizr`, with sample
+records named "Sample…". Full table of flows and fixes: `docs/ADVANCE_NOTES.md` → "Module-by-module
+inspection".
+
+| Severity | Defect | Fix | Proof |
+|---|---|---|---|
+| High | Every upload failed: buckets deleted with the stored files | `20261113010000_storage_buckets.sql` | `storage_buckets.test.mjs`; upload, view, download live |
+| High | "Save Expense" left every expense as a draft (request key refused on the journal of the same save) | `20261113009000_request_key_per_table.sql` | `request_key_steps.test.mjs` |
+| High | Two offices issued the same document numbers | `20261113007000_office_code_in_numbers.sql` | `office_numbers.test.mjs` |
+| Medium | Maintenance bills and depreciation batches ignored the numbering formats | `20261113008000_numbering_formats.sql` | `office_numbers.test.mjs` (function scan) |
+| Medium | Manual journals on the bank ledger account did not move the bank balance | Journal line names the bank account | `journalBankLine.test.ts`; bank = ledger live |
+| Medium | Printed invoices had no legal name or VAT number | Letterhead from the organization, office as branch | Seen live |
+| Medium | Book value charged a full year for a vehicle bought this year | Only year-ends reached count | `bookValue.test.ts` |
+| Medium | Quick forms kept the previous record's values; invented defaults (oil type and litres, accident time, vehicle fields) | Reset on open; blank defaults | Seen live |
+| Low | Five pages scrolled sideways at 375 px (hidden table labels, a tab strip) | Scroll areas position their content; tabs fit | Measured live at 375 px |
+| Low | Supplier types differed between add and edit; workshop name blank on work orders; stale bank list after import; oil odometer 0; small labels and texts | See the notes | Seen live |
+
+Checks: `npm run lint` (types and secret scan), `npm run test:unit`, `npm run test:db` and
+`npm run build` pass. `supabase migration list`: local and remote at `20261113010000`.
+
+Not verified: Users & Roles changes and invitations (they email real people), Arabic layout,
+attendance entry, bank and 3-way reconciliation matching, printed statements, every report export
+(all 26 open without errors), and at 375 px only the sideways-scroll check.

@@ -27,6 +27,9 @@ for (const f of readdirSync(dir).filter(f => f.endsWith('.sql')).sort()) {
   try { await db.exec(readFileSync(join(dir, f), 'utf8')); }
   catch (e) { console.log('FAIL migration', f, '\n  ', e.message); process.exit(1); }
 }
+// These checks cover the numbering mechanics with the formats as first installed (no office code);
+// office_numbers.test.mjs covers the office code that 20261113007000 turns on.
+await db.exec(`update public.document_formats set include_office_code = false;`);
 
 // The numbering triggers belong to Agent E (20261026000000_platform.sql). If that migration is not
 // present yet, install a test-only stand-in with the contract formats so these tests can run.

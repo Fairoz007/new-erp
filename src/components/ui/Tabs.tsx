@@ -30,7 +30,7 @@ export const Tabs: React.FC<TabsProps> = ({
 }) => {
   if (variant === 'segmented') {
     return (
-      <div role="tablist" aria-label={ariaLabel} className={twMerge(clsx('flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full gap-1 overflow-x-auto', className))}>
+      <div role="tablist" aria-label={ariaLabel} className={twMerge(clsx('flex items-center p-1 bg-slate-850 border border-slate-700 rounded-full gap-1 overflow-x-auto max-w-full', className))}>
         {tabs.map(tab => {
           const isActive = tab.id === activeTab;
           return (

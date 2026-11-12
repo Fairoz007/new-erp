@@ -181,7 +181,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
             <div>
               <span className="text-slate-400 block text-[11px]">Bank Name</span>
-              <span className="font-semibold text-slate-200">{employee.bankName || 'Direct Disbursal'}</span>
+              <span className="font-semibold text-slate-200">{employee.bankName || '-'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Account Number</span>

@@ -18,7 +18,7 @@ import { consolidateAccounts } from '../../services/accounting';
 import { journalRegisterSource, useJournalCount, type JournalListRow } from '../../services/queries-dashboards';
 import { PageHeader } from '../../components/ui/PageHeader';
 
-type FormLine = { id: string; accountCode: string; debit: number; credit: number; description: string };
+type FormLine = { id: string; accountCode: string; debit: number; credit: number; description: string; bankAccountId?: string };
 
 const blankLines = (): FormLine[] => [
   { id: `${Date.now()}-1`, accountCode: '', debit: 0, credit: 0, description: '' },
@@ -26,7 +26,7 @@ const blankLines = (): FormLine[] => [
 ];
 
 export const AccountingPage: React.FC = () => {
-  const { chartOfAccounts, addJournalEntry, reverseJournalEntry, currency, selectedCompanyId, companies } = useFleet();
+  const { chartOfAccounts, addJournalEntry, reverseJournalEntry, currency, selectedCompanyId, companies, bankAccounts } = useFleet();
   // same key for every attempt to post this journal; renewed after it is posted
   const journalKey = useRequestKey();
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
@@ -86,6 +86,9 @@ export const AccountingPage: React.FC = () => {
     lines: blankLines(),
   });
   const postingAccounts = journalForm.companyId ? consolidateAccounts(chartOfAccounts, journalForm.companyId) : [];
+  // Bank accounts of the office that post to this ledger account: a line on a bank GL account names
+  // the bank account, so its balance (and bank reconciliation) includes the journal.
+  const banksFor = (code: string) => bankAccounts.filter(b => b.companyId === journalForm.companyId && b.active && b.glAccountCode === code);
 
   const totalDebit = journalForm.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
   const totalCredit = journalForm.lines.reduce((s, l) => s + Number(l.credit || 0), 0);
@@ -106,14 +109,15 @@ export const AccountingPage: React.FC = () => {
     }
     const activeLines = journalForm.lines.filter(l => Number(l.debit || 0) !== 0 || Number(l.credit || 0) !== 0);
     const found: Errors = validate(journalForm, {
-      companyId: [required('Company', 'Choose the company (office) this journal belongs to.')],
+      companyId: [required('Office', 'Choose the office this journal belongs to.')],
       date: [required('Journal date', RULES.journalDateRequired)],
       description: [required('Description', RULES.journalDescriptionRequired)],
     });
     for (const l of activeLines) {
       if (Number(l.debit) < 0) found[`line-${l.id}-debit`] = RULES.journalLineSide;
       if (Number(l.credit) < 0) found[`line-${l.id}-credit`] = RULES.journalLineSide;
-      if (!postingAccounts.some(a => a.code === l.accountCode)) found[`line-${l.id}-account`] = "Choose an account from this company's chart";
+      if (!postingAccounts.some(a => a.code === l.accountCode)) found[`line-${l.id}-account`] = "Choose an account from this office's chart";
+      else if (banksFor(l.accountCode).length > 1 && !l.bankAccountId) found[`line-${l.id}-bank`] = 'Choose the bank account this line moves';
     }
     if (activeLines.length < 2) found.lines = RULES.journalTwoLines;
     else if (!activeLines.some(l => Number(l.debit) > 0) || !activeLines.some(l => Number(l.credit) > 0)) found.lines = 'A journal needs at least one debit line and one credit line.';
@@ -136,6 +140,7 @@ export const AccountingPage: React.FC = () => {
           debit: Number(line.debit || 0),
           credit: Number(line.credit || 0),
           description: line.description || journalForm.description,
+          bankAccountId: line.bankAccountId || (banksFor(line.accountCode).length === 1 ? banksFor(line.accountCode)[0].id : undefined),
         })),
         totalDebit: Math.round(totalDebit * 1000) / 1000,
         totalCredit: Math.round(totalCredit * 1000) / 1000,
@@ -376,7 +381,7 @@ export const AccountingPage: React.FC = () => {
         <form onSubmit={handleCreateJournal} onChange={clearJournalError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select
-              label="Company"
+              label="Office"
               value={journalForm.companyId}
               onChange={e => setJournalForm({ ...journalForm, companyId: e.target.value, lines: blankLines() })}
               disabled={!!defaultPostingCompany}
@@ -384,7 +389,7 @@ export const AccountingPage: React.FC = () => {
               name="companyId"
               error={jErrors.companyId}
             >
-              <option value="">-- Select company --</option>
+              <option value="">-- Select office --</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
             <Input label="Posting Date" type="date" value={journalForm.date} onChange={e => setJournalForm({ ...journalForm, date: e.target.value })} required name="date" error={jErrors.date} />
@@ -411,8 +416,9 @@ export const AccountingPage: React.FC = () => {
                 <div className="md:col-span-5">
                   <Select
                     label={idx === 0 ? 'Account' : undefined}
+                    aria-label={idx === 0 ? undefined : `Account, line ${idx + 1}`}
                     value={line.accountCode}
-                    onChange={e => updateLine(idx, { accountCode: e.target.value })}
+                    onChange={e => { const code = e.target.value; const b = banksFor(code); updateLine(idx, { accountCode: code, bankAccountId: b.length === 1 ? b[0].id : undefined }); }}
                     disabled={!journalForm.companyId}
                     name={`line-${line.id}-account`}
                     error={jErrors[`line-${line.id}-account`]}
@@ -422,10 +428,24 @@ export const AccountingPage: React.FC = () => {
                       <option key={a.code} value={a.code}>{a.code} - {a.name} ({a.category})</option>
                     ))}
                   </Select>
+                  {banksFor(line.accountCode).length > 0 && (
+                    <Select
+                      aria-label={`Bank account, line ${idx + 1}`}
+                      className="mt-2"
+                      value={line.bankAccountId ?? ''}
+                      onChange={e => updateLine(idx, { bankAccountId: e.target.value || undefined })}
+                      name={`line-${line.id}-bank`}
+                      error={jErrors[`line-${line.id}-bank`]}
+                    >
+                      {banksFor(line.accountCode).length > 1 && <option value="">-- Bank account --</option>}
+                      {banksFor(line.accountCode).map(b => <option key={b.id} value={b.id}>{b.bankName} · {b.accountName} ({b.accountNumber})</option>)}
+                    </Select>
+                  )}
                 </div>
                 <div className="md:col-span-3">
                   <Input
                     label={idx === 0 ? `Debit (${currency})` : undefined}
+                    aria-label={idx === 0 ? undefined : `Debit (${currency}), line ${idx + 1}`}
                     type="number"
                     step="0.001"
                     min="0"
@@ -438,6 +458,7 @@ export const AccountingPage: React.FC = () => {
                 <div className="md:col-span-3">
                   <Input
                     label={idx === 0 ? `Credit (${currency})` : undefined}
+                    aria-label={idx === 0 ? undefined : `Credit (${currency}), line ${idx + 1}`}
                     type="number"
                     step="0.001"
                     min="0"

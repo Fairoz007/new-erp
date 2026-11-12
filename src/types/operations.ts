@@ -130,6 +130,9 @@ export type SupplierType =
   | 'Rental Company'
   | 'Other';
 
+/** Every supplier type, in the order the forms list them (add, edit and CSV import use the same list). */
+export const SUPPLIER_TYPES: SupplierType[] = ['Vehicle Dealer', 'Garage', 'Workshop', 'Tyre Supplier', 'Oil Supplier', 'Parts Supplier', 'Insurance Company', 'Fuel Supplier', 'Rental Company', 'Other'];
+
 export interface Supplier {
   /** Row version (updated_at) as loaded; sent back on save for the concurrent-edit check. */
   updatedAt?: string;

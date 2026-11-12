@@ -3,13 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
-import type { Supplier, Customer, SupplierType } from '../../types/operations';
+import type { Supplier, Customer } from '../../types/operations';
+import { SUPPLIER_TYPES } from '../../types/operations';
 import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 
-const SUPPLIER_TYPES: SupplierType[] = [
-  'Vehicle Dealer', 'Garage', 'Workshop', 'Tyre Supplier', 'Oil Supplier', 'Parts Supplier',
-  'Insurance Company', 'Fuel Supplier', 'Rental Company', 'Other',
-];
 const CUSTOMER_TYPES: Customer['customerType'][] = ['Corporate', 'Individual', 'Government', 'Partner'];
 
 type Props =
@@ -80,6 +77,8 @@ export const PartyEditModal: React.FC<Props> = (props) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input label={`${label} Name`} value={form.name ?? ''} onChange={e => set('name', e.target.value)} required />
           <Select label="Type" value={form.type ?? ''} onChange={e => set('type', e.target.value)}>
+            {/* a stored type outside the list (older records) is shown as it is, not as the first option */}
+            {form.type && !(kind === 'supplier' ? SUPPLIER_TYPES : CUSTOMER_TYPES).includes(form.type as never) && <option value={form.type}>{form.type}</option>}
             {(kind === 'supplier' ? SUPPLIER_TYPES : CUSTOMER_TYPES).map(t => <option key={t} value={t}>{t}</option>)}
           </Select>
           <Input label="Contact Person" value={form.contactPerson ?? ''} onChange={e => set('contactPerson', e.target.value)} />

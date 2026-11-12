@@ -76,7 +76,7 @@ export const TyreManagementPage: React.FC = () => {
       render: (t) => (
         <div>
           <p className="font-bold text-slate-200">{t.brand} {t.model}</p>
-          <p className="text-[11px] text-slate-400 font-mono">{t.size} • SN: {t.serialNumber}</p>
+          <p className="text-[11px] text-slate-400 font-mono">{[t.size, t.serialNumber ? `SN: ${t.serialNumber}` : ''].filter(Boolean).join(' • ') || 'No size or serial recorded'}</p>
         </div>
       ),
     },

@@ -75,6 +75,7 @@ await check('Maintenance Manager cannot write vehicles directly', async () => {
   if (await one(`select current_mileage from vehicles where id='${V1}'`) !== 1000) throw new Error('mileage changed');
   return 'update affected 0 rows (RLS)';
 });
+// the bill number follows the purchase-bill format, which includes the office code (20261113008000)
 await check('maintenance: DB computes total, bumps odometer, writes timeline, raises pending invoice', async () => {
   await tx(MM, `insert into maintenance_records (id, company_id, record_number, vehicle_id, maintenance_date, maintenance_type, category, description,
       odometer_reading, supplier_id, parts_cost, labour_cost, tax, discount, other_charges, total_cost, invoice_number)
@@ -85,7 +86,7 @@ await check('maintenance: DB computes total, bumps odometer, writes timeline, ra
   if (await one(`select current_mileage from vehicles where id='${V1}'`) !== 4500) throw new Error('odometer');
   if (await one(`select count(*)::int from vehicle_timeline where reference_id='aaaaaaaa-0000-0000-0000-000000000001' and category='Maintenance'`) !== 1) throw new Error('timeline');
   const inv = (await q(`select invoice_number, approval_status, grand_total, reference_number, due_date - invoice_date as terms from invoices where maintenance_record_id='aaaaaaaa-0000-0000-0000-000000000001'`))[0];
-  if (!inv || inv.approval_status !== 'Pending Approval' || Number(inv.grand_total) !== 147.5 || inv.reference_number !== 'SUP-INV-77' || inv.terms !== 45 || !/^PINV-2026-\d{4}$/.test(inv.invoice_number)) throw new Error(JSON.stringify(inv));
+  if (!inv || inv.approval_status !== 'Pending Approval' || Number(inv.grand_total) !== 147.5 || inv.reference_number !== 'SUP-INV-77' || inv.terms !== 45 || !/^PINV-HO-2026-\d{4}$/.test(inv.invoice_number)) throw new Error(JSON.stringify(inv));
   return inv.invoice_number;
 });
 await check('maintenance marked Paid raises no payable; odometer never goes backwards', async () => {
