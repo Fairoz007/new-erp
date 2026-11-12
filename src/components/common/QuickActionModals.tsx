@@ -50,6 +50,7 @@ export const QuickActionModals: React.FC = () => {
     addEmployee,
     addFixedAsset,
     runAutoDepreciation,
+    currency,
   } = useFleet();
 
   const defaultVehicle = vehicles.find(v => v.id === selectedVehicleId) || vehicles[0];
@@ -208,7 +209,7 @@ export const QuickActionModals: React.FC = () => {
     referenceNumber: '',
     purchaseOrderNumber: '',
     vehicleId: defaultVehicle?.id || '',
-    currency: 'OMR',
+    currency,
     attachment: null as UploadedFileMeta | null,
     items: [
       {
@@ -232,7 +233,7 @@ export const QuickActionModals: React.FC = () => {
     invoiceId: '',
     paymentDate: new Date().toISOString().slice(0, 10),
     amount: 0,
-    currency: 'OMR',
+    currency,
     paymentMethod: 'Bank Transfer' as PaymentMethod,
     bankAccountId: '',
     transactionReference: '',
@@ -538,7 +539,7 @@ export const QuickActionModals: React.FC = () => {
         totalCost: total,
         paymentStatus: mntForm.paymentStatus,
       });
-      addToast({ type: 'success', title: 'Maintenance Logged', message: `Recorded ${rec.recordNumber} for ${v.plateNumber}. Total: ${rec.totalCost.toFixed(3)} OMR` });
+      addToast({ type: 'success', title: 'Maintenance Logged', message: `Recorded ${rec.recordNumber} for ${v.plateNumber}. Total: ${rec.totalCost.toFixed(3)} ${currency}` });
       closeQuickModal();
     });
   };
@@ -658,7 +659,7 @@ export const QuickActionModals: React.FC = () => {
         if (uploadedPath) removeFiles('documents', [uploadedPath]).catch(() => undefined);
         throw err;
       }
-      addToast({ type: 'success', title: 'Expense Added', message: `Logged ${expForm.category} expense of ${total.toFixed(3)} OMR${uploadedPath ? ' with receipt' : ''}.` });
+      addToast({ type: 'success', title: 'Expense Added', message: `Logged ${expForm.category} expense of ${total.toFixed(3)} ${currency}${uploadedPath ? ' with receipt' : ''}.` });
       closeQuickModal();
     });
   };
@@ -938,7 +939,7 @@ export const QuickActionModals: React.FC = () => {
         serialOrPlateNumber: assignedVeh?.plateNumber || assetForm.serialNumber || undefined,
         notes: assetForm.notes,
       });
-      addToast({ type: 'success', title: 'Fixed Asset Registered', message: `Added ${asset.assetCode} ${asset.name} (${cost.toFixed(3)} OMR).` });
+      addToast({ type: 'success', title: 'Fixed Asset Registered', message: `Added ${asset.assetCode} ${asset.name} (${cost.toFixed(3)} ${currency}).` });
       closeQuickModal();
     });
   };
@@ -958,7 +959,7 @@ export const QuickActionModals: React.FC = () => {
       addToast({
         type: 'success',
         title: 'Depreciation Complete',
-        message: `Depreciated ${drun.totalAssetsProcessed} assets for ${drun.totalDepreciationAmount.toFixed(3)} OMR${deprForm.autoPostGL ? ', posted to the GL' : ''}.`,
+        message: `Depreciated ${drun.totalAssetsProcessed} assets for ${drun.totalDepreciationAmount.toFixed(3)} ${currency}${deprForm.autoPostGL ? ', posted to the GL' : ''}.`,
       });
       closeQuickModal();
     });
@@ -1012,7 +1013,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="VIN / Chassis Number" placeholder="17-character VIN" value={vehicleForm.vin} onChange={e => setVehicleForm({ ...vehicleForm, vin: e.target.value })} />
-            <Input label="Purchase Value (OMR)" type="number" step="0.001" value={vehicleForm.purchaseValue} onChange={e => setVehicleForm({ ...vehicleForm, purchaseValue: Number(e.target.value) })} required />
+            <Input label={`Purchase Value (${currency})`} type="number" step="0.001" value={vehicleForm.purchaseValue} onChange={e => setVehicleForm({ ...vehicleForm, purchaseValue: Number(e.target.value) })} required />
             <Select label="Supplier / Dealer" value={vehicleForm.supplierId} onChange={e => setVehicleForm({ ...vehicleForm, supplierId: e.target.value })}>
               {usable(suppliers, vehicleForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
@@ -1088,10 +1089,10 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-            <Input label="Parts (OMR)" type="number" step="0.001" value={mntForm.partsCost} onChange={e => setMntForm({ ...mntForm, partsCost: Number(e.target.value) })} />
-            <Input label="Labour (OMR)" type="number" step="0.001" value={mntForm.labourCost} onChange={e => setMntForm({ ...mntForm, labourCost: Number(e.target.value) })} />
-            <Input label="Tax 5% (OMR)" type="number" step="0.001" value={mntForm.tax} onChange={e => setMntForm({ ...mntForm, tax: Number(e.target.value) })} />
-            <Input label="Discount (OMR)" type="number" step="0.001" value={mntForm.discount} onChange={e => setMntForm({ ...mntForm, discount: Number(e.target.value) })} />
+            <Input label={`Parts (${currency})`} type="number" step="0.001" value={mntForm.partsCost} onChange={e => setMntForm({ ...mntForm, partsCost: Number(e.target.value) })} />
+            <Input label={`Labour (${currency})`} type="number" step="0.001" value={mntForm.labourCost} onChange={e => setMntForm({ ...mntForm, labourCost: Number(e.target.value) })} />
+            <Input label={`Tax 5% (${currency})`} type="number" step="0.001" value={mntForm.tax} onChange={e => setMntForm({ ...mntForm, tax: Number(e.target.value) })} />
+            <Input label={`Discount (${currency})`} type="number" step="0.001" value={mntForm.discount} onChange={e => setMntForm({ ...mntForm, discount: Number(e.target.value) })} />
             <Select label="Payment Status" value={mntForm.paymentStatus} onChange={e => setMntForm({ ...mntForm, paymentStatus: e.target.value as any })}>
               <option value="Unpaid">Unpaid (Credit)</option>
               <option value="Paid">Paid</option>
@@ -1134,7 +1135,7 @@ export const QuickActionModals: React.FC = () => {
               <option value="">Not assigned</option>
               {usable(suppliers, woForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
-            <Input label="Estimated Cost (OMR)" type="number" step="0.001" value={woForm.estimatedCost} onChange={e => setWoForm({ ...woForm, estimatedCost: Number(e.target.value) })} required />
+            <Input label={`Estimated Cost (${currency})`} type="number" step="0.001" value={woForm.estimatedCost} onChange={e => setWoForm({ ...woForm, estimatedCost: Number(e.target.value) })} required />
             <Input label="Requested By" value={currentUser.name} readOnly />
           </div>
 
@@ -1171,10 +1172,10 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-            <Input label="Oil Cost (OMR)" type="number" step="0.001" value={oilForm.oilCost} onChange={e => setOilForm({ ...oilForm, oilCost: Number(e.target.value) })} />
-            <Input label="Filter Cost (OMR)" type="number" step="0.001" value={oilForm.filterCost} onChange={e => setOilForm({ ...oilForm, filterCost: Number(e.target.value) })} />
-            <Input label="Labour Cost (OMR)" type="number" step="0.001" value={oilForm.labourCost} onChange={e => setOilForm({ ...oilForm, labourCost: Number(e.target.value) })} />
-            <Input label="Tax 5% (OMR)" type="number" step="0.001" value={oilForm.tax} onChange={e => setOilForm({ ...oilForm, tax: Number(e.target.value) })} />
+            <Input label={`Oil Cost (${currency})`} type="number" step="0.001" value={oilForm.oilCost} onChange={e => setOilForm({ ...oilForm, oilCost: Number(e.target.value) })} />
+            <Input label={`Filter Cost (${currency})`} type="number" step="0.001" value={oilForm.filterCost} onChange={e => setOilForm({ ...oilForm, filterCost: Number(e.target.value) })} />
+            <Input label={`Labour Cost (${currency})`} type="number" step="0.001" value={oilForm.labourCost} onChange={e => setOilForm({ ...oilForm, labourCost: Number(e.target.value) })} />
+            <Input label={`Tax 5% (${currency})`} type="number" step="0.001" value={oilForm.tax} onChange={e => setOilForm({ ...oilForm, tax: Number(e.target.value) })} />
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
@@ -1215,8 +1216,8 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Input label="Quantity" type="number" step="0.1" value={expForm.quantity} onChange={e => setExpForm({ ...expForm, quantity: Number(e.target.value) })} />
-            <Input label="Unit Price (OMR)" type="number" step="0.001" value={expForm.unitPrice} onChange={e => setExpForm({ ...expForm, unitPrice: Number(e.target.value) })} />
-            <Input label="VAT amount (OMR)" type="number" step="0.001" min="0" hint="5% of the net amount in Oman" value={expForm.tax} onChange={e => setExpForm({ ...expForm, tax: Number(e.target.value) })} />
+            <Input label={`Unit Price (${currency})`} type="number" step="0.001" value={expForm.unitPrice} onChange={e => setExpForm({ ...expForm, unitPrice: Number(e.target.value) })} />
+            <Input label={`VAT amount (${currency})`} type="number" step="0.001" min="0" hint="5% of the net amount in Oman" value={expForm.tax} onChange={e => setExpForm({ ...expForm, tax: Number(e.target.value) })} />
             <Input label="Payment Method" value={expForm.paymentMethod} onChange={e => setExpForm({ ...expForm, paymentMethod: e.target.value })} />
           </div>
 
@@ -1277,10 +1278,10 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-            <Input label="Actual Repair Cost (OMR)" type="number" step="0.001" value={accForm.actualRepairCost} onChange={e => setAccForm({ ...accForm, actualRepairCost: Number(e.target.value) })} />
-            <Input label="Insurance Recovery (OMR)" type="number" step="0.001" value={accForm.insuranceContribution} onChange={e => setAccForm({ ...accForm, insuranceContribution: Number(e.target.value) })} />
-            <Input label="3rd Party Recovery (OMR)" type="number" step="0.001" value={accForm.thirdPartyContribution} onChange={e => setAccForm({ ...accForm, thirdPartyContribution: Number(e.target.value) })} />
-            <Input label="Company Net Cost (OMR)" type="number" step="0.001" value={Math.max(0, accForm.actualRepairCost - accForm.insuranceContribution - accForm.thirdPartyContribution)} disabled />
+            <Input label={`Actual Repair Cost (${currency})`} type="number" step="0.001" value={accForm.actualRepairCost} onChange={e => setAccForm({ ...accForm, actualRepairCost: Number(e.target.value) })} />
+            <Input label={`Insurance Recovery (${currency})`} type="number" step="0.001" value={accForm.insuranceContribution} onChange={e => setAccForm({ ...accForm, insuranceContribution: Number(e.target.value) })} />
+            <Input label={`3rd Party Recovery (${currency})`} type="number" step="0.001" value={accForm.thirdPartyContribution} onChange={e => setAccForm({ ...accForm, thirdPartyContribution: Number(e.target.value) })} />
+            <Input label={`Company Net Cost (${currency})`} type="number" step="0.001" value={Math.max(0, accForm.actualRepairCost - accForm.insuranceContribution - accForm.thirdPartyContribution)} disabled />
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
@@ -1304,7 +1305,7 @@ export const QuickActionModals: React.FC = () => {
               <option value="Purchase">Purchase Bill (Supplier)</option>
               <option value="Sales">Sales Invoice (Customer)</option>
             </Select>
-            <Select label="Assigned Office / Branch" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value })} required>
+            <Select label="Assigned Office / Branch" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value, currency: companies.find(c => c.id === e.target.value)?.currency || currency })} required>
               <option value="">Select office</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
@@ -1366,7 +1367,7 @@ export const QuickActionModals: React.FC = () => {
                 }}
               />
               <Input
-                label="Unit Price (OMR)"
+                label={`Unit Price (${currency})`}
                 type="number"
                 step="0.001"
                 value={invoiceForm.items[0]?.unitPrice}
@@ -1488,7 +1489,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
-              label={`Payment Amount (${paymentInvoice?.currency ?? 'OMR'})`}
+              label={`Payment Amount (${paymentInvoice?.currency ?? currency})`}
               type="number"
               step="0.001"
               value={paymentForm.amount}
@@ -1624,7 +1625,7 @@ export const QuickActionModals: React.FC = () => {
               onChange={e => setSupplierForm({ ...supplierForm, paymentTermsDays: Number(e.target.value) })}
             />
             <Input
-              label="Credit Limit (OMR)"
+              label={`Credit Limit (${currency})`}
               type="number"
               value={supplierForm.creditLimit}
               onChange={e => setSupplierForm({ ...supplierForm, creditLimit: Number(e.target.value) })}
@@ -1718,7 +1719,7 @@ export const QuickActionModals: React.FC = () => {
               onChange={e => setCustomerForm({ ...customerForm, paymentTermsDays: Number(e.target.value) })}
             />
             <Input
-              label="Credit Limit (OMR)"
+              label={`Credit Limit (${currency})`}
               type="number"
               value={customerForm.creditLimit}
               onChange={e => setCustomerForm({ ...customerForm, creditLimit: Number(e.target.value) })}
@@ -1820,7 +1821,7 @@ export const QuickActionModals: React.FC = () => {
               onChange={e => setTyreForm({ ...tyreForm, psi: Number(e.target.value) })}
             />
             <Input
-              label="Purchase Cost (OMR)"
+              label={`Purchase Cost (${currency})`}
               type="number"
               step="0.001"
               value={tyreForm.purchaseCost}
@@ -1909,7 +1910,7 @@ export const QuickActionModals: React.FC = () => {
               required
             />
             <Input
-              label="Cost (OMR)"
+              label={`Cost (${currency})`}
               type="number"
               step="0.001"
               value={assetForm.purchaseCost}
@@ -1917,7 +1918,7 @@ export const QuickActionModals: React.FC = () => {
               required
             />
             <Input
-              label="Salvage Value (OMR)"
+              label={`Salvage Value (${currency})`}
               type="number"
               step="0.001"
               value={assetForm.salvageValue}

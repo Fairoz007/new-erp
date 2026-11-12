@@ -32,6 +32,10 @@ import {
   CalendarCheck,
   Plane,
   Calculator,
+  Landmark,
+  Waves,
+  PiggyBank,
+  Lock,
 } from 'lucide-react';
 import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
@@ -113,11 +117,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'invoices', label: 'Invoices & Bills', icon: FileText, badge: overdueInvoices > 0 ? `${overdueInvoices}` : undefined, badgeColor: 'rose' },
         { id: 'reconciliation', label: '3-Way Reconciliation', icon: GitCompare },
         { id: 'payments', label: 'Payments Register', icon: CreditCard },
+        { id: 'bank-reconciliation', label: 'Bank Reconciliation', icon: Landmark },
         { id: 'trial-balance', label: 'Trial Balance', icon: Scale },
         { id: 'general-ledger', label: 'General Ledger', icon: BookOpen },
         { id: 'accounting', label: 'Finance Control', icon: Layers },
         { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
         { id: 'balance-sheet', label: 'Balance Sheet', icon: Scale },
+        { id: 'cash-flow', label: 'Cash Flow', icon: Waves },
+        { id: 'budgets', label: 'Budgets', icon: PiggyBank },
+        { id: 'period-close', label: 'Period Close', icon: Lock },
         { id: 'fixed-assets', label: 'Fixed Assets & Depr', icon: Sparkles },
       ],
     },

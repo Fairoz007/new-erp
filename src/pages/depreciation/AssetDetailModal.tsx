@@ -1,5 +1,5 @@
-import React from 'react';
-import { Sparkles, Calendar, DollarSign, Layers, Pencil, Trash2, Car, MapPin, Building2, TrendingDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Calendar, DollarSign, Layers, Pencil, Trash2, Car, MapPin, Building2, TrendingDown, Archive } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { FixedAsset } from '../../types/finance';
@@ -7,7 +7,9 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, localToday } from '../../utils/date';
+import { Input, Select, Textarea } from '../../components/ui/Input';
+import { disposeFixedAsset } from '../../services/ledger';
 
 interface AssetDetailModalProps {
   asset: FixedAsset | null;
@@ -22,12 +24,29 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
   onClose,
   onEdit,
 }) => {
-  const { currency, depreciationRuns, vehicles } = useFleet();
-  const { openVehicleDetail } = useUI();
+  const { currency, depreciationRuns, vehicles, bankAccounts, reload } = useFleet();
+  const { openVehicleDetail, addToast } = useUI();
   const { hasPermission } = useAuth();
-  const canEdit = hasPermission('edit', 'fixed-assets');
+  const canEdit = hasPermission('edit', 'fixed-assets', asset?.companyId);
+  const [disposing, setDisposing] = useState(false);
+  const [disp, setDisp] = useState({ date: localToday(), proceeds: '0', bankId: '', note: '' });
+  const [dispBusy, setDispBusy] = useState(false);
+  const [dispErr, setDispErr] = useState<string | null>(null);
 
   if (!asset) return null;
+  const canDispose = asset.status !== 'Disposed' && hasPermission('approve', 'fixed-assets', asset.companyId);
+  const banks = bankAccounts.filter(b => b.companyId === asset.companyId);
+  const proceeds = Number(disp.proceeds) || 0;
+  const gain = proceeds - asset.currentBookValue;
+  const doDispose = async () => {
+    setDispBusy(true); setDispErr(null);
+    try {
+      await disposeFixedAsset(asset.id, disp.date, proceeds, proceeds > 0 ? disp.bankId || null : null, disp.note);
+      await reload(['fixedAssets', 'journalEntries', 'chartOfAccounts', 'bankAccounts']);
+      addToast({ type: 'success', title: 'Asset disposed', message: `${asset.assetCode} was written off and posted to the ledger.` });
+      setDisposing(false); onClose();
+    } catch (e) { setDispErr((e as Error).message); } finally { setDispBusy(false); }
+  };
 
   // Depreciation runs that touched this asset
   const assetRuns = (depreciationRuns || [])
@@ -84,6 +103,12 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                 leftIcon={<Pencil className="w-4 h-4" />}
               >
                 Edit Asset
+              </Button>
+            )}
+            {canDispose && (
+              <Button variant="danger" size="sm" leftIcon={<Archive className="w-4 h-4" />}
+                onClick={() => { setDisp({ date: localToday(), proceeds: '0', bankId: banks[0]?.id ?? '', note: '' }); setDispErr(null); setDisposing(true); }}>
+                Dispose
               </Button>
             )}
             {assignedVehicle && (
@@ -241,6 +266,28 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
           )}
         </div>
       </div>
+      {disposing && (
+        <Modal isOpen onClose={dispBusy ? () => undefined : () => setDisposing(false)} size="sm" title={`Dispose ${asset.assetCode}`}
+          description={`Book value ${formatCurrency(asset.currentBookValue, currency)}. The cost and accumulated depreciation are removed and any gain or loss is posted.`}>
+          <div className="space-y-3">
+            <Input label="Disposal date" type="date" value={disp.date} onChange={e => setDisp({ ...disp, date: e.target.value })} />
+            <Input label={`Sale proceeds (${currency})`} type="number" min="0" step="0.001" value={disp.proceeds} onChange={e => setDisp({ ...disp, proceeds: e.target.value })} />
+            {proceeds > 0 && (
+              <Select label="Received into" value={disp.bankId} onChange={e => setDisp({ ...disp, bankId: e.target.value })}>
+                <option value="">Choose a bank account…</option>
+                {banks.map(b => <option key={b.id} value={b.id}>{b.bankName} · {b.accountName}</option>)}
+              </Select>
+            )}
+            <Textarea label="Note" value={disp.note} onChange={e => setDisp({ ...disp, note: e.target.value })} />
+            <p className={`text-xs font-semibold ${gain >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{gain >= 0 ? 'Gain' : 'Loss'} on disposal: {formatCurrency(Math.abs(gain), currency)}</p>
+            {dispErr && <p role="alert" className="text-xs text-rose-500">{dispErr}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDisposing(false)} disabled={dispBusy}>Back</Button>
+              <Button variant="danger" onClick={() => void doDispose()} isLoading={dispBusy} disabled={dispBusy || !disp.date || proceeds < 0 || (proceeds > 0 && !disp.bankId)}>Dispose asset</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 };

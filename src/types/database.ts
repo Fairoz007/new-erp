@@ -1295,6 +1295,7 @@ export type Database = {
           invoice_number: string
           invoice_type: Database["public"]["Enums"]["invoice_type"]
           is_credit_note: boolean
+          is_debit_note: boolean
           journal_entry_id: string | null
           legacy_id: string | null
           maintenance_record_id: string | null
@@ -1337,6 +1338,7 @@ export type Database = {
           invoice_number?: string | null  // assigned by the DB numbering trigger when null/''
           invoice_type: Database["public"]["Enums"]["invoice_type"]
           is_credit_note?: boolean
+          is_debit_note?: boolean
           journal_entry_id?: string | null
           legacy_id?: string | null
           maintenance_record_id?: string | null
@@ -1379,6 +1381,7 @@ export type Database = {
           invoice_number?: string
           invoice_type?: Database["public"]["Enums"]["invoice_type"]
           is_credit_note?: boolean
+          is_debit_note?: boolean
           journal_entry_id?: string | null
           legacy_id?: string | null
           maintenance_record_id?: string | null

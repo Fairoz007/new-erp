@@ -107,3 +107,48 @@ Browser checks against a real database are blocked until the staging Supabase pr
 - HR documents: a document can be linked to an employee, who must be in the same office. The upload form has HR categories (passport, civil ID, visa, labour card, driving licence, contract, medical certificate), and an HR category requires an employee. The Documents page has an "HR documents" filter and shows the linked employee.
 - Pending leave appears as a badge on the Leave menu item. It is not yet in the Approvals queue.
 - Not verified in a browser (needs the staging DB): every HR page, payroll approval and payment, attendance import, leave requests with document upload, and HR document upload. Database behaviour is covered by `supabase/tests/20261112000700_hr.test.mjs`.
+
+## Phase 7 — Finance
+
+Migration `20261112000800_finance.sql`, tests `supabase/tests/20261112000800_finance.test.mjs`.
+
+- Correction to Phase 6: gratuity was posted to 5080, which is the depreciation expense account. It now posts to a new account, 5085 "End of service gratuity". The payroll functions were redefined in the new migration; the Phase 6 migration was not edited. Existing payroll item lines were moved to 5085. Journals already posted are not rewritten.
+- Default approval limits: Accountant gets payment and journal limits of 5,000 (base currency). Finance Manager and Super Admin are unlimited. Change them in the role approval limits.
+- Period close (Finance → Period Close):
+  - Per office and month.
+  - A closed month rejects every journal dated in it, so invoices, payments, payroll, depreciation, disposals and manual journals are all blocked.
+  - Closing needs accounting approve rights. Only months that have ended can be closed, and the month's payroll must not be Draft or Under Review.
+  - Reopening needs a reason. Both actions are audited.
+- Manual journals:
+  - Up to the user's journal limit, a journal is posted immediately.
+  - Above the limit, a journal request (JR-YYYY-…) is created and every approver is notified. It appears under Approvals → Journals.
+  - The approver must be someone else (super admins excepted) and within their own limit. Rejecting needs a reason. The journal is checked again (balance, accounts, closed period) when approved.
+  - Direct API calls to `post_journal_entry` above the limit are refused.
+  - Reversing a journal is not limit-checked.
+- Payments above the user's payment limit are rejected with "ask a Finance Manager to record it". They are not queued.
+- Debit notes:
+  - An extra charge to the same party on a posted invoice or bill, in the same office and currency.
+  - Created from the invoice view and sent through the normal invoice approval. It posts like an invoice once approved.
+- Bank reconciliation (Finance → Bank Reconciliation):
+  - A statement has a bank account, period, and opening and closing balances.
+  - Lines are added by hand or imported as CSV `date,description,reference,amount` (positive = money in).
+  - Auto-match pairs a line with a ledger movement on the same bank account for the same amount, within ±5 days, taking the closest date. Manual matching is available.
+  - Completing needs reconciliation approve rights. Every line must be matched and opening + lines must equal closing. A reconciled statement is locked.
+- Cash flow (Finance → Cash Flow):
+  - Direct method, from posted journals on the office's bank-linked GL accounts.
+  - The other side of each entry decides the section: fixed assets → investing; equity and long-term loans → financing; everything else → operating.
+  - Transfers between the office's own bank accounts are left out.
+- Budgets (Finance → Budgets):
+  - Per office and year, with monthly amounts per income or expense account. Draft → Submitted → Approved or Rejected. An approved budget can be reopened.
+  - Only one approved budget per office and year.
+  - The approver cannot be the submitter and must be within the budget approval limit (on total expenses).
+  - Budget vs actual compares against posted journals, year to date through a chosen month. Expense lines are flagged at 80% (amber) and 100% (red).
+  - Phase 8 adds the budget alerts.
+- Fixed asset disposal:
+  - From the asset view, with fixed-assets approve rights.
+  - Posts Dr accumulated depreciation, Dr bank (proceeds) and Cr cost, with the gain to 4030 other income or the loss to 5095 loss on disposal.
+  - A disposed asset cannot be edited.
+- Statements: trial balance, P&L and balance sheet are unchanged. They are computed in the browser from posted journals.
+- Hard-coded "OMR" labels in the quick-action forms and the vehicle cost-per-km figures now use the organization currency. A new invoice takes the office currency.
+- Deferred to Phase 8: GL posting for expenses and paid maintenance, which need expense status and payment fields first.
+- Not verified in a browser (needs the staging DB): every new Finance page, the journal approval queue, debit notes and asset disposal. Database behaviour is covered by the finance test file.

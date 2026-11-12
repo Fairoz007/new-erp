@@ -303,7 +303,7 @@ export const VehicleDetailPage: React.FC = () => {
             <StatCard
               title="Lifetime Operating Cost"
               value={formatCurrency(financialSummary.totalLifetimeVehicleCost - vehicle.purchase.purchaseValue, currency)}
-              subValue={`${financialSummary.costPerKilometer.toFixed(3)} OMR / KM`}
+              subValue={`${financialSummary.costPerKilometer.toFixed(3)} ${currency} / KM`}
               icon={<Receipt className="w-4 h-4" />}
               variant="amber"
             />

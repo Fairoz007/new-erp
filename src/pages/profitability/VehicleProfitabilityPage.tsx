@@ -120,7 +120,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
       render: (row) => (
         <div className="text-right">
           <span className="font-mono font-bold text-amber-400">{row.costPerKm.toFixed(3)}</span>
-          <p className="text-[9px] text-slate-400">OMR / KM</p>
+          <p className="text-[9px] text-slate-400">{currency} / KM</p>
         </div>
       ),
     },
@@ -149,7 +149,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
             Vehicle Profitability & ROI Intelligence
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Identify high-cost underperforming units, cost-per-kilometer metrics, and rule-based replacement vs maintenance flags (maintenance cost per KM above 0.015 / 0.025 OMR, or operating cost above 70% of purchase value).
+            Identify high-cost underperforming units, cost-per-kilometer metrics, and rule-based replacement vs maintenance flags (maintenance cost per KM above 0.015 / 0.025 {currency}, or operating cost above 70% of purchase value).
           </p>
         </div>
         <div className="shrink-0">{vt.ui}</div>
@@ -167,7 +167,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
         />
         <StatCard
           title="Average Cost per KM"
-          value={`${(profitabilityRows.reduce((s, r) => s + r.costPerKm, 0) / (profitabilityRows.length || 1)).toFixed(3)} OMR`}
+          value={`${(profitabilityRows.reduce((s, r) => s + r.costPerKm, 0) / (profitabilityRows.length || 1)).toFixed(3)} ${currency}`}
           subValue="Across listed vehicles"
           icon={<Car className="w-4 h-4" />}
           variant="indigo"

@@ -240,7 +240,13 @@ async function getJournalEntry(id: string): Promise<JournalEntry> {
  * server-side; balance enforced by a deferred constraint trigger). Entry number, posted_by and
  * created_at come from the DB; client-sent totals/names are ignored.
  */
-export async function addJournalEntry(entry: Omit<JournalEntry, 'id' | 'entryNumber' | 'createdAt'>): Promise<JournalEntry> {
+export type JournalSubmitResult = { entry: JournalEntry; pending?: undefined } | { entry: null; pending: { id: string; requestNumber: string } };
+
+/**
+ * Posts at once when the total is within the caller's journal approval limit; otherwise the
+ * database queues it as a journal request for an approver (submit_manual_journal).
+ */
+export async function addJournalEntry(entry: Omit<JournalEntry, 'id' | 'entryNumber' | 'createdAt'>): Promise<JournalSubmitResult> {
   const companyId = requireCompany(entry.companyId);
   if (entry.status && entry.status !== 'Posted') throw new ServiceError('Only posted journal entries are supported; drafts are not stored.');
   const lines = entry.lines.filter(l => (l.debit || 0) > 0 || (l.credit || 0) > 0);
@@ -251,7 +257,7 @@ export async function addJournalEntry(entry: Omit<JournalEntry, 'id' | 'entryNum
   const cr = r3(lines.reduce((s, l) => s + (l.credit || 0), 0));
   if (dr !== cr || dr === 0) throw new ServiceError(`Unbalanced journal entry: Dr ${dr.toFixed(3)} / Cr ${cr.toFixed(3)}`);
 
-  const id = await rpcAny<string>('post_journal_entry', {
+  const res = await rpcAny<{ status: string; journal_entry_id?: string; id?: string; request_number?: string }>('submit_manual_journal', {
     p_company: companyId,
     p_date: entry.date,
     p_description: entry.description,
@@ -264,9 +270,9 @@ export async function addJournalEntry(entry: Omit<JournalEntry, 'id' | 'entryNum
       cost_centre: l.costCentre || null,
     })),
     p_reference: entry.reference || null,
-    p_source: entry.sourceModule ?? 'Manual',
   });
-  return getJournalEntry(id);
+  if (res.status === 'Posted' && res.journal_entry_id) return { entry: await getJournalEntry(res.journal_entry_id) };
+  return { entry: null, pending: { id: res.id ?? '', requestNumber: res.request_number ?? '' } };
 }
 
 /** Reverse a posted manual / opening-balance journal (posts a mirror entry; the original stays). */

@@ -353,6 +353,7 @@ export const rowToInvoice = (r: Row): FinanceInvoice => {
     termsAndConditions: r.terms_and_conditions ?? undefined,
     notes: r.notes ?? undefined,
     isCreditNote: cn,
+    isDebitNote: !!r.is_debit_note,
     parentInvoiceId: r.parent_invoice_id ?? undefined,
     journalEntryId: r.journal_entry_id ?? undefined,
     createdAt: r.created_at,

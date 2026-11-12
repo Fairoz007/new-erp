@@ -26,6 +26,10 @@ const SuppliersPage = lazy(() => import('./pages/suppliers/SuppliersPage').then(
 const CustomersPage = lazy(() => import('./pages/customers/CustomersPage').then(m => ({ default: m.CustomersPage })));
 const InvoicesPage = lazy(() => import('./pages/invoices/InvoicesPage').then(m => ({ default: m.InvoicesPage })));
 const ReconciliationPage = lazy(() => import('./pages/reconciliation/ReconciliationPage').then(m => ({ default: m.ReconciliationPage })));
+const BankReconciliationPage = lazy(() => import('./pages/finance/BankReconciliationPage').then(m => ({ default: m.BankReconciliationPage })));
+const CashFlowPage = lazy(() => import('./pages/finance/CashFlowPage').then(m => ({ default: m.CashFlowPage })));
+const BudgetsPage = lazy(() => import('./pages/finance/BudgetsPage').then(m => ({ default: m.BudgetsPage })));
+const PeriodClosePage = lazy(() => import('./pages/finance/PeriodClosePage').then(m => ({ default: m.PeriodClosePage })));
 const PaymentsPage = lazy(() => import('./pages/payments/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
 const AccountingPage = lazy(() => import('./pages/accounting/AccountingPage').then(m => ({ default: m.AccountingPage })));
 const TrialBalancePage = lazy(() => import('./pages/accounting/TrialBalancePage').then(m => ({ default: m.TrialBalancePage })));
@@ -150,6 +154,14 @@ const PageRenderer: React.FC = () => {
             return <InvoicesPage />;
           case 'reconciliation':
             return <ReconciliationPage />;
+          case 'bank-reconciliation':
+            return <BankReconciliationPage />;
+          case 'cash-flow':
+            return <CashFlowPage />;
+          case 'budgets':
+            return <BudgetsPage />;
+          case 'period-close':
+            return <PeriodClosePage />;
           case 'payments':
             return <PaymentsPage />;
           case 'trial-balance':

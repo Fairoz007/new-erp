@@ -79,6 +79,7 @@ export interface Invoice {
   notes?: string;
   
   isCreditNote?: boolean;
+  isDebitNote?: boolean;
   parentInvoiceId?: string;
   createdAt: string;
   updatedAt: string;

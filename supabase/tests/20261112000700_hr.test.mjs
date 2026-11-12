@@ -198,7 +198,7 @@ await check('leaver: prorated pay plus end-of-service gratuity, settled once', a
   assert(Number(r.g) === Number(exp) && Number(r.g) > 0 && Number(r.dw) === 15, JSON.stringify(r));
   await as(FM, `select payroll_approve('${run}')`);
   const paid = await val(`select gratuity_paid_on from employees where id = '${E2}'`);
-  const je = (await asServer(`select sum(debit) filter (where account_code = '5080') g from journal_lines l join payroll_runs r on r.journal_entry_id = l.entry_id where r.id = '${run}'`)).rows[0];
+  const je = (await asServer(`select sum(debit) filter (where account_code = '5085') g from journal_lines l join payroll_runs r on r.journal_entry_id = l.entry_id where r.id = '${run}'`)).rows[0];
   assert(paid && Number(je.g) === Number(exp), JSON.stringify({ paid, je })); return `gratuity ${exp}`;
 });
 await check('gratuity date is set by payroll only', () => tx(HRM, `update employees set gratuity_paid_on = null where id = '${E2}'`), 'set by payroll');

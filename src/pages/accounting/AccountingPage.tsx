@@ -103,7 +103,7 @@ export const AccountingPage: React.FC = () => {
     setIsPosting(true);
     try {
       // Entry number, poster and balance are assigned/verified by the database (post_journal_entry RPC).
-      const entry = await addJournalEntry({
+      const res = await addJournalEntry({
         companyId: journalForm.companyId,
         date: journalForm.date,
         description: journalForm.description,
@@ -122,7 +122,8 @@ export const AccountingPage: React.FC = () => {
         status: 'Posted',
         sourceModule: 'Manual',
       });
-      addToast({ type: 'success', title: 'Journal Entry Posted', message: `Posted ${entry?.entryNumber ?? 'entry'} for ${totalDebit.toFixed(3)} ${currency}.` });
+      if (res.entry) addToast({ type: 'success', title: 'Journal Entry Posted', message: `Posted ${res.entry.entryNumber} for ${totalDebit.toFixed(3)} ${currency}.` });
+      else addToast({ type: 'info', title: 'Sent for approval', message: `${res.pending.requestNumber}: this journal is above your approval limit. It will be posted when an approver approves it.` });
       setIsJournalModalOpen(false);
     } catch (err) {
       addToast({ type: 'error', title: 'Journal Rejected', message: (err as Error).message });

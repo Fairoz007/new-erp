@@ -22,6 +22,10 @@ export type AppPage =
   | 'invoices'
   | 'reconciliation'
   | 'payments'
+  | 'bank-reconciliation'
+  | 'cash-flow'
+  | 'budgets'
+  | 'period-close'
   | 'accounting'
   | 'trial-balance'
   | 'general-ledger'
@@ -137,6 +141,7 @@ export const VALID_PAGES: AppPage[] = [
   'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'drivers', 'maintenance',
   'work-orders', 'oil-management', 'tyre-management', 'accidents', 'expenses',
   'suppliers', 'customers', 'customer-detail', 'supplier-detail', 'invoices', 'reconciliation', 'payments',
+  'bank-reconciliation', 'cash-flow', 'budgets', 'period-close',
   'accounting', 'trial-balance', 'general-ledger', 'profit-loss', 'balance-sheet',
   'depreciation', 'fixed-assets', 'payroll', 'employees', 'attendance', 'leave', 'hr-setup', 'profitability', 'documents',
   'notifications', 'users-roles', 'approvals', 'audit-logs', 'reports', 'settings',

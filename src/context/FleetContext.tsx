@@ -483,9 +483,9 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     addReconciliation: mutation('addReconciliation', finance.addReconciliation),
 
     addJournalEntry: mutation('addJournalEntry', async (j: Parameters<typeof accounting.addJournalEntry>[0]) => {
-      const created = await accounting.addJournalEntry(j);
-      setData(prev => ({ ...prev, journalEntries: [created, ...prev.journalEntries] }));
-      return created;
+      const res = await accounting.addJournalEntry(j);
+      if (res.entry) { const created = res.entry; setData(prev => ({ ...prev, journalEntries: [created, ...prev.journalEntries] })); }
+      return res;
     }),
     reverseJournalEntry: mutation('reverseJournalEntry', accounting.reverseJournalEntry),
     addFixedAsset: mutation('addFixedAsset', async (a: Parameters<typeof accounting.addFixedAsset>[0]) => {
