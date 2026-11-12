@@ -105,7 +105,7 @@ export async function saveOrganization(id: string | null, input: Partial<Organiz
 }
 
 export async function uploadOrgLogo(file: File): Promise<string> {
-  if (!/^image\/(png|jpe?g|svg\+xml|webp)$/.test(file.type)) throw new ServiceError('Logo must be a PNG, JPG, SVG or WebP image.');
+  if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) throw new ServiceError('Logo must be a PNG, JPG or WebP image.');
   if (file.size > 2 * 1024 * 1024) throw new ServiceError('Logo must be 2 MB or smaller.');
   validateFile(file, 'media');
   const path = `organization/logo-${Date.now()}-${sanitizeFileName(file.name)}`;

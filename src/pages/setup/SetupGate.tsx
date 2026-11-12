@@ -21,7 +21,7 @@ const Spinner: React.FC<{ text: string }> = ({ text }) => (
 );
 
 export const SetupGate: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { isSuperAdmin, signOut } = useAuth();
+  const { isSuperAdmin, signOut, refresh } = useAuth();
   const { organization, loading, error, reload, setupComplete } = useOrg();
   const [deferred, setDeferred] = useState(false);
 
@@ -49,7 +49,8 @@ export const SetupGate: React.FC<{ children: ReactNode }> = ({ children }) => {
     <AuthShell title="Setup in progress" subtitle="Your organization has not been set up yet.">
       <AuthNotice tone="info">A Super Admin must finish the Setup Wizard before the app can be used. Try again later.</AuthNotice>
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => void reload()}>Check again</Button>
+        {/* re-read the user's role too: an admin may have just made this user a Super Admin */}
+        <Button className="flex-1" onClick={() => void Promise.all([refresh(), reload()])}>Check again</Button>
         <Button variant="outline" className="flex-1" onClick={() => void signOut()}>Sign out</Button>
       </div>
     </AuthShell>

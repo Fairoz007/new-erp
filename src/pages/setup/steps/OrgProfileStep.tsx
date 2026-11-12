@@ -95,14 +95,14 @@ export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void
           <Input label="Website" value={form.website} onChange={set('website')} error={errors.website} disabled={readOnly} />
         </div>
       </Section>
-      <Section title="Logo" description="PNG, JPG, SVG or WebP up to 2 MB. Save the profile first.">
+      <Section title="Logo" description="PNG, JPG or WebP up to 2 MB. Save the profile first.">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-24 h-24 rounded-2xl border border-slate-700 bg-slate-850 flex items-center justify-center overflow-hidden">
             {logoUrl ? <img src={logoUrl} alt="Organization logo" className="max-w-full max-h-full object-contain" /> : <span className="text-[10px] text-slate-400">No logo</span>}
           </div>
           <label className={`inline-flex items-center gap-2 px-3 h-9 rounded-xl border border-slate-700 text-xs font-semibold ${!organization || readOnly ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-850'}`}>
             <Upload className="w-4 h-4" /> {uploading ? 'Uploading…' : 'Upload logo'}
-            <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" disabled={!organization || readOnly || uploading}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={!organization || readOnly || uploading}
               onChange={e => { void onLogo(e.target.files?.[0]); e.target.value = ''; }} />
           </label>
         </div>

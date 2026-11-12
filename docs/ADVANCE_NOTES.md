@@ -571,3 +571,17 @@ The data model was already company-wide (see README → Concepts); no change was
 database gave it Viewer) and asked for Super Admin. Its profile was set to Super Admin with all
 offices from the CLI (data change only; the account and password are the owner's). The project now
 has 10 accounts and 2 Super Admins.
+
+### Signed-in check on the cleared project (2026-11-12)
+
+Signed in as the new Super Admin, the app showed "Setup in progress" (the screen for other users)
+until the page was reloaded, because the role was changed while the session was open.
+
+| Defect | Fix | Test |
+|---|---|---|
+| "Check again" on the setup-in-progress screen re-read the organization only, so a user who had just been made Super Admin stayed on that screen | It now re-reads the user's role as well (`SetupGate.tsx`) | Seen in the browser: reload shows the wizard |
+| The organization logo accepted SVG and said so, but the `media` bucket refuses SVG, so the upload failed after the file was chosen | Logo picker, hint and check now allow PNG, JPG and WebP only (`OrgProfileStep.tsx`, `services/org.ts`) | `src/services/__tests__/orgLogo.test.ts` |
+
+Setup Wizard step 1 at 1280 px and 375 px: no sideways scroll, every control at least 44 px, every
+field labelled, every request on load answered 200. The remaining steps need the company's real
+details and were not filled in by the assistant.
