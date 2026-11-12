@@ -316,7 +316,7 @@ payments and manual journals); `expense_page` is covered by its tests instead.
 | # | Defect | Fix |
 |---|---|---|
 | D3-1 | Quick "Add tyre" offered positions such as "Front Left (Steer)" and "Rear Left Outer"; the table only accepts Front Left, Front Right, Rear Left, Rear Right, Spare, so every save except Spare failed. | Options are now the five accepted positions (same list as the tyre edit form). |
-| D3-2 | `post_invoice` refused a zero total with "Invoice has no lines" even when the invoice had lines. | Migration `20261113003000_validation_messages.sql` changes only the message to "Invoice total must be greater than zero", as every other invoice function says. |
+| D3-2 | `post_invoice` refused a zero total with "Invoice has no lines" even when the invoice had lines. | Migration `20261113003500_validation_messages.sql` changes only the message to "Invoice total must be greater than zero", as every other invoice function says. |
 | D3-3 | Employee lists were one request, so above the API row cap (1000) the rest were silently missing from every employee picker and page. | `fetchEmployees` pages like the other collections. |
 | D3-4 | Pickers looked chosen when nothing was: required vehicle and supplier selects had no blank option, and the quick forms preselected the first vehicle of the whole list. | Blank first option; only the vehicle in view is preselected. |
 | D3-5 | Choosing another vehicle in maintenance, work order, accident and tyre forms kept the first vehicle's office, so the supplier list was for the wrong office. Changing the invoice office kept the party and vehicle of the old office. | The office follows the chosen vehicle; changing the invoice (and vehicle) office clears the dependent picks. |
@@ -487,3 +487,55 @@ general-ledger difference is within run-to-run variation of single-threaded PGli
 
 Not measured: time to first usable screen after sign-in and the slowest queries on staging (no
 staging database).
+
+## Production push (2026-11-12, on the owner's instruction)
+
+The owner asked to use `fpeniljpqigpeqtsgizr` (the only project in the organization) and to push the
+migrations there. The brief's rule against production was lifted for the migration push only. No
+seed, no volume data, no `test:e2e` and no write tests were run against it.
+
+What was there: migrations up to `20261026001100` (15 of 37), 2 offices, 9 users, 1 vehicle,
+2 work orders, 1 customer, 1 supplier, 768 `role_permissions` rows, 8 approval limits. No backups
+listed and point-in-time recovery off.
+
+Steps:
+
+1. **Duplicate migration version fixed.** `20261113003000_security_hardening.sql` (Phase 1) and
+   `20261113003000_validation_messages.sql` (Phase 3) had the same version, which `db push` keys on.
+   The Phase 3 file had never been applied anywhere, so it was renamed to
+   `20261113003500_validation_messages.sql` (contents unchanged, same order).
+2. **Backup point.** `supabase db dump` needs Docker, which this machine does not have.
+   `scripts/release/export-data.mjs` exported every non-empty table, `auth.users` (id, email,
+   metadata), the column list and function hashes to `backups/prod-20261112-pre-push/` (git-ignored).
+3. **Drift check.** The schema built from the 15 applied migrations matched the project: every
+   column the same, all 80 function bodies the same once Windows line endings (`\r\n`, from an
+   earlier push) are ignored.
+4. **Rehearsal** (`scripts/release/rehearse-push.mjs`): the real rows loaded into PGlite, then the
+   22 pending migrations applied one by one. All applied. Business rows unchanged (companies 2,
+   profiles 9, members 11, vehicles 1, work orders 2, customers 1, suppliers 1); every profile got a
+   role; the old approval limits carried over (Accountant invoice 500, Fleet Manager maintenance
+   500, Company Admin → Admin unlimited); each of the 9 users still sees their own offices.
+   `audit_logs` grows 7 → 156 because the migrations' backfill updates are audited.
+5. **Push.** `supabase db push` applied the 22 migrations; counts on the project then matched the
+   rehearsal exactly (`role_grants` 1,098, `role_approval_limits` 23, `audit_logs` 156), the
+   `documents` and `media` buckets have their limits.
+6. **Advisors** after the push: no errors. Fixed in `20261113005000_advisor_fixes.sql` (pushed, with
+   two new checks in `security_audit.test.mjs` that fail without it): four functions without a fixed
+   `search_path`, and the `client_errors` insert policy calling `auth.uid()` per row. Left as they
+   are: 97 "security definer function executable by authenticated" (the app's RPC API; each checks
+   permissions, covered by `security_audit.test.mjs`), 6 "multiple permissive policies" on small
+   settings tables from the earlier feature phases (a speed hint only), and leaked-password
+   protection (an Auth setting for the owner in the dashboard).
+7. **App against the project** (local dev server, signed out): sign-in screen loads, Auth health
+   200, the `x-request-key` header passes CORS, a signed-out read of `companies` is refused (42501).
+
+Found, not changed:
+
+- **pg_cron is not enabled** on the project, so the four daily jobs were skipped by their guards and
+  nothing is scheduled (expiry notifications, recurring expenses, purges). Enable it under
+  Database → Extensions, then schedule the jobs (out of scope here: needs a follow-up migration
+  that re-runs the guarded `cron.schedule` calls).
+- **No backups** on the project. Turn on PITR or a paid plan with daily backups before real use.
+
+Not verified on the project: any signed-in page (needs a real account; passwords for live accounts
+are not typed by the assistant), `test:e2e`, the per-role Playwright run, PDF logo fetch.

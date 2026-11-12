@@ -9,3 +9,4 @@ dist
 .e2e-dist
 test-results
 playwright-report
+backups

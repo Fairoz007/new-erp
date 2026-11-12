@@ -82,6 +82,11 @@ Serve `index.html` for unknown paths only if the host needs it (the app does not
    supabase db push
    ```
 
+   Without Docker (`db dump` needs it), take the backup point with
+   `node scripts/release/export-data.mjs backups/<name>` and rehearse the push on a copy of the
+   data first: `node scripts/release/rehearse-push.mjs backups/<name> <latest applied version>`
+   (applies the pending migrations to the real rows in PGlite and prints what changed).
+
 4. Check in the SQL editor:
 
    ```sql

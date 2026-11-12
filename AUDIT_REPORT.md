@@ -213,8 +213,9 @@ D4-1 (demo credentials). Details in the notes.
 | `npm run bundle:check` | Pass, 220.6 kB initial JS |
 | Target volume on PGlite (530,000 journal lines, 50,000 invoices) | Every list, total and report is one request of 1–613 ms (Phase 0: journals 601 requests, 814 s); unchanged since Phase 1 (`docs/perf/volume-pglite-final.json`) |
 | Lighthouse, sign-in screen (mobile / desktop) | Performance 70 → 87 / 98 → 97, Accessibility 81 → 100 / 81 → 100, Best practices 100 / 100, SEO 91 / 91; mobile LCP 4.8 → 3.2 s |
-| Signed-in pages in a browser, per role, 375 px | **Not verified** (no staging database connected) |
-| `npm run test:e2e` and the per-role Playwright run | **Not run** (need staging) |
+| Signed-in pages in a browser, per role, 375 px | **Not verified** (needs a signed-in account; see Q) |
+| `npm run test:e2e` and the per-role Playwright run | **Not run** (write tests; there is no staging project and they are not run on production) |
+| Migrations on the project (Q) | Pushed after a rehearsal on a copy of its data: 38 / 38 applied, rows unchanged, advisors show no errors |
 
 ## O. Still open
 
@@ -224,13 +225,31 @@ D4-1 (demo credentials). Details in the notes.
    unit-tested but not yet seen signed in.
 2. **Rotate the demo password** (D4-1) on every project where `superadmin@`, `fleetmanager@` and
    `accounts@hakim.com` exist; it is in the git history and in earlier deployed bundles.
-3. Not verified against the real API: the `x-request-key` header (CORS), signed-URL logo fetch for
-   PDFs, pg_cron job runs.
+3. Not verified against the real API: signed-URL logo fetch for PDFs. pg_cron is not enabled on the
+   project, so no daily job runs (Q). The `x-request-key` header passes CORS (checked).
 4. DataTable PDF exports do not list the page's filters (the table does not know them); printed
    views keep their print layout. ESLint is not configured (`lint` = type-check + secret scan).
-5. Production (`fpeniljpqigpeqtsgizr`) was not linked, pushed, seeded or tested against.
+5. Production (`fpeniljpqigpeqtsgizr`) received the migrations only (Q). It was not seeded, wiped or
+   used for write tests.
 
 ## P. Release recommendation
 
 Unchanged in substance: ready for **staging acceptance**. Release to production after the staging
 pass in O.1 and the password rotation in O.2.
+
+## Q. Production migration push (2026-11-12)
+
+On the owner's instruction the 22 pending migrations, and one advisor fix, were pushed to
+`fpeniljpqigpeqtsgizr`. Details in `docs/ADVANCE_NOTES.md` → "Production push".
+
+| Step | Result |
+|---|---|
+| Backup point | Data export to `backups/prod-20261112-pre-push/` (git-ignored; no Docker for `db dump`; the project has no backups and PITR off) |
+| Schema drift before the push | None (columns and function bodies match the 15 applied migrations) |
+| Rehearsal on a copy of the real rows | 22 / 22 applied; business rows, roles, approval limits and each user's office access kept |
+| `supabase db push` | 22 applied, then `20261113005000_advisor_fixes.sql`; latest `20261113005000` |
+| Advisors | No errors; 2 warning types fixed; remaining warnings explained in the notes |
+| Signed-out app check | Sign-in loads, Auth 200, `x-request-key` passes CORS, signed-out reads refused |
+
+Still to do on the project: enable pg_cron and schedule the daily jobs, turn on backups or PITR,
+turn on leaked-password protection, rotate the demo password (O.2), and sign in once per role.

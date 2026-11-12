@@ -63,6 +63,14 @@ await check('every SECURITY DEFINER function sets search_path', async () => {
   const bad = fns.filter(f => f.definer && !(f.config ?? []).some(c => c.startsWith('search_path=')));
   assert(bad.length === 0, bad.map(f => f.name).join(', ')); return `${fns.filter(f => f.definer).length} definer functions`;
 });
+await check('every function in public sets search_path (advisor: function_search_path_mutable)', async () => {
+  const bad = fns.filter(f => !(f.config ?? []).some(c => c.startsWith('search_path=')));
+  assert(bad.length === 0, bad.map(f => f.name).join(', ')); return `${fns.length} functions`;
+});
+await check('client_errors insert policy reads auth.uid() once per statement (advisor: auth_rls_initplan)', async () => {
+  const r = (await t.db.query(`select pg_get_expr(polwithcheck, polrelid) e from pg_policy where polname = 'client_errors_insert'`)).rows[0];
+  assert(/\(\s*select\s+auth\.uid\(\)/i.test(r.e), r.e); return r.e;
+});
 await check('every SECURITY DEFINER function callable by authenticated checks permissions', async () => {
   const bad = fns.filter(f => f.definer && f.auth_exec && !f.is_trigger && !SAFE_DEFINER[f.name] && !PERM_TOKENS.test(f.src ?? ''));
   if (bad.length) console.error('UNCHECKED DEFINER:', [...new Set(bad.map(f => f.name))].join(' '));
