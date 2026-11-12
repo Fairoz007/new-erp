@@ -529,6 +529,9 @@ Steps:
 7. **App against the project** (local dev server, signed out): sign-in screen loads, Auth health
    200, the `x-request-key` header passes CORS, a signed-out read of `companies` is refused (42501).
 
+8. **Edge Function** `invite-user` deployed with `supabase functions deploy invite-user --use-api`
+   (no Docker needed; it uses only the keys Supabase provides). Without a session it answers 401.
+
 Found, not changed:
 
 - **pg_cron is not enabled** on the project, so the four daily jobs were skipped by their guards and

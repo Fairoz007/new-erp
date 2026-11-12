@@ -250,6 +250,7 @@ On the owner's instruction the 22 pending migrations, and one advisor fix, were 
 | `supabase db push` | 22 applied, then `20261113005000_advisor_fixes.sql`; latest `20261113005000` |
 | Advisors | No errors; 2 warning types fixed; remaining warnings explained in the notes |
 | Signed-out app check | Sign-in loads, Auth 200, `x-request-key` passes CORS, signed-out reads refused |
+| Edge Function `invite-user` | Deployed (`--use-api`, JWT required); a call without a session answers 401 "Sign in first". Sending an invitation not tried |
 
 Still to do on the project: enable pg_cron and schedule the daily jobs, turn on backups or PITR,
 turn on leaked-password protection, rotate the demo password (O.2), and sign in once per role.
