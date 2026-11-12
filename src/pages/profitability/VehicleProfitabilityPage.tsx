@@ -187,7 +187,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
         title="Vehicle Profit & Cost Intelligence Analysis"
         searchPlaceholder="Search vehicles by plate, model, category..."
         searchFields={['plateNumber', 'vehicleName', 'vehicleCategory', 'recommendation']}
-        exportFilename="FleetX_Vehicle_Profitability"
+        exportFilename="Vehicle_Profitability"
       />
     </div>
   );

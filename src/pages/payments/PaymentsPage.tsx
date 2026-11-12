@@ -258,7 +258,7 @@ export const PaymentsPage: React.FC = () => {
         title="Transaction Records"
         searchPlaceholder="Search payments by reference, invoice #, party, cheque #..."
         searchFields={['paymentNumber', 'invoiceNumber', 'partyName', 'transactionReference', 'chequeNumber', 'paymentMethod']}
-        exportFilename="FleetX_Payments_Register"
+        exportFilename="Payments_Register"
       />
 
       <PaymentDetailModal

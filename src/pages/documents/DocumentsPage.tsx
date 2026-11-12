@@ -203,7 +203,7 @@ export const DocumentsPage: React.FC = () => {
         title="Fleet Compliance & Document Registry"
         searchPlaceholder="Search documents by title, number, plate, category..."
         searchFields={['documentName', 'documentNumber', 'vehiclePlate', 'category']}
-        exportFilename="FleetX_Documents_Register"
+        exportFilename="Documents_Register"
         filterComponent={
           <select
             value={categoryFilter}

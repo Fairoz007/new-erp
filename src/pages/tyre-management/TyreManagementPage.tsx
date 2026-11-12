@@ -192,7 +192,7 @@ export const TyreManagementPage: React.FC = () => {
         title="Fleet Tyre Registry"
         searchPlaceholder="Search by plate, tyre brand, size, serial number or position..."
         searchFields={['vehiclePlate', 'vehicleName', 'brand', 'model', 'size', 'serialNumber', 'position']}
-        exportFilename="FleetX_Tyres_Register"
+        exportFilename="Tyres_Register"
         filterComponent={
           <select
             value={filter}

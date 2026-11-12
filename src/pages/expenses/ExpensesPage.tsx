@@ -238,7 +238,7 @@ export const ExpensesPage: React.FC = () => {
         title="Vehicle Operational Expenses Registry"
         searchPlaceholder="Search expenses by expense number, plate, category, vendor or cost centre..."
         searchFields={['expenseNumber', 'vehiclePlate', 'category', 'description', 'supplierName', 'costCentre']}
-        exportFilename="FleetX_Expenses_Register"
+        exportFilename="Expenses_Register"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <select

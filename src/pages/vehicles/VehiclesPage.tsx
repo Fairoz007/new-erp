@@ -178,7 +178,7 @@ export const VehiclesPage: React.FC = () => {
         description="Click on any vehicle row to open the complete 10-tab vehicle management dossier."
         searchPlaceholder="Search by vehicle ID, plate number, brand, model, VIN or driver..."
         searchFields={['vehicleId', 'plateNumber', 'brand', 'model', 'vin', 'assignedDriver', 'department']}
-        exportFilename="FleetX_Vehicles_Master"
+        exportFilename="Vehicles_Master"
         onRowClick={v => openVehicleDetail(v.id)}
         filterComponent={
           <div className="flex items-center gap-1.5">

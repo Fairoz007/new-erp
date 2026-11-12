@@ -28,7 +28,7 @@ export const PartyEditModal: React.FC<Props> = (props) => {
     if (!party) return;
     setForm({
       name: party.name, contactPerson: party.contactPerson, phone: party.phone, email: party.email,
-      address: party.address, city: party.city, country: party.country, vatNumber: party.vatNumber,
+      address: party.address, city: party.city, country: party.country, vatNumber: party.vatNumber, crNumber: party.crNumber,
       taxNumber: party.taxNumber, paymentTermsDays: party.paymentTermsDays, creditLimit: party.creditLimit,
       status: party.status, notes: party.notes ?? '',
       type: kind === 'supplier' ? (party as Supplier).supplierType : (party as Customer).customerType,
@@ -47,7 +47,7 @@ export const PartyEditModal: React.FC<Props> = (props) => {
     if (!cf.validate()) { setError('Check the additional information fields.'); return; }
     const common = {
       name: String(form.name).trim(), contactPerson: form.contactPerson, phone: form.phone, email: form.email,
-      address: form.address, city: form.city, country: form.country, vatNumber: form.vatNumber, taxNumber: form.taxNumber,
+      address: form.address, city: form.city, country: form.country, vatNumber: form.vatNumber, crNumber: form.crNumber, taxNumber: form.taxNumber,
       paymentTermsDays: Number(form.paymentTermsDays), creditLimit: Number(form.creditLimit), notes: form.notes,
       customFields: cf.value(),
     };
@@ -89,6 +89,7 @@ export const PartyEditModal: React.FC<Props> = (props) => {
           <Input label="City" value={form.city ?? ''} onChange={e => set('city', e.target.value)} />
           <Input label="Country" value={form.country ?? ''} onChange={e => set('country', e.target.value)} />
           <Input label="VAT Number" value={form.vatNumber ?? ''} onChange={e => set('vatNumber', e.target.value)} />
+          <Input label="CR Number" value={form.crNumber ?? ''} onChange={e => set('crNumber', e.target.value)} />
           <Input label="Tax Number" value={form.taxNumber ?? ''} onChange={e => set('taxNumber', e.target.value)} />
           <Input label="Payment Terms (days)" type="number" min={0} value={form.paymentTermsDays ?? 0} onChange={e => set('paymentTermsDays', e.target.value)} />
           <Input label="Credit Limit" type="number" min={0} step="0.001" value={form.creditLimit ?? 0} onChange={e => set('creditLimit', e.target.value)} />

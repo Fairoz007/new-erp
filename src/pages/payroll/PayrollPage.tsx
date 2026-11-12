@@ -311,7 +311,7 @@ export const PayrollPage: React.FC = () => {
           title="Employee Master Roster"
           searchPlaceholder="Search employees by name, ID, designation, department, vehicle plate..."
           searchFields={['name', 'employeeCode', 'designation', 'department', 'assignedVehiclePlate']}
-          exportFilename="FleetX_Employees_Register"
+          exportFilename="Employees_Register"
           emptyMessage="No employees registered for this selection."
           filterComponent={
             <select

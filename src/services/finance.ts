@@ -105,6 +105,16 @@ export const rowToSupplier = (r: Row, s?: PartySummary): Supplier => ({
   sharing: r.sharing ?? 'office',
   sharedOfficeIds: (r.shares ?? []).map((x: Row) => x.company_id),
   customFields: r.custom_fields ?? {},
+  crNumber: r.cr_number ?? '',
+  registration: rowToRegistration(r),
+});
+
+const rowToRegistration = (r: Row) => ({
+  status: r.registration_status ?? 'Approved',
+  submittedBy: r.submitted_by ?? null,
+  reviewedBy: r.reviewed_by ?? null,
+  reviewedAt: r.reviewed_at ?? null,
+  note: r.review_note ?? '',
 });
 
 export const rowToCustomer = (r: Row, s?: PartySummary): Customer => ({
@@ -134,6 +144,8 @@ export const rowToCustomer = (r: Row, s?: PartySummary): Customer => ({
   sharing: r.sharing ?? 'office',
   sharedOfficeIds: (r.shares ?? []).map((x: Row) => x.company_id),
   customFields: r.custom_fields ?? {},
+  crNumber: r.cr_number ?? '',
+  registration: rowToRegistration(r),
 });
 
 const partyCommonToRow = (p: Partial<Supplier> | Partial<Customer>): Row => {
@@ -149,7 +161,8 @@ const partyCommonToRow = (p: Partial<Supplier> | Partial<Customer>): Row => {
   if (p.taxNumber !== undefined) row.tax_number = nul(p.taxNumber);
   if (p.paymentTermsDays !== undefined) row.payment_terms_days = p.paymentTermsDays;
   if (p.creditLimit !== undefined) row.credit_limit = p.creditLimit;
-  if (p.openingBalance !== undefined) row.opening_balance = p.openingBalance;
+  if (p.crNumber !== undefined) row.cr_number = nul(p.crNumber);
+  // opening_balance is not written: opening balances are posted with post_opening_party_balance()
   if (p.status !== undefined) row.status = p.status;
   if (p.notes !== undefined) row.notes = nul(p.notes);
   if (p.customFields !== undefined) row.custom_fields = p.customFields ?? {};
@@ -198,7 +211,7 @@ async function loadCustomer(id: string): Promise<Customer> {
 }
 
 export async function addSupplier(
-  supplier: Omit<Supplier, 'id' | 'supplierId' | 'currentBalance' | 'totalPurchases' | 'totalInvoicesCount' | 'amountPaid' | 'creditNotesAmount' | 'createdAt'>,
+  supplier: Omit<Supplier, 'id' | 'supplierId' | 'currentBalance' | 'totalPurchases' | 'totalInvoicesCount' | 'amountPaid' | 'creditNotesAmount' | 'createdAt' | 'registration' | 'openingBalance' | 'crNumber'> & { crNumber?: string },
 ): Promise<Supplier> {
   if (!supplier.name?.trim()) throw new ServiceError('Supplier name is required.');
   if (!supplier.officeId) throw new ServiceError('Choose the office this supplier belongs to.');
@@ -217,7 +230,7 @@ export async function updateSupplier(id: string, supplier: Partial<Supplier>): P
 }
 
 export async function addCustomer(
-  customer: Omit<Customer, 'id' | 'customerId' | 'currentBalance' | 'totalSales' | 'totalInvoicesCount' | 'amountReceived' | 'createdAt'>,
+  customer: Omit<Customer, 'id' | 'customerId' | 'currentBalance' | 'totalSales' | 'totalInvoicesCount' | 'amountReceived' | 'createdAt' | 'registration' | 'openingBalance' | 'crNumber'> & { crNumber?: string },
 ): Promise<Customer> {
   if (!customer.name?.trim()) throw new ServiceError('Client name is required.');
   if (!customer.officeId) throw new ServiceError('Choose the office this client belongs to.');
@@ -232,6 +245,17 @@ export async function updateCustomer(id: string, customer: Partial<Customer>): P
   if (row.name === '') throw new ServiceError('Customer name is required.');
   if (Object.keys(row).length === 0) return;
   await unwrapOne(table('customers').update(row).eq('id', id).select('id').maybeSingle());
+}
+
+/** Approve or reject a pending client/supplier registration (approve rights in its home office). */
+export async function reviewParty(type: 'Customer' | 'Supplier', id: string, decision: 'Approved' | 'Rejected', note?: string): Promise<void> {
+  await rpcAny('review_party', { p_type: type, p_id: id, p_decision: decision, p_note: note ?? null });
+}
+
+export interface PartyDuplicate { field: string; value: string; codes: string[]; names: string[] }
+/** Duplicates entered before duplicate blocking existed (VAT, CR, email). */
+export async function fetchPartyDuplicates(type: 'Customer' | 'Supplier'): Promise<PartyDuplicate[]> {
+  return (await rpcAny<PartyDuplicate[]>('party_duplicates', { p_type: type })) ?? [];
 }
 
 /** Sharing mode of a client/supplier; needs edit rights in its home office. */

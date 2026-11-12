@@ -27,6 +27,7 @@ export interface Organization {
   language: 'en' | 'ar';
   letterhead: { header?: string; footer?: string; showLogo?: boolean };
   overridableSettings: string[];
+  partyApprovalRequired: boolean;      // new clients/suppliers wait for approval
   setupStatus: 'in_progress' | 'completed';
   setupStep: number;
   setupCompletedSteps: number[];
@@ -54,6 +55,7 @@ const toOrg = (r: any): Organization => ({
   language: r.language === 'ar' ? 'ar' : 'en',
   letterhead: r.letterhead ?? {},
   overridableSettings: r.overridable_settings ?? [],
+  partyApprovalRequired: !!r.party_approval_required,
   setupStatus: r.setup_status,
   setupStep: r.setup_step ?? 1,
   setupCompletedSteps: r.setup_completed_steps ?? [],
@@ -69,7 +71,7 @@ const fromOrg = (o: Partial<OrganizationInput>) => {
     tax_number: t(o.taxNumber), address: t(o.address), city: t(o.city), country: t(o.country), phone: t(o.phone),
     email: t(o.email), website: t(o.website), logo_path: o.logoPath === undefined ? undefined : o.logoPath || null,
     base_currency: o.baseCurrency?.trim().toUpperCase(), currency_decimals: o.currencyDecimals, fy_start_month: o.fyStartMonth,
-    timezone: o.timezone, language: o.language, letterhead: o.letterhead, overridable_settings: o.overridableSettings,
+    timezone: o.timezone, language: o.language, letterhead: o.letterhead, overridable_settings: o.overridableSettings, party_approval_required: o.partyApprovalRequired,
   };
   for (const k of Object.keys(row)) if (row[k] === undefined) delete row[k];
   return row;

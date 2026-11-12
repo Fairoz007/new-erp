@@ -190,7 +190,7 @@ export const AccidentsPage: React.FC = () => {
         title="Accident Registry"
         searchPlaceholder="Search by accident number, plate, police report, claim number or location..."
         searchFields={['accidentNumber', 'vehiclePlate', 'policeReportNumber', 'insuranceClaimNumber', 'location', 'driverName']}
-        exportFilename="FleetX_Accidents_Register"
+        exportFilename="Accidents_Register"
         filterComponent={
           <select
             value={statusFilter}

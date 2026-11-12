@@ -207,7 +207,7 @@ export function DataTable<T extends Record<string, any>>({
   const exportColumns = activeColumns.filter(c => c.sortable !== false && c.key !== 'actions');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const reportTitle = title || exportFilename.replace(/^FleetX_/, '').replace(/_/g, ' ');
+  const reportTitle = title || exportFilename.replace(/_/g, ' ');
   // Documents show what the screen shows (formatted dates, currency, names); CSV keeps raw values.
   const previewRows = () => sortedData.map((row, i) => exportColumns.map(c => {
     const shown = c.render ? nodeToText(c.render(row, i)).replace(/\s+/g, ' ').trim() : '';

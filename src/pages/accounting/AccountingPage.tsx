@@ -314,7 +314,7 @@ export const AccountingPage: React.FC = () => {
           description={selectedCompanyId === 'all' ? 'Balances summed by account code across your companies.' : undefined}
           searchPlaceholder="Search accounts by code, name, category..."
           searchFields={['code', 'name', 'category', 'subcategory']}
-          exportFilename="FleetX_Chart_of_Accounts"
+          exportFilename="Chart_of_Accounts"
           emptyMessage="No chart of accounts is set up for this company yet."
         />
       )}
@@ -329,7 +329,7 @@ export const AccountingPage: React.FC = () => {
           title="General Journal Entries"
           searchPlaceholder="Search journal entries by number, description, reference..."
           searchFields={['entryNumber', 'description', 'reference', 'sourceModule']}
-          exportFilename="FleetX_Journal_Entries"
+          exportFilename="Journal_Entries"
           emptyMessage="No journal entries have been posted yet."
         />
       )}

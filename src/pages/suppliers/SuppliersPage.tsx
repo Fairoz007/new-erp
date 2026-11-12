@@ -9,7 +9,8 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { PartyEditModal } from './PartyEditModal';
-import { SupplierDetailModal } from './SupplierDetailModal';
+import { PartyImportModal, exportPartiesCsv } from '../parties/PartyCsv';
+import { Download, Upload, Clock } from 'lucide-react';
 import { Pencil, Power } from 'lucide-react';
 import { formatCurrency } from '../../utils/financial';
 import { partyAvailableIn } from '../../services/finance';
@@ -22,7 +23,7 @@ import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../
 
 export const SuppliersPage: React.FC = () => {
   const { suppliers: allSuppliers, currency, updateSupplier, companies, selectedCompanyId } = useFleet();
-  const { openQuickModal, addToast } = useUI();
+  const { openQuickModal, addToast, openPartyDetail } = useUI();
   const { hasPermission } = useAuth();
   const canEditIn = (officeId: string) => hasPermission('edit', 'suppliers', officeId);
   const canTransfer = (officeId: string) => canEditIn(officeId) && companies.some(o => o.id !== officeId && hasPermission('create', 'suppliers', o.id));
@@ -33,7 +34,9 @@ export const SuppliersPage: React.FC = () => {
   const [moving, setMoving] = useState<Supplier | null>(null);
   const canCreate = hasPermission('create', 'suppliers');
   const [editing, setEditing] = useState<Supplier | null>(null);
-  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
+  const [regFilter, setRegFilter] = useState<'all' | 'Pending' | 'Approved' | 'Rejected'>('all');
+  const [importing, setImporting] = useState(false);
+  const canImport = companies.some(o => hasPermission('create', 'suppliers', o.id));
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const save = async (id: string, changes: Partial<Supplier>) => {
@@ -65,7 +68,7 @@ export const SuppliersPage: React.FC = () => {
       key: 'name',
       header: 'Supplier / ID',
       render: (s) => (
-        <div className="cursor-pointer group" onClick={() => setViewingSupplier(s)}>
+        <div className="cursor-pointer group" onClick={() => openPartyDetail('supplier', s.id)}>
           <span className="font-bold text-slate-100 group-hover:text-forest-400 transition-colors">{s.name}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[10px] font-mono text-forest-700 font-semibold px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700">
@@ -135,7 +138,16 @@ export const SuppliersPage: React.FC = () => {
       key: 'status',
       header: 'Status',
       align: 'center',
-      render: (s) => <StatusBadge status={s.status} size="sm" />,
+      render: (s) => (
+        <div className="flex flex-col items-center gap-1">
+          <StatusBadge status={s.status} size="sm" />
+          {s.registration.status !== 'Approved' && (
+            <Badge variant={s.registration.status === 'Pending' ? 'amber' : 'rose'} title={s.registration.note || undefined}>
+              {s.registration.status === 'Pending' ? 'Awaiting approval' : 'Rejected'}
+            </Badge>
+          )}
+        </div>
+      ),
     },
     {
       key: 'actions',
@@ -144,7 +156,7 @@ export const SuppliersPage: React.FC = () => {
       sortable: false,
       render: (s: Supplier) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          <Button variant="ghost" size="xs" onClick={() => setViewingSupplier(s)} leftIcon={<Eye className="w-3 h-3" />}>
+          <Button variant="ghost" size="xs" onClick={() => openPartyDetail('supplier', s.id)} leftIcon={<Eye className="w-3 h-3" />}>
             Details
           </Button>
           {canEditIn(s.officeId) && (
@@ -173,7 +185,18 @@ export const SuppliersPage: React.FC = () => {
 
   // custom fields: list columns, search and filter (Settings → Custom fields)
   const cfList = useCustomFields('supplier');
-  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, suppliers);
+  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, regFilter === 'all' ? suppliers : suppliers.filter(p => p.registration.status === regFilter));
+  const pendingCount = suppliers.filter(p => p.registration.status === 'Pending').length;
+  const officeCode = (id: string) => companies.find(o => o.id === id)?.code ?? '';
+  const regSelect = (
+    <select aria-label="Registration status" value={regFilter} onChange={e => setRegFilter(e.target.value as typeof regFilter)}
+      className="h-9 rounded-full border border-slate-700 bg-white px-3 text-xs text-slate-200">
+      <option value="all">All registrations</option>
+      <option value="Pending">Awaiting approval</option>
+      <option value="Approved">Approved</option>
+      <option value="Rejected">Rejected</option>
+    </select>
+  );
 
   return (
     <div className="space-y-6">
@@ -188,7 +211,14 @@ export const SuppliersPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="rounded-full" onClick={() => exportPartiesCsv('supplier', cfRows, cfList.defs, officeCode)}
+            leftIcon={<Download className="w-4 h-4" />}>Export all fields</Button>
+          {canImport && (
+            <Button variant="outline" size="sm" className="rounded-full" onClick={() => setImporting(true)} leftIcon={<Upload className="w-4 h-4" />}>
+              Import CSV
+            </Button>
+          )}
           {canCreate && <Button
             variant="primary"
             size="sm"
@@ -200,6 +230,14 @@ export const SuppliersPage: React.FC = () => {
           </Button>}
         </div>
       </div>
+
+      {pendingCount > 0 && (
+        <button type="button" onClick={() => setRegFilter('Pending')}
+          className="w-full flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left text-xs text-amber-800">
+          <Clock className="w-4 h-4 shrink-0" />
+          {pendingCount} supplier registration{pendingCount === 1 ? ' is' : 's are'} waiting for approval. They cannot be used on invoices, bills or payments until approved. Show them
+        </button>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -233,7 +271,7 @@ export const SuppliersPage: React.FC = () => {
         collection={'suppliers'}
         columns={withCustomColumns(columns, cfList.listColumns<Supplier>())}
         searchText={cfList.searchText}
-        extraFilters={cfFilter}
+        extraFilters={<>{regSelect}{cfFilter}</>}
         keyExtractor={s => s.id}
         title="Vendor Registry"
         searchPlaceholder="Search suppliers by name, ID, contact, phone, VAT number..."
@@ -251,12 +289,7 @@ export const SuppliersPage: React.FC = () => {
         onSave={async (id, changes) => { await save(id, changes); }}
       />
 
-      <SupplierDetailModal
-        isOpen={!!viewingSupplier}
-        supplier={viewingSupplier}
-        onClose={() => setViewingSupplier(null)}
-        onEdit={s => setEditing(s)}
-      />
+      {importing && <PartyImportModal kind="supplier" onClose={() => setImporting(false)} />}
     </div>
   );
 };

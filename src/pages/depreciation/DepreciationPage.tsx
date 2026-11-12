@@ -167,7 +167,7 @@ export const DepreciationPage: React.FC = () => {
         keyExtractor={v => v.id}
         title="Vehicle Depreciation Registry"
         searchPlaceholder="Search vehicles by plate, model, depreciation method..."
-        exportFilename="FleetX_Vehicle_Depreciation"
+        exportFilename="Vehicle_Depreciation"
         emptyMessage="No vehicles in this selection."
       />
     </div>

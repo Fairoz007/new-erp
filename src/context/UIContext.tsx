@@ -16,6 +16,8 @@ export type AppPage =
   | 'expenses'
   | 'suppliers'
   | 'customers'
+  | 'customer-detail'
+  | 'supplier-detail'
   | 'invoices'
   | 'reconciliation'
   | 'payments'
@@ -83,6 +85,9 @@ interface UIContextType {
   selectedVehicleId: string | null;
   selectedVehicleTab: VehicleTab;
   openVehicleDetail: (vehicleId: string, tab?: VehicleTab) => void;
+  /** Client / supplier detail page (#customer-detail?id=… / #supplier-detail?id=…). */
+  selectedPartyId: string | null;
+  openPartyDetail: (kind: 'customer' | 'supplier', id: string) => void;
   setSelectedVehicleTab: (tab: VehicleTab) => void;
   
   // Modals & Drawers
@@ -126,7 +131,7 @@ interface UIContextType {
 const VALID_PAGES: AppPage[] = [
   'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'maintenance',
   'work-orders', 'oil-management', 'tyre-management', 'accidents', 'expenses',
-  'suppliers', 'customers', 'invoices', 'reconciliation', 'payments',
+  'suppliers', 'customers', 'customer-detail', 'supplier-detail', 'invoices', 'reconciliation', 'payments',
   'accounting', 'trial-balance', 'general-ledger', 'profit-loss', 'balance-sheet',
   'depreciation', 'fixed-assets', 'payroll', 'profitability', 'documents',
   'notifications', 'users-roles', 'approvals', 'audit-logs', 'reports', 'settings',
@@ -160,6 +165,8 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPageState] = useState<AppPage>(initialNav.page);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(initialNav.vehicleId || null);
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleTab>(initialNav.tab || 'overview');
+  const [selectedPartyId, setSelectedPartyId] = useState<string | null>(
+    initialNav.page === 'customer-detail' || initialNav.page === 'supplier-detail' ? initialNav.vehicleId ?? null : null);
   
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
@@ -179,7 +186,8 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const handleHashChange = () => {
       const parsed = parseLocationHash();
       setCurrentPageState(canAccessPage(parsed.page) ? parsed.page : 'dashboard');
-      if (parsed.vehicleId) setSelectedVehicleId(parsed.vehicleId);
+      if (parsed.page === 'customer-detail' || parsed.page === 'supplier-detail') { if (parsed.vehicleId) setSelectedPartyId(parsed.vehicleId); }
+      else if (parsed.vehicleId) setSelectedVehicleId(parsed.vehicleId);
       if (parsed.tab) setSelectedVehicleTab(parsed.tab);
     };
 
@@ -210,7 +218,9 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const setCurrentPage = (page: AppPage) => {
     setCurrentPageState(page);
     if (typeof window !== 'undefined') {
-      if (page === 'vehicle-detail' && selectedVehicleId) {
+      if ((page === 'customer-detail' || page === 'supplier-detail') && selectedPartyId) {
+        window.location.hash = `#${page}?id=${selectedPartyId}`;
+      } else if (page === 'vehicle-detail' && selectedVehicleId) {
         window.location.hash = `#vehicle-detail?id=${selectedVehicleId}&tab=${selectedVehicleTab}`;
       } else {
         window.location.hash = `#${page}`;
@@ -225,6 +235,13 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     if (typeof window !== 'undefined') {
       window.location.hash = `#vehicle-detail?id=${vehicleId}&tab=${tab}`;
     }
+  };
+
+  const openPartyDetail = (kind: 'customer' | 'supplier', id: string) => {
+    const page: AppPage = kind === 'customer' ? 'customer-detail' : 'supplier-detail';
+    setSelectedPartyId(id);
+    setCurrentPageState(page);
+    if (typeof window !== 'undefined') window.location.hash = `#${page}?id=${id}`;
   };
 
   // Quick actions bypass page routing, so enforce page access + create permission here
@@ -310,6 +327,8 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         selectedVehicleId,
         selectedVehicleTab,
         openVehicleDetail,
+        selectedPartyId,
+        openPartyDetail,
         setSelectedVehicleTab,
         isSearchOpen,
         setIsSearchOpen,

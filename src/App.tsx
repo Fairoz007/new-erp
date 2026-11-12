@@ -11,6 +11,7 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 
 // Lazy Loaded Submodules (Code-split for maximum load speed)
+const PartyDetailPage = lazy(() => import('./pages/parties/PartyDetailPage').then(m => ({ default: m.PartyDetailPage })));
 const CompaniesPage = lazy(() => import('./pages/companies/CompaniesPage').then(m => ({ default: m.CompaniesPage })));
 const VehiclesPage = lazy(() => import('./pages/vehicles/VehiclesPage').then(m => ({ default: m.VehiclesPage })));
 const VehicleDetailPage = lazy(() => import('./pages/vehicles/VehicleDetailPage').then(m => ({ default: m.VehicleDetailPage })));
@@ -118,6 +119,10 @@ const PageRenderer: React.FC = () => {
             return <VehiclesPage />;
           case 'vehicle-detail':
             return <VehicleDetailPage />;
+          case 'customer-detail':
+            return <PartyDetailPage kind="customer" />;
+          case 'supplier-detail':
+            return <PartyDetailPage kind="supplier" />;
           case 'maintenance':
             return <MaintenancePage />;
           case 'work-orders':

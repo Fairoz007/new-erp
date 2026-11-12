@@ -394,7 +394,7 @@ export const InvoicesPage: React.FC = () => {
         title="Invoices & Purchase Bills Registry"
         searchPlaceholder="Search invoices by invoice number, party name, reference..."
         searchFields={['invoiceNumber', 'partyName', 'referenceNumber', 'purchaseOrderNumber', 'vehiclePlate']}
-        exportFilename="FleetX_Invoices_Register"
+        exportFilename="Invoices_Register"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <select

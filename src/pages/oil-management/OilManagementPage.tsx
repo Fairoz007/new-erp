@@ -169,7 +169,7 @@ export const OilManagementPage: React.FC = () => {
         title="Engine Oil Service Register"
         searchPlaceholder="Search by vehicle, oil brand, grade, odometer..."
         searchFields={['vehiclePlate', 'vehicleName', 'oilBrand', 'oilGrade', 'odometer']}
-        exportFilename="FleetX_Oil_Services"
+        exportFilename="Oil_Services"
         filterComponent={
           <select
             value={filter}

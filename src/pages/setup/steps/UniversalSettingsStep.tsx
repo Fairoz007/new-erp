@@ -23,7 +23,7 @@ const GeneralSettings: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   const { organization, setOrganization } = useOrg();
   const { isSuperAdmin } = useAuth();
   const [form, setForm] = useState({ baseCurrency: 'OMR', currencyDecimals: 3, fyStartMonth: 1, timezone: 'Asia/Muscat', language: 'en' as 'en' | 'ar',
-    overridable: [] as string[], header: '', footer: '', showLogo: true });
+    overridable: [] as string[], header: '', footer: '', showLogo: true, partyApproval: false });
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useNotice();
 
@@ -33,6 +33,7 @@ const GeneralSettings: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
       baseCurrency: organization.baseCurrency, currencyDecimals: organization.currencyDecimals, fyStartMonth: organization.fyStartMonth,
       timezone: organization.timezone, language: organization.language, overridable: organization.overridableSettings,
       header: organization.letterhead.header ?? '', footer: organization.letterhead.footer ?? '', showLogo: organization.letterhead.showLogo ?? true,
+      partyApproval: organization.partyApprovalRequired,
     });
   }, [organization]);
 
@@ -46,6 +47,7 @@ const GeneralSettings: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
       const patch: Partial<org.OrganizationInput> = {
         currencyDecimals: Number(form.currencyDecimals), fyStartMonth: Number(form.fyStartMonth), timezone: form.timezone, language: form.language,
         letterhead: { header: form.header.trim(), footer: form.footer.trim(), showLogo: form.showLogo },
+        partyApprovalRequired: form.partyApproval,
       };
       if (isSuperAdmin) { patch.baseCurrency = form.baseCurrency; patch.overridableSettings = form.overridable; }
       setOrganization(await org.saveOrganization(organization.id, patch));
@@ -94,6 +96,8 @@ const GeneralSettings: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
           onChange={e => setForm(f => ({ ...f, footer: e.target.value }))} hint="e.g. bank details, CR and VAT numbers" />
       </div>
       <Toggle label="Show logo on documents" checked={form.showLogo} disabled={readOnly} onChange={v => setForm(f => ({ ...f, showLogo: v }))} />
+      <Toggle label="New clients and suppliers need approval before they can be used" checked={form.partyApproval} disabled={readOnly}
+        onChange={v => setForm(f => ({ ...f, partyApproval: v }))} />
     </Section>
   );
 };

@@ -7,8 +7,8 @@ import { StatusBadge } from './StatusBadge';
 import { VehiclePhoto, useVehiclePhotoUrls } from '../../pages/vehicles/VehiclePhoto';
 
 export const GlobalSearchModal: React.FC = () => {
-  const { isSearchOpen, setIsSearchOpen, setCurrentPage, openVehicleDetail, openInvoiceModal, openBillModal } = useUI();
-  const { vehicles, invoices, workOrders, maintenanceRecords, suppliers, documents, accidents } = useFleet();
+  const { isSearchOpen, setIsSearchOpen, setCurrentPage, openVehicleDetail, openInvoiceModal, openBillModal, openPartyDetail } = useUI();
+  const { vehicles, invoices, workOrders, maintenanceRecords, suppliers, customers, documents, accidents } = useFleet();
   const { canAccessPage } = useAuth();
   const [query, setQuery] = useState('');
 
@@ -53,7 +53,10 @@ export const GlobalSearchModal: React.FC = () => {
 
     // Suppliers
     const matchedSuppliers = !canAccessPage('suppliers') ? [] : suppliers.filter(
-      s => s.name.toLowerCase().includes(q) || s.supplierType.toLowerCase().includes(q) || s.supplierId.toLowerCase().includes(q)
+      s => [s.name, s.supplierType, s.supplierId, s.vatNumber, s.crNumber, s.email].some(x => (x || '').toLowerCase().includes(q))
+    );
+    const matchedCustomers = !canAccessPage('customers') ? [] : customers.filter(
+      c => [c.name, c.customerType, c.customerId, c.vatNumber, c.crNumber, c.email].some(x => (x || '').toLowerCase().includes(q))
     );
 
     // Documents
@@ -72,6 +75,7 @@ export const GlobalSearchModal: React.FC = () => {
       matchedWorkOrders.length +
       matchedMaintenance.length +
       matchedSuppliers.length +
+      matchedCustomers.length +
       matchedDocuments.length +
       matchedAccidents.length;
 
@@ -82,10 +86,11 @@ export const GlobalSearchModal: React.FC = () => {
       workOrders: matchedWorkOrders,
       maintenance: matchedMaintenance,
       suppliers: matchedSuppliers,
+      customers: matchedCustomers,
       documents: matchedDocuments,
       accidents: matchedAccidents,
     };
-  }, [query, vehicles, invoices, workOrders, maintenanceRecords, suppliers, documents, accidents, canAccessPage]);
+  }, [query, vehicles, invoices, workOrders, maintenanceRecords, suppliers, customers, documents, accidents, canAccessPage]);
   const vehiclePhotoUrl = useVehiclePhotoUrls(results?.vehicles.map(v => v.photoUrl) ?? []);
 
   if (!isSearchOpen) return null;
@@ -361,7 +366,7 @@ export const GlobalSearchModal: React.FC = () => {
                   <div
                     key={sup.id}
                     onClick={() => {
-                      setCurrentPage('suppliers');
+                      openPartyDetail('supplier', sup.id);
                       setIsSearchOpen(false);
                     }}
                     className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-800/70 border border-transparent hover:border-slate-700 cursor-pointer transition-colors"
@@ -372,6 +377,35 @@ export const GlobalSearchModal: React.FC = () => {
                         <span className="text-[10px] text-slate-400">({sup.supplierType})</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">Contact: {sup.contactPerson} | Phone: {sup.phone}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-500" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {results && results.customers.length > 0 && (
+            <div className="pt-3">
+              <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" /> Clients ({results.customers.length})
+              </p>
+              <div className="space-y-1.5">
+                {results.customers.map(cus => (
+                  <div
+                    key={cus.id}
+                    onClick={() => {
+                      openPartyDetail('customer', cus.id);
+                      setIsSearchOpen(false);
+                    }}
+                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-800/70 border border-transparent hover:border-slate-700 cursor-pointer transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-200">{cus.name}</span>
+                        <span className="text-[10px] text-slate-400">({cus.customerType})</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Contact: {cus.contactPerson} | Phone: {cus.phone}</p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-slate-500" />
                   </div>

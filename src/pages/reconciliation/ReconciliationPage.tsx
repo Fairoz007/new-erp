@@ -233,7 +233,7 @@ export const ReconciliationPage: React.FC = () => {
         title="Audit & Reconciliation Ledger"
         searchPlaceholder="Search reconciliations by invoice, supplier, PO or work order..."
         searchFields={['invoiceNumber', 'supplierOrCustomerName', 'purchaseOrderNumber', 'workOrderNumber', 'reconciliationNumber']}
-        exportFilename="FleetX_Invoice_Reconciliations"
+        exportFilename="Invoice_Reconciliations"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <select aria-label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold cursor-pointer">

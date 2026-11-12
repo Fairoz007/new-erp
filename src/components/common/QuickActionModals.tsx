@@ -292,7 +292,7 @@ export const QuickActionModals: React.FC = () => {
     taxNumber: '',
     paymentTermsDays: 30,
     creditLimit: 0,
-    openingBalance: 0,
+    crNumber: '',
     status: 'Active' as const,
   });
 
@@ -347,7 +347,7 @@ export const QuickActionModals: React.FC = () => {
     taxNumber: '',
     paymentTermsDays: 30,
     creditLimit: 0,
-    openingBalance: 0,
+    crNumber: '',
     status: 'Active' as const,
   });
 
@@ -847,7 +847,7 @@ export const QuickActionModals: React.FC = () => {
         taxNumber: supplierForm.taxNumber,
         paymentTermsDays: Number(supplierForm.paymentTermsDays) || 0,
         creditLimit: Number(supplierForm.creditLimit) || 0,
-        openingBalance: Number(supplierForm.openingBalance) || 0,
+        crNumber: supplierForm.crNumber,
         status: supplierForm.status,
         bankDetails: { bankName: '', accountNumber: '', iban: '', swiftCode: '' },
         notes: '',
@@ -882,7 +882,7 @@ export const QuickActionModals: React.FC = () => {
         taxNumber: customerForm.taxNumber,
         paymentTermsDays: Number(customerForm.paymentTermsDays) || 0,
         creditLimit: Number(customerForm.creditLimit) || 0,
-        openingBalance: Number(customerForm.openingBalance) || 0,
+        crNumber: customerForm.crNumber,
         status: customerForm.status,
         ...customerOffice,
         customFields: cfCustomer.value(),
@@ -1801,10 +1801,16 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
-              label="Oman VAT Number"
-              placeholder="OM1100223344"
+              label="VAT number"
               value={supplierForm.vatNumber}
               onChange={e => setSupplierForm({ ...supplierForm, vatNumber: e.target.value })}
+              hint="Must be unique"
+            />
+            <Input
+              label="CR number"
+              value={supplierForm.crNumber}
+              onChange={e => setSupplierForm({ ...supplierForm, crNumber: e.target.value })}
+              hint="Commercial registration; must be unique"
             />
             <Input
               label="Payment Terms (Days)"
@@ -1889,10 +1895,16 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
-              label="Oman VAT Number"
-              placeholder="OM2200334455"
+              label="VAT number"
               value={customerForm.vatNumber}
               onChange={e => setCustomerForm({ ...customerForm, vatNumber: e.target.value })}
+              hint="Must be unique"
+            />
+            <Input
+              label="CR number"
+              value={customerForm.crNumber}
+              onChange={e => setCustomerForm({ ...customerForm, crNumber: e.target.value })}
+              hint="Commercial registration; must be unique"
             />
             <Input
               label="Credit Terms (Days)"

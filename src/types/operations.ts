@@ -145,9 +145,20 @@ export interface Supplier {
   sharing: PartySharing;
   sharedOfficeIds: string[];                          // when sharing = 'selected'
   customFields?: Record<string, unknown>;
+  crNumber: string;
+  registration: PartyRegistration;
 }
 
 export type PartySharing = 'office' | 'selected' | 'organization';
+
+/** Registration approval state (DB-owned; changed only with review_party). */
+export interface PartyRegistration {
+  status: 'Pending' | 'Approved' | 'Rejected';
+  submittedBy: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  note: string;
+}
 
 export interface Customer {
   id: string;
@@ -176,6 +187,8 @@ export interface Customer {
   sharing: PartySharing;
   sharedOfficeIds: string[];
   customFields?: Record<string, unknown>;
+  crNumber: string;
+  registration: PartyRegistration;
 }
 
 export type DocumentCategory =

@@ -195,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </h4>
               <div className="space-y-0.5">
                 {group.items.map(item => {
-                  const isActive = currentPage === item.id || (currentPage === 'vehicle-detail' && item.id === 'vehicles');
+                  const isActive = currentPage === item.id || (currentPage === 'vehicle-detail' && item.id === 'vehicles') || (currentPage === 'customer-detail' && item.id === 'customers') || (currentPage === 'supplier-detail' && item.id === 'suppliers');
                   const Icon = item.icon;
 
                   return (

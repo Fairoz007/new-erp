@@ -17,6 +17,8 @@ export const PAGE_MODULE: Record<AppPage, string | null> = {
   companies: 'companies',
   vehicles: 'vehicles',
   'vehicle-detail': 'vehicles',
+  'customer-detail': 'customers',
+  'supplier-detail': 'suppliers',
   maintenance: 'maintenance',
   'work-orders': 'work-orders',
   'oil-management': 'oil',

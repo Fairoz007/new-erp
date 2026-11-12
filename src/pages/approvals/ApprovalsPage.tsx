@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { RegistrationQueue, usePendingRegistrations } from '../parties/RegistrationQueue';
 
 export const ApprovalsPage: React.FC = () => {
   const { approvalRequests: allRequests, processApproval, currency, selectedCompanyId } = useFleet();
@@ -21,7 +22,8 @@ export const ApprovalsPage: React.FC = () => {
   const [actionType, setActionType] = useState<'Approved' | 'Rejected'>('Approved');
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [statusView, setStatusView] = useState<'Pending' | 'all'>('Pending');
+  const [statusView, setStatusView] = useState<'Pending' | 'all' | 'registrations'>('Pending');
+  const pendingRegistrations = usePendingRegistrations().length;
   const [shown, setShown] = useState(25);
   const visibleRequests = approvalRequests.filter(r => statusView === 'all' || r.status === 'Pending');
   const pendingCount = approvalRequests.filter(r => r.status === 'Pending').length;
@@ -81,7 +83,7 @@ export const ApprovalsPage: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2" role="tablist">
-        {([['Pending', `Pending (${pendingCount})`], ['all', `History (${approvalRequests.length})`]] as const).map(([id, label]) => (
+        {([['Pending', `Pending (${pendingCount})`], ['all', `History (${approvalRequests.length})`], ['registrations', `Registrations (${pendingRegistrations})`]] as const).map(([id, label]) => (
           <button
             key={id}
             role="tab"
@@ -95,6 +97,7 @@ export const ApprovalsPage: React.FC = () => {
       </div>
 
       {/* Approval Requests List */}
+      {statusView === 'registrations' ? <RegistrationQueue /> : (
       <div className="space-y-4">
         {visibleRequests.length === 0 && (
           <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
@@ -189,6 +192,7 @@ export const ApprovalsPage: React.FC = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Confirmation Modal */}
       <Modal

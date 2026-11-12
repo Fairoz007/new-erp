@@ -97,7 +97,7 @@ export const AuditLogsPage: React.FC = () => {
         title="System Security & Change Ledger"
         searchPlaceholder="Search audit logs by user, action, entity, plate or details..."
         searchFields={['userName', 'userRole', 'action', 'entityType', 'entityName', 'details']}
-        exportFilename="FleetX_Audit_Logs"
+        exportFilename="Audit_Logs"
         exportModule="audit-logs"
         filterComponent={
           <select

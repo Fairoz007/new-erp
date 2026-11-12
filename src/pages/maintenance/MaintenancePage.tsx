@@ -141,7 +141,7 @@ export const MaintenancePage: React.FC = () => {
         title="Fleet Maintenance Ledger"
         searchPlaceholder="Search maintenance by plate, record number, description, category or service centre..."
         searchFields={['recordNumber', 'vehiclePlate', 'category', 'description', 'serviceCentre', 'supplierName']}
-        exportFilename="FleetX_Maintenance_Records"
+        exportFilename="Maintenance_Records"
         filterComponent={
           <select
             value={categoryFilter}

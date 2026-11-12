@@ -279,7 +279,7 @@ export const AssetModulePage: React.FC = () => {
           title="Fixed Assets Master Registry"
           searchPlaceholder="Search fixed assets by asset code, name, category, serial number..."
           searchFields={['assetCode', 'name', 'category', 'serialNumber', 'assignedVehiclePlate']}
-          exportFilename="FleetX_Fixed_Assets_Register"
+          exportFilename="Fixed_Assets_Register"
           emptyMessage="No fixed assets registered for this selection."
           filterComponent={
             <select
