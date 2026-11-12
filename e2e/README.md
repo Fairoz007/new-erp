@@ -15,19 +15,19 @@ out-of-sync project the numbering and bootstrap tests fail, which is the point.
 ## Environment variables (all required, environment only)
 | Variable | Value |
 |---|---|
-| `SUPABASE_URL` | `https://fpeniljpqigpeqtsgizr.supabase.co` |
+| `SUPABASE_URL` | `https://<staging-ref>.supabase.co` (the script refuses the production project) |
 | `SUPABASE_ANON_KEY` | publishable (anon) key |
 | `SUPABASE_SERVICE_ROLE_KEY` | service-role (secret) key, used only for setup, teardown and re-reading the truth |
-| `E2E_CONFIRM` | must be exactly `fpeniljpqigpeqtsgizr` |
+| `E2E_CONFIRM` | must be exactly the staging project ref |
 
 Getting the service-role key without committing it: Dashboard, Project Settings, API Keys,
 the `service_role` secret key, Reveal and copy. Set it in your shell only:
 
 ```bash
-export SUPABASE_URL=https://fpeniljpqigpeqtsgizr.supabase.co
+export SUPABASE_URL=https://<staging-ref>.supabase.co
 export SUPABASE_ANON_KEY=...            # publishable key
 export SUPABASE_SERVICE_ROLE_KEY=...    # secret key
-export E2E_CONFIRM=fpeniljpqigpeqtsgizr
+export E2E_CONFIRM=<staging-ref>
 ```
 PowerShell: `$env:SUPABASE_SERVICE_ROLE_KEY = '...'`.
 
@@ -37,8 +37,8 @@ The script never reads dotenv files and never prints keys or the generated passw
 is redacted). Rotate the service-role key if it ever leaks.
 
 ## Safety guard
-The script refuses to run (exit 2) unless the URL host is exactly `fpeniljpqigpeqtsgizr.supabase.co`
-**and** `E2E_CONFIRM=fpeniljpqigpeqtsgizr`. It also refuses identical anon and service keys.
+The script refuses to run (exit 2) against the production project (`fpeniljpqigpeqtsgizr`), and unless
+`E2E_CONFIRM` equals the project ref in `SUPABASE_URL`. It also refuses identical anon and service keys.
 
 ## Running
 ```bash

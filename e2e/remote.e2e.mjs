@@ -10,7 +10,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
 
-const PROJECT_REF = 'fpeniljpqigpeqtsgizr';
+// The suite creates and deletes users and records, so it never runs against production.
+const PRODUCTION_REF = 'fpeniljpqigpeqtsgizr';
+const refOf = (u) => { try { return new URL(u).hostname.split('.')[0]; } catch { return ''; } };
+const PROJECT_REF = refOf((process.env.SUPABASE_URL || '').trim()) || '<staging-ref>';
 const args = new Set(process.argv.slice(2));
 
 if (args.has('--help') || args.has('-h')) {
@@ -19,10 +22,10 @@ if (args.has('--help') || args.has('-h')) {
 Usage: node e2e/remote.e2e.mjs [--dry-run] [--help]
 
 Required environment variables (never put them in a committed file):
-  SUPABASE_URL                 https://${PROJECT_REF}.supabase.co
+  SUPABASE_URL                 https://<staging-ref>.supabase.co (never production)
   SUPABASE_ANON_KEY            publishable / anon key
   SUPABASE_SERVICE_ROLE_KEY    service-role (secret) key: setup + teardown only
-  E2E_CONFIRM                  must equal ${PROJECT_REF} (safety guard)
+  E2E_CONFIRM                  must equal the staging project ref (safety guard)
 
 Flags:
   --dry-run   validate configuration and print the planned steps; no network calls
@@ -53,13 +56,12 @@ if (!URL_) configErrors.push('SUPABASE_URL is not set');
 else {
   let host = '';
   try { host = new URL(URL_).hostname; } catch { configErrors.push('SUPABASE_URL is not a valid URL'); }
-  if (host && !(host === `${PROJECT_REF}.supabase.co`)) {
-    configErrors.push(`SUPABASE_URL host must be ${PROJECT_REF}.supabase.co (wrong-project guard)`);
-  }
+  if (host && !host.endsWith('.supabase.co')) configErrors.push('SUPABASE_URL must be a supabase.co project URL');
+  if (PROJECT_REF === PRODUCTION_REF) configErrors.push('SUPABASE_URL points at the production project; run this suite on staging only');
 }
 if (!ANON) configErrors.push('SUPABASE_ANON_KEY is not set');
 if (!SERVICE) configErrors.push('SUPABASE_SERVICE_ROLE_KEY is not set (needed for setup/teardown)');
-if (CONFIRM !== PROJECT_REF) configErrors.push(`E2E_CONFIRM must equal ${PROJECT_REF}`);
+if (CONFIRM !== PROJECT_REF || CONFIRM === PRODUCTION_REF) configErrors.push('E2E_CONFIRM must equal the staging project ref in SUPABASE_URL');
 if (ANON && SERVICE && ANON === SERVICE) configErrors.push('SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are identical');
 
 const RUN_ID = `e2e-${Date.now()}`;
@@ -670,7 +672,7 @@ if (DRY) {
   console.log(`SUPABASE_URL      : ${URL_ ? 'set' : 'MISSING'}`);
   console.log(`SUPABASE_ANON_KEY : ${ANON ? 'set' : 'MISSING'}`);
   console.log(`SERVICE_ROLE_KEY  : ${SERVICE ? 'set' : 'MISSING'}`);
-  console.log(`E2E_CONFIRM       : ${CONFIRM === PROJECT_REF ? 'ok' : 'MISSING or wrong'}`);
+  console.log(`E2E_CONFIRM       : ${CONFIRM === PROJECT_REF && CONFIRM !== PRODUCTION_REF ? 'ok' : 'MISSING, wrong or production'}`);
   if (configErrors.length) { console.log('\nConfiguration problems:'); configErrors.forEach(e => console.log('  - ' + e)); }
   console.log('\nSetup:'); PLAN_SETUP.forEach((s, i) => console.log(`  ${i + 1}. ${s}`));
   console.log(`\nTests (${registry.length}):`);

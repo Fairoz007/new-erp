@@ -251,3 +251,10 @@ Notifications (migration `20261112001100_notifications.sql`, tests `supabase/tes
 - Expiries, approvals, recurring expenses that are due or overdue, and budget alerts were already in place (Phases 5–8).
 
 Not verified in a browser (needs the staging DB): every dashboard tab, the reports and their PDF output, and the leave alert in the bell.
+
+## Phase 11 — Final verification
+
+- Fresh install: `supabase/tests/20261112001200_e2e_fresh_install.test.mjs` runs on an empty database with every migration applied and no fixtures. It follows the wizard flow with two offices, adds the business records, checks the trial balance and each office's P&L, and runs the role and cross-office checks. 15 of 15 pass. `npm run test:db` passes 888 of 888 checks.
+- The remote suite (`e2e/remote.e2e.mjs`) only accepted the production project. It now refuses production and requires `E2E_CONFIRM` to match the staging ref.
+- `AUDIT_REPORT.md` has a new update section (I–L) covering what was fixed, what was verified and what is still open. `README.md` has setup instructions.
+- Not verified: the browser pass (wizard, each role's login, 375 px mobile) and the remote suite. Both need the staging project connected.

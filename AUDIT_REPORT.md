@@ -97,3 +97,79 @@ Not exercised in the browser: journal-imbalance rejection, vehicle-delete guard 
 ## H. Release recommendation
 
 **Not ready for release** as a production ERP. The blockers are architectural: no server-side authentication or authorization, browser-only persistence, and AR/AP not posted to the general ledger, so financial statements are incomplete. As a single-user demo or prototype it is conditionally ready: the verified critical data-integrity and data-loss defects are fixed, and the open P2/P3 items are listed above.
+
+---
+
+# Update — 2026-11-12: Phases 0–11 complete
+
+The brief in `docs/FIX_AND_COMPLETE_PROMPT.md` was carried out in 12 commits, one per phase (`773080a` … Phase 11). Defaults and unverified items for each phase are listed in `docs/PHASE_NOTES.md`. The 2026-10-25 findings above describe the earlier browser-only app.
+
+## I. Fixed since the first audit
+
+| First-audit finding | Now |
+|---|---|
+| No authentication; RBAC only in the browser (architectural) | Supabase Auth. Every table has RLS, and every write path is a table policy or a security-definer RPC that checks the same permission functions the UI uses (`can_in`, `perm_company_ids`, `can_approve_in`). |
+| Browser-only persistence, `localStorage` quota | Every record is in Postgres. No business data is kept in the browser. |
+| P1: invoices, payments and credit notes not posted to the GL | Posted in the database at approval. Expenses, payroll, depreciation, asset disposal, opening balances and debit notes are posted the same way. |
+| P1: chart of accounts had no company dimension | Each office has its own chart of accounts and ledger; the consolidated P&L adds the offices up. |
+| P2: client-trusted invoice totals; credit notes could be duplicated | Totals are computed in `create_invoice` and `replace_invoice_lines`. Credit notes reduce the parent invoice and are capped. |
+| Hard-coded permission matrix | Roles are data, with a module × action matrix, limits and per-office roles (Phases 1 and 9). |
+| Fabricated figures (dashboard trend, `fuelCost`, AP aging percentages, the reconciliation amount) | Removed. Every dashboard and report figure is computed from records (Phase 0 and Phase 10). |
+| Reports that showed the expense table | Each report has its own data, office and date filters, and CSV and PDF export (Phase 10). |
+| P3: CSV formula injection | Cells that start with `= + - @`, a tab or CR are neutralised (`src/utils/export.ts`). |
+
+Added by the brief, by phase:
+- **0:** Ledger stabilised; demo data removed.
+- **1:** Setup Wizard.
+- **2:** Office ownership and sharing.
+- **3:** Custom fields.
+- **4:** Party registration with approval and duplicate blocking.
+- **5:** Bus operations, drivers and expiry alerts.
+- **6:** HR, leave and payroll.
+- **7:** Period close, journal approval, bank reconciliation, cash flow, budgets.
+- **8:** Expense workflow and monthly recurring expenses.
+- **9:** Approval rules by role, and statements-only access.
+- **10:** Role dashboards, reports, leave and overdue notifications.
+- **11:** Fresh-install end-to-end test; the remote E2E suite now refuses production.
+
+## J. Verification
+
+| Check | Result |
+|---|---|
+| `npm run build` (tsc + vite) | Pass |
+| `npm run test:db` | Pass: 888 of 888 checks (schema, contract, 20 migration suites, fresh-install E2E) |
+| Fresh install, end to end (`supabase/tests/20261112001200_e2e_fresh_install.test.mjs`) | Pass, 15/15 (details below) |
+| Role and cross-office checks | Covered by the database suites (office scoping, roles, auth, every module suite) and by the fresh-install run |
+| **Browser: Setup Wizard, every page, each role's login, 375 px mobile width** | **Not verified.** No staging database is connected to the dev preview, which shows "Database connection not configured". Nothing was run against production. |
+| Remote suite `npm run test:e2e` (real Auth, PostgREST, Storage) | Not run. It needs a staging project and keys. |
+
+What the fresh-install run covers, on an empty database with all migrations applied:
+- The Super Admin creates the organization and two offices, and each office's chart of accounts is seeded.
+- Banks, a tax rate and a payment term are added, and `complete_setup` passes.
+- A bus, a client, a supplier and an employee are added.
+- A monthly expense template generates its draft, which is submitted and posted.
+- A sales invoice of 1,000 + 5% VAT is posted and 600 is received into the bank.
+- Results:
+  - The trial balance balances in both offices.
+  - The Muscat P&L is 1,000 revenue less 200 rent; Sohar is empty.
+  - The bank is at 1,600.
+  - The Sohar fleet manager sees no Muscat data and cannot write to Muscat.
+  - The viewer cannot write or pay.
+  - The sponsor gets statement totals and no journal lines.
+  - The Muscat finance manager cannot see the Sohar books.
+
+## K. Still open, with reasons
+
+1. **Browser and mobile verification.** Every UI flow added in Phases 1–10 has been type-checked and built, and the database behind it is tested, but none has been clicked through. This needs the staging project connected (`.env.local` and `supabase db push` to staging), then a pass of the wizard, each role's login and the 375 px layout. Until then, UI features are "built and wired", not "verified in the browser".
+2. **The pg_cron schedules** for daily notifications and finance jobs are untested, because PGlite has no pg_cron. The functions themselves are tested.
+3. **Fleet utilization is based on availability and odometer readings**, because trips are not recorded. A trip log would be needed for trip-based utilization.
+4. **Design decisions recorded in `docs/PHASE_NOTES.md`:**
+   - Maintenance records post through their linked bill, not on their own.
+   - Expenses that existed before Phase 8 were not back-posted.
+   - Approval rules cover work orders and invoices; other documents use signing limits.
+   - The HR dashboard's payroll figure is the sum of basic salaries.
+5. **Production** (`fpeniljpqigpeqtsgizr`) was not touched: it was not linked, pushed, reseeded or tested against. Apply the migrations there only after staging has been verified.
+
+## L. Release recommendation (updated)
+
+Ready for **staging acceptance**: the database layer, permissions and ledger are complete and tested. Treat the release as conditional on the browser and mobile pass in K.1 on staging. Push to production after that pass succeeds.
