@@ -542,3 +542,27 @@ Found, not changed:
 
 Not verified on the project: any signed-in page (needs a real account; passwords for live accounts
 are not typed by the assistant), `test:e2e`, the per-role Playwright run, PDF logo fetch.
+
+## Project data cleared (2026-11-12, on the owner's instruction)
+
+The owner said the project is in development and asked to remove all data, keep the users with
+their passwords, and push code and migrations only to GitHub.
+
+- Export first: `backups/prod-20261112-pre-wipe/` (git-ignored). Stored files were not downloaded.
+- Emptied in one transaction (`truncate … restart identity`): the 63 business tables (organization,
+  offices, members, accounts, vehicles, work orders, parties, numbering, notifications, audit log,
+  invitations and the rest).
+- Deleted all 1,645 stored files (`documents` 1,611, `media` 34) with `supabase storage rm`.
+- Kept: the 9 sign-in accounts (`auth.users`, passwords unchanged), their `profiles` and roles, and
+  the built-in settings the migrations install (roles, role grants, approval limits, chart-of-account
+  templates, document formats, expense categories, departments, designations, leave types, pay
+  components, units, vehicle types). `scripts/release/seeded-tables.mjs` lists those tables.
+- Result: 0 files, 0 business rows, 9 users, 1 Super Admin; local, GitHub and the project are on
+  migration `20261113005000` with nothing pending.
+- Next: the Super Admin signs in and runs the Setup Wizard (organization, offices, settings), then
+  assigns the other 8 users to offices in Users & Roles; they lost their office assignments with the
+  offices. New users are added by invitation (the `invite-user` function). Creating accounts and
+  typing passwords on the live project is left to the owner.
+
+The data model was already company-wide (see README → Concepts); no change was needed. Added
+`supabase/tests/company_data_shared.test.mjs` to keep it that way.

@@ -254,3 +254,9 @@ On the owner's instruction the 22 pending migrations, and one advisor fix, were 
 
 Still to do on the project: enable pg_cron and schedule the daily jobs, turn on backups or PITR,
 turn on leaked-password protection, rotate the demo password (O.2), and sign in once per role.
+
+## R. Project data cleared (2026-11-12)
+
+On the owner's instruction (development stage) all business data and the 1,645 stored files were
+removed from `fpeniljpqigpeqtsgizr`; the 9 accounts, their roles and the built-in settings were kept.
+The Setup Wizard runs again for the Super Admin. Details: `docs/ADVANCE_NOTES.md`.

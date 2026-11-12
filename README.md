@@ -110,6 +110,13 @@ browser checks before upload. Details and the deploy steps: `docs/OPERATIONS.md`
 
 ## Concepts
 
+- **One company, shared data:** the app runs one company (one organization with its offices). Data
+  is never stored per user. Vehicles, staff, clients, suppliers, invoices, expenses and the ledger
+  belong to an office, and every user with access to that office sees the same records, whoever
+  entered them. Users are invited by an administrator (the app has no sign-up screen) and get a role
+  and either all offices or chosen offices. A deactivated user loses access; the records they
+  entered stay. Only a user's own profile, notifications and error reports are personal.
+  `supabase/tests/company_data_shared.test.mjs` checks this.
 - **Offices:** every record belongs to one office, and each office has its own ledger. A user can hold a different role in each office. RLS scopes every query to the offices the user may see.
 - **Roles:** roles are data. They hold a module × action matrix, approval limits, and approval rules for work orders and invoices. Roles can be created, cloned and edited in Users & Roles.
 - **Ledger:** invoices, payments, expenses, payroll, depreciation and asset disposal post balanced journals in the database. Closed periods cannot be posted to.

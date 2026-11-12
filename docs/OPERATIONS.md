@@ -7,7 +7,7 @@ connects to a project on its own.
 | Environment | Supabase project | Used for |
 |---|---|---|
 | Staging | your staging ref | every change is applied and tested here first; the volume data set (`scripts/staging/volume-seed.sql`) lives here only |
-| Production | `fpeniljpqigpeqtsgizr` | real data. Never seeded, wiped or used for tests |
+| Production | `fpeniljpqigpeqtsgizr` | in development until go-live: data cleared on 2026-11-12 at the owner's request (accounts kept). After go-live: never seeded, wiped or used for tests |
 
 ---
 
