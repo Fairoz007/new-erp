@@ -1,6 +1,6 @@
 // Step 2: universal settings inherited by every office (currency, financial year, tax rates, payment
 // terms, units, document numbering, letterhead, price lists). Also Settings → Universal settings.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Save } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input, Select, Textarea } from '../../../components/ui/Input';
@@ -19,29 +19,41 @@ export const OVERRIDABLE: { key: string; label: string }[] = [
   { key: 'fee_schedule', label: 'Default price list' },
 ];
 
-const GeneralSettings: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
+type RegisterSave = (fn: (() => Promise<boolean>) | null) => void;
+
+const GeneralSettings: React.FC<{ readOnly?: boolean; registerSave?: RegisterSave }> = ({ readOnly, registerSave }) => {
   const { organization, setOrganization } = useOrg();
   const { isSuperAdmin } = useAuth();
   const [form, setForm] = useState({ baseCurrency: 'OMR', currencyDecimals: 3, fyStartMonth: 1, timezone: 'Asia/Muscat', language: 'en' as 'en' | 'ar',
     overridable: [] as string[], header: '', footer: '', showLogo: true, partyApproval: false, alertDays: 30 });
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useNotice();
+  const loaded = useRef('');
 
   useEffect(() => {
     if (!organization) return;
-    setForm({
+    const next = {
       baseCurrency: organization.baseCurrency, currencyDecimals: organization.currencyDecimals, fyStartMonth: organization.fyStartMonth,
       timezone: organization.timezone, language: organization.language, overridable: organization.overridableSettings,
       header: organization.letterhead.header ?? '', footer: organization.letterhead.footer ?? '', showLogo: organization.letterhead.showLogo ?? true,
       partyApproval: organization.partyApprovalRequired, alertDays: organization.expiryAlertDays,
-    });
+    };
+    loaded.current = JSON.stringify(next);
+    setForm(next);
   }, [organization]);
+
+  const dirty = !readOnly && !!organization && JSON.stringify(form) !== loaded.current;
+  const saveRef = useRef<() => Promise<boolean>>(async () => true);
+  useEffect(() => {
+    registerSave?.(dirty ? () => saveRef.current() : null);
+    return () => registerSave?.(null);
+  }, [dirty, registerSave]);
 
   if (!organization) return <p className="text-xs text-slate-400">Create the organization profile first (step 1).</p>;
   const superOnly = !isSuperAdmin;
 
-  const save = async () => {
-    if (readOnly || saving) return;
+  const save = async (): Promise<boolean> => {
+    if (readOnly || saving) return false;
     setSaving(true);
     try {
       const patch: Partial<org.OrganizationInput> = {
@@ -51,14 +63,18 @@ const GeneralSettings: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
         expiryAlertDays: Math.min(365, Math.max(1, Math.round(Number(form.alertDays) || 30))),
       };
       if (isSuperAdmin) { patch.baseCurrency = form.baseCurrency; patch.overridableSettings = form.overridable; }
+      loaded.current = JSON.stringify(form);
       setOrganization(await org.saveOrganization(organization.id, patch));
       setNotice({ tone: 'success', text: 'Settings saved.' });
+      return true;
     } catch (e) {
       setNotice({ tone: 'error', text: errText(e) });
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  saveRef.current = save;
 
   return (
     <Section title="General" description="Every office uses these values unless an override is allowed below."
@@ -215,9 +231,9 @@ const FeeSchedules: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   );
 };
 
-export const UniversalSettingsStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => (
+export const UniversalSettingsStep: React.FC<{ readOnly?: boolean; registerSave?: RegisterSave }> = ({ readOnly, registerSave }) => (
   <div className="space-y-4">
-    <GeneralSettings readOnly={readOnly} />
+    <GeneralSettings readOnly={readOnly} registerSave={registerSave} />
     <Section title="Tax rates" description="Add at least one (a 0% rate is fine if you are not VAT-registered). The default is pre-selected on new invoice lines.">
       <MasterEditor<TaxRate>
         master="taxRates" readOnly={readOnly} defaultFlag="taxRates" rowKey={r => r.id} addLabel="Add tax rate"

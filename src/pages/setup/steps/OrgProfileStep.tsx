@@ -1,5 +1,5 @@
 // Step 1: organization profile (legal identity, contact, logo). Also Settings → Organization.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Upload, Save } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input, Textarea } from '../../../components/ui/Input';
@@ -9,7 +9,7 @@ import { NoticeBar, Section, useNotice, errText } from '../shared';
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void }> = ({ readOnly, onSaved }) => {
+export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void; registerSave?: (fn: (() => Promise<boolean>) | null) => void }> = ({ readOnly, onSaved, registerSave }) => {
   const { organization, setOrganization, logoUrl } = useOrg();
   const [form, setForm] = useState({
     legalName: '', tradeName: '', crNumber: '', vatNumber: '', taxNumber: '', address: '', city: '', country: 'Oman',
@@ -19,15 +19,18 @@ export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useNotice();
+  const loaded = useRef('');   // the form as last loaded or saved, to tell unsaved edits apart
 
   useEffect(() => {
     if (!organization) return;
-    setForm({
+    const next = {
       legalName: organization.legalName, tradeName: organization.tradeName, crNumber: organization.crNumber,
       vatNumber: organization.vatNumber, taxNumber: organization.taxNumber, address: organization.address,
       city: organization.city, country: organization.country || 'Oman', phone: organization.phone,
       email: organization.email, website: organization.website,
-    });
+    };
+    loaded.current = JSON.stringify(next);
+    setForm(next);
   }, [organization]);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -44,20 +47,33 @@ export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void
     return Object.keys(e).length === 0;
   };
 
-  const save = async () => {
-    if (readOnly || saving || !validate()) return;
+  const save = async (): Promise<boolean> => {
+    if (readOnly || saving) return false;
+    if (!validate()) { (document.querySelector('[aria-invalid="true"]') as HTMLElement | null)?.focus(); return false; }
     setSaving(true);
     try {
       const saved = await org.saveOrganization(organization?.id ?? null, form);
+      loaded.current = JSON.stringify(form);
       setOrganization(saved);
       setNotice({ tone: 'success', text: 'Organization profile saved.' });
       onSaved?.();
+      return true;
     } catch (e) {
       setNotice({ tone: 'error', text: errText(e) });
+      return false;
     } finally {
       setSaving(false);
     }
   };
+
+  // unsaved edits (or no organization yet): the wizard's "Save & continue" saves them first
+  const dirty = !readOnly && (!organization || JSON.stringify(form) !== loaded.current);
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => {
+    registerSave?.(dirty ? () => saveRef.current() : null);
+    return () => registerSave?.(null);
+  }, [dirty, registerSave]);
 
   const onLogo = async (file: File | undefined) => {
     if (!file || !organization) return;

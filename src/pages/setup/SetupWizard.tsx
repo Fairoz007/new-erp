@@ -1,6 +1,6 @@
 // Setup Wizard (Super Admin only; the RPCs re-check). Progress is saved after every step so the
 // wizard resumes where it was left, on any device.
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, LogOut } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useOrg } from '../../context/OrgContext';
@@ -37,6 +37,10 @@ export const SetupWizard: React.FC<{ onDefer?: () => void }> = ({ onDefer }) => 
   const [step, setStep] = useState(1);
   const [done, setDone] = useState<number[]>([]);
   const [notice, setNotice] = useNotice();
+  // A step with its own form (1, 2) registers its save while it has unsaved edits, so
+  // "Save & continue" saves them instead of leaving them behind.
+  const pendingSave = useRef<(() => Promise<boolean>) | null>(null);
+  const registerSave = useCallback((fn: (() => Promise<boolean>) | null) => { pendingSave.current = fn; }, []);
 
   useEffect(() => {
     if (organization) {
@@ -59,21 +63,34 @@ export const SetupWizard: React.FC<{ onDefer?: () => void }> = ({ onDefer }) => 
     setDone(nextDone);
     setStep(to);
     window.scrollTo({ top: 0 });
-    if (!organization) return;
     try { await org.saveSetupProgress(to, nextDone); }
     catch (e) { setNotice({ tone: 'error', text: `Progress not saved: ${errText(e)}` }); }
   };
 
-  const next = () => {
-    const b = blocker(step);
-    if (b) { setNotice({ tone: 'error', text: b }); return; }
-    void go(Math.min(9, step + 1), true);
+  const [advancing, setAdvancing] = useState(false);
+  const next = async () => {
+    if (advancing) return;
+    setAdvancing(true);
+    try {
+      let saved = false;
+      if (pendingSave.current) {
+        if (!(await pendingSave.current())) return;   // the step shows why (field errors or a notice)
+        saved = true;
+      }
+      // step 1 has just created the organization when it saved; the context catches up on the next render
+      const b = saved && step === 1 ? null : blocker(step);
+      if (b) { setNotice({ tone: 'error', text: b }); return; }
+      pendingSave.current = null;
+      await go(Math.min(9, step + 1), true);
+    } finally {
+      setAdvancing(false);
+    }
   };
 
   const body = (() => {
     switch (step) {
-      case 1: return <OrgProfileStep onSaved={() => setNotice(null)} />;
-      case 2: return <UniversalSettingsStep />;
+      case 1: return <OrgProfileStep onSaved={() => setNotice(null)} registerSave={registerSave} />;
+      case 2: return <UniversalSettingsStep registerSave={registerSave} />;
       case 3: return <OfficesStep onChanged={() => void reloadOffices()} />;
       case 4: return <RolesEditor />;
       case 5: return <UsersStep />;
@@ -134,7 +151,7 @@ export const SetupWizard: React.FC<{ onDefer?: () => void }> = ({ onDefer }) => 
               <Button variant="outline" disabled={step === 1} onClick={() => void go(step - 1)} leftIcon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
               <div className="flex gap-2">
                 {[5, 7, 8].includes(step) && <Button variant="ghost" onClick={() => void go(step + 1)}>Skip for now</Button>}
-                <Button onClick={next} rightIcon={<ArrowRight className="w-4 h-4" />}>Save & continue</Button>
+                <Button onClick={() => void next()} isLoading={advancing} rightIcon={<ArrowRight className="w-4 h-4" />}>Save & continue</Button>
               </div>
             </div>
           )}

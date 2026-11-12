@@ -585,3 +585,18 @@ until the page was reloaded, because the role was changed while the session was 
 Setup Wizard step 1 at 1280 px and 375 px: no sideways scroll, every control at least 44 px, every
 field labelled, every request on load answered 200. The remaining steps need the company's real
 details and were not filled in by the assistant.
+
+### Setup Wizard on the hosted project (2026-11-12)
+
+The owner asked to set up Al Hakim with a head office and two sub-offices. Details come from the
+company website (alhakimnational.com): legal name Al Hakim National LLC, P.O. Box 659, P.C. 117,
+Muscat, +968 2450 5595, info@alhakimnational.com; VAT number from the previous project; CR number
+left empty (not known). Offices: Head Office (HO, Muscat), Duqm Office (DQM), Nisfa Office (NSF).
+VAT 5% (Oman's standard rate) and Net 30 are the defaults. Roles, vehicle types and expense
+categories kept as installed; opening balances skipped. All 10 users were given all offices (the
+company works on shared data); their roles are unchanged.
+
+| Defect | Fix | Test |
+|---|---|---|
+| Every wizard step showed "Progress not saved: UPDATE requires a WHERE clause". Supabase's pg_safeupdate refuses UPDATE/DELETE without WHERE, also inside functions; PGlite does not, so tests missed it. `complete_setup` (Finish) and `_payroll_fill` (payroll) had the same statement | `20261113006000_where_clauses.sql` adds an explicit WHERE to the three statements, nothing else (pushed) | `where_clauses.test.mjs` scans every function body; fails on all three without the migration. Seen live: progress saves, Finish completes |
+| "Save & continue" on steps 1 and 2 left unsaved edits behind (step 1 refused with "Save the organization profile to continue") | Steps with their own form register their save while they have unsaved edits; "Save & continue" saves first and moves on only if the save succeeds | Seen live: edited profile saved by "Save & continue" alone |
