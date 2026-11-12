@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Paperclip } from 'lucide-react';
 import { Input, Select } from '../ui/Input';
 import type { FieldDefinition, FieldEntity, FieldOfficeSetting } from '../../services/org';
-import { uploadFile } from '../../services/storage';
+import { createSignedUrl, parseStorageRef, toStorageRef, uploadFile } from '../../services/storage';
 
 export type CustomValues = Record<string, unknown>;
 export type Visibility = 'shown' | 'required' | 'hidden';
@@ -47,6 +47,24 @@ export function normaliseCustomValues(fields: ReturnType<typeof applicableFields
   return out;
 }
 
+/** File name shown for a storage://documents/<office>/<entity>/<uuid>-<name> value. */
+export const fileLabel = (v: unknown): string => String(v).split('/').pop()?.replace(/^[0-9a-f-]{36}-/i, '') ?? '';
+
+export async function openFileValue(v: unknown): Promise<void> {
+  const ref = parseStorageRef(String(v));
+  if (!ref) return;
+  const url = await createSignedUrl(ref.bucket, ref.path);
+  window.open(url, '_blank', 'noopener');
+}
+
+/** Display text of a stored value (lists, CSV, PDF). */
+export function formatCustomValue(def: Pick<FieldDefinition, 'fieldType'>, v: unknown): string {
+  if (v === undefined || v === null || v === '') return '';
+  if (def.fieldType === 'boolean') return v ? 'Yes' : 'No';
+  if (def.fieldType === 'file') return fileLabel(v);
+  return String(v);
+}
+
 interface Props {
   fields: ReturnType<typeof applicableFields>;
   values: CustomValues;
@@ -69,7 +87,7 @@ export const CustomFieldsForm: React.FC<Props> = ({ fields, values, onChange, er
     setUploadErr(e => ({ ...e, [key]: '' }));
     try {
       const stored = await uploadFile(file, companyId, 'documents');
-      set(key, stored.path);
+      set(key, toStorageRef('documents', stored.path));   // validated server-side: must be this office's file
     } catch (e) {
       setUploadErr(x => ({ ...x, [key]: (e as Error).message }));
     } finally {
@@ -104,10 +122,16 @@ export const CustomFieldsForm: React.FC<Props> = ({ fields, values, onChange, er
                 <span className="text-xs sm:text-sm font-semibold text-slate-100">{def.label} {required && <span className="text-rose-500">*</span>}</span>
                 <label className={`inline-flex items-center gap-2 h-10 px-3 rounded-xl border border-slate-700 text-xs ${disabled || !companyId ? 'opacity-60' : 'cursor-pointer hover:bg-slate-850'}`}>
                   <Paperclip className="w-4 h-4" />
-                  <span className="truncate">{uploading === def.key ? 'Uploading…' : v ? String(v).split('/').pop() : companyId ? 'Attach file (PDF or image)' : 'Choose an office first'}</span>
+                  <span className="truncate">{uploading === def.key ? 'Uploading…' : v ? fileLabel(v) : companyId ? 'Attach file (PDF or image)' : 'Choose an office first'}</span>
                   <input type="file" className="hidden" accept="application/pdf,image/png,image/jpeg,image/webp" disabled={disabled || !companyId || uploading === def.key}
                     onChange={e => { void upload(def.key, e.target.files?.[0]); e.target.value = ''; }} />
                 </label>
+                {!!v && (
+                  <div className="flex gap-3 text-[11px]">
+                    <button type="button" className="text-[#086343] font-semibold hover:underline" onClick={() => void openFileValue(v)}>View</button>
+                    {!disabled && !required && <button type="button" className="text-slate-400 hover:underline" onClick={() => set(def.key, '')}>Remove</button>}
+                  </div>
+                )}
                 {err ? <p className="text-xs text-rose-500">{err}</p> : def.helpText ? <p className="text-xs text-slate-400">{def.helpText}</p> : null}
               </div>
             );

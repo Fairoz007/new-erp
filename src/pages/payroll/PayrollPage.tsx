@@ -13,6 +13,7 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { useCustomFields, useCustomFieldsEditor, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
 
 const DEPARTMENTS: EmployeeDepartment[] = ['Fleet & Logistics', 'Workshop & Maintenance', 'Operations', 'Finance & Accounts', 'Human Resources', 'Executive Management'];
 const STATUSES: EmployeeStatus[] = ['Active', 'Probation', 'On Leave', 'Terminated'];
@@ -64,6 +65,7 @@ export const PayrollPage: React.FC = () => {
   const [editing, setEditing] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState<Partial<Employee>>({});
+  const cfEdit = useCustomFieldsEditor('employee', editing?.companyId, editing?.customFields);
   const [deleting, setDeleting] = useState<Employee | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -106,6 +108,7 @@ export const PayrollPage: React.FC = () => {
       addToast({ type: 'error', title: 'Invalid salary', message: 'Salary components must be zero or positive.' });
       return;
     }
+    if (!cfEdit.validate()) { addToast({ type: 'error', title: 'Check the form', message: 'Some additional information fields are invalid.' }); return; }
     setPending(true);
     try {
       // total gross salary is computed by the database
@@ -115,6 +118,7 @@ export const PayrollPage: React.FC = () => {
         transportAllowance: Number(editForm.transportAllowance), otherAllowances: Number(editForm.otherAllowances),
         pasiContributionPercentage: Number(editForm.pasiContributionPercentage),
         employerPasiPercentage: Number(editForm.employerPasiPercentage ?? 0),
+        customFields: cfEdit.value(),
       });
       addToast({ type: 'success', title: 'Employee updated', message: `${editing.name} saved.` });
       setEditing(null);
@@ -241,6 +245,10 @@ export const PayrollPage: React.FC = () => {
 
   const num = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 
+  // custom fields: list columns, search and filter (Settings → Custom fields)
+  const cfList = useCustomFields('employee');
+  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, filteredEmployees);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -294,9 +302,11 @@ export const PayrollPage: React.FC = () => {
 
       {activeTab === 'employees' ? (
         <DataTable
-          data={filteredEmployees}
+          data={cfRows}
           collection={'employees'}
-          columns={employeeColumns}
+          columns={withCustomColumns(employeeColumns, cfList.listColumns<Employee>())}
+        searchText={cfList.searchText}
+        extraFilters={cfFilter}
           keyExtractor={e => e.id}
           title="Employee Master Roster"
           searchPlaceholder="Search employees by name, ID, designation, department, vehicle plate..."
@@ -463,6 +473,7 @@ export const PayrollPage: React.FC = () => {
             <Input label="IBAN" value={editForm.iban ?? ''} onChange={e => setEditForm({ ...editForm, iban: e.target.value })} />
           </div>
           <Textarea label="Notes" value={editForm.notes ?? ''} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} />
+          {cfEdit.node}
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={() => setEditing(null)} disabled={pending}>Cancel</Button>
             <Button variant="primary" type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save Changes'}</Button>

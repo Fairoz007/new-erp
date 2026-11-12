@@ -3,12 +3,14 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { Company } from '../../types/system';
+import { useOptionalOrg } from '../../context/OrgContext';
+import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 
 type CompanyDraft = Omit<Company, 'id'>;
 
 const EMPTY: CompanyDraft = {
   name: '', code: '', registrationNumber: '', vatNumber: '', taxNumber: '', address: '', country: '', state: '', city: '',
-  postalCode: '', phone: '', email: '', website: '', logo: '', currency: 'OMR', financialYear: '',
+  postalCode: '', phone: '', email: '', website: '', logo: '', currency: '', financialYear: '',
   bankDetails: { bankName: '', accountNumber: '', iban: '', swiftCode: '', branch: '' }, notes: '', active: true,
 };
 
@@ -23,6 +25,11 @@ export const CompanyFormModal: React.FC<Props> = ({ isOpen, onClose, company, on
   const [form, setForm] = useState<CompanyDraft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const org = useOptionalOrg();
+  const baseCurrency = org?.baseCurrency ?? '';
+  // offices use the organization's base currency unless the Setup Wizard made currency overridable
+  const currencyOverridable = !!org?.organization?.overridableSettings.includes('currency');
+  const cf = useCustomFieldsEditor('office', company?.id, company?.customFields);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,10 +50,15 @@ export const CompanyFormModal: React.FC<Props> = ({ isOpen, onClose, company, on
       setError('Office name and code are required.');
       return;
     }
+    if (!cf.validate()) { setError('Check the additional information fields.'); return; }
     setSaving(true);
     setError('');
     try {
-      await onSubmit({ ...form, name: form.name.trim(), code: form.code.trim().toUpperCase() });
+      await onSubmit({
+        ...form, name: form.name.trim(), code: form.code.trim().toUpperCase(),
+        currency: currencyOverridable ? (form.currency || baseCurrency) : baseCurrency,
+        customFields: cf.value(),
+      });
       onClose();
     } catch (err) {
       setError((err as Error).message);
@@ -80,12 +92,12 @@ export const CompanyFormModal: React.FC<Props> = ({ isOpen, onClose, company, on
           <Input label="VAT number" value={form.vatNumber} onChange={e => set('vatNumber', e.target.value)} />
           <Input label="Tax card number" value={form.taxNumber} onChange={e => set('taxNumber', e.target.value)} />
           <Input label="Fiscal period" value={form.financialYear} onChange={e => set('financialYear', e.target.value)} placeholder="e.g. Jan - Dec" />
-          <Select
-            label="Currency"
-            value={form.currency}
-            onChange={e => set('currency', e.target.value as Company['currency'])}
-            options={['OMR', 'USD', 'EUR', 'SAR', 'AED'].map(c => ({ value: c, label: c }))}
-          />
+          {currencyOverridable ? (
+            <Input label="Currency" value={form.currency || baseCurrency} maxLength={3}
+              onChange={e => set('currency', e.target.value.toUpperCase())} hint="ISO code, e.g. OMR" />
+          ) : (
+            <Input label="Currency" value={baseCurrency} disabled hint="Organization base currency (Settings → Organization)" />
+          )}
           {company && (
             <Select
               label="Status"
@@ -116,6 +128,7 @@ export const CompanyFormModal: React.FC<Props> = ({ isOpen, onClose, company, on
         </div>
 
         <Textarea label="Notes" value={form.notes ?? ''} onChange={e => set('notes', e.target.value)} />
+        {cf.node}
       </form>
     </Modal>
   );

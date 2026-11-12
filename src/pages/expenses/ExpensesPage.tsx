@@ -9,6 +9,7 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
+import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
 
 
 const EXPENSE_CATEGORIES: ExpenseCategory[] = [
@@ -152,6 +153,10 @@ export const ExpensesPage: React.FC = () => {
     },
   ];
 
+  // custom fields: list columns, search and filter (Settings → Custom fields)
+  const cfList = useCustomFields('expense');
+  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, filteredExpenses);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -224,9 +229,11 @@ export const ExpensesPage: React.FC = () => {
 
       {/* DataTable */}
       <DataTable
-        data={filteredExpenses}
+        data={cfRows}
         collection={'expenses'}
-        columns={columns}
+        columns={withCustomColumns(columns, cfList.listColumns<VehicleExpense>())}
+        searchText={cfList.searchText}
+        extraFilters={cfFilter}
         keyExtractor={e => e.id}
         title="Vehicle Operational Expenses Registry"
         searchPlaceholder="Search expenses by expense number, plate, category, vendor or cost centre..."

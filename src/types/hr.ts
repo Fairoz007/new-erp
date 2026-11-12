@@ -16,6 +16,7 @@ export interface Employee {
   id: string;
   employeeCode: string; // e.g. "EMP-0101"
   companyId: string;
+  customFields?: Record<string, unknown>;
   name: string;
   designation: string;
   department: EmployeeDepartment;

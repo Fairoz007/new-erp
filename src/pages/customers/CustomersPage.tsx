@@ -18,6 +18,7 @@ import { SHARING_LABEL } from '../../components/common/PartyOfficeFields';
 import { PartySharingModal } from '../../components/common/PartySharingModal';
 import { TransferOfficeModal } from '../../components/common/TransferOfficeModal';
 import { ArrowRightLeft, Share2 } from 'lucide-react';
+import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
 
 export const CustomersPage: React.FC = () => {
   const { customers: allCustomers, currency, updateCustomer, companies, selectedCompanyId } = useFleet();
@@ -171,6 +172,10 @@ export const CustomersPage: React.FC = () => {
     },
   ];
 
+  // custom fields: list columns, search and filter (Settings → Custom fields)
+  const cfList = useCustomFields('client');
+  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, customers);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -227,9 +232,11 @@ export const CustomersPage: React.FC = () => {
 
       {/* Customers Table */}
       <DataTable
-        data={customers}
+        data={cfRows}
         collection={'customers'}
-        columns={columns}
+        columns={withCustomColumns(columns, cfList.listColumns<Customer>())}
+        searchText={cfList.searchText}
+        extraFilters={cfFilter}
         keyExtractor={c => c.id}
         title="Customer Master Registry"
         searchPlaceholder="Search customers by name, ID, contact, phone, VAT number..."

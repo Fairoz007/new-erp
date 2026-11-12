@@ -18,6 +18,7 @@ import { SHARING_LABEL } from '../../components/common/PartyOfficeFields';
 import { PartySharingModal } from '../../components/common/PartySharingModal';
 import { TransferOfficeModal } from '../../components/common/TransferOfficeModal';
 import { ArrowRightLeft, Share2 } from 'lucide-react';
+import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
 
 export const SuppliersPage: React.FC = () => {
   const { suppliers: allSuppliers, currency, updateSupplier, companies, selectedCompanyId } = useFleet();
@@ -170,6 +171,10 @@ export const SuppliersPage: React.FC = () => {
     },
   ];
 
+  // custom fields: list columns, search and filter (Settings → Custom fields)
+  const cfList = useCustomFields('supplier');
+  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, suppliers);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -224,9 +229,11 @@ export const SuppliersPage: React.FC = () => {
 
       {/* Suppliers Table */}
       <DataTable
-        data={suppliers}
+        data={cfRows}
         collection={'suppliers'}
-        columns={columns}
+        columns={withCustomColumns(columns, cfList.listColumns<Supplier>())}
+        searchText={cfList.searchText}
+        extraFilters={cfFilter}
         keyExtractor={s => s.id}
         title="Vendor Registry"
         searchPlaceholder="Search suppliers by name, ID, contact, phone, VAT number..."

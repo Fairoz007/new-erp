@@ -2,7 +2,7 @@
 // preview the form. Values are stored in each record's custom_fields column and validated by the
 // database (validate_custom_fields trigger). Fields are deactivated, not deleted, so stored values stay valid.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, GripVertical, Pencil, Plus, Save, X } from 'lucide-react';
+import { Eye, GripVertical, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
@@ -43,6 +43,31 @@ export const FieldBuilder: React.FC<{ readOnly?: boolean; entities?: FieldEntity
   useEffect(() => { void loadSettings(); }, [loadSettings]);
 
   const list = useMemo(() => fields.rows.filter(f => f.entity === entity).sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label)), [fields.rows, entity]);
+
+  // how many records hold a value: a used field can be deactivated but not deleted or retyped
+  const [usage, setUsage] = useState<Record<string, number>>({});
+  const listIds = list.map(f => f.id).join(',');
+  useEffect(() => {
+    let live = true;
+    Promise.all(list.map(async f => [f.id, await org.customFieldUsage(f.id).catch(() => -1)] as const))
+      .then(pairs => { if (live) setUsage(Object.fromEntries(pairs)); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listIds]);
+
+  const removeField = async (f: FieldDefinition) => {
+    if (!window.confirm(`Delete the field "${f.label}"? It holds no data. This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await org.deleteMaster('fieldDefinitions', f.id);
+      setNotice({ tone: 'success', text: 'Field deleted.' });
+      await fields.reload();
+    } catch (e) {
+      setNotice({ tone: 'error', text: errText(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const openDraft = (f?: FieldDefinition) => {
     setErrors({});
@@ -139,7 +164,11 @@ export const FieldBuilder: React.FC<{ readOnly?: boolean; entities?: FieldEntity
                   {f.required && <Badge variant="rose">Required</Badge>}
                   {f.showInList && <Badge variant="blue">List column</Badge>}
                   {!f.active && <Badge variant="slate">Inactive</Badge>}
+                  {usage[f.id] >= 0 && <span className="text-[11px] text-slate-400">{usage[f.id]} record{usage[f.id] === 1 ? '' : 's'}</span>}
                   {!readOnly && <Button size="xs" variant="outline" leftIcon={<Pencil className="w-3 h-3" />} onClick={() => openDraft(f)}>Edit</Button>}
+                  {!readOnly && usage[f.id] === 0 && (
+                    <Button size="xs" variant="ghost" aria-label={`Delete ${f.label}`} disabled={busy} onClick={() => void removeField(f)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  )}
                 </div>
               </li>
             ))}

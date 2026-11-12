@@ -130,7 +130,9 @@ export interface Vehicle {
   registrationNumber: string;
   vin: string; // Chassis No.
   engineNumber: string;
-  vehicleType: 'SUV' | 'Sedan' | 'Pickup' | 'Van' | 'Truck' | 'Bus' | 'Heavy Equipment';
+  vehicleType: string;            // name of a vehicle_types row (Bus, Coaster, …); the DB resolves vehicleTypeId
+  vehicleTypeId?: string;
+  customFields?: Record<string, unknown>;
   vehicleCategory: 'Executive' | 'Operations' | 'Logistics' | 'Sales' | 'Pool' | 'Service';
   brand: string; // Toyota
   manufacturer: string; // Toyota Motor Corp

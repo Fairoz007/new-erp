@@ -4,9 +4,10 @@ import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { Vehicle, VehicleStatus } from '../../types/vehicle';
 import { removeFiles, uploadFile } from '../../services/storage';
+import { useVehicleTypes } from '../../hooks/useVehicleTypes';
+import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 
 const STATUSES: VehicleStatus[] = ['Active', 'Under Maintenance', 'Accident', 'Inactive', 'Reserved', 'Sold', 'Scrapped'];
-const TYPES: Vehicle['vehicleType'][] = ['SUV', 'Sedan', 'Pickup', 'Van', 'Truck', 'Bus', 'Heavy Equipment'];
 const CATEGORIES: Vehicle['vehicleCategory'][] = ['Executive', 'Operations', 'Logistics', 'Sales', 'Pool', 'Service'];
 const FUELS: Vehicle['fuelType'][] = ['Petrol', 'Diesel', 'Hybrid', 'Electric', 'CNG'];
 const TRANSMISSIONS: Vehicle['transmission'][] = ['Automatic', 'Manual', 'CVT', 'Dual-Clutch'];
@@ -25,6 +26,8 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { types, idOf, error: typesError } = useVehicleTypes(vehicle.vehicleType);
+  const cf = useCustomFieldsEditor('vehicle', vehicle.companyId, vehicle.customFields, idOf(form.vehicleType));
 
   useEffect(() => {
     if (isOpen) { setForm(vehicle); setPhoto(null); setError(''); }
@@ -43,6 +46,7 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
       setError('Plate number, brand and model are required.');
       return;
     }
+    if (!cf.validate()) { setError('Check the additional information fields.'); return; }
     setSaving(true);
     setError('');
     let uploadedPath: string | null = null;
@@ -61,6 +65,7 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
         marketValueUpdatedDate: form.currentMarketValue !== vehicle.currentMarketValue ? new Date().toISOString().slice(0, 10) : form.marketValueUpdatedDate,
         insuranceProvider: form.insuranceProvider, insurancePolicyNumber: form.insurancePolicyNumber,
         insuranceExpiryDate: form.insuranceExpiryDate, insurancePremiumAnnual: form.insurancePremiumAnnual, notes: form.notes,
+        customFields: cf.value(),
       };
       if (photo) {
         const stored = await uploadFile(photo, vehicle.companyId, 'vehicles', { bucket: 'media' });
@@ -108,7 +113,7 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
           <Input label="Manufacturer" value={form.manufacturer} onChange={e => set('manufacturer', e.target.value)} />
           <Input label="Year" type="number" value={form.manufacturingYear || ''} onChange={setNum('manufacturingYear')} />
           <Input label="Colour" value={form.color} onChange={e => set('color', e.target.value)} />
-          <Select label="Type" value={form.vehicleType} onChange={e => set('vehicleType', e.target.value as Vehicle['vehicleType'])} options={opts(TYPES)} />
+          <Select label="Type" value={form.vehicleType} error={typesError ?? undefined} onChange={e => set('vehicleType', e.target.value)} options={opts(types.map(t => t.name))} />
           <Select label="Category" value={form.vehicleCategory} onChange={e => set('vehicleCategory', e.target.value as Vehicle['vehicleCategory'])} options={opts(CATEGORIES)} />
           <Select label="Fuel" value={form.fuelType} onChange={e => set('fuelType', e.target.value as Vehicle['fuelType'])} options={opts(FUELS)} />
           <Select label="Transmission" value={form.transmission} onChange={e => set('transmission', e.target.value as Vehicle['transmission'])} options={opts(TRANSMISSIONS)} />
@@ -176,6 +181,7 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
           </div>
           <Textarea label="Notes" value={form.notes ?? ''} onChange={e => set('notes', e.target.value)} />
         </section>
+        {cf.node}
       </form>
     </Modal>
   );

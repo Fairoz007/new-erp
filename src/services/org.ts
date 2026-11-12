@@ -246,6 +246,15 @@ export const MASTERS = {
 export type MasterName = keyof typeof MASTERS;
 type MasterType<K extends MasterName> = (typeof MASTERS)[K] extends MasterSpec<infer T> ? T : never;
 
+/** Fired after field definitions or per-office visibility change, so open forms and lists refresh. */
+export const fieldConfigEvents = new EventTarget();
+/** Fired after any master list changes (detail = master name). */
+export const masterEvents = new EventTarget();
+const fieldConfigChanged = (name: string) => {
+  masterEvents.dispatchEvent(new CustomEvent('change', { detail: name }));
+  if (name === 'fieldDefinitions') fieldConfigEvents.dispatchEvent(new Event('change'));
+};
+
 export async function listMaster<K extends MasterName>(name: K): Promise<MasterType<K>[]> {
   const spec = MASTERS[name] as unknown as MasterSpec<MasterType<K>>;
   const rows = await unwrap<any[]>(db.from(spec.table).select('*').order(spec.order));
@@ -258,6 +267,7 @@ export async function saveMaster<K extends MasterName>(name: K, key: string | nu
   const q = key ? db.from(spec.table).update(row).eq(spec.key, key).select('*') : db.from(spec.table).insert(row).select('*');
   const rows = await unwrap<any[]>(q);
   if (!rows?.length) throw new ServiceError('Permission denied for this action.');
+  fieldConfigChanged(name);
   return spec.map(rows[0]);
 }
 
@@ -265,6 +275,7 @@ export async function deleteMaster(name: MasterName, key: string): Promise<void>
   const spec = MASTERS[name];
   const rows = await unwrap<any[]>(db.from(spec.table).delete().eq(spec.key, key).select(spec.key));
   if (!rows?.length) throw new ServiceError('Permission denied for this action.');
+  fieldConfigChanged(name);
 }
 
 // Sets one default row (tax rate, payment term, fee schedule): clear the old default first (unique index).
@@ -281,10 +292,14 @@ export async function listFieldOfficeSettings(): Promise<FieldOfficeSetting[]> {
 export async function setFieldOfficeVisibility(fieldId: string, officeId: string, visibility: FieldOfficeSetting['visibility'] | null): Promise<void> {
   if (visibility === null) {
     await unwrap(db.from('field_office_settings').delete().eq('field_id', fieldId).eq('office_id', officeId));
-    return;
+  } else {
+    await unwrap(db.from('field_office_settings').upsert({ field_id: fieldId, office_id: officeId, visibility }, { onConflict: 'field_id,office_id' }));
   }
-  await unwrap(db.from('field_office_settings').upsert({ field_id: fieldId, office_id: officeId, visibility }, { onConflict: 'field_id,office_id' }));
+  fieldConfigChanged('fieldDefinitions');
 }
+
+/** Records holding a value for a field (Field Builder shows it before type changes / deletes). */
+export const customFieldUsage = (fieldId: string) => rpcAny<number>('custom_field_usage', { p_field: fieldId });
 
 export const previewDocNumber = (docType: string, companyId: string | null) =>
   rpcAny<string>('preview_doc_number', { p_type: docType, p_company: companyId });

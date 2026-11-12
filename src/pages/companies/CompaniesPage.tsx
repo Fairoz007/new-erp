@@ -7,6 +7,8 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { Company } from '../../types/system';
 import { CompanyFormModal } from './CompanyFormModal';
+import { useCustomFields } from '../../hooks/useCustomFields';
+import { formatCustomValue } from '../../components/common/CustomFieldsForm';
 
 export const CompaniesPage: React.FC = () => {
   const { companies, vehicles, invoices, employees, selectedCompanyId, setSelectedCompanyId, addCompany, updateCompany } = useFleet();
@@ -29,6 +31,8 @@ export const CompaniesPage: React.FC = () => {
       addToast({ type: 'success', title: 'Office Created', message: `${data.name} was added.` });
     }
   };
+
+  const officeFields = useCustomFields('office').defs.filter(d => d.showInList);
 
   return (
     <div className="space-y-6">
@@ -166,6 +170,17 @@ export const CompaniesPage: React.FC = () => {
                     <span className="text-lg font-bold text-slate-100 mt-0.5 block">{compInvoices.length} Invoices</span>
                   </div>
                 </div>
+
+                {officeFields.length > 0 && (
+                  <div className="space-y-1.5 bg-slate-850/40 p-3 rounded-xl border border-slate-700/60">
+                    {officeFields.filter(d => !d.officeId || d.officeId === comp.id).map(d => (
+                      <div key={d.id} className="flex justify-between items-center gap-2">
+                        <span className="text-slate-400">{d.label}:</span>
+                        <span className="font-semibold text-slate-200 text-right">{formatCustomValue(d, comp.customFields?.[d.key]) || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Tax & Registration Details */}
                 <div className="space-y-2 pt-1 bg-slate-850/40 p-3 rounded-xl border border-slate-700/60">

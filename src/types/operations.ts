@@ -22,6 +22,7 @@ export interface VehicleExpense {
   id: string;
   expenseNumber: string; // e.g. "EXP-2026-0042"
   vehicleId: string;
+  customFields?: Record<string, unknown>;
   vehiclePlate: string;
   companyId: string;
   date: string;

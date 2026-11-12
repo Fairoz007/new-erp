@@ -11,6 +11,7 @@ import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
 import { VehiclePhoto, useVehiclePhotoUrls } from './VehiclePhoto';
 import { VehicleEditModal } from './VehicleEditModal';
+import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
 
 export const VehiclesPage: React.FC = () => {
   const { vehicles, selectedCompanyId, currency, updateVehicle } = useFleet();
@@ -134,6 +135,10 @@ export const VehiclesPage: React.FC = () => {
     },
   ];
 
+  // custom fields: list columns, search and filter (Settings → Custom fields)
+  const cfList = useCustomFields('vehicle');
+  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, filteredVehicles);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -163,9 +168,11 @@ export const VehiclesPage: React.FC = () => {
 
       {/* Fleet Table */}
       <DataTable
-        data={filteredVehicles}
+        data={cfRows}
         collection={'vehicles'}
-        columns={columns}
+        columns={withCustomColumns(columns, cfList.listColumns<Vehicle>())}
+        searchText={cfList.searchText}
+        extraFilters={cfFilter}
         keyExtractor={v => v.id}
         title="Fleet Vehicle Inventory"
         description="Click on any vehicle row to open the complete 10-tab vehicle management dossier."

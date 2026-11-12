@@ -17,6 +17,7 @@ export const rowToEmployee = (r: any): Employee => ({
   id: r.id,
   employeeCode: r.employee_code,
   companyId: r.company_id,
+  customFields: r.custom_fields ?? {},
   name: r.name,
   designation: r.designation,
   department: r.department as EmployeeDepartment,
@@ -79,6 +80,7 @@ export const employeeToRow = (e: Partial<Employee>): Record<string, unknown> => 
   set('pasi_employer_pct', e.employerPasiPercentage);
   set('assigned_vehicle_id', opt(e.assignedVehicleId));
   set('notes', opt(e.notes));
+  if (e.customFields !== undefined) row.custom_fields = e.customFields ?? {};
   return row;
 };
 

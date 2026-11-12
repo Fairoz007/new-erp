@@ -4,6 +4,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, Select, Textarea } from '../ui/Input';
 import { partyAvailableIn } from '../../services/finance';
+import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
+import { useVehicleTypes } from '../../hooks/useVehicleTypes';
 import { PartyOfficeFields, PartyOfficeValue, validatePartyOffice } from './PartyOfficeFields';
 import { DocumentUploadZone, UploadedFileMeta, UploadDocumentForm } from './DocumentUploadZone';
 import { BUCKETS, formatFileSize, removeFiles, toStorageRef, uploadFile, validateFile } from '../../services/storage';
@@ -56,7 +58,7 @@ export const QuickActionModals: React.FC = () => {
     registrationNumber: '',
     vin: '',
     engineNumber: '',
-    vehicleType: 'SUV' as const,
+    vehicleType: '' as string,
     vehicleCategory: 'Operations' as const,
     brand: '',
     manufacturer: '',
@@ -310,6 +312,27 @@ export const QuickActionModals: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickModal]);
 
+  // Custom fields of each create form (definitions from Settings → Custom fields; enforced by the database too)
+  const { types: vehicleTypes, idOf: vehicleTypeId } = useVehicleTypes();
+  const cfVehicle = useCustomFieldsEditor('vehicle', vehicleForm.companyId || undefined, undefined, vehicleTypeId(vehicleForm.vehicleType));
+  const cfSupplier = useCustomFieldsEditor('supplier', supplierOffice.officeId || undefined, undefined);
+  const cfCustomer = useCustomFieldsEditor('client', customerOffice.officeId || undefined, undefined);
+  const cfEmployee = useCustomFieldsEditor('employee', empForm.companyId || undefined, undefined);
+  const expOffice = vehicles.find(v => v.id === expForm.vehicleId)?.companyId || expForm.companyId;
+  const cfExpense = useCustomFieldsEditor('expense', expOffice || undefined, undefined);
+  useEffect(() => {
+    if (quickModal === 'add-vehicle') cfVehicle.reset();
+    if (quickModal === 'add-supplier') cfSupplier.reset();
+    if (quickModal === 'add-customer') cfCustomer.reset();
+    if (quickModal === 'add-employee') cfEmployee.reset();
+    if (quickModal === 'add-expense') cfExpense.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickModal]);
+  useEffect(() => {
+    if (!vehicleForm.vehicleType && vehicleTypes.length) setVehicleForm(f => ({ ...f, vehicleType: vehicleTypes[0].name }));
+  }, [vehicleTypes, vehicleForm.vehicleType]);
+  const cfInvalid = () => addToast({ type: 'error', title: 'Validation Error', message: 'Check the additional information fields.' });
+
   // 14. ADD CUSTOMER STATE
   const [customerForm, setCustomerForm] = useState({
     name: '',
@@ -429,6 +452,7 @@ export const QuickActionModals: React.FC = () => {
       addToast({ type: 'error', title: 'Validation Error', message: 'Plate number, Brand, and Model are required.' });
       return;
     }
+    if (!cfVehicle.validate()) { cfInvalid(); return; }
     const sup = suppliers.find(s => s.id === vehicleForm.supplierId);
     let photoPath: string | undefined;
     run('Vehicle Not Saved', async () => {
@@ -447,6 +471,7 @@ export const QuickActionModals: React.FC = () => {
           vin: vehicleForm.vin,
           engineNumber: vehicleForm.engineNumber,
           vehicleType: vehicleForm.vehicleType,
+          customFields: cfVehicle.value(),
           vehicleCategory: vehicleForm.vehicleCategory,
           brand: vehicleForm.brand,
           manufacturer: vehicleForm.manufacturer || vehicleForm.brand,
@@ -619,6 +644,7 @@ export const QuickActionModals: React.FC = () => {
 
   const handleCreateExpense = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cfExpense.validate()) { cfInvalid(); return; }
     const v = vehicles.find(veh => veh.id === expForm.vehicleId);
     const sup = suppliers.find(s => s.id === expForm.supplierId);
     let uploadedPath: string | undefined;
@@ -651,6 +677,7 @@ export const QuickActionModals: React.FC = () => {
           attachmentName: att?.name,
           attachmentSize: att?.size,
           attachmentType: att?.type,
+          customFields: cfExpense.value(),
         });
       } catch (err) {
         if (uploadedPath) removeFiles('documents', [uploadedPath]).catch(() => undefined);
@@ -805,6 +832,7 @@ export const QuickActionModals: React.FC = () => {
     }
     const officeErr = validatePartyOffice(supplierOffice);
     if (officeErr) { addToast({ type: 'error', title: 'Validation Error', message: officeErr }); return; }
+    if (!cfSupplier.validate()) { cfInvalid(); return; }
     run('Supplier Not Saved', async () => {
       const s = await addSupplier({
         name: supplierForm.name.trim(),
@@ -824,6 +852,7 @@ export const QuickActionModals: React.FC = () => {
         bankDetails: { bankName: '', accountNumber: '', iban: '', swiftCode: '' },
         notes: '',
         ...supplierOffice,
+        customFields: cfSupplier.value(),
       });
       addToast({ type: 'success', title: 'Supplier Created', message: `Registered ${s.supplierId} ${s.name}.` });
       closeQuickModal();
@@ -838,6 +867,7 @@ export const QuickActionModals: React.FC = () => {
     }
     const officeErr = validatePartyOffice(customerOffice);
     if (officeErr) { addToast({ type: 'error', title: 'Validation Error', message: officeErr }); return; }
+    if (!cfCustomer.validate()) { cfInvalid(); return; }
     run('Customer Not Saved', async () => {
       const c = await addCustomer({
         name: customerForm.name.trim(),
@@ -855,6 +885,7 @@ export const QuickActionModals: React.FC = () => {
         openingBalance: Number(customerForm.openingBalance) || 0,
         status: customerForm.status,
         ...customerOffice,
+        customFields: cfCustomer.value(),
       });
       addToast({ type: 'success', title: 'Customer Created', message: `Registered ${c.customerId} ${c.name}.` });
       closeQuickModal();
@@ -943,6 +974,7 @@ export const QuickActionModals: React.FC = () => {
       addToast({ type: 'error', title: 'Validation Error', message: 'Employee name and basic salary are required.' });
       return;
     }
+    if (!cfEmployee.validate()) { cfInvalid(); return; }
     run('Employee Not Saved', async () => {
       const companyId = requireOffice(empForm.companyId);
       const emp = await addEmployee({
@@ -966,6 +998,7 @@ export const QuickActionModals: React.FC = () => {
         iban: empForm.iban,
         assignedVehicleId: empForm.assignedVehicleId || undefined,
         status: empForm.status,
+        customFields: cfEmployee.value(),
       });
       addToast({ type: 'success', title: 'Employee Enrolled', message: `Added ${emp.employeeCode} ${emp.name}.` });
       closeQuickModal();
@@ -1044,12 +1077,7 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Select label="Type" value={vehicleForm.vehicleType} onChange={e => setVehicleForm({ ...vehicleForm, vehicleType: e.target.value as any })}>
-              <option value="SUV">SUV</option>
-              <option value="Sedan">Sedan</option>
-              <option value="Pickup">Pickup</option>
-              <option value="Truck">Truck</option>
-              <option value="Van">Van</option>
-              <option value="Bus">Bus</option>
+              {vehicleTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
             </Select>
             <Select label="Category" value={vehicleForm.vehicleCategory} onChange={e => setVehicleForm({ ...vehicleForm, vehicleCategory: e.target.value as any })}>
               <option value="Executive">Executive</option>
@@ -1093,6 +1121,8 @@ export const QuickActionModals: React.FC = () => {
               ? <p className="text-xs font-semibold text-rose-600">{vehiclePhotoError}</p>
               : <p className="text-xs text-slate-400">{BUCKETS.media.label} up to 5 MB.</p>}
           </div>
+
+          {cfVehicle.node}
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
@@ -1286,6 +1316,8 @@ export const QuickActionModals: React.FC = () => {
             value={expForm.attachment}
             onChange={file => setExpForm({ ...expForm, attachment: file })}
           />
+
+          {cfExpense.node}
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
@@ -1508,6 +1540,8 @@ export const QuickActionModals: React.FC = () => {
               {vehicles.filter(v => v.companyId === empForm.companyId).map(v => <option key={v.id} value={v.id}>{v.plateNumber} ({v.brand} {v.model})</option>)}
             </Select>
           </div>
+
+          {cfEmployee.node}
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
@@ -1793,6 +1827,8 @@ export const QuickActionModals: React.FC = () => {
             onChange={e => setSupplierForm({ ...supplierForm, address: e.target.value })}
           />
 
+          {cfSupplier.node}
+
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Building2 className="w-4 h-4" />}>Save Supplier</Button>
@@ -1878,6 +1914,8 @@ export const QuickActionModals: React.FC = () => {
             value={customerForm.address}
             onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })}
           />
+
+          {cfCustomer.node}
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={closeQuickModal}>Cancel</Button>

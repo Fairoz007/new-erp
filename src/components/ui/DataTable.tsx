@@ -42,6 +42,8 @@ export interface Column<T> {
   sortable?: boolean;
   width?: string;
   align?: 'left' | 'center' | 'right';
+  /** Raw value for sorting and CSV when it is not row[key] (e.g. custom fields). */
+  value?: (row: T) => unknown;
 }
 
 interface DataTableProps<T> {
@@ -57,6 +59,8 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
   filterComponent?: ReactNode;
+  /** More filter controls shown next to filterComponent (e.g. custom field filter). */
+  extraFilters?: ReactNode;
   pageSizeDefault?: number;
   /** Permission module that gates the export button; omitted = always allowed. */
   exportModule?: string;
@@ -66,6 +70,8 @@ interface DataTableProps<T> {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  /** Extra searchable text per row (e.g. custom field values). */
+  searchText?: (row: T) => string;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -74,6 +80,7 @@ export function DataTable<T extends Record<string, any>>({
   keyExtractor,
   searchPlaceholder = 'Search records...',
   searchFields,
+  searchText,
   title,
   description,
   actionButton,
@@ -81,6 +88,7 @@ export function DataTable<T extends Record<string, any>>({
   emptyMessage = 'No records found matching your criteria.',
   onRowClick,
   filterComponent,
+  extraFilters,
   pageSizeDefault = 10,
   exportModule,
   collection,
@@ -126,6 +134,7 @@ export function DataTable<T extends Record<string, any>>({
     const lower = debouncedSearch.toLowerCase();
 
     return data.filter(item => {
+      if (searchText && searchText(item).toLowerCase().includes(lower)) return true;
       if (searchFields && searchFields.length > 0) {
         return searchFields.some(field => {
           const val = item[field as string];
@@ -140,15 +149,17 @@ export function DataTable<T extends Record<string, any>>({
         return String(val).toLowerCase().includes(lower);
       });
     });
-  }, [data, debouncedSearch, searchFields]);
+  }, [data, debouncedSearch, searchFields, searchText]);
 
   // Sort
   const sortedData = useMemo(() => {
     if (!sortKey) return filteredData;
 
+    const col = columns.find(c => c.key === sortKey);
+    const get = (row: T) => (col?.value ? col.value(row) : row[sortKey]);
     return [...filteredData].sort((a, b) => {
-      const valA = a[sortKey];
-      const valB = b[sortKey];
+      const valA = get(a) as any;
+      const valB = get(b) as any;
 
       if (valA === undefined || valA === null) return 1;
       if (valB === undefined || valB === null) return -1;
@@ -166,7 +177,7 @@ export function DataTable<T extends Record<string, any>>({
         return strB.localeCompare(strA, undefined, { numeric: true });
       }
     });
-  }, [filteredData, sortKey, sortDirection]);
+  }, [filteredData, sortKey, sortDirection, columns]);
 
   // Pagination
   const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
@@ -203,7 +214,7 @@ export function DataTable<T extends Record<string, any>>({
     return shown || cellToText(row[c.key]);
   }));
   const csvValue = (row: T, c: Column<T>, i: number) => {
-    const raw = row[c.key];
+    const raw = c.value ? c.value(row) : row[c.key];
     if (raw !== null && raw !== undefined && typeof raw !== 'object' && !(typeof raw === 'string' && raw.startsWith('storage://'))) return raw;
     return c.render ? nodeToText(c.render(row, i)).replace(/\s+/g, ' ').trim() : '';
   };
@@ -248,6 +259,7 @@ export function DataTable<T extends Record<string, any>>({
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
+          {extraFilters}
           {filterComponent}
 
           {/* Column Visibility Toggle */}

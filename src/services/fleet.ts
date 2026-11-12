@@ -182,6 +182,8 @@ export const rowToVehicle = (r: Row): Vehicle => ({
   notes: r.notes ?? undefined,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  vehicleTypeId: r.vehicle_type_id ?? undefined,
+  customFields: r.custom_fields ?? {},
 });
 
 export const vehicleToRow = (v: Partial<Vehicle>): Row => {
@@ -205,6 +207,7 @@ export const vehicleToRow = (v: Partial<Vehicle>): Row => {
   m('insuranceProvider', 'insurance_provider', text); m('insurancePolicyNumber', 'insurance_policy_number', text);
   m('insuranceExpiryDate', 'insurance_expiry_date', date); m('insurancePremiumAnnual', 'insurance_premium_annual', money);
   m('notes', 'notes', text);
+  m('customFields', 'custom_fields', v => v ?? {});
   return o;
 };
 
@@ -736,6 +739,7 @@ export const rowToExpense = (r: Row): VehicleExpense => {
     attachmentName: path ? (path.split('/').pop() ?? '').replace(/^[0-9a-f-]{36}-/i, '') : undefined,
     notes: r.notes ?? undefined,
     createdAt: r.created_at,
+    customFields: r.custom_fields ?? {},
   };
 };
 
@@ -769,6 +773,7 @@ export async function addExpense(data: Omit<VehicleExpense, 'id' | 'expenseNumbe
     cost_centre: text(data.costCentre), gl_account_code: text(data.glAccountCode),
     attachment_path: attachmentPath,
     notes: text(data.notes),
+    custom_fields: data.customFields ?? {},
   };
   const created = await unwrapOne<Row>(table('expenses').insert(row).select(EXPENSE_SELECT).single());
   return rowToExpense(created);

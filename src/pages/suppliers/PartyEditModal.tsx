@@ -4,6 +4,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import type { Supplier, Customer, SupplierType } from '../../types/operations';
+import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 
 const SUPPLIER_TYPES: SupplierType[] = [
   'Vehicle Dealer', 'Garage', 'Workshop', 'Tyre Supplier', 'Oil Supplier', 'Parts Supplier',
@@ -20,6 +21,7 @@ export const PartyEditModal: React.FC<Props> = (props) => {
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cf = useCustomFieldsEditor(kind === 'supplier' ? 'supplier' : 'client', party?.officeId || undefined, party?.customFields);
 
   useEffect(() => {
     setError(null);
@@ -42,10 +44,12 @@ export const PartyEditModal: React.FC<Props> = (props) => {
     e.preventDefault();
     if (!String(form.name || '').trim()) { setError('Name is required.'); return; }
     if (Number(form.paymentTermsDays) < 0 || Number(form.creditLimit) < 0) { setError('Terms and credit limit cannot be negative.'); return; }
+    if (!cf.validate()) { setError('Check the additional information fields.'); return; }
     const common = {
       name: String(form.name).trim(), contactPerson: form.contactPerson, phone: form.phone, email: form.email,
       address: form.address, city: form.city, country: form.country, vatNumber: form.vatNumber, taxNumber: form.taxNumber,
       paymentTermsDays: Number(form.paymentTermsDays), creditLimit: Number(form.creditLimit), notes: form.notes,
+      customFields: cf.value(),
     };
     setSaving(true);
     setError(null);
@@ -103,6 +107,7 @@ export const PartyEditModal: React.FC<Props> = (props) => {
           </div>
         )}
         <Textarea label="Notes" rows={2} value={form.notes ?? ''} onChange={e => set('notes', e.target.value)} />
+        {cf.node}
         {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>Cancel</Button>
