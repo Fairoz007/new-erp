@@ -47,6 +47,19 @@ export const rowToEmployee = (r: any): Employee => ({
   assignedVehiclePlate: r.vehicle?.plate_number ?? undefined,
   notes: r.notes ?? undefined,
   createdAt: r.created_at,
+  departmentId: r.department_id ?? undefined,
+  designationId: r.designation_id ?? undefined,
+  managerId: r.manager_id ?? null,
+  sponsor: r.sponsor ?? '',
+  dateOfBirth: ymd(r.date_of_birth),
+  civilIdExpiryDate: ymd(r.civil_id_expiry_date),
+  passportExpiryDate: ymd(r.passport_expiry_date),
+  visaNumber: r.visa_number ?? '',
+  visaExpiryDate: ymd(r.visa_expiry_date),
+  labourCardNumber: r.labour_card_number ?? '',
+  labourCardExpiryDate: ymd(r.labour_card_expiry_date),
+  terminationDate: ymd(r.termination_date),
+  gratuityPaidOn: ymd(r.gratuity_paid_on),
 });
 
 // App -> DB; only keys present are written. total_gross_salary is generated, employee_code is
@@ -80,6 +93,17 @@ export const employeeToRow = (e: Partial<Employee>): Record<string, unknown> => 
   set('pasi_employer_pct', e.employerPasiPercentage);
   set('assigned_vehicle_id', opt(e.assignedVehicleId));
   set('notes', opt(e.notes));
+  const d = (v: string | undefined) => (v === undefined ? undefined : v || null);
+  set('manager_id', e.managerId === undefined ? undefined : e.managerId || null);
+  set('sponsor', opt(e.sponsor));
+  set('date_of_birth', d(e.dateOfBirth));
+  set('civil_id_expiry_date', d(e.civilIdExpiryDate));
+  set('passport_expiry_date', d(e.passportExpiryDate));
+  set('visa_number', opt(e.visaNumber));
+  set('visa_expiry_date', d(e.visaExpiryDate));
+  set('labour_card_number', opt(e.labourCardNumber));
+  set('labour_card_expiry_date', d(e.labourCardExpiryDate));
+  set('termination_date', d(e.terminationDate));
   if (e.customFields !== undefined) row.custom_fields = e.customFields ?? {};
   return row;
 };
@@ -110,6 +134,12 @@ export const rowToPayrollLine = (i: any): PayrollLineItem => ({
   bankName: i.employee?.bank_name ?? '',
   iban: i.employee?.iban ?? '',
   status: i.status,
+  overtimeHours: num(i.overtime_hours),
+  unpaidLeaveDays: num(i.unpaid_leave_days),
+  daysWorked: i.days_worked == null ? null : num(i.days_worked),
+  gratuityAmount: num(i.gratuity_amount),
+  notes: i.notes ?? '',
+  lines: (i.lines ?? []).map((l: any) => ({ kind: l.kind, description: l.description, amount: num(l.amount) })),
 });
 
 export const rowToPayrollRun = (r: any): PayrollRun => {
@@ -145,13 +175,16 @@ export const rowToPayrollRun = (r: any): PayrollRun => {
     journalEntryId: r.journal_entry_id ?? undefined,
     notes: r.notes ?? undefined,
     createdAt: r.created_at,
+    submittedBy: r.submitted_by ?? undefined,
+    submittedByName: r.submitter?.name ?? undefined,
+    paymentJournalEntryId: r.payment_journal_entry_id ?? undefined,
   };
 };
 
 const EMP_SELECT = '*, vehicle:vehicles(plate_number)';
-const PR_SELECT = '*, company:companies(name), approver:profiles!payroll_runs_approved_by_fkey(name), ' +
+const PR_SELECT = '*, company:companies(name), approver:profiles!payroll_runs_approved_by_fkey(name), submitter:profiles!payroll_runs_submitted_by_fkey(name), ' +
   'bank:bank_accounts!payroll_runs_bank_account_id_fkey(bank_name, account_name, account_number), ' +
-  'items:payroll_items(*, employee:employees(employee_code, name, designation, department, payment_method, bank_name, iban))';
+  'items:payroll_items(*, lines:payroll_item_lines(kind, description, amount), employee:employees(employee_code, name, designation, department, payment_method, bank_name, iban))';
 
 // ---------------------------------------------------------------------------------------------
 // Fetchers
@@ -215,30 +248,46 @@ export async function deleteEmployee(id: string): Promise<void> {
   }
 }
 
-/**
- * Processes one month's payroll for ONE company through the `process_payroll` RPC (atomic: run +
- * payslip lines + balanced journal). Params are the FleetContext ones plus `companyId` (required).
- * With bankAccountId: net pay is credited to that bank's GL account and the run is 'Paid';
- * without: net pay is accrued to 2050 Salaries Payable and the run is 'Approved'.
- */
-export async function processPayrollRun(params: {
-  month: number; year: number; paymentDate?: string; bankAccountId?: string; autoPostGL?: boolean; companyId?: string;
-}): Promise<PayrollRun> {
-  const companyId = requireCompany(params.companyId);
-  const id = await rpcAny<string>('process_payroll', {
-    p_company: companyId,
-    p_year: params.year,
-    p_month: params.month,
-    p_payment_date: params.paymentDate || null,
-    p_bank_account: params.bankAccountId || null,
-    p_post_gl: params.autoPostGL ?? true,
-  });
-  return rowToPayrollRun(await unwrapOne(supabase.from('payroll_runs').select(PR_SELECT).eq('id', id).maybeSingle() as any));
-}
 
 export const affects: Record<string, CollectionKey[]> = {
   addEmployee: ['employees'],
   updateEmployee: ['employees'],
   deleteEmployee: ['employees'],
-  processPayrollRun: ['payrollRuns', 'journalEntries', 'chartOfAccounts', 'bankAccounts'],
 };
+
+// ---------------------------------------------------------------------------------------------
+// Payroll workflow (Phase 6): generate (Draft) -> edit lines -> submit -> approve (posts the
+// accrual journal) -> pay from a bank account. The database enforces rights, approval limits,
+// "not your own submission" and the status order.
+// ---------------------------------------------------------------------------------------------
+const fetchRun = async (id: string) => rowToPayrollRun(await unwrapOne(supabase.from('payroll_runs').select(PR_SELECT).eq('id', id).maybeSingle() as any));
+
+export async function generatePayroll(companyId: string, year: number, month: number): Promise<PayrollRun> {
+  const id = await rpcAny<string>('payroll_generate', { p_company: requireCompany(companyId), p_year: year, p_month: month });
+  return fetchRun(id);
+}
+export async function recalculatePayroll(runId: string): Promise<PayrollRun> {
+  await rpcAny('payroll_recalculate', { p_run: runId });
+  return fetchRun(runId);
+}
+export async function updatePayrollItem(itemId: string, v: { bonus: number; loan: number; overtimeHours: number; notes: string }): Promise<void> {
+  await rpcAny('payroll_update_item', { p_item: itemId, p_bonus: v.bonus, p_loan: v.loan, p_overtime_hours: v.overtimeHours, p_notes: v.notes });
+}
+export async function submitPayroll(runId: string): Promise<PayrollRun> {
+  await rpcAny('payroll_submit', { p_run: runId });
+  return fetchRun(runId);
+}
+export async function approvePayroll(runId: string, note?: string): Promise<PayrollRun> {
+  await rpcAny('payroll_approve', { p_run: runId, p_note: note ?? null });
+  return fetchRun(runId);
+}
+export async function payPayroll(runId: string, bankAccountId: string, paymentDate: string): Promise<PayrollRun> {
+  await rpcAny('payroll_pay', { p_run: runId, p_bank_account: bankAccountId, p_payment_date: paymentDate });
+  return fetchRun(runId);
+}
+export async function deletePayrollDraft(runId: string): Promise<void> {
+  await rpcAny('payroll_delete_draft', { p_run: runId });
+}
+export async function employeeGratuity(employeeId: string, asOf?: string): Promise<number> {
+  return Number(await rpcAny<number>('employee_gratuity', { p_employee: employeeId, p_as_of: asOf || null }));
+}

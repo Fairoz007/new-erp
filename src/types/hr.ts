@@ -1,14 +1,6 @@
-export type EmployeeDepartment =
-  | 'Executive Management'
-  | 'Fleet & Logistics Operations'
-  | 'Fleet & Logistics'
-  | 'Workshop & Maintenance'
-  | 'Finance & Accounts'
-  | 'Supply Chain & Procurement'
-  | 'VIP Protocol & Drivers'
-  | 'Operations'
-  | 'Human Resources'
-  | 'Administration & HR';
+/** Name of a departments row (HR → Departments); the database keeps name and id in step. */
+export type EmployeeDepartment = string;
+
 
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Probation' | 'Terminated';
 
@@ -53,6 +45,21 @@ export interface Employee {
   assignedVehiclePlate?: string;
   notes?: string;
   createdAt: string;
+
+  // Profile (Phase 6)
+  departmentId?: string;
+  designationId?: string;
+  managerId?: string | null;
+  sponsor?: string;
+  dateOfBirth?: string;
+  civilIdExpiryDate?: string;
+  passportExpiryDate?: string;
+  visaNumber?: string;
+  visaExpiryDate?: string;
+  labourCardNumber?: string;
+  labourCardExpiryDate?: string;
+  terminationDate?: string;
+  gratuityPaidOn?: string;      // set by payroll when end-of-service is paid
 }
 
 export type PayrollStatus = 'Draft' | 'Under Review' | 'Approved' | 'Paid' | 'Cancelled';
@@ -89,6 +96,13 @@ export interface PayrollLineItem {
   bankName: string;
   iban: string;
   status: 'Pending' | 'Processed' | 'Paid';
+  // Phase 6 workflow
+  overtimeHours?: number;
+  unpaidLeaveDays?: number;
+  daysWorked?: number | null;
+  gratuityAmount?: number;
+  notes?: string;
+  lines?: { kind: 'Allowance' | 'Deduction' | 'Gratuity'; description: string; amount: number }[];
 }
 
 export interface PayrollRun {
@@ -123,6 +137,9 @@ export interface PayrollRun {
   
   notes?: string;
   createdAt: string;
+  submittedBy?: string;          // profile id of who submitted it for approval
+  submittedByName?: string;
+  paymentJournalEntryId?: string;
 }
 
 export interface PayslipModalData {
@@ -151,4 +168,10 @@ export interface PayslipModalData {
   bankName: string;
   iban: string;
   status: string;
+  // itemised lines (recurring allowances / deductions, gratuity) and attendance figures
+  lines?: { kind: 'Allowance' | 'Deduction' | 'Gratuity'; description: string; amount: number }[];
+  overtimeHours?: number;
+  unpaidLeaveDays?: number;
+  daysWorked?: number | null;
+  notes?: string;
 }

@@ -109,15 +109,29 @@ export const PrintablePayslipModal: React.FC = () => {
                 <span className="text-slate-300">Transport Allowance</span>
                 <span className="font-mono">{formatCurrency(viewingPayslip.transportAllowance, currency)}</span>
               </div>
-              {viewingPayslip.otherAllowances > 0 && (
-                <div className="p-2.5 flex justify-between">
-                  <span className="text-slate-300">Other Allowances</span>
-                  <span className="font-mono">{formatCurrency(viewingPayslip.otherAllowances, currency)}</span>
-                </div>
-              )}
+              {(() => {
+                const itemised = (viewingPayslip.lines ?? []).filter(l => l.kind !== 'Deduction');
+                const rest = Math.round((viewingPayslip.otherAllowances - itemised.reduce((t, l) => t + l.amount, 0)) * 1000) / 1000;
+                return (
+                  <>
+                    {rest > 0 && (
+                      <div className="p-2.5 flex justify-between">
+                        <span className="text-slate-300">Other Allowances</span>
+                        <span className="font-mono">{formatCurrency(rest, currency)}</span>
+                      </div>
+                    )}
+                    {itemised.map((l, i) => (
+                      <div key={i} className="p-2.5 flex justify-between">
+                        <span className="text-slate-300">{l.description}</span>
+                        <span className="font-mono">{formatCurrency(l.amount, currency)}</span>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
               {viewingPayslip.overtimeAmount > 0 && (
                 <div className="p-2.5 flex justify-between">
-                  <span className="text-slate-300">Overtime & Trips</span>
+                  <span className="text-slate-300">Overtime{viewingPayslip.overtimeHours ? ` (${viewingPayslip.overtimeHours} h)` : ''}</span>
                   <span className="font-mono">{formatCurrency(viewingPayslip.overtimeAmount, currency)}</span>
                 </div>
               )}
@@ -149,16 +163,23 @@ export const PrintablePayslipModal: React.FC = () => {
               </div>
               {viewingPayslip.unpaidLeaveDeduction > 0 && (
                 <div className="p-2.5 flex justify-between">
-                  <span className="text-slate-300">Unpaid Leave</span>
+                  <span className="text-slate-300">Unpaid Leave{viewingPayslip.unpaidLeaveDays ? ` (${viewingPayslip.unpaidLeaveDays} days)` : ''}</span>
                   <span className="font-mono text-rose-400">{formatCurrency(viewingPayslip.unpaidLeaveDeduction, currency)}</span>
                 </div>
               )}
-              {viewingPayslip.otherDeductions > 0 && (
-                <div className="p-2.5 flex justify-between">
-                  <span className="text-slate-300">Other Deductions</span>
-                  <span className="font-mono text-rose-400">{formatCurrency(viewingPayslip.otherDeductions, currency)}</span>
-                </div>
-              )}
+              {(viewingPayslip.lines ?? []).filter(l => l.kind === 'Deduction').length > 0
+                ? (viewingPayslip.lines ?? []).filter(l => l.kind === 'Deduction').map((l, i) => (
+                  <div key={i} className="p-2.5 flex justify-between">
+                    <span className="text-slate-300">{l.description}</span>
+                    <span className="font-mono text-rose-400">{formatCurrency(l.amount, currency)}</span>
+                  </div>
+                ))
+                : viewingPayslip.otherDeductions > 0 && (
+                  <div className="p-2.5 flex justify-between">
+                    <span className="text-slate-300">Other Deductions</span>
+                    <span className="font-mono text-rose-400">{formatCurrency(viewingPayslip.otherDeductions, currency)}</span>
+                  </div>
+                )}
               {viewingPayslip.loanAdvanceDeduction > 0 && (
                 <div className="p-2.5 flex justify-between">
                   <span className="text-slate-300">Salary Advance / Loan</span>

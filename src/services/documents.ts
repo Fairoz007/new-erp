@@ -7,14 +7,14 @@ import {
   createSignedUrl, downloadFile, formatFileSize, parseStorageRef, removeFiles, toStorageRef, uploadFile,
 } from './storage';
 
-const SELECT = '*, vehicle:vehicles(plate_number), uploader:profiles!documents_uploaded_by_fkey(name)';
+const SELECT = '*, vehicle:vehicles(plate_number), employee:employees!documents_employee_id_fkey(name), uploader:profiles!documents_uploaded_by_fkey(name)';
 const EXPIRY_WARNING_DAYS = 30;
 
 type DocRow = {
   id: string; company_id: string; document_name: string; document_number: string | null; category: string;
-  vehicle_id: string | null; issue_date: string | null; expiry_date: string | null; storage_path: string | null;
+  vehicle_id: string | null; employee_id?: string | null; issue_date: string | null; expiry_date: string | null; storage_path: string | null;
   file_size: number | null; mime_type: string | null; uploaded_by: string | null; uploaded_at: string;
-  notes: string | null; vehicle?: { plate_number: string } | null; uploader?: { name: string } | null;
+  notes: string | null; vehicle?: { plate_number: string } | null; employee?: { name: string } | null; uploader?: { name: string } | null;
 };
 
 const expiryFlags = (expiry: string | null): { isExpired: boolean; isExpiringSoon: boolean } => {
@@ -35,6 +35,8 @@ export const rowToDocument = (r: DocRow): DocumentItem => ({
   category: r.category as DocumentCategory,
   vehicleId: r.vehicle_id ?? undefined,
   vehiclePlate: r.vehicle?.plate_number ?? undefined,
+  employeeId: r.employee_id ?? undefined,
+  employeeName: r.employee?.name ?? undefined,
   companyId: r.company_id,
   issueDate: r.issue_date ? ymd(r.issue_date) : undefined,
   expiryDate: r.expiry_date ? ymd(r.expiry_date) : undefined,
@@ -64,7 +66,7 @@ export const affects: Record<string, CollectionKey[]> = {
 /** What the UI supplies. The file is uploaded to Storage; size/type/path are derived from it. */
 export type NewDocumentInput = Omit<
   DocumentItem,
-  'id' | 'uploadedAt' | 'uploadedBy' | 'vehiclePlate' | 'fileSize' | 'fileType' | 'url' | 'documentUrl' | 'isExpired' | 'isExpiringSoon'
+  'id' | 'uploadedAt' | 'uploadedBy' | 'vehiclePlate' | 'employeeName' | 'fileSize' | 'fileType' | 'url' | 'documentUrl' | 'isExpired' | 'isExpiringSoon'
 > & { file: File };
 
 /**
@@ -89,6 +91,7 @@ export async function addDocument(doc: NewDocumentInput): Promise<DocumentItem> 
         document_number: nul(doc.documentNumber?.trim()),
         category: doc.category,
         vehicle_id: nul(doc.vehicleId),
+        employee_id: nul(doc.employeeId),
         issue_date: nul(doc.issueDate),
         expiry_date: nul(doc.expiryDate),
         notes: nul(doc.notes?.trim()),

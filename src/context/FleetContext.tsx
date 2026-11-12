@@ -151,7 +151,6 @@ export interface FleetContextType extends Collections {
   addEmployee: typeof hr.addEmployee;
   updateEmployee: typeof hr.updateEmployee;
   deleteEmployee: typeof hr.deleteEmployee;
-  processPayrollRun: typeof hr.processPayrollRun;
 
   addDocument: typeof docs.addDocument;
   deleteDocument: typeof docs.deleteDocument;
@@ -517,7 +516,6 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await hr.deleteEmployee(id);
       setData(prev => ({ ...prev, employees: prev.employees.filter(e => e.id !== id) }));
     }),
-    processPayrollRun: mutation('processPayrollRun', hr.processPayrollRun),
 
     addDocument: mutation('addDocument', async (d: Parameters<typeof docs.addDocument>[0]) => {
       const created = await docs.addDocument(d);

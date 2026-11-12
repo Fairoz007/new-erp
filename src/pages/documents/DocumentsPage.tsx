@@ -9,6 +9,7 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { downloadDocument } from '../../services/documents';
 import { formatDate } from '../../utils/date';
+import { HR_DOCUMENT_CATEGORIES } from '../../components/common/DocumentUploadZone';
 
 export const DocumentsPage: React.FC = () => {
   const { documents, deleteDocument, selectedCompanyId } = useFleet();
@@ -53,7 +54,8 @@ export const DocumentsPage: React.FC = () => {
   };
 
   const filteredDocs = documents.filter(d => {
-    if (categoryFilter !== 'all' && d.category !== categoryFilter) return false;
+    if (categoryFilter === 'hr') { if (!d.employeeId) return false; }
+    else if (categoryFilter !== 'all' && d.category !== categoryFilter) return false;
     if (selectedCompanyId !== 'all' && d.companyId !== selectedCompanyId) return false;
     return true;
   });
@@ -85,9 +87,12 @@ export const DocumentsPage: React.FC = () => {
     },
     {
       key: 'vehiclePlate',
-      header: 'Vehicle',
+      header: 'Linked to',
+      value: (d) => d.vehiclePlate ?? d.employeeName ?? '',
       render: (d) => (
-        d.vehiclePlate ? (
+        d.employeeName && !d.vehiclePlate ? (
+          <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-slate-200 text-xs font-semibold">{d.employeeName}</span>
+        ) : d.vehiclePlate ? (
           <button
             onClick={() => d.vehicleId && openVehicleDetail(d.vehicleId, 'documents')}
             className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-xs font-bold hover:underline cursor-pointer"
@@ -201,8 +206,8 @@ export const DocumentsPage: React.FC = () => {
         columns={columns}
         keyExtractor={d => d.id}
         title="Fleet Compliance & Document Registry"
-        searchPlaceholder="Search documents by title, number, plate, category..."
-        searchFields={['documentName', 'documentNumber', 'vehiclePlate', 'category']}
+        searchPlaceholder="Search documents by title, number, plate, employee, category..."
+        searchFields={['documentName', 'documentNumber', 'vehiclePlate', 'employeeName', 'category']}
         exportFilename="Documents_Register"
         filterComponent={
           <select
@@ -217,6 +222,8 @@ export const DocumentsPage: React.FC = () => {
             <option value="Inspection Report">Inspection Certificates</option>
             <option value="Accident Report">Accident Reports</option>
             <option value="Purchase Invoice">Purchase Agreements</option>
+            <option value="hr">HR documents (any employee)</option>
+            {HR_DOCUMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             <option value="Other">Other</option>
           </select>
         }

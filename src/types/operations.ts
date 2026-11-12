@@ -207,6 +207,13 @@ export type DocumentCategory =
   | 'Loan Agreement'
   | 'Inspection Report'
   | 'Vehicle Photos'
+  | 'Passport'
+  | 'Civil ID'
+  | 'Visa'
+  | 'Labour Card'
+  | 'Driving Licence'
+  | 'Employment Contract'
+  | 'Medical Certificate'
   | 'Other';
 
 export interface DocumentItem {
@@ -216,6 +223,8 @@ export interface DocumentItem {
   category: DocumentCategory;
   vehicleId?: string;
   vehiclePlate?: string;
+  employeeId?: string;
+  employeeName?: string;
   companyId: string;
   issueDate?: string;
   expiryDate?: string;

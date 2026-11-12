@@ -40,6 +40,10 @@ export const PAGE_MODULE: Record<AppPage, string | null> = {
   'fixed-assets': 'fixed-assets',
   depreciation: 'fixed-assets',
   payroll: 'payroll',
+  employees: 'hr',
+  attendance: 'attendance',
+  leave: 'leave',
+  'hr-setup': 'hr',
   profitability: 'vehicles',    // per-vehicle cost/revenue; was open to all roles, every role has vehicles:view
   notifications: 'notifications',
   approvals: 'approvals',
@@ -62,7 +66,6 @@ export const MODULE_ALIASES: Record<string, string> = {
   depreciation: 'fixed-assets',
   'vehicle-detail': 'vehicles',
   profitability: 'vehicles',
-  hr: 'payroll',
   employees: 'hr',
   users: 'users-roles',
   audit: 'audit-logs',

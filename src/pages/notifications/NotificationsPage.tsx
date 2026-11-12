@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { useFleet } from '../../context/FleetContext';
-import { useUI } from '../../context/UIContext';
+import { useUI, VALID_PAGES, type AppPage } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateTime } from '../../utils/date';
 
@@ -29,6 +29,7 @@ export const NotificationsPage: React.FC = () => {
     if (n.type === 'approval_required') { if (canAccessPage('approvals')) setCurrentPage('approvals'); }
     else if (n.vehicleId && canAccessPage('vehicles')) openVehicleDetail(n.vehicleId);
     else if (n.type.includes('invoice') && n.referenceId) openInvoiceModal(n.referenceId);
+    else if (n.link && VALID_PAGES.includes(n.link as AppPage) && canAccessPage(n.link as AppPage)) setCurrentPage(n.link as AppPage);
     if (n.read) return;
     try {
       await markNotificationAsRead(n.id);

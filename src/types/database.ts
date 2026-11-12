@@ -816,6 +816,7 @@ export type Database = {
           uploaded_at: string
           uploaded_by: string | null
           vehicle_id: string | null
+          employee_id: string | null
         }
         Insert: {
           category: string
@@ -833,6 +834,7 @@ export type Database = {
           uploaded_at?: string
           uploaded_by?: string | null
           vehicle_id?: string | null
+          employee_id?: string | null
         }
         Update: {
           category?: string
@@ -850,6 +852,7 @@ export type Database = {
           uploaded_at?: string
           uploaded_by?: string | null
           vehicle_id?: string | null
+          employee_id?: string | null
         }
         Relationships: [
           {

@@ -34,6 +34,10 @@ const ProfitLossPage = lazy(() => import('./pages/profit-loss/ProfitLossPage').t
 const BalanceSheetPage = lazy(() => import('./pages/balance-sheet/BalanceSheetPage').then(m => ({ default: m.BalanceSheetPage })));
 const DepreciationPage = lazy(() => import('./pages/depreciation/DepreciationPage').then(m => ({ default: m.DepreciationPage })));
 const AssetModulePage = lazy(() => import('./pages/depreciation/AssetModulePage').then(m => ({ default: m.AssetModulePage })));
+const EmployeesPage = lazy(() => import('./pages/hr/EmployeesPage').then(m => ({ default: m.EmployeesPage })));
+const AttendancePage = lazy(() => import('./pages/hr/AttendancePage').then(m => ({ default: m.AttendancePage })));
+const LeavePage = lazy(() => import('./pages/hr/LeavePage').then(m => ({ default: m.LeavePage })));
+const HrSetupPage = lazy(() => import('./pages/hr/HrSetupPage').then(m => ({ default: m.HrSetupPage })));
 const PayrollPage = lazy(() => import('./pages/payroll/PayrollPage').then(m => ({ default: m.PayrollPage })));
 const VehicleProfitabilityPage = lazy(() => import('./pages/profitability/VehicleProfitabilityPage').then(m => ({ default: m.VehicleProfitabilityPage })));
 const DocumentsPage = lazy(() => import('./pages/documents/DocumentsPage').then(m => ({ default: m.DocumentsPage })));
@@ -164,6 +168,14 @@ const PageRenderer: React.FC = () => {
             return <AssetModulePage />;
           case 'payroll':
             return <PayrollPage />;
+          case 'employees':
+            return <EmployeesPage />;
+          case 'attendance':
+            return <AttendancePage />;
+          case 'leave':
+            return <LeavePage />;
+          case 'hr-setup':
+            return <HrSetupPage />;
           case 'profitability':
             return <VehicleProfitabilityPage />;
           case 'documents':

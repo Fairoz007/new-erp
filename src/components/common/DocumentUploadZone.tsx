@@ -193,18 +193,27 @@ const CATEGORIES: { value: DocumentCategory; label: string }[] = [
   { value: 'Inspection Report', label: 'Inspection Report' },
   { value: 'Purchase Invoice', label: 'Purchase Agreement' },
   { value: 'Accident Report', label: 'Police Accident Report' },
+  { value: 'Passport', label: 'Passport (employee)' },
+  { value: 'Civil ID', label: 'Civil ID (employee)' },
+  { value: 'Visa', label: 'Visa (employee)' },
+  { value: 'Labour Card', label: 'Labour card (employee)' },
+  { value: 'Driving Licence', label: 'Driving licence (employee)' },
+  { value: 'Employment Contract', label: 'Employment contract (employee)' },
+  { value: 'Medical Certificate', label: 'Medical certificate (employee)' },
   { value: 'Other', label: 'Other Document' },
 ];
+export const HR_DOCUMENT_CATEGORIES: DocumentCategory[] = ['Passport', 'Civil ID', 'Visa', 'Labour Card', 'Driving Licence', 'Employment Contract', 'Medical Certificate'];
 
-export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; onDone: () => void }> = ({ defaultVehicleId, onDone }) => {
-  const { vehicles, companies, selectedCompanyId, addDocument } = useFleet();
+export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; defaultEmployeeId?: string; onDone: () => void }> = ({ defaultVehicleId, defaultEmployeeId, onDone }) => {
+  const { vehicles, employees, companies, selectedCompanyId, addDocument } = useFleet();
   const { addToast } = useUI();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     documentName: '',
     documentNumber: '',
-    category: 'Registration' as DocumentCategory,
-    vehicleId: defaultVehicleId ?? '',
+    category: (defaultEmployeeId ? 'Passport' : 'Registration') as DocumentCategory,
+    vehicleId: defaultEmployeeId ? '' : defaultVehicleId ?? '',
+    employeeId: defaultEmployeeId ?? '',
     companyId: selectedCompanyId !== 'all' ? selectedCompanyId : '',
     issueDate: today,
     expiryDate: '',
@@ -215,7 +224,9 @@ export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; onDone: (
   const [formError, setFormError] = useState<string | null>(null);
 
   const vehicle = vehicles.find(v => v.id === form.vehicleId);
-  const companyId = vehicle?.companyId || form.companyId;
+  const employee = employees.find(x => x.id === form.employeeId);
+  const companyId = vehicle?.companyId || employee?.companyId || form.companyId;
+  const hrDoc = HR_DOCUMENT_CATEGORIES.includes(form.category);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,6 +234,8 @@ export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; onDone: (
     setFormError(null);
     if (!attachment?.file) { setFormError('Choose a file to upload.'); return; }
     if (!companyId) { setFormError('Select a company or a vehicle.'); return; }
+    if (hrDoc && !employee) { setFormError('Choose the employee this document belongs to.'); return; }
+    if (vehicle && employee && vehicle.companyId !== employee.companyId) { setFormError('The vehicle and the employee are in different offices.'); return; }
     const name = form.documentName.trim() || attachment.name;
     setSubmitting(true);
     try {
@@ -231,6 +244,7 @@ export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; onDone: (
         documentNumber: form.documentNumber || undefined,
         category: form.category,
         vehicleId: form.vehicleId || undefined,
+        employeeId: form.employeeId || undefined,
         companyId,
         issueDate: form.issueDate || undefined,
         expiryDate: form.expiryDate || undefined,
@@ -276,7 +290,11 @@ export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; onDone: (
           <option value="">None (company / corporate document)</option>
           {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
         </Select>
-        {!vehicle && (
+        <Select label={hrDoc ? 'Employee (required)' : 'Employee'} value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}>
+          <option value="">None</option>
+          {employees.filter(x => x.status !== 'Terminated' || x.id === form.employeeId).map(x => <option key={x.id} value={x.id}>{x.name} ({x.employeeCode})</option>)}
+        </Select>
+        {!vehicle && !employee && (
           <Select label="Company" value={form.companyId} onChange={e => setForm({ ...form, companyId: e.target.value })} required>
             <option value="">Select company</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

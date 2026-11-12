@@ -30,6 +30,10 @@ export type AppPage =
   | 'depreciation'
   | 'fixed-assets'
   | 'payroll'
+  | 'employees'
+  | 'attendance'
+  | 'leave'
+  | 'hr-setup'
   | 'profitability'
   | 'documents'
   | 'notifications'
@@ -129,12 +133,12 @@ interface UIContextType {
   removeToast: (id: string) => void;
 }
 
-const VALID_PAGES: AppPage[] = [
+export const VALID_PAGES: AppPage[] = [
   'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'drivers', 'maintenance',
   'work-orders', 'oil-management', 'tyre-management', 'accidents', 'expenses',
   'suppliers', 'customers', 'customer-detail', 'supplier-detail', 'invoices', 'reconciliation', 'payments',
   'accounting', 'trial-balance', 'general-ledger', 'profit-loss', 'balance-sheet',
-  'depreciation', 'fixed-assets', 'payroll', 'profitability', 'documents',
+  'depreciation', 'fixed-assets', 'payroll', 'employees', 'attendance', 'leave', 'hr-setup', 'profitability', 'documents',
   'notifications', 'users-roles', 'approvals', 'audit-logs', 'reports', 'settings',
 ];
 
@@ -259,7 +263,7 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     'add-supplier': ['suppliers', 'suppliers'],
     'add-customer': ['customers', 'customers'],
     'upload-document': ['documents', 'documents'],
-    'add-employee': ['payroll', 'payroll'],
+    'add-employee': ['employees', 'hr'],
     'run-payroll': ['payroll', 'payroll'],
     'run-depreciation': ['depreciation', 'accounting'],
     'add-fixed-asset': ['fixed-assets', 'accounting'],

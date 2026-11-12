@@ -29,6 +29,11 @@ export interface Organization {
   overridableSettings: string[];
   partyApprovalRequired: boolean;      // new clients/suppliers wait for approval
   expiryAlertDays: number;             // alert window for registration, insurance, permit, inspection, licence
+  payrollHoursPerDay: number;          // overtime hourly rate = basic / (30 x hours per day) x overtime rate
+  payrollOvertimeRate: number;
+  gratuityInitialYears: number;        // gratuity = initial years x initial days + later years x later days, x basic / 30
+  gratuityDaysInitial: number;
+  gratuityDaysLater: number;
   setupStatus: 'in_progress' | 'completed';
   setupStep: number;
   setupCompletedSteps: number[];
@@ -58,6 +63,11 @@ const toOrg = (r: any): Organization => ({
   overridableSettings: r.overridable_settings ?? [],
   partyApprovalRequired: !!r.party_approval_required,
   expiryAlertDays: Number(r.expiry_alert_days ?? 30),
+  payrollHoursPerDay: Number(r.payroll_hours_per_day ?? 8),
+  payrollOvertimeRate: Number(r.payroll_overtime_rate ?? 1.25),
+  gratuityInitialYears: Number(r.gratuity_initial_years ?? 3),
+  gratuityDaysInitial: Number(r.gratuity_days_initial ?? 15),
+  gratuityDaysLater: Number(r.gratuity_days_later ?? 30),
   setupStatus: r.setup_status,
   setupStep: r.setup_step ?? 1,
   setupCompletedSteps: r.setup_completed_steps ?? [],
@@ -74,6 +84,8 @@ const fromOrg = (o: Partial<OrganizationInput>) => {
     email: t(o.email), website: t(o.website), logo_path: o.logoPath === undefined ? undefined : o.logoPath || null,
     base_currency: o.baseCurrency?.trim().toUpperCase(), currency_decimals: o.currencyDecimals, fy_start_month: o.fyStartMonth,
     timezone: o.timezone, language: o.language, letterhead: o.letterhead, overridable_settings: o.overridableSettings, party_approval_required: o.partyApprovalRequired, expiry_alert_days: o.expiryAlertDays,
+    payroll_hours_per_day: o.payrollHoursPerDay, payroll_overtime_rate: o.payrollOvertimeRate, gratuity_initial_years: o.gratuityInitialYears,
+    gratuity_days_initial: o.gratuityDaysInitial, gratuity_days_later: o.gratuityDaysLater,
   };
   for (const k of Object.keys(row)) if (row[k] === undefined) delete row[k];
   return row;
@@ -179,6 +191,19 @@ const clean = (row: Record<string, unknown>) => {
   return row;
 };
 
+// HR masters (Phase 6)
+export interface Department { id: string; name: string; code: string; active: boolean; sortOrder: number }
+export interface Designation { id: string; name: string; departmentId: string; active: boolean; sortOrder: number }
+export interface LeaveType { id: string; name: string; code: string; daysPerYear: number | null; paid: boolean; carryForwardMax: number; requiresDocument: boolean; active: boolean; sortOrder: number }
+export interface PayComponent { id: string; name: string; kind: 'Allowance' | 'Deduction'; glAccountCode: string; active: boolean; sortOrder: number }
+const mapDepartment = (r: any): Department => ({ id: r.id, name: r.name, code: r.code ?? '', active: r.active, sortOrder: r.sort_order });
+const mapDesignation = (r: any): Designation => ({ id: r.id, name: r.name, departmentId: r.department_id ?? '', active: r.active, sortOrder: r.sort_order });
+const mapLeaveType = (r: any): LeaveType => ({
+  id: r.id, name: r.name, code: r.code, daysPerYear: r.days_per_year == null ? null : Number(r.days_per_year), paid: r.paid,
+  carryForwardMax: Number(r.carry_forward_max ?? 0), requiresDocument: r.requires_document, active: r.active, sortOrder: r.sort_order,
+});
+const mapPayComponent = (r: any): PayComponent => ({ id: r.id, name: r.name, kind: r.kind, glAccountCode: r.gl_account_code ?? '', active: r.active, sortOrder: r.sort_order });
+
 export const MASTERS = {
   taxRates: {
     table: 'tax_rates', key: 'id', order: 'sort_order', map: mapTaxRate,
@@ -237,6 +262,28 @@ export const MASTERS = {
       end_date: v.endDate === undefined ? undefined : blankToNull(v.endDate), active: v.active,
     }),
   } as MasterSpec<RecurringExpense>,
+  departments: {
+    table: 'departments', key: 'id', order: 'sort_order', map: mapDepartment,
+    toRow: (v: Partial<Department>) => clean({ name: v.name?.trim(), code: v.code === undefined ? undefined : v.code.trim() || null, active: v.active, sort_order: v.sortOrder }),
+  } as MasterSpec<Department>,
+  designations: {
+    table: 'designations', key: 'id', order: 'sort_order', map: mapDesignation,
+    toRow: (v: Partial<Designation>) => clean({ name: v.name?.trim(), department_id: v.departmentId === undefined ? undefined : blankToNull(v.departmentId), active: v.active, sort_order: v.sortOrder }),
+  } as MasterSpec<Designation>,
+  leaveTypes: {
+    table: 'leave_types', key: 'id', order: 'sort_order', map: mapLeaveType,
+    toRow: (v: Partial<LeaveType>) => clean({
+      name: v.name?.trim(), code: v.code?.trim().toUpperCase(), days_per_year: v.daysPerYear, paid: v.paid, carry_forward_max: v.carryForwardMax,
+      requires_document: v.requiresDocument, active: v.active, sort_order: v.sortOrder,
+    }),
+  } as MasterSpec<LeaveType>,
+  payComponents: {
+    table: 'pay_components', key: 'id', order: 'sort_order', map: mapPayComponent,
+    toRow: (v: Partial<PayComponent>) => clean({
+      name: v.name?.trim(), kind: v.kind, gl_account_code: v.glAccountCode === undefined ? undefined : blankToNull(v.glAccountCode?.trim()),
+      active: v.active, sort_order: v.sortOrder,
+    }),
+  } as MasterSpec<PayComponent>,
   fieldDefinitions: {
     table: 'field_definitions', key: 'id', order: 'sort_order', map: mapField,
     toRow: (v: Partial<FieldDefinition>) => clean({

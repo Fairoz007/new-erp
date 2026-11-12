@@ -183,7 +183,7 @@ await check('per-office visibility: optional field made required for one office'
   await tx(ADMIN, `insert into field_office_settings (field_id, office_id, visibility)
                    values ((select id from field_definitions where key = 'sponsor'), '${HO}', 'required')`);
   return tx(ADMIN, `insert into employees (company_id, name, designation, department, joining_date, status, basic_salary)
-                    values ('${HO}', 'Omar', 'Driver', 'Ops', '2026-01-01', 'Active', 300)`);
+                    values ('${HO}', 'Omar', 'Driver', 'Operations', '2026-01-01', 'Active', 300)`);
 }, 'Sponsor');
 await check('Viewer cannot define custom fields', () =>
   tx(VIEWER, `insert into field_definitions (entity, key, label, field_type) values ('client', 'x', 'X', 'text')`), 'row-level security');

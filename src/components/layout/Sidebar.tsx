@@ -29,6 +29,9 @@ import {
   ChevronRight,
   Layers,
   Shield,
+  CalendarCheck,
+  Plane,
+  Calculator,
 } from 'lucide-react';
 import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
@@ -36,6 +39,7 @@ import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from './UserAvatar';
 import { PRODUCT_NAME } from '../../lib/branding';
 import { useOptionalOrg } from '../../context/OrgContext';
+import { countPendingLeave } from '../../services/hrops';
 
 interface NavItem {
   id: AppPage;
@@ -71,6 +75,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const unreadNotifs = notifications.filter(n => !n.read).length;
   const pendingApprovals = approvalRequests.filter(a => a.status === 'Pending').length;
   const overdueInvoices = invoices.filter(i => i.paymentStatus === 'Overdue').length;
+  const canSeeLeave = canAccessPage('leave');
+  const [pendingLeave, setPendingLeave] = React.useState(0);
+  React.useEffect(() => {
+    if (!canSeeLeave) { setPendingLeave(0); return; }
+    let live = true;
+    countPendingLeave().then(n => live && setPendingLeave(n)).catch(() => undefined);
+    return () => { live = false; };
+  }, [canSeeLeave, currentPage]);
   const activeWorkOrders = workOrders.filter(w => ['Approved', 'Scheduled', 'In Progress', 'Waiting for Parts'].includes(w.status)).length;
 
   const navigationGroups: NavGroup[] = [
@@ -86,7 +98,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'FLEET & WORKSHOP',
       items: [
         { id: 'vehicles', label: 'Vehicles Fleet', icon: Car },
-        { id: 'drivers', label: 'Drivers', icon: IdCard },
         { id: 'maintenance', label: 'Maintenance Records', icon: Wrench },
         { id: 'work-orders', label: 'Work Orders', icon: ClipboardList, badge: activeWorkOrders > 0 ? activeWorkOrders : undefined, badgeColor: 'amber' },
         { id: 'oil-management', label: 'Oil Service Tracker', icon: Droplet },
@@ -113,7 +124,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'HUMAN RESOURCES',
       items: [
-        { id: 'payroll', label: 'HR & Payroll Disbursal', icon: Users },
+        { id: 'employees', label: 'Employees', icon: Users },
+        { id: 'drivers', label: 'Drivers', icon: IdCard },
+        { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
+        { id: 'leave', label: 'Leave', icon: Plane, badge: pendingLeave > 0 ? pendingLeave : undefined, badgeColor: 'amber' },
+        { id: 'payroll', label: 'Payroll', icon: Calculator },
+        { id: 'hr-setup', label: 'HR Setup', icon: Settings },
       ],
     },
     {

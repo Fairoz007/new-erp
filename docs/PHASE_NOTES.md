@@ -63,3 +63,47 @@ Browser checks against a real database are blocked until the staging Supabase pr
 - The dashboard shows an "Expiries and inspections" panel from `v_fleet_expiries`, which follows the base tables' RLS and the office switcher. Vehicles, maintenance, work orders, oil, tyres, accidents and profitability gained an "All vehicle types" filter; office filtering was already in place.
 - Registering a driver means choosing an employee, so the user needs HR view rights to see employees. Without them the picker explains why it is empty.
 - Not verified in a browser (needs the staging DB): the Drivers page, the vehicle form operations section, the dashboard expiry panel and the vehicle type filters.
+
+## Phase 6: HR
+- The sidebar has a Human Resources group: Employees, Drivers, Attendance, Leave, Payroll and HR setup. Each page has its own permission module: `hr` (employees and HR setup), `drivers`, `attendance`, `leave` and `payroll`. Existing roles keep their old rights, because the Phase 1 migration copied payroll rights to hr, attendance and leave. The employees table now uses `hr`. Payroll users can still view employees.
+- Employee profile:
+  - Fields: department and designation (from lists in HR setup), reporting manager (circular reporting lines are blocked), sponsor, date of birth, civil ID, passport, visa and labour card numbers with expiry dates, bank details and custom fields.
+  - A leaving date of today or earlier sets the status to Terminated.
+  - Unknown department or designation names are rejected in the app. Server-side imports create them.
+  - Paper expiries raise "employee document expiring" alerts in the same daily job and alert window as the fleet.
+- Attendance:
+  - One record per employee per day: status, check-in/out and overtime hours (0–16).
+  - The day sheet can mark everyone not yet marked as Present or Holiday. CSV import takes `employee_code,date,status,check_in,check_out,overtime_hours,notes` (2 MB, 3000 rows). Each row is checked first, and an existing day is replaced.
+  - Work statuses cannot be recorded for future dates or outside the employment dates.
+  - "On Leave" days are only created by approving leave.
+  - Once a month's payroll is approved, that month's attendance is locked.
+- Leave:
+  - Default types: Annual 30 days, Sick 21 (a document is needed over 2 days), Emergency 6, Maternity 98, Hajj 15, Unpaid (no limit). All are editable in HR setup.
+  - Days are counted as calendar days. A request cannot cross the year end; split it in two.
+  - Entitlement is pro-rated in the joining and leaving years. Balance = entitlement + adjustments − approved − pending.
+  - A request beyond the balance, or overlapping another request, is rejected by the database.
+  - Approval needs leave approve rights, and the approver must not be the person who submitted the request (super admins excepted). Rejecting needs a reason. The requester is notified.
+  - Approval writes "On Leave" attendance; cancelling removes it. Cancelling is blocked once that month's payroll is approved.
+  - Certificates are stored under `<office>/leave/…` with the leave module's storage rights.
+  - Adjustments, such as carry forward or corrections, need a reason.
+- Payroll workflow:
+  1. Prepare a draft for an office and month.
+  2. Edit overtime hours, bonus, loan recovery and notes, and recalculate as needed. Manual edits are kept on recalculation.
+  3. Submit for approval.
+  4. Approve, which posts the journal.
+  5. Pay from a bank account, which posts Dr 2050 / Cr bank.
+  - Approval needs payroll approve rights within the role's payroll approval limit, and the submitter cannot approve. Payment needs payments create rights. Drafts and submitted runs can be deleted.
+  - The old one-step `process_payroll` now needs approve rights. The UI no longer uses it.
+- Payroll calculation (defaults are organization settings under HR setup → Payroll rules):
+  - Basic pay and fixed allowances are pro-rated by calendar days worked in the month (joining or leaving mid-month).
+  - Unpaid leave deducts basic ÷ 30 per day.
+  - Overtime = hours × basic ÷ (30 × 8 h) × 1.25.
+  - Recurring allowances and deductions are set per employee, with start and end dates; deductions credit their GL account (default 2060).
+  - PASI is unchanged from the earlier payroll.
+  - Gratuity for a leaver in the month = basic ÷ 30 × (15 days per year for the first 3 years + 30 days per year after that), pro-rated by days of service. It is posted to 5080 and paid only once (the employee is marked).
+  - These defaults follow common Oman practice. They are settings, not legal advice; confirm with the client's HR or legal team.
+- Approval journal: Dr 5070 salaries, Dr 5080 gratuity, Dr 5075 employer PASI; Cr 2040 PASI payable, Cr 1250 staff loans, Cr deduction accounts, Cr 2050 salaries payable. Missing system accounts are created in the office's chart of accounts.
+- Payslips list every allowance and deduction line, overtime hours and unpaid days.
+- HR documents: a document can be linked to an employee, who must be in the same office. The upload form has HR categories (passport, civil ID, visa, labour card, driving licence, contract, medical certificate), and an HR category requires an employee. The Documents page has an "HR documents" filter and shows the linked employee.
+- Pending leave appears as a badge on the Leave menu item. It is not yet in the Approvals queue.
+- Not verified in a browser (needs the staging DB): every HR page, payroll approval and payment, attendance import, leave requests with document upload, and HR document upload. Database behaviour is covered by `supabase/tests/20261112000700_hr.test.mjs`.

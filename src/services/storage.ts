@@ -12,7 +12,7 @@ import { ServiceError, supabase } from './core';
 
 export type BucketId = 'documents' | 'media';
 
-export type DocumentEntity = 'documents' | 'expenses' | 'invoices' | 'payments' | 'maintenance' | 'accidents' | 'journal';
+export type DocumentEntity = 'documents' | 'expenses' | 'invoices' | 'payments' | 'maintenance' | 'accidents' | 'journal' | 'leave';
 export type MediaEntity = 'vehicles' | 'logos' | 'avatars';
 export type StorageEntity = DocumentEntity | MediaEntity;
 
@@ -30,7 +30,7 @@ export const BUCKETS: Record<BucketId, BucketConfig> = {
     id: 'documents',
     maxBytes: 10 * 1024 * 1024,
     mimeTypes: ['application/pdf', 'image/png', 'image/jpeg'],
-    entities: ['documents', 'expenses', 'invoices', 'payments', 'maintenance', 'accidents', 'journal'],
+    entities: ['documents', 'expenses', 'invoices', 'payments', 'maintenance', 'accidents', 'journal', 'leave'],
     label: 'PDF, PNG or JPEG',
   },
   media: {

@@ -9,7 +9,8 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { TransferOfficeModal, TransferHistory, useCanTransfer } from '../../components/common/TransferOfficeModal';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, getDaysDifference } from '../../utils/date';
+import { employeeGratuity } from '../../services/hr';
 
 interface EmployeeDetailModalProps {
   employee: Employee | null;
@@ -112,6 +113,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
           <p><span className="text-slate-400">Office: </span><span className="font-semibold text-slate-200">{companies.find(c => c.id === employee.companyId)?.name ?? '—'}</span></p>
           <TransferHistory entity="employee" recordId={employee.id} />
         </div>
+        <EmployeePapers employee={employee} />
         {moving && (
           <TransferOfficeModal entity="employee" record={{ id: employee.id, label: `${employee.name} (${employee.employeeCode})`, officeId: employee.companyId }}
             onClose={() => setMoving(false)} />
@@ -296,5 +298,45 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
         </div>
       </div>
     </Modal>
+  );
+};
+
+const EmployeePapers: React.FC<{ employee: Employee }> = ({ employee }) => {
+  const { employees, currency } = useFleet();
+  const { hasPermission } = useAuth();
+  const [gratuity, setGratuity] = useState<number | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const canSeePay = hasPermission('view', 'payroll', employee.companyId) || hasPermission('view', 'hr', employee.companyId);
+  const manager = employees.find(e => e.id === employee.managerId);
+  const papers: [string, string | undefined, string | undefined][] = [
+    ['Civil ID', employee.civilId, employee.civilIdExpiryDate], ['Passport', employee.passportNumber, employee.passportExpiryDate],
+    ['Visa', employee.visaNumber, employee.visaExpiryDate], ['Labour card', employee.labourCardNumber, employee.labourCardExpiryDate],
+  ];
+  const tone = (d?: string) => (!d ? 'text-slate-400' : getDaysDifference(d) < 0 ? 'text-rose-500 font-bold' : getDaysDifference(d) <= 30 ? 'text-amber-500' : 'text-slate-200');
+  return (
+    <div className="p-3.5 border border-slate-800 rounded-xl space-y-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div><span className="text-slate-400 block">Reports to</span><span className="font-semibold text-slate-200">{manager ? `${manager.name} (${manager.employeeCode})` : '—'}</span></div>
+        <div><span className="text-slate-400 block">Sponsor</span><span className="font-semibold text-slate-200">{employee.sponsor || '—'}</span></div>
+        <div><span className="text-slate-400 block">Joined</span><span className="font-semibold text-slate-200">{formatDate(employee.joiningDate)}</span></div>
+        <div><span className="text-slate-400 block">Leaving date</span><span className="font-semibold text-slate-200">{employee.terminationDate ? formatDate(employee.terminationDate) : '—'}</span></div>
+        {papers.map(([label, number, expiry]) => (
+          <div key={label}>
+            <span className="text-slate-400 block">{label}</span>
+            <span className="font-mono text-slate-200">{number || '—'}</span>
+            <span className={`block text-[11px] ${tone(expiry)}`}>{expiry ? `Expires ${formatDate(expiry)}` : 'No expiry recorded'}</span>
+          </div>
+        ))}
+      </div>
+      {canSeePay && (
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
+          <span className="text-slate-400">End-of-service gratuity{employee.gratuityPaidOn ? ` (paid ${formatDate(employee.gratuityPaidOn)})` : ' to date'}:</span>
+          {gratuity === null
+            ? <Button variant="outline" size="xs" onClick={() => employeeGratuity(employee.id, employee.terminationDate || undefined).then(setGratuity).catch(e => setErr((e as Error).message))}>Calculate</Button>
+            : <span className="font-bold text-slate-100">{formatCurrency(gratuity, currency)}</span>}
+          {err && <span className="text-rose-500">{err}</span>}
+        </div>
+      )}
+    </div>
   );
 };
