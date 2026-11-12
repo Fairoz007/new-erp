@@ -70,7 +70,7 @@ function validate(kind: Kind, r: Row, offices: Company[], goLive: string): strin
 }
 
 // find a client/supplier by code, VAT number or exact name; create it when missing
-async function resolveParty(kind: 'Customer' | 'Supplier', r: Row): Promise<string> {
+async function resolveParty(kind: 'Customer' | 'Supplier', r: Row, officeId: string): Promise<string> {
   const table = kind === 'Customer' ? 'customers' : 'suppliers';
   const codeCol = kind === 'Customer' ? 'customer_code' : 'supplier_code';
   const db = supabase as any;
@@ -84,7 +84,7 @@ async function resolveParty(kind: 'Customer' | 'Supplier', r: Row): Promise<stri
   const found = (await tryFind(codeCol, r.code)) ?? (await tryFind('vat_number', r.vat_number)) ?? (await tryFind('name', r.name));
   if (found) return found;
   if (!r.name) throw new Error(`No ${kind.toLowerCase()} with code ${r.code}`);
-  const row: Record<string, unknown> = { name: r.name.trim(), vat_number: r.vat_number || null, [codeCol]: r.code || null };
+  const row: Record<string, unknown> = { name: r.name.trim(), vat_number: r.vat_number || null, [codeCol]: r.code || null, office_id: officeId };
   row[kind === 'Customer' ? 'customer_type' : 'supplier_type'] = kind === 'Customer' ? 'Corporate' : 'General';
   const { data, error } = await db.from(table).insert(row).select('id').single();
   if (error) throw new Error(error.message);
@@ -136,7 +136,7 @@ const Importer: React.FC<{ kind: Kind; offices: Company[]; goLive: string; curre
           });
         } else if (kind === 'parties') {
           const type = r.party_type.toLowerCase() === 'supplier' ? 'Supplier' : 'Customer';
-          const partyId = await resolveParty(type, r);
+          const partyId = await resolveParty(type, r, office.id);
           await org.postOpeningPartyBalance({ companyId: office.id, partyType: type, partyId, amount: amt(r.amount), date: r.date || goLive, dueDate: r.due_date, reference: r.reference });
         } else {
           await org.postOpeningFixedAsset(office.id, {

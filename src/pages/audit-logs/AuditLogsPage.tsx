@@ -9,7 +9,7 @@ import { formatDateTime } from '../../utils/date';
 import { AUDIT_LOG_LIMIT } from '../../services/system';
 
 export const AuditLogsPage: React.FC = () => {
-  const { auditLogs, reload } = useFleet();
+  const { auditLogs, reload, selectedCompanyId } = useFleet();
   const [actionFilter, setActionFilter] = useState<string>('all');
 
   // Every write adds audit rows (DB triggers); mutations do not refetch them, so load fresh on open.
@@ -17,6 +17,8 @@ export const AuditLogsPage: React.FC = () => {
 
   const filteredLogs = auditLogs.filter(l => {
     if (actionFilter !== 'all' && l.action !== actionFilter) return false;
+    // one office selected: its rows plus organization-level rows (users, roles, settings)
+    if (selectedCompanyId !== 'all' && l.companyId && l.companyId !== selectedCompanyId) return false;
     return true;
   });
 

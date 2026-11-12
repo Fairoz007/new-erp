@@ -1,11 +1,13 @@
-import React from 'react';
-import { Users, Phone, Mail, Building2, CreditCard, Calendar, DollarSign, ExternalLink, Pencil, ShieldCheck, Printer } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Phone, Mail, Building2, CreditCard, Calendar, DollarSign, ExternalLink, Pencil, ShieldCheck, Printer, ArrowRightLeft } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Employee, PayslipModalData } from '../../types/hr';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
+import { TransferOfficeModal, TransferHistory, useCanTransfer } from '../../components/common/TransferOfficeModal';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
@@ -24,10 +26,14 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
   onEdit,
   latestPayslip,
 }) => {
-  const { currency, payrollRuns } = useFleet();
+  const { currency, payrollRuns, companies } = useFleet();
   const { openPayslipModal } = useUI();
+  const { hasPermission } = useAuth();
+  const [moving, setMoving] = useState(false);
+  const canTransfer = useCanTransfer('employee', employee?.companyId ?? '');
 
   if (!employee) return null;
+  const canEdit = hasPermission('edit', 'hr', employee.companyId);
 
   const pasiEmployee = Math.round(employee.basicSalary * (employee.pasiContributionPercentage || 0) * 10) / 1000;
   const pasiEmployer = Math.round(employee.basicSalary * (employee.employerPasiPercentage || 0) * 10) / 1000;
@@ -60,8 +66,9 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
       }
       size="xl"
       footer={
-        <div className="flex items-center justify-between w-full">
-          <Button
+        <div className="flex items-center justify-between w-full gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+          {canEdit && <Button
             variant="outline"
             size="sm"
             onClick={() => {
@@ -71,7 +78,13 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
             leftIcon={<Pencil className="w-4 h-4" />}
           >
             Edit Record
-          </Button>
+          </Button>}
+          {canTransfer && (
+            <Button variant="outline" size="sm" onClick={() => setMoving(true)} leftIcon={<ArrowRightLeft className="w-4 h-4" />}>
+              Transfer to office
+            </Button>
+          )}
+          </div>
 
           <div className="flex items-center gap-2">
             {latestPayslip && (
@@ -95,6 +108,14 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
       }
     >
       <div className="space-y-6 text-xs text-slate-300">
+        <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
+          <p><span className="text-slate-400">Office: </span><span className="font-semibold text-slate-200">{companies.find(c => c.id === employee.companyId)?.name ?? '—'}</span></p>
+          <TransferHistory entity="employee" recordId={employee.id} />
+        </div>
+        {moving && (
+          <TransferOfficeModal entity="employee" record={{ id: employee.id, label: `${employee.name} (${employee.employeeCode})`, officeId: employee.companyId }}
+            onClose={() => setMoving(false)} />
+        )}
         {/* Compensation Breakdown */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl">

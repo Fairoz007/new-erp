@@ -25,6 +25,7 @@ import {
   Trash2,
   Edit,
   Upload,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -39,6 +40,7 @@ import { useAuth } from '../../context/AuthContext';
 import { downloadDocument } from '../../services/documents';
 import { VehiclePhoto, useVehiclePhotoUrls } from './VehiclePhoto';
 import { VehicleEditModal } from './VehicleEditModal';
+import { TransferOfficeModal, TransferHistory, useCanTransfer } from '../../components/common/TransferOfficeModal';
 
 export const VehicleDetailPage: React.FC = () => {
   const {
@@ -65,6 +67,7 @@ export const VehicleDetailPage: React.FC = () => {
   const { hasPermission } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   const vehicle = vehicles.find(v => v.id === selectedVehicleId) || (selectedVehicleId ? undefined : vehicles[0]);
   const photoUrl = useVehiclePhotoUrls([vehicle?.photoUrl]);
@@ -75,8 +78,9 @@ export const VehicleDetailPage: React.FC = () => {
     setTimelineScope(vehicleKey);
     reload(['timeline']).catch(() => undefined);
   }, [vehicleKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const canEdit = hasPermission('edit', 'vehicles');
-  const canDelete = hasPermission('delete', 'vehicles');
+  const canEdit = hasPermission('edit', 'vehicles', vehicle?.companyId);
+  const canDelete = hasPermission('delete', 'vehicles', vehicle?.companyId);
+  const canTransfer = useCanTransfer('vehicle', vehicle?.companyId ?? '');
 
   const handleDelete = async () => {
     if (!vehicle || deleting) return;
@@ -183,6 +187,11 @@ export const VehicleDetailPage: React.FC = () => {
           {canEdit && (
             <Button variant="outline" size="xs" onClick={() => setEditOpen(true)} leftIcon={<Edit className="w-3.5 h-3.5" />}>
               Edit Vehicle
+            </Button>
+          )}
+          {canTransfer && (
+            <Button variant="outline" size="xs" onClick={() => setMoving(true)} leftIcon={<ArrowRightLeft className="w-3.5 h-3.5" />}>
+              Transfer to office
             </Button>
           )}
           {canDelete && (
@@ -1067,6 +1076,10 @@ export const VehicleDetailPage: React.FC = () => {
         </div>
       )}
 
+      {moving && (
+        <TransferOfficeModal entity="vehicle" record={{ id: vehicle.id, label: `${vehicle.plateNumber} (${vehicle.vehicleId})`, officeId: vehicle.companyId }}
+          onClose={() => setMoving(false)} />
+      )}
       {editOpen && (
         <VehicleEditModal
           isOpen
@@ -1083,6 +1096,10 @@ export const VehicleDetailPage: React.FC = () => {
       {selectedVehicleTab === 'timeline' && (
         <div className="space-y-4">
           <h3 className="text-sm font-bold text-slate-200">Chronological Vehicle Lifecycle Timeline</h3>
+          <div>
+            <h4 className="text-xs font-bold text-slate-300 mb-1.5">Office transfers</h4>
+            <TransferHistory entity="vehicle" recordId={vehicle.id} />
+          </div>
 
           <div className="relative pl-6 border-l-2 border-slate-800 space-y-6 ml-3 my-4">
             {vehicleTimeline.map(item => (

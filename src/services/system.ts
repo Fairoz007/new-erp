@@ -121,6 +121,7 @@ export const rowToAuditLog = (r: Row): AuditLog => {
 
   return {
     id: String(r.id),
+    companyId: r.company_id ?? undefined,
     timestamp: r.occurred_at,
     userId: r.user_id ?? '',
     userName: r.user_name ?? (r.user_id ? 'Unknown user' : 'System'),

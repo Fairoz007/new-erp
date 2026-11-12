@@ -70,6 +70,7 @@ export interface AuditLog {
   oldValue?: string;
   newValue?: string;
   ipAddress?: string;
+  companyId?: string;           // office of the changed row, when it has one
 }
 
 export type NotificationType =

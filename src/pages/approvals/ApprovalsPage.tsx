@@ -12,7 +12,8 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
 export const ApprovalsPage: React.FC = () => {
-  const { approvalRequests, processApproval, currency } = useFleet();
+  const { approvalRequests: allRequests, processApproval, currency, selectedCompanyId } = useFleet();
+  const approvalRequests = selectedCompanyId === 'all' ? allRequests : allRequests.filter(r => r.companyId === selectedCompanyId);
   const { currentUser, canApprove } = useAuth();
   const { addToast } = useUI();
 
@@ -34,7 +35,7 @@ export const ApprovalsPage: React.FC = () => {
   const handleConfirmAction = async () => {
     if (!selectedRequest || submitting) return;
     const reqModule = selectedRequest.referenceType === 'WorkOrder' ? 'maintenance' : selectedRequest.referenceType === 'Invoice' ? 'invoice' : 'expense';
-    if (!canApprove(reqModule, selectedRequest.amount)) {
+    if (!canApprove(reqModule, selectedRequest.amount, selectedRequest.companyId)) {
       addToast({
         type: 'error',
         title: 'Authorization Required',
@@ -103,7 +104,7 @@ export const ApprovalsPage: React.FC = () => {
         )}
         {visibleRequests.slice(0, shown).map(req => {
           const reqModule = req.referenceType === 'WorkOrder' ? 'maintenance' : req.referenceType === 'Invoice' ? 'invoice' : 'expense';
-          const userCanSign = canApprove(reqModule, req.amount);
+          const userCanSign = canApprove(reqModule, req.amount, req.companyId);
 
           return (
             <Card key={req.id} className="p-5 sm:p-6 rounded-[20px] bg-white border border-slate-700 shadow-card">

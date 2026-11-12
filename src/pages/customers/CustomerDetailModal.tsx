@@ -5,6 +5,8 @@ import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Customer } from '../../types/operations';
 import { useFleet } from '../../context/FleetContext';
+import { TransferHistory } from '../../components/common/TransferOfficeModal';
+import { SHARING_LABEL } from '../../components/common/PartyOfficeFields';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
@@ -22,7 +24,7 @@ export const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
   onClose,
   onEdit,
 }) => {
-  const { invoices, payments, currency } = useFleet();
+  const { invoices, payments, currency, companies } = useFleet();
   const { openInvoiceModal, setCurrentPage, openQuickModal } = useUI();
 
   if (!customer) return null;
@@ -143,6 +145,26 @@ export const CustomerDetailModal: React.FC<CustomerDetailModalProps> = ({
               <span className="text-slate-200 truncate">{customer.address || '-'}</span>
             </div>
           </div>
+        </div>
+
+        {/* Office ownership & sharing */}
+        <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-xl space-y-3">
+          <h3 className="font-bold text-slate-200 text-xs uppercase tracking-wider">Office</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-slate-400 block text-[11px]">Home office</span>
+              <span className="font-semibold text-slate-200">{companies.find(o => o.id === customer.officeId)?.name ?? '—'}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[11px]">Visible to</span>
+              <span className="text-slate-200">
+                {customer.sharing === 'selected'
+                  ? customer.sharedOfficeIds.map(id => companies.find(o => o.id === id)?.name ?? 'Other office').join(', ')
+                  : SHARING_LABEL[customer.sharing]}
+              </span>
+            </div>
+          </div>
+          <TransferHistory entity="client" recordId={customer.id} />
         </div>
 
         {/* Transaction History: Invoices */}

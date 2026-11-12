@@ -12,12 +12,24 @@ import { PartyEditModal } from '../suppliers/PartyEditModal';
 import { CustomerDetailModal } from './CustomerDetailModal';
 import { Pencil, Power } from 'lucide-react';
 import { formatCurrency } from '../../utils/financial';
+import { partyAvailableIn } from '../../services/finance';
+import { Badge } from '../../components/ui/Badge';
+import { SHARING_LABEL } from '../../components/common/PartyOfficeFields';
+import { PartySharingModal } from '../../components/common/PartySharingModal';
+import { TransferOfficeModal } from '../../components/common/TransferOfficeModal';
+import { ArrowRightLeft, Share2 } from 'lucide-react';
 
 export const CustomersPage: React.FC = () => {
-  const { customers, currency, updateCustomer } = useFleet();
+  const { customers: allCustomers, currency, updateCustomer, companies, selectedCompanyId } = useFleet();
   const { openQuickModal, addToast } = useUI();
   const { hasPermission } = useAuth();
-  const canEdit = hasPermission('edit', 'customers');
+  const canEditIn = (officeId: string) => hasPermission('edit', 'customers', officeId);
+  const canTransfer = (officeId: string) => canEditIn(officeId) && companies.some(o => o.id !== officeId && hasPermission('create', 'customers', o.id));
+  const officeName = (id: string) => companies.find(o => o.id === id)?.name ?? '—';
+  // "All offices" shows everything the user can see; one office shows what that office may use.
+  const customers = selectedCompanyId === 'all' ? allCustomers : allCustomers.filter(p => partyAvailableIn(p, selectedCompanyId));
+  const [sharing, setSharing] = useState<Customer | null>(null);
+  const [moving, setMoving] = useState<Customer | null>(null);
   const canCreate = hasPermission('create', 'customers');
   const [editing, setEditing] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
@@ -60,6 +72,18 @@ export const CustomersPage: React.FC = () => {
             </span>
             <span className="text-[10px] text-slate-400">• {c.customerType}</span>
           </div>
+        </div>
+      ),
+    },
+    {
+      key: 'officeId',
+      header: 'Office',
+      render: (c) => (
+        <div>
+          <p className="text-slate-200 text-xs font-semibold">{officeName(c.officeId)}</p>
+          <Badge variant={c.sharing === 'office' ? 'slate' : 'emerald'}>
+            {c.sharing === 'selected' ? `+${c.sharedOfficeIds.length} office${c.sharedOfficeIds.length === 1 ? '' : 's'}` : SHARING_LABEL[c.sharing]}
+          </Badge>
         </div>
       ),
     },
@@ -123,8 +147,11 @@ export const CustomersPage: React.FC = () => {
           <Button variant="ghost" size="xs" onClick={() => setViewingCustomer(c)} leftIcon={<Eye className="w-3 h-3" />}>
             Details
           </Button>
-          {canEdit && (
+          {canEditIn(c.officeId) && (
             <>
+              <Button variant="ghost" size="xs" onClick={() => setSharing(c)} leftIcon={<Share2 className="w-3 h-3" />}>
+                Sharing
+              </Button>
               <Button variant="ghost" size="xs" onClick={() => setEditing(c)} leftIcon={<Pencil className="w-3 h-3" />}>
                 Edit
               </Button>
@@ -133,6 +160,11 @@ export const CustomersPage: React.FC = () => {
                 {c.status === 'Active' ? 'Deactivate' : 'Activate'}
               </Button>
             </>
+          )}
+          {canTransfer(c.officeId) && (
+            <Button variant="ghost" size="xs" onClick={() => setMoving(c)} leftIcon={<ArrowRightLeft className="w-3 h-3" />}>
+              Transfer
+            </Button>
           )}
         </div>
       ),
@@ -202,8 +234,11 @@ export const CustomersPage: React.FC = () => {
         title="Customer Master Registry"
         searchPlaceholder="Search customers by name, ID, contact, phone, VAT number..."
         searchFields={['name', 'customerId', 'contactPerson', 'phone', 'email', 'vatNumber', 'customerType']}
-        exportFilename="FleetX_Customers_Directory"
+        exportFilename="Customers"
       />
+
+      <PartySharingModal type="Customer" party={sharing} onClose={() => setSharing(null)} />
+      <TransferOfficeModal entity="client" record={moving ? { id: moving.id, label: moving.name, officeId: moving.officeId } : null} onClose={() => setMoving(null)} />
 
       <PartyEditModal
         kind="customer"

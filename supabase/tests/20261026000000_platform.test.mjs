@@ -115,8 +115,8 @@ await check('fixed asset FA-001, depreciation DEP-YYYY-01, employee EMP-001, pay
   return JSON.stringify(r);
 });
 await check('suppliers/customers: global SUP-/CUST- sequence, seeded SUP-001 respected', async () => {
-  await tx(ADMIN, `insert into suppliers (supplier_code, name, supplier_type) values (null, 'S2', 'Garage');
-                   insert into suppliers (name, supplier_type) values ('S3', 'Garage')`);
+  await tx(ADMIN, `insert into suppliers (supplier_code, name, supplier_type, office_id) values (null, 'S2', 'Garage', '${HO}');
+                   insert into suppliers (name, supplier_type, office_id) values ('S3', 'Garage', '${HO}')`);
   const r = (await asServer(`select string_agg(supplier_code, ',' order by supplier_code) s from suppliers`)).rows[0].s;
   const c = await val(`select customer_code from customers where name='C'`);
   assert(r === 'SUP-001,SUP-002,SUP-003' && c === 'CUST-001', r + ' ' + c); return r + ', ' + c;

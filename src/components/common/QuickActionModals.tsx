@@ -3,6 +3,8 @@ import { Plus, Trash2, Car, Wrench, Fuel, AlertTriangle, FileText, DollarSign, U
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, Select, Textarea } from '../ui/Input';
+import { partyAvailableIn } from '../../services/finance';
+import { PartyOfficeFields, PartyOfficeValue, validatePartyOffice } from './PartyOfficeFields';
 import { DocumentUploadZone, UploadedFileMeta, UploadDocumentForm } from './DocumentUploadZone';
 import { BUCKETS, formatFileSize, removeFiles, toStorageRef, uploadFile, validateFile } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
@@ -291,6 +293,22 @@ export const QuickActionModals: React.FC = () => {
     openingBalance: 0,
     status: 'Active' as const,
   });
+
+  // Only parties shared with the form's office are offered (the database rejects the rest).
+  const usable = <P extends { officeId: string; sharing: string; sharedOfficeIds: string[] }>(list: P[], officeId: string): P[] =>
+    officeId ? list.filter(p => partyAvailableIn(p, officeId)) : list;
+
+  const blankPartyOffice = (): PartyOfficeValue => ({
+    officeId: selectedCompanyId !== 'all' ? selectedCompanyId : companies.length === 1 ? companies[0].id : '',
+    sharing: 'office', sharedOfficeIds: [],
+  });
+  const [supplierOffice, setSupplierOffice] = useState<PartyOfficeValue>(blankPartyOffice);
+  const [customerOffice, setCustomerOffice] = useState<PartyOfficeValue>(blankPartyOffice);
+  useEffect(() => {
+    if (quickModal === 'add-supplier') setSupplierOffice(blankPartyOffice());
+    if (quickModal === 'add-customer') setCustomerOffice(blankPartyOffice());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickModal]);
 
   // 14. ADD CUSTOMER STATE
   const [customerForm, setCustomerForm] = useState({
@@ -785,6 +803,8 @@ export const QuickActionModals: React.FC = () => {
       addToast({ type: 'error', title: 'Validation Error', message: 'Supplier name is required.' });
       return;
     }
+    const officeErr = validatePartyOffice(supplierOffice);
+    if (officeErr) { addToast({ type: 'error', title: 'Validation Error', message: officeErr }); return; }
     run('Supplier Not Saved', async () => {
       const s = await addSupplier({
         name: supplierForm.name.trim(),
@@ -803,6 +823,7 @@ export const QuickActionModals: React.FC = () => {
         status: supplierForm.status,
         bankDetails: { bankName: '', accountNumber: '', iban: '', swiftCode: '' },
         notes: '',
+        ...supplierOffice,
       });
       addToast({ type: 'success', title: 'Supplier Created', message: `Registered ${s.supplierId} ${s.name}.` });
       closeQuickModal();
@@ -815,6 +836,8 @@ export const QuickActionModals: React.FC = () => {
       addToast({ type: 'error', title: 'Validation Error', message: 'Customer name is required.' });
       return;
     }
+    const officeErr = validatePartyOffice(customerOffice);
+    if (officeErr) { addToast({ type: 'error', title: 'Validation Error', message: officeErr }); return; }
     run('Customer Not Saved', async () => {
       const c = await addCustomer({
         name: customerForm.name.trim(),
@@ -831,6 +854,7 @@ export const QuickActionModals: React.FC = () => {
         creditLimit: Number(customerForm.creditLimit) || 0,
         openingBalance: Number(customerForm.openingBalance) || 0,
         status: customerForm.status,
+        ...customerOffice,
       });
       addToast({ type: 'success', title: 'Customer Created', message: `Registered ${c.customerId} ${c.name}.` });
       closeQuickModal();
@@ -1047,7 +1071,7 @@ export const QuickActionModals: React.FC = () => {
             <Input label="VIN / Chassis Number" placeholder="17-character VIN" value={vehicleForm.vin} onChange={e => setVehicleForm({ ...vehicleForm, vin: e.target.value })} />
             <Input label="Purchase Value (OMR)" type="number" step="0.001" value={vehicleForm.purchaseValue} onChange={e => setVehicleForm({ ...vehicleForm, purchaseValue: Number(e.target.value) })} required />
             <Select label="Supplier / Dealer" value={vehicleForm.supplierId} onChange={e => setVehicleForm({ ...vehicleForm, supplierId: e.target.value })}>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {usable(suppliers, vehicleForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </div>
 
@@ -1109,7 +1133,7 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Odometer Reading (KM)" type="number" value={mntForm.odometerReading} onChange={e => setMntForm({ ...mntForm, odometerReading: Number(e.target.value) })} />
             <Select label="Workshop / Supplier" value={mntForm.supplierId} onChange={e => setMntForm({ ...mntForm, supplierId: e.target.value })}>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {usable(suppliers, mntForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
             <Input label="Service Centre Name" value={mntForm.serviceCentre} onChange={e => setMntForm({ ...mntForm, serviceCentre: e.target.value })} />
           </div>
@@ -1159,7 +1183,7 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select label="Assigned Supplier / Workshop" value={woForm.supplierId} onChange={e => setWoForm({ ...woForm, supplierId: e.target.value })}>
               <option value="">Not assigned</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {usable(suppliers, woForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
             <Input label="Estimated Cost (OMR)" type="number" step="0.001" value={woForm.estimatedCost} onChange={e => setWoForm({ ...woForm, estimatedCost: Number(e.target.value) })} required />
             <Input label="Requested By" value={currentUser.name} readOnly />
@@ -1250,7 +1274,7 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select label="Supplier / Vendor (optional)" value={expForm.supplierId} onChange={e => setExpForm({ ...expForm, supplierId: e.target.value })}>
               <option value="">-- None --</option>
-              {suppliers.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+              {usable(suppliers, expForm.companyId).map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
             </Select>
             <Input label="Cost Centre (optional)" placeholder="e.g. Operations" value={expForm.costCentre} onChange={e => setExpForm({ ...expForm, costCentre: e.target.value })} />
           </div>
@@ -1336,8 +1360,8 @@ export const QuickActionModals: React.FC = () => {
             <Select label={invoiceForm.invoiceType === 'Purchase' ? 'Supplier' : 'Customer'} value={invoiceForm.partyId} onChange={e => setInvoiceForm({ ...invoiceForm, partyId: e.target.value })} required>
               <option value="">Select {invoiceForm.invoiceType === 'Purchase' ? 'supplier' : 'customer'}</option>
               {invoiceForm.invoiceType === 'Purchase'
-                ? suppliers.filter(s => s.status === 'Active').map(s => <option key={s.id} value={s.id}>{s.name}</option>)
-                : customers.filter(c => c.status === 'Active').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                ? usable(suppliers, invoiceForm.companyId).filter(s => s.status === 'Active').map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                : usable(customers, invoiceForm.companyId).filter(c => c.status === 'Active').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
             <Select label="Vehicle (Optional)" value={invoiceForm.vehicleId} onChange={e => setInvoiceForm({ ...invoiceForm, vehicleId: e.target.value })}>
               <option value="">-- General Fleet --</option>
@@ -1696,6 +1720,7 @@ export const QuickActionModals: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleCreateSupplier} className="space-y-4">
+          <PartyOfficeFields module="suppliers" value={supplierOffice} onChange={setSupplierOffice} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Supplier Company Name"
@@ -1784,6 +1809,7 @@ export const QuickActionModals: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleCreateCustomer} className="space-y-4">
+          <PartyOfficeFields module="customers" value={customerOffice} onChange={setCustomerOffice} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Customer / Client Name"
@@ -1950,7 +1976,7 @@ export const QuickActionModals: React.FC = () => {
               value={tyreForm.supplierId}
               onChange={e => setTyreForm({ ...tyreForm, supplierId: e.target.value })}
             >
-              {suppliers.map(s => (
+              {usable(suppliers, tyreForm.companyId).map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </Select>

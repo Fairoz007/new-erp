@@ -91,7 +91,7 @@ await check('document formats can be edited but not deleted', async () => {
   return as(ADMIN, `delete from document_formats where doc_type = 'sales_invoice'`);
 }, 'permission denied');
 await check('sales invoice numbers follow the edited format (prefix + office code + year)', async () => {
-  await tx(ADMIN, `insert into customers (id, name, customer_type) values ('77777777-0000-0000-0000-000000000001','Bus Co','Corporate');
+  await tx(ADMIN, `insert into customers (id, name, customer_type, office_id) values ('77777777-0000-0000-0000-000000000001','Bus Co','Corporate','${HO}');
      insert into invoices (company_id, invoice_number, invoice_type, party_type, customer_id, invoice_date, due_date)
      values ('${HO}', null, 'Sales', 'Customer', '77777777-0000-0000-0000-000000000001', '2026-11-01', '2026-11-30')`);
   const n = await val(`select invoice_number from invoices where customer_id = '77777777-0000-0000-0000-000000000001'`);

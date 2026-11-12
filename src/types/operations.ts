@@ -140,7 +140,13 @@ export interface Supplier {
   status: 'Active' | 'Inactive' | 'Blocked';
   notes?: string;
   createdAt: string;
+  officeId: string;                                   // home office
+  sharing: PartySharing;
+  sharedOfficeIds: string[];                          // when sharing = 'selected'
+  customFields?: Record<string, unknown>;
 }
+
+export type PartySharing = 'office' | 'selected' | 'organization';
 
 export interface Customer {
   id: string;
@@ -165,6 +171,10 @@ export interface Customer {
   status: 'Active' | 'Inactive';
   notes?: string;
   createdAt: string;
+  officeId: string;
+  sharing: PartySharing;
+  sharedOfficeIds: string[];
+  customFields?: Record<string, unknown>;
 }
 
 export type DocumentCategory =

@@ -101,6 +101,10 @@ export const rowToSupplier = (r: Row, s?: PartySummary): Supplier => ({
   status: r.status,
   notes: r.notes ?? undefined,
   createdAt: r.created_at,
+  officeId: r.office_id ?? '',
+  sharing: r.sharing ?? 'office',
+  sharedOfficeIds: (r.shares ?? []).map((x: Row) => x.company_id),
+  customFields: r.custom_fields ?? {},
 });
 
 export const rowToCustomer = (r: Row, s?: PartySummary): Customer => ({
@@ -126,6 +130,10 @@ export const rowToCustomer = (r: Row, s?: PartySummary): Customer => ({
   status: r.status,
   notes: r.notes ?? undefined,
   createdAt: r.created_at,
+  officeId: r.office_id ?? '',
+  sharing: r.sharing ?? 'office',
+  sharedOfficeIds: (r.shares ?? []).map((x: Row) => x.company_id),
+  customFields: r.custom_fields ?? {},
 });
 
 const partyCommonToRow = (p: Partial<Supplier> | Partial<Customer>): Row => {
@@ -144,7 +152,8 @@ const partyCommonToRow = (p: Partial<Supplier> | Partial<Customer>): Row => {
   if (p.openingBalance !== undefined) row.opening_balance = p.openingBalance;
   if (p.status !== undefined) row.status = p.status;
   if (p.notes !== undefined) row.notes = nul(p.notes);
-  return row;
+  if (p.customFields !== undefined) row.custom_fields = p.customFields ?? {};
+  return row;   // office_id / sharing change only through transfer_to_office / set_party_sharing
 };
 
 export const supplierToRow = (p: Partial<Supplier>): Row => {
@@ -170,21 +179,21 @@ async function partySummaries(partyType: 'Supplier' | 'Customer', ids?: string[]
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
-  const [rows, sums] = await Promise.all([fetchAll('suppliers', '*', 'name', true), partySummaries('Supplier')]);
+  const [rows, sums] = await Promise.all([fetchAll('suppliers', '*, shares:party_office_shares(company_id)', 'name', true), partySummaries('Supplier')]);
   return rows.map(r => rowToSupplier(r, sums.get(r.id)));
 }
 
 export async function fetchCustomers(): Promise<Customer[]> {
-  const [rows, sums] = await Promise.all([fetchAll('customers', '*', 'name', true), partySummaries('Customer')]);
+  const [rows, sums] = await Promise.all([fetchAll('customers', '*, shares:party_office_shares(company_id)', 'name', true), partySummaries('Customer')]);
   return rows.map(r => rowToCustomer(r, sums.get(r.id)));
 }
 
 async function loadSupplier(id: string): Promise<Supplier> {
-  const r = await unwrapOne<Row>(table('suppliers').select('*').eq('id', id).maybeSingle());
+  const r = await unwrapOne<Row>(table('suppliers').select('*, shares:party_office_shares(company_id)').eq('id', id).maybeSingle());
   return rowToSupplier(r, (await partySummaries('Supplier', [id])).get(id));
 }
 async function loadCustomer(id: string): Promise<Customer> {
-  const r = await unwrapOne<Row>(table('customers').select('*').eq('id', id).maybeSingle());
+  const r = await unwrapOne<Row>(table('customers').select('*, shares:party_office_shares(company_id)').eq('id', id).maybeSingle());
   return rowToCustomer(r, (await partySummaries('Customer', [id])).get(id));
 }
 
@@ -192,8 +201,10 @@ export async function addSupplier(
   supplier: Omit<Supplier, 'id' | 'supplierId' | 'currentBalance' | 'totalPurchases' | 'totalInvoicesCount' | 'amountPaid' | 'creditNotesAmount' | 'createdAt'>,
 ): Promise<Supplier> {
   if (!supplier.name?.trim()) throw new ServiceError('Supplier name is required.');
-  const row = { ...supplierToRow(supplier), supplier_code: null };   // SUP-### assigned by the DB
+  if (!supplier.officeId) throw new ServiceError('Choose the office this supplier belongs to.');
+  const row = { ...supplierToRow(supplier), supplier_code: null, office_id: supplier.officeId };   // SUP-### assigned by the DB
   const r = await unwrapOne<Row>(table('suppliers').insert(row).select('id').single());
+  if (supplier.sharing && supplier.sharing !== 'office') await setPartySharing('Supplier', r.id, supplier.sharing, supplier.sharedOfficeIds ?? []);
   return loadSupplier(r.id);
 }
 
@@ -208,9 +219,11 @@ export async function updateSupplier(id: string, supplier: Partial<Supplier>): P
 export async function addCustomer(
   customer: Omit<Customer, 'id' | 'customerId' | 'currentBalance' | 'totalSales' | 'totalInvoicesCount' | 'amountReceived' | 'createdAt'>,
 ): Promise<Customer> {
-  if (!customer.name?.trim()) throw new ServiceError('Customer name is required.');
-  const row = { ...customerToRow(customer), customer_code: null };   // CUST-### assigned by the DB
+  if (!customer.name?.trim()) throw new ServiceError('Client name is required.');
+  if (!customer.officeId) throw new ServiceError('Choose the office this client belongs to.');
+  const row = { ...customerToRow(customer), customer_code: null, office_id: customer.officeId };   // CUST-### assigned by the DB
   const r = await unwrapOne<Row>(table('customers').insert(row).select('id').single());
+  if (customer.sharing && customer.sharing !== 'office') await setPartySharing('Customer', r.id, customer.sharing, customer.sharedOfficeIds ?? []);
   return loadCustomer(r.id);
 }
 
@@ -220,6 +233,15 @@ export async function updateCustomer(id: string, customer: Partial<Customer>): P
   if (Object.keys(row).length === 0) return;
   await unwrapOne(table('customers').update(row).eq('id', id).select('id').maybeSingle());
 }
+
+/** Sharing mode of a client/supplier; needs edit rights in its home office. */
+export async function setPartySharing(type: 'Customer' | 'Supplier', id: string, sharing: 'office' | 'selected' | 'organization', officeIds: string[]): Promise<void> {
+  await rpcAny('set_party_sharing', { p_type: type, p_id: id, p_sharing: sharing, p_offices: officeIds });
+}
+
+/** A party is usable in an office if it lives there, is shared organization-wide, or is shared with it. */
+export const partyAvailableIn = (p: { officeId: string; sharing: string; sharedOfficeIds: string[] }, companyId: string): boolean =>
+  p.sharing === 'organization' || p.officeId === companyId || (p.sharing === 'selected' && p.sharedOfficeIds.includes(companyId));
 
 // ---------------------------------------------------------------------------------------------
 // Invoices

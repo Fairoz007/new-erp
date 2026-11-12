@@ -11,7 +11,7 @@ import { downloadDocument } from '../../services/documents';
 import { formatDate } from '../../utils/date';
 
 export const DocumentsPage: React.FC = () => {
-  const { documents, deleteDocument } = useFleet();
+  const { documents, deleteDocument, selectedCompanyId } = useFleet();
   const { openQuickModal, addToast, openVehicleDetail, openBillModal } = useUI();
   const { hasPermission } = useAuth();
   const canDelete = hasPermission('delete', 'documents');
@@ -54,6 +54,7 @@ export const DocumentsPage: React.FC = () => {
 
   const filteredDocs = documents.filter(d => {
     if (categoryFilter !== 'all' && d.category !== categoryFilter) return false;
+    if (selectedCompanyId !== 'all' && d.companyId !== selectedCompanyId) return false;
     return true;
   });
 
