@@ -453,3 +453,37 @@ badges carry text; the reduced-motion rule in `index.css` covers transitions and
 Tests: `npm run test:browser` (sign-in page at desktop and 375 px, axe with no serious or
 critical issue) 4/4. **Not verified:** any signed-in page in a browser (no database here); the
 per-role axe run (`roles.spec.ts`) needs staging.
+
+---
+
+## Phase 10: Final measurements
+
+| Measurement | Phase 0 | Final |
+|---|---|---|
+| Initial JS (gzip) | 562.3 kB | 220.6 kB (Phase 1: 206.0; the sign-in overlay of Phase 2, validation, dialogs and the shared header add the rest; budget 250) |
+| Lighthouse mobile, sign-in screen (perf / a11y / best practices / SEO) | 70 / 81 / 100 / 91, LCP 4.8 s | 87 / 100 / 100 / 91, LCP 3.2 s |
+| Lighthouse desktop | 98 / 81 / 100 / 91, LCP 1.0 s | 97 / 100 / 100 / 91, LCP 1.0 s |
+| `test:db` checks | 888 | 1,069 |
+| Unit tests | 0 | 43 |
+| Browser (axe) | not run | 4 / 4 signed-out |
+
+Database at target volume, final run with every migration (`docs/perf/volume-pglite-final.json`,
+same data set and command as Phase 1 without `--split`):
+
+| Query (1 request each) | Phase 1 ms | Final ms |
+|---|---|---|
+| Invoices, first page of 25 | 127 | 132 |
+| Invoices, page 200 sorted by amount | 245 | 248 |
+| Invoices, search | 101 | 103 |
+| Invoice figures, all offices / one office | 488 / 56 | 492 / 57 |
+| Trial balance / balance sheet movements | 605 | 613 |
+| P&L movements, this year | 296 | 295 |
+| General ledger, one account, 100 lines | 99 | 129 |
+| Journal list / payments list / audit log, 25 | 2 / 4 / 1 | 2 / 4 / 1 |
+| Dashboard series, 6 months | 7 | 7 |
+
+The locking and request-key triggers (Phase 2) and later migrations did not slow the reads; the
+general-ledger difference is within run-to-run variation of single-threaded PGlite.
+
+Not measured: time to first usable screen after sign-in and the slowest queries on staging (no
+staging database).

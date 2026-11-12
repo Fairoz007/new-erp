@@ -1,0 +1,104 @@
+{
+  "scale": 1,
+  "counts": {
+    "offices": 10,
+    "vehicles": 500,
+    "employees": 300,
+    "invoices": 50000,
+    "journal_lines": 530000,
+    "audit_logs": 436743
+  },
+  "results": [
+    {
+      "query": "after: invoices page, first page of 25 (invoice_page)",
+      "ms": 132,
+      "requests": 1,
+      "rows": 25,
+      "maxRowsPerRequest": 25
+    },
+    {
+      "query": "after: invoices page, page 200 of 25 sorted by amount",
+      "ms": 248,
+      "requests": 1,
+      "rows": 25,
+      "maxRowsPerRequest": 25
+    },
+    {
+      "query": "after: invoices page, search \"ref-3-12\"",
+      "ms": 103,
+      "requests": 1,
+      "rows": 25,
+      "maxRowsPerRequest": 25
+    },
+    {
+      "query": "after: invoice figures, all offices (invoice_summary)",
+      "ms": 492,
+      "requests": 1,
+      "rows": 1,
+      "maxRowsPerRequest": 1
+    },
+    {
+      "query": "after: invoice figures, one office (invoice_summary)",
+      "ms": 57,
+      "requests": 1,
+      "rows": 1,
+      "maxRowsPerRequest": 1
+    },
+    {
+      "query": "after: trial balance / balance sheet movements, all offices (ledger_movements)",
+      "ms": 613,
+      "requests": 1,
+      "rows": 90,
+      "maxRowsPerRequest": 90
+    },
+    {
+      "query": "after: P&L movements for this year (ledger_movements)",
+      "ms": 295,
+      "requests": 1,
+      "rows": 90,
+      "maxRowsPerRequest": 90
+    },
+    {
+      "query": "after: general ledger, one account, first 100 lines (general_ledger_page)",
+      "ms": 129,
+      "requests": 1,
+      "rows": 100,
+      "maxRowsPerRequest": 100
+    },
+    {
+      "query": "after: journal list, first page of 25 with lines (v_journal_list)",
+      "ms": 2,
+      "requests": 1,
+      "rows": 25,
+      "maxRowsPerRequest": 25
+    },
+    {
+      "query": "after: payments list, first page of 25 (v_payment_list)",
+      "ms": 4,
+      "requests": 1,
+      "rows": 25,
+      "maxRowsPerRequest": 25
+    },
+    {
+      "query": "after: expenses list, first page of 25 (expense_page)",
+      "ms": 1,
+      "requests": 1,
+      "rows": 0,
+      "maxRowsPerRequest": 0
+    },
+    {
+      "query": "after: dashboard series, 6 months (dashboard_series)",
+      "ms": 7,
+      "requests": 1,
+      "rows": 184,
+      "maxRowsPerRequest": 184
+    },
+    {
+      "query": "after: audit log, first page of 25",
+      "ms": 1,
+      "requests": 1,
+      "rows": 25,
+      "maxRowsPerRequest": 25
+    }
+  ]
+}
