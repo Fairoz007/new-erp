@@ -17,9 +17,10 @@ import { RecurringExpensesEditor } from '../setup/steps/ExpenseCategoriesStep';
 import { VehicleExpense } from '../../types/operations';
 import { tableCls, tdCls, thCls } from '../setup/shared';
 import { EXPENSE_RELOAD } from './ExpenseDetailModal';
+import { useExpenseList } from '../../services/queries-expenses';
 
 export const MonthlyExpensesPanel: React.FC<{ onOpen: (e: VehicleExpense) => void }> = ({ onOpen }) => {
-  const { expenses, companies, selectedCompanyId, currency, reload } = useFleet();
+  const { companies, selectedCompanyId, currency, reload } = useFleet();
   const { hasPermission } = useAuth();
   const { addToast } = useUI();
   const { rows: templates } = useMaster<RecurringExpense>('recurringExpenses');
@@ -36,7 +37,9 @@ export const MonthlyExpensesPanel: React.FC<{ onOpen: (e: VehicleExpense) => voi
     .map(t => ({ t, next: nextRecurringDate(t, today) }))
     .filter(x => x.next)
     .sort((a, b) => (a.next! < b.next! ? -1 : 1));
-  const drafts = expenses.filter(e => e.recurringExpenseId && e.status === 'Draft' && inScope(e.companyId)).sort((a, b) => a.date.localeCompare(b.date));
+  // Monthly drafts of the office(s) in view, from the database (status Draft, created from a template)
+  const draftsQ = useExpenseList({ company: selectedCompanyId, status: 'Draft', recurring: true });
+  const drafts = (draftsQ.data ?? []).filter(e => e.recurringExpenseId && inScope(e.companyId)).sort((a, b) => a.date.localeCompare(b.date));
   const weekAgo = addDaysYmd(-7);
 
   const generate = async () => {
@@ -62,7 +65,9 @@ export const MonthlyExpensesPanel: React.FC<{ onOpen: (e: VehicleExpense) => voi
           <table className={tableCls}>
             <thead><tr><th className={thCls}>Expense</th><th className={thCls}>Due</th><th className={`${thCls} text-right`}>Amount</th></tr></thead>
             <tbody>
-              {drafts.length === 0 && <tr><td className={tdCls} colSpan={3}>No monthly drafts waiting.</td></tr>}
+              {draftsQ.loading && <tr><td className={tdCls} colSpan={3}>Loading drafts…</td></tr>}
+              {draftsQ.error && <tr><td className={tdCls} colSpan={3}><span role="alert" className="text-rose-500">Drafts could not be loaded: {draftsQ.error.message}</span> <button type="button" className="underline text-xs" onClick={() => void draftsQ.refetch()}>Retry</button></td></tr>}
+              {!draftsQ.loading && !draftsQ.error && drafts.length === 0 && <tr><td className={tdCls} colSpan={3}>No monthly drafts waiting.</td></tr>}
               {drafts.map(e => (
                 <tr key={e.id} className="cursor-pointer hover:bg-slate-850" onClick={() => onOpen(e)}>
                   <td className={tdCls}><p className="font-semibold text-slate-100">{e.expenseNumber}</p><p className="text-[11px] text-slate-400">{office(e.companyId)} · {e.description}</p></td>

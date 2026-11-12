@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, ReactNode } from 'react';
+import React, { useState, useMemo, useEffect, useRef, ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,6 +25,8 @@ import { useOptionalFleet } from '../../context/FleetContext';
 import type { CollectionKey } from '../../services/core';
 import { exportToCSV, exportToPDF, cellToText } from '../../utils/export';
 import { ReportPreviewModal } from '../common/ReportPreviewModal';
+import { useQuery } from '../../lib/queryCache';
+import { fetchAllPages, type ServerSource, type ListSort, type FetchAllProgress } from '../../lib/serverList';
 
 /** Plain text of a rendered cell (what the user sees), for PDF / document view / non-field columns. */
 function nodeToText(node: ReactNode): string {
@@ -44,10 +46,15 @@ export interface Column<T> {
   align?: 'left' | 'center' | 'right';
   /** Raw value for sorting and CSV when it is not row[key] (e.g. custom fields). */
   value?: (row: T) => unknown;
+  /** Server mode: the database column this column sorts by. Without it the column is not sortable in server mode. */
+  sortKey?: string;
 }
 
 interface DataTableProps<T> {
-  data: T[];
+  /** Rows (client mode). Ignored when `server` is given. */
+  data?: T[];
+  /** Server mode: paging, sorting, search and count run in the database; exports fetch every filtered row in pages. */
+  server?: ServerSource<T>;
   columns: Column<T>[];
   keyExtractor: (row: T) => string;
   searchPlaceholder?: string;
@@ -75,7 +82,8 @@ interface DataTableProps<T> {
 }
 
 export function DataTable<T extends Record<string, any>>({
-  data,
+  data: dataProp,
+  server,
   columns,
   keyExtractor,
   searchPlaceholder = 'Search records...',
@@ -97,12 +105,12 @@ export function DataTable<T extends Record<string, any>>({
   onRetry,
 }: DataTableProps<T>) {
   const { hasPermission } = useAuth();
+  const isServer = !!server;
+  const data = useMemo(() => (isServer ? [] : dataProp ?? []), [isServer, dataProp]);
   const fleet = useOptionalFleet();
   const keys = collection ? (Array.isArray(collection) ? collection : [collection]) : [];
   const collectionError = keys.map(k => fleet?.loadErrors[k]).find(Boolean);
-  const error = errorProp ?? collectionError ?? null;
-  const loading = loadingProp ?? (keys.length > 0 && fleet ? !fleet.isLoaded : false);
-  const retry = onRetry ?? (keys.length && fleet ? () => { void fleet.reload(keys); } : undefined);
+  const collectionLoading = keys.length > 0 && fleet ? keys.some(k => !fleet.isCollectionLoaded(k)) : false;
   const canExport = !exportModule || hasPermission('export', exportModule);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -119,14 +127,38 @@ export function DataTable<T extends Record<string, any>>({
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
 
-  // Debounce search input to maintain responsive typing without recalculating on every keypress
+  // Debounce search input (longer in server mode: each change is a request)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
       setCurrentPage(1);
-    }, 150);
+    }, isServer ? 300 : 150);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, isServer]);
+
+  // ---------------- server mode: one page from the database
+  const serverSort: ListSort | undefined = useMemo(() => {
+    if (!isServer || !sortKey) return undefined;
+    const col = columns.find(c => c.key === sortKey);
+    return col?.sortKey ? { column: col.sortKey, ascending: sortDirection === 'asc' } : undefined;
+  }, [isServer, sortKey, sortDirection, columns]);
+  const serverKey = server?.key ?? '';
+  // filters / office changed: back to page 1
+  const lastServerKey = useRef(serverKey);
+  useEffect(() => {
+    if (lastServerKey.current !== serverKey) { lastServerKey.current = serverKey; setCurrentPage(1); }
+  }, [serverKey]);
+  const serverFetch = server?.fetch;
+  const pageQuery = useQuery(
+    `list:${serverKey}|p${currentPage}|s${pageSize}|q${debouncedSearch}|o${serverSort ? `${serverSort.column}:${serverSort.ascending}` : ''}`,
+    server?.tags ?? [],
+    () => serverFetch!({ offset: (currentPage - 1) * pageSize, limit: pageSize, search: debouncedSearch, sort: serverSort }),
+    { enabled: isServer },
+  );
+
+  const error = errorProp ?? (isServer ? pageQuery.error?.message : collectionError) ?? null;
+  const loading = loadingProp ?? (isServer ? pageQuery.loading : collectionLoading);
+  const retry = onRetry ?? (isServer ? () => { void pageQuery.refetch(); } : keys.length && fleet ? () => { void fleet.reload(keys); } : undefined);
 
   // Filter & Search
   const filteredData = useMemo(() => {
@@ -180,15 +212,19 @@ export function DataTable<T extends Record<string, any>>({
   }, [filteredData, sortKey, sortDirection, columns]);
 
   // Pagination
-  const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
+  const totalRows = isServer ? pageQuery.data?.total ?? 0 : sortedData.length;
+  const totalPages = Math.ceil(totalRows / pageSize) || 1;
   // Keep the page in range when rows are deleted or filtered away
   useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [currentPage, totalPages]);
   const paginatedData = useMemo(() => {
+    if (isServer) return pageQuery.data?.rows ?? [];
     const start = (currentPage - 1) * pageSize;
     return sortedData.slice(start, start + pageSize);
-  }, [sortedData, currentPage, pageSize]);
+  }, [isServer, pageQuery.data, sortedData, currentPage, pageSize]);
+  const isSortable = (col: Column<T>) => col.sortable !== false && (!isServer || !!col.sortKey);
 
   const handleSort = (key: string) => {
+    setCurrentPage(1);
     if (sortKey === key) {
       if (sortDirection === 'asc') {
         setSortDirection('desc');
@@ -208,8 +244,29 @@ export function DataTable<T extends Record<string, any>>({
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const reportTitle = title || exportFilename.replace(/_/g, ' ');
+  // Exports cover the full filtered result. Server mode fetches it page by page (progress + cancel).
+  const [exportProgress, setExportProgress] = useState<FetchAllProgress | null>(null);
+  const exportAbort = useRef<AbortController | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<T[] | null>(null);
+  const allRows = async (): Promise<T[] | null> => {
+    if (!isServer || !serverFetch) return sortedData;
+    const ctrl = new AbortController();
+    exportAbort.current = ctrl;
+    setExportError(null);
+    setExportProgress({ loaded: 0, total: totalRows });
+    try {
+      return await fetchAllPages(serverFetch, { search: debouncedSearch, sort: serverSort }, setExportProgress, ctrl.signal);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setExportError((e as Error).message || 'Export failed');
+      return null;
+    } finally {
+      setExportProgress(null);
+      exportAbort.current = null;
+    }
+  };
   // Documents show what the screen shows (formatted dates, currency, names); CSV keeps raw values.
-  const previewRows = () => sortedData.map((row, i) => exportColumns.map(c => {
+  const previewRows = (rows: T[] = sortedData) => rows.map((row, i) => exportColumns.map(c => {
     const shown = c.render ? nodeToText(c.render(row, i)).replace(/\s+/g, ' ').trim() : '';
     return shown || cellToText(row[c.key]);
   }));
@@ -218,15 +275,26 @@ export function DataTable<T extends Record<string, any>>({
     if (raw !== null && raw !== undefined && typeof raw !== 'object' && !(typeof raw === 'string' && raw.startsWith('storage://'))) return raw;
     return c.render ? nodeToText(c.render(row, i)).replace(/\s+/g, ' ').trim() : '';
   };
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     setExportMenuOpen(false);
-    const flat = sortedData.map((row, i) => Object.fromEntries(exportColumns.map(c => [c.key, csvValue(row, c, i)])));
+    const rows = previewData ?? await allRows();
+    if (!rows) return;
+    const flat = rows.map((row, i) => Object.fromEntries(exportColumns.map(c => [c.key, csvValue(row, c, i)])));
     exportToCSV(exportFilename, flat, exportColumns.map(c => ({ key: c.key, label: c.header })));
   };
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     setExportMenuOpen(false);
+    const rows = previewData ?? await allRows();
+    if (!rows) return;
     const rightAlign = exportColumns.map((c, i) => (c.align === 'right' ? i : -1)).filter(i => i >= 0);
-    void exportToPDF(exportFilename, reportTitle, exportColumns.map(c => c.header), previewRows(), { rightAlign });
+    void exportToPDF(exportFilename, reportTitle, exportColumns.map(c => c.header), previewRows(rows), { rightAlign });
+  };
+  const openPreview = async () => {
+    setExportMenuOpen(false);
+    const rows = await allRows();
+    if (!rows) return;
+    setPreviewData(rows);
+    setPreviewOpen(true);
   };
 
   return (
@@ -313,16 +381,16 @@ export function DataTable<T extends Record<string, any>>({
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setExportMenuOpen(false)} />
                   <div role="menu" className="absolute right-0 mt-1.5 w-52 z-20 bg-white border border-slate-700 rounded-xl shadow-lg py-1 text-xs font-semibold text-slate-200">
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { setExportMenuOpen(false); setPreviewOpen(true); }}>
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
                       <FileText className="w-3.5 h-3.5" /> View as document
                     </button>
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { setExportMenuOpen(false); setPreviewOpen(true); }}>
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
                       <Printer className="w-3.5 h-3.5" /> Print
                     </button>
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={handleExportPdf}>
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void handleExportPdf(); }}>
                       <FileDown className="w-3.5 h-3.5" /> Download PDF
                     </button>
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={handleExportCsv}>
+                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void handleExportCsv(); }}>
                       <FileSpreadsheet className="w-3.5 h-3.5" /> Download CSV (Excel)
                     </button>
                   </div>
@@ -330,17 +398,24 @@ export function DataTable<T extends Record<string, any>>({
               )}
             </div>
           )}
-          {previewOpen && (
+          {previewOpen && previewData && (
             <ReportPreviewModal
               isOpen
-              onClose={() => setPreviewOpen(false)}
+              onClose={() => { setPreviewOpen(false); setPreviewData(null); }}
               title={reportTitle}
               columns={exportColumns.map(c => c.header)}
-              rows={previewRows()}
-              onDownloadPdf={handleExportPdf}
-              onDownloadCsv={handleExportCsv}
+              rows={previewRows(previewData)}
+              onDownloadPdf={() => { void handleExportPdf(); }}
+              onDownloadCsv={() => { void handleExportCsv(); }}
             />
           )}
+          {exportProgress && (
+            <div role="status" aria-live="polite" className="flex items-center gap-2 text-xs text-slate-300">
+              <span>Preparing export… {exportProgress.loaded.toLocaleString()} of {exportProgress.total.toLocaleString()} rows</span>
+              <Button variant="ghost" size="xs" onClick={() => exportAbort.current?.abort()}>Cancel</Button>
+            </div>
+          )}
+          {exportError && <span role="alert" className="text-xs text-rose-600">{exportError}</span>}
         </div>
       </div>
 
@@ -353,10 +428,10 @@ export function DataTable<T extends Record<string, any>>({
                 <th
                   key={col.key}
                   style={{ width: col.width }}
-                  className={`px-6 py-4 select-none ${col.sortable !== false ? 'cursor-pointer hover:text-slate-100' : ''} ${
+                  className={`px-6 py-4 select-none ${isSortable(col) ? 'cursor-pointer hover:text-slate-100' : ''} ${
                     col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                   }`}
-                  onClick={() => col.sortable !== false && handleSort(col.key)}
+                  onClick={() => isSortable(col) && handleSort(col.key)}
                 >
                   <div
                     className={`inline-flex items-center gap-1.5 ${
@@ -364,7 +439,7 @@ export function DataTable<T extends Record<string, any>>({
                     }`}
                   >
                     <span>{col.header}</span>
-                    {col.sortable !== false && (
+                    {isSortable(col) && (
                       <span className="text-slate-400">
                         {sortKey === col.key ? (
                           sortDirection === 'asc' ? (
@@ -383,7 +458,7 @@ export function DataTable<T extends Record<string, any>>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700/80 bg-white">
-            {error && data.length === 0 ? (
+            {error && paginatedData.length === 0 ? (
               <tr>
                 <td colSpan={activeColumns.length} className="px-5 py-14 text-center bg-white" role="alert">
                   <div className="flex flex-col items-center justify-center gap-2">
@@ -398,7 +473,7 @@ export function DataTable<T extends Record<string, any>>({
                   </div>
                 </td>
               </tr>
-            ) : loading && data.length === 0 ? (
+            ) : loading && paginatedData.length === 0 ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={`sk-${i}`} aria-hidden="true">
                   {activeColumns.map(col => (
@@ -455,13 +530,13 @@ export function DataTable<T extends Record<string, any>>({
           <span>
             Showing{' '}
             <strong className="text-slate-100 font-semibold">
-              {sortedData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+              {totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1}
             </strong>{' '}
             to{' '}
             <strong className="text-slate-100 font-semibold">
-              {Math.min(currentPage * pageSize, sortedData.length)}
+              {Math.min(currentPage * pageSize, totalRows)}
             </strong>{' '}
-            of <strong className="text-slate-100 font-semibold">{sortedData.length}</strong> records
+            of <strong className="text-slate-100 font-semibold">{totalRows.toLocaleString()}</strong> records
           </span>
 
           <span className="text-slate-600">|</span>

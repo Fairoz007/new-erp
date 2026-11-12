@@ -1,4 +1,4 @@
-import React, { useEffect, useState, ReactNode } from 'react';
+import React, { useCallback, useEffect, useState, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { GlobalSearchModal } from '../common/GlobalSearchModal';
@@ -9,12 +9,14 @@ import { DocumentViewerModal } from '../common/DocumentViewerModal';
 import { PrintablePayslipModal } from '../common/PrintablePayslipModal';
 import { ToastContainer } from '../common/ToastContainer';
 import { useFleet } from '../../context/FleetContext';
+import { ConnectionBanner } from './ConnectionBanner';
 
 export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { isRefreshing, loadErrors, reload } = useFleet();
   const failed = Object.keys(loadErrors);
+  const onReconnect = useCallback(() => { void reload().catch(() => undefined); }, [reload]);
 
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
@@ -47,6 +49,7 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
           isSidebarCollapsed={isSidebarCollapsed}
         />
 
+        <ConnectionBanner onReconnect={onReconnect} />
         {isRefreshing && (
           <div className="h-0.5 w-full bg-[#DCEFE5] overflow-hidden" role="progressbar" aria-label="Refreshing data">
             <div className="h-full w-1/3 bg-[#086343] animate-pulse" />

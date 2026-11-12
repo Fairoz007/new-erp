@@ -7,6 +7,7 @@
 // account's normal direction (Asset/Expense: Dr − Cr, others: Cr − Dr). All statements below are
 // derived from that one rule, for one company or summed by account code across the user's
 // companies when companyId is 'all' / undefined.
+import { roundMoney } from '../utils/money';
 import { fetchPaged, ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd } from './core';
 import type { CollectionKey, Fetchers } from './core';
 import type {
@@ -15,8 +16,8 @@ import type {
 } from '../types/finance';
 import { currentMonthYm, todayYmd } from '../utils/date';
 
-const r3 = (v: number) => Math.round((v + Number.EPSILON) * 1000) / 1000;
-const r2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
+const r3 = (v: number) => roundMoney(v, 3);
+const r2 = (v: number) => roundMoney(v, 2);
 
 // Load every row of a (possibly large) ordered query in pages so ledgers are never silently truncated.
 async function fetchAll(build: (from: number, to: number) => PromiseLike<any>): Promise<any[]> {
@@ -42,7 +43,7 @@ export interface LedgerAccount extends Account {
 /** Journal line as loaded from the DB (adds the vehicle plate for the GL). */
 export interface LedgerJournalLine extends JournalLine { vehiclePlate?: string }
 
-type AnyAccount = Account & Partial<Pick<LedgerAccount, 'companyId' | 'openingBalance'>>;
+export type AnyAccount = Account & Partial<Pick<LedgerAccount, 'companyId' | 'openingBalance'>>;
 type DateRange = { startDate?: string; endDate?: string };
 
 const isDebitNormal = (c: AccountCategory) => c === 'Asset' || c === 'Expense';

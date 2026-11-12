@@ -8,6 +8,11 @@ import { Tabs } from '../../components/ui/Tabs';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Textarea } from '../../components/ui/Input';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { DataTable, type Column } from '../../components/ui/DataTable';
+import { invoiceSource, paymentSource } from '../../services/queries';
+import { useRecordHistory, useSourceCount } from '../../services/queries-reports';
+import type { FinanceInvoice } from '../../services/finance';
+import type { Payment } from '../../types/finance';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
@@ -31,7 +36,7 @@ const REG_VARIANT = { Pending: 'amber', Approved: 'emerald', Rejected: 'rose' } 
 
 export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
   const fleet = useFleet();
-  const { companies, invoices, payments, currency, auditLogs, updateCustomer, updateSupplier, reload } = fleet;
+  const { companies, currency, updateCustomer, updateSupplier, reload } = fleet;
   const { selectedPartyId, setCurrentPage, openInvoiceModal, addToast } = useUI();
   const { hasPermission, currentUser, isSuperAdmin, users } = useAuth();
   const module = kind === 'customer' ? 'customers' : 'suppliers';
@@ -47,9 +52,30 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
   const [review, setReview] = useState<'Approved' | 'Rejected' | null>(null);
   const [opening, setOpening] = useState(false);
 
-  const partyInvoices = useMemo(() => (party ? invoices.filter(i => i.partyType === partyType && i.partyId === party.id) : []), [invoices, party, partyType]);
-  const partyPayments = useMemo(() => (party ? payments.filter(p => p.partyType === partyType && p.partyId === party.id) : []), [payments, party, partyType]);
-  const history = useMemo(() => (party ? auditLogs.filter(l => l.entityId === party.id) : []), [auditLogs, party]);
+  // Invoices, payments and history of this party only, from the database
+  const partyId = party?.id ?? '';
+  const invSource = useMemo(() => invoiceSource({ partyId }), [partyId]);
+  const paySource = useMemo(() => paymentSource({ partyId }), [partyId]);
+  const invoiceCount = useSourceCount(invSource, { enabled: !!partyId });
+  const paymentCount = useSourceCount(paySource, { enabled: !!partyId });
+  const historyQuery = useRecordHistory(party?.id);
+  const history = historyQuery.data?.rows ?? [];
+  const invoiceColumns: Column<FinanceInvoice>[] = useMemo(() => [
+    { key: 'invoiceNumber', header: 'Invoice', sortKey: 'invoice_number', render: i => <span className="font-mono font-semibold text-slate-100">{i.invoiceNumber}</span> },
+    { key: 'companyId', header: 'Office', render: i => <span className="text-slate-300">{companies.find(c => c.id === i.companyId)?.code ?? ''}</span>, value: i => companies.find(c => c.id === i.companyId)?.code ?? '' },
+    { key: 'invoiceDate', header: 'Date', sortKey: 'invoice_date', render: i => <span className="text-slate-300">{formatDate(i.invoiceDate)}</span> },
+    { key: 'dueDate', header: 'Due', sortKey: 'due_date', render: i => <span className="text-slate-300">{formatDate(i.dueDate)}</span> },
+    { key: 'paymentStatus', header: 'Status', sortKey: 'effective_status', render: i => <StatusBadge status={i.paymentStatus} size="sm" /> },
+    { key: 'grandTotal', header: 'Total', align: 'right', sortKey: 'grand_total', render: i => <span className="font-semibold">{formatCurrency(i.grandTotal, i.currency)}</span> },
+    { key: 'outstandingAmount', header: 'Outstanding', align: 'right', sortKey: 'outstanding_amount', render: i => formatCurrency(i.outstandingAmount, i.currency) },
+  ], [companies]);
+  const paymentColumns: Column<Payment>[] = useMemo(() => [
+    { key: 'paymentNumber', header: 'Payment', sortKey: 'payment_number', render: p => <span className="font-mono font-semibold text-slate-100">{p.paymentNumber}</span> },
+    { key: 'paymentDate', header: 'Date', sortKey: 'payment_date', render: p => <span className="text-slate-300">{formatDate(p.paymentDate)}</span> },
+    { key: 'invoiceNumber', header: 'Invoice', sortKey: 'invoice_number', render: p => <span className="text-slate-300">{p.invoiceNumber}</span> },
+    { key: 'paymentMethod', header: 'Method', sortKey: 'payment_method', render: p => <span className="text-slate-300">{p.paymentMethod}</span> },
+    { key: 'amount', header: 'Amount', align: 'right', sortKey: 'amount', render: p => <span className="font-semibold">{formatCurrency(p.amount, p.currency)}</span> },
+  ], []);
 
   if (!party) {
     return (
@@ -135,8 +161,8 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
 
       <Tabs variant="pills" activeTab={tab} onChange={id => setTab(id as Tab)} tabs={[
         { id: 'overview', label: 'Overview' },
-        { id: 'invoices', label: 'Invoices', count: partyInvoices.length, icon: <Receipt className="w-4 h-4" /> },
-        { id: 'payments', label: 'Payments', count: partyPayments.length, icon: <Wallet className="w-4 h-4" /> },
+        { id: 'invoices', label: 'Invoices', count: invoiceCount.data ?? 0, icon: <Receipt className="w-4 h-4" /> },
+        { id: 'payments', label: 'Payments', count: paymentCount.data ?? 0, icon: <Wallet className="w-4 h-4" /> },
         ...(hasPermission('view', 'contracts') ? [{ id: 'contracts', label: 'Contracts', icon: <FileSignature className="w-4 h-4" /> }] : []),
         { id: 'history', label: 'History', icon: <History className="w-4 h-4" /> },
       ]} />
@@ -188,57 +214,45 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
       )}
 
       {tab === 'invoices' && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-700 bg-white">
-          <table className="w-full text-left text-xs">
-            <thead className="text-slate-400 border-b border-slate-700"><tr>
-              <th className="px-3 py-2">Invoice</th><th className="px-3 py-2">Office</th><th className="px-3 py-2">Date</th><th className="px-3 py-2">Due</th>
-              <th className="px-3 py-2">Status</th><th className="px-3 py-2 text-right">Total</th><th className="px-3 py-2 text-right">Outstanding</th>
-            </tr></thead>
-            <tbody className="divide-y divide-slate-700/60">
-              {partyInvoices.length === 0 && <tr><td colSpan={7} className="px-3 py-4 text-slate-400">No invoices yet.</td></tr>}
-              {partyInvoices.map(i => (
-                <tr key={i.id} className="hover:bg-slate-850/40 cursor-pointer" onClick={() => openInvoiceModal(i.id)}>
-                  <td className="px-3 py-2 font-mono font-semibold text-slate-100">{i.invoiceNumber}</td>
-                  <td className="px-3 py-2 text-slate-300">{companies.find(c => c.id === i.companyId)?.code ?? ''}</td>
-                  <td className="px-3 py-2 text-slate-300">{formatDate(i.invoiceDate)}</td>
-                  <td className="px-3 py-2 text-slate-300">{formatDate(i.dueDate)}</td>
-                  <td className="px-3 py-2"><StatusBadge status={i.paymentStatus} size="sm" /></td>
-                  <td className="px-3 py-2 text-right font-semibold">{formatCurrency(i.grandTotal, i.currency)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(i.outstandingAmount, i.currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          server={invSource}
+          columns={invoiceColumns}
+          keyExtractor={i => i.id}
+          onRowClick={i => openInvoiceModal(i.id)}
+          searchPlaceholder="Search invoices..."
+          exportFilename={`${kind === 'customer' ? 'Client' : 'Supplier'}_Invoices_${code}`}
+          exportModule="invoices"
+          emptyMessage="No invoices yet."
+        />
       )}
 
       {tab === 'payments' && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-700 bg-white">
-          <table className="w-full text-left text-xs">
-            <thead className="text-slate-400 border-b border-slate-700"><tr>
-              <th className="px-3 py-2">Payment</th><th className="px-3 py-2">Date</th><th className="px-3 py-2">Invoice</th><th className="px-3 py-2">Method</th><th className="px-3 py-2 text-right">Amount</th>
-            </tr></thead>
-            <tbody className="divide-y divide-slate-700/60">
-              {partyPayments.length === 0 && <tr><td colSpan={5} className="px-3 py-4 text-slate-400">No payments yet.</td></tr>}
-              {partyPayments.map(p => (
-                <tr key={p.id}>
-                  <td className="px-3 py-2 font-mono font-semibold text-slate-100">{p.paymentNumber}</td>
-                  <td className="px-3 py-2 text-slate-300">{formatDate(p.paymentDate)}</td>
-                  <td className="px-3 py-2 text-slate-300">{p.invoiceNumber}</td>
-                  <td className="px-3 py-2 text-slate-300">{p.paymentMethod}</td>
-                  <td className="px-3 py-2 text-right font-semibold">{formatCurrency(p.amount, p.currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          server={paySource}
+          columns={paymentColumns}
+          keyExtractor={p => p.id}
+          searchPlaceholder="Search payments..."
+          exportFilename={`${kind === 'customer' ? 'Client' : 'Supplier'}_Payments_${code}`}
+          exportModule="payments"
+          emptyMessage="No payments yet."
+        />
       )}
 
       {tab === 'contracts' && <ContractsPanel partyType={partyType} party={party} />}
 
       {tab === 'history' && (
         <div className="rounded-2xl border border-slate-700 bg-white p-4 space-y-2 text-xs">
-          {history.length === 0 && <p className="text-slate-400">No changes recorded in the loaded audit log.</p>}
+          {historyQuery.loading && <p className="text-slate-400">Loading history…</p>}
+          {historyQuery.error && (
+            <div role="alert" className="flex items-center gap-2 text-rose-600">
+              <span>Could not load the history: {historyQuery.error.message}</span>
+              <Button variant="secondary" size="xs" onClick={() => { void historyQuery.refetch(); }}>Retry</Button>
+            </div>
+          )}
+          {!historyQuery.loading && !historyQuery.error && history.length === 0 && <p className="text-slate-400">No changes recorded.</p>}
+          {(historyQuery.data?.total ?? 0) > history.length && (
+            <p className="text-slate-400">Showing the latest {history.length.toLocaleString()} of {historyQuery.data!.total.toLocaleString()} changes.</p>
+          )}
           {history.map(l => (
             <div key={l.id} className="flex flex-col sm:flex-row sm:justify-between gap-1 border-b border-slate-700/60 pb-2">
               <span className="text-slate-200"><b>{l.action}</b> · {l.details}</span>

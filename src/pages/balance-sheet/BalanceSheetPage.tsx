@@ -1,23 +1,33 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Scale, Printer, CheckCircle2, ShieldCheck, DollarSign } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
-import { getCompanyBalanceSheet } from '../../services/accounting';
+import { balanceSheetFrom } from '../../services/accounting';
+import { useBalanceSheet } from '../../services/queries';
 import { todayYmd } from '../../utils/date';
+
+const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
+  <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
+    {error
+      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+      : <span className="text-slate-400">{loading ? 'Loading…' : ''}</span>}
+  </Card>
+);
 
 const Empty: React.FC<{ text: string }> = ({ text }) => <div className="py-2.5 text-slate-400 italic">{text}</div>;
 
 export const BalanceSheetPage: React.FC = () => {
-  const { chartOfAccounts, journalEntries, selectedCompanyId, currency } = useFleet();
+  const { chartOfAccounts, selectedCompanyId, currency, isCollectionLoaded } = useFleet();
   const [asOfDate, setAsOfDate] = useState(todayYmd());
   // Opening balances + posted journal lines up to the date; no plug figures.
-  const bs = useMemo(
-    () => getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, asOfDate),
-    [chartOfAccounts, journalEntries, selectedCompanyId, asOfDate],
-  );
+  const asOf = asOfDate || todayYmd();
+  const q = useBalanceSheet(chartOfAccounts, selectedCompanyId, asOf);
+  const accountsLoading = !isCollectionLoaded('chartOfAccounts');
+  const ready = !!q.data && !q.error && !accountsLoading;
+  const bs = q.data ?? balanceSheetFrom([], new Map(), undefined, asOf);
   const isEmpty = bs.assets.totalAssets === 0 && bs.liabilities.totalLiabilities === 0 && bs.equity.totalEquity === 0;
 
   return (
@@ -42,6 +52,7 @@ export const BalanceSheetPage: React.FC = () => {
         </div>
       </div>
 
+{!ready ? <StatementLoad loading={q.loading || accountsLoading} error={q.error} onRetry={() => void q.refetch()} /> : (<>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
@@ -191,6 +202,7 @@ export const BalanceSheetPage: React.FC = () => {
           </div>
         </Card>
       </div>
+      </>)}
     </div>
   );
 };

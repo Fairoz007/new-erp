@@ -3,7 +3,8 @@ import { Plus, Trash2, Car, Wrench, Fuel, AlertTriangle, FileText, DollarSign, U
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, Select, Textarea } from '../ui/Input';
-import { partyAvailableIn } from '../../services/finance';
+import { partyAvailableIn, type FinanceInvoice } from '../../services/finance';
+import { PICKER_LIMIT, useDebounced, useInvoiceById, useInvoiceOptions } from '../../services/queries-expenses';
 import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 import { useVehicleTypes } from '../../hooks/useVehicleTypes';
 import { PartyOfficeFields, PartyOfficeValue, validatePartyOffice } from './PartyOfficeFields';
@@ -32,7 +33,6 @@ export const QuickActionModals: React.FC = () => {
     vehicles,
     suppliers,
     customers,
-    invoices,
     bankAccounts,
     chartOfAccounts,
     employees,
@@ -779,16 +779,29 @@ export const QuickActionModals: React.FC = () => {
     });
   };
 
-  // Only posted, unpaid invoices can receive a payment (record_payment enforces the same)
-  const payableInvoices = invoices.filter(i =>
-    i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0.0005);
+  // Only posted, unpaid invoices can receive a payment (record_payment enforces the same).
+  // The picker searches them in the database (invoice_page, view "pending"); first PICKER_LIMIT shown.
+  const isPayable = (i: FinanceInvoice) =>
+    i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0.0005;
+  const [payInvoiceSearch, setPayInvoiceSearch] = useState('');
+  const payInvoiceSearchDebounced = useDebounced(payInvoiceSearch.trim(), 300);
+  const payOptions = useInvoiceOptions('payable', null, payInvoiceSearchDebounced, { enabled: quickModal === 'add-payment' });
+  const [pickedPayInvoice, setPickedPayInvoice] = useState<FinanceInvoice | null>(null);
+  const payOptionRows = payOptions.data?.rows ?? [];
+  const payableInvoices = pickedPayInvoice && isPayable(pickedPayInvoice) && !payOptionRows.some(i => i.id === pickedPayInvoice.id)
+    ? [pickedPayInvoice, ...payOptionRows] : payOptionRows;
+  // the freshest copy of the chosen invoice (the list refreshes after payments)
   const paymentInvoice = payableInvoices.find(i => i.id === paymentForm.invoiceId);
   // Opened from an invoice row: preselect that invoice and its outstanding balance
+  const presetInvoice = useInvoiceById(quickModal === 'add-payment' ? paymentInvoiceId : null).data;
   useEffect(() => {
     if (quickModal !== 'add-payment' || !paymentInvoiceId) return;
-    const inv = invoices.find(i => i.id === paymentInvoiceId);
-    if (inv) setPaymentForm(prev => ({ ...prev, invoiceId: inv.id, amount: inv.outstandingAmount, bankAccountId: '' }));
-  }, [quickModal, paymentInvoiceId]); // eslint-disable-line react-hooks/exhaustive-deps
+    const inv = presetInvoice && presetInvoice.id === paymentInvoiceId ? presetInvoice : undefined;
+    if (inv) {
+      setPickedPayInvoice(inv);
+      setPaymentForm(prev => ({ ...prev, invoiceId: inv.id, amount: inv.outstandingAmount, bankAccountId: '' }));
+    }
+  }, [quickModal, paymentInvoiceId, presetInvoice?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const paymentBanks = bankAccounts.filter(b => b.active !== false && (!paymentInvoice || b.companyId === paymentInvoice.companyId));
 
   const handleCreatePayment = (e: React.FormEvent) => {
@@ -1491,11 +1504,26 @@ export const QuickActionModals: React.FC = () => {
       >
         <form onSubmit={handleCreatePayment} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+            <Input
+              label="Find invoice / bill"
+              type="search"
+              value={payInvoiceSearch}
+              onChange={e => setPayInvoiceSearch(e.target.value)}
+              placeholder="Invoice #, party, reference, plate..."
+            />
+            {payOptions.error && (
+              <p role="alert" className="text-xs text-rose-500">
+                Invoices could not be loaded: {payOptions.error.message}{' '}
+                <button type="button" className="underline" onClick={() => void payOptions.refetch()}>Retry</button>
+              </p>
+            )}
             <Select
               label="Select Invoice / Bill"
               value={paymentForm.invoiceId}
               onChange={e => {
                 const inv = payableInvoices.find(i => i.id === e.target.value);
+                setPickedPayInvoice(inv ?? null);
                 setPaymentForm(prev => ({
                   ...prev,
                   invoiceId: e.target.value,
@@ -1505,13 +1533,17 @@ export const QuickActionModals: React.FC = () => {
               }}
               required
             >
-              <option value="">-- Choose Invoice to Settle --</option>
+              <option value="">{payOptions.loading ? 'Loading invoices...' : payableInvoices.length ? '-- Choose Invoice to Settle --' : payInvoiceSearchDebounced ? 'No matching open invoices' : 'No open invoices to settle'}</option>
               {payableInvoices.map(inv => (
                 <option key={inv.id} value={inv.id}>
                   {inv.invoiceNumber} - {inv.partyName} (outstanding {inv.outstandingAmount.toFixed(3)} {inv.currency})
                 </option>
               ))}
             </Select>
+            {(payOptions.data?.total ?? 0) > PICKER_LIMIT && (
+              <p className="text-[11px] text-slate-400">Showing the {PICKER_LIMIT} newest of {payOptions.data!.total} open invoices. Type to narrow the list.</p>
+            )}
+            </div>
 
             <Input
               label="Payment Date"

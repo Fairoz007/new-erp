@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Paperclip, Eye } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -10,9 +10,10 @@ import { useAuth } from '../../context/AuthContext';
 import { PaymentDetailModal } from './PaymentDetailModal';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { paymentListSource, usePaymentTotals, type PaymentListFilter } from '../../services/queries-expenses';
 
 export const PaymentsPage: React.FC = () => {
-  const { payments, bankAccounts, currency, selectedCompanyId } = useFleet();
+  const { bankAccounts, currency, selectedCompanyId } = useFleet();
   const { openQuickModal, openInvoiceModal, openBillModal } = useUI();
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('create', 'payments');
@@ -25,34 +26,38 @@ export const PaymentsPage: React.FC = () => {
   const [toDate, setToDate] = useState('');
 
   const inCompany = (companyId: string) => !selectedCompanyId || selectedCompanyId === 'all' || companyId === selectedCompanyId;
-  const filteredPayments = payments.filter(p => {
-    if (!inCompany(p.companyId)) return false;
-    if (methodFilter !== 'all' && p.paymentMethod !== methodFilter) return false;
-    if (bankFilter !== 'all' && p.bankAccountId !== bankFilter) return false;
-    if (partyFilter !== 'all' && p.partyType !== partyFilter) return false;
-    if (fromDate && p.paymentDate < fromDate) return false;
-    if (toDate && p.paymentDate > toDate) return false;
-    return true;
-  });
-  const methods = Array.from(new Set(payments.map(p => p.paymentMethod)));
+  // The register is paged, filtered and searched in the database (v_payment_list); the totals come
+  // from payment_totals for the same filters.
+  const filter: PaymentListFilter = {
+    companyId: selectedCompanyId,
+    method: methodFilter !== 'all' ? methodFilter : undefined,
+    bankAccountId: bankFilter !== 'all' ? bankFilter : undefined,
+    partyType: partyFilter !== 'all' ? partyFilter as PaymentListFilter['partyType'] : undefined,
+    from: fromDate || undefined,
+    to: toDate || undefined,
+  };
+  const source = useMemo(() => paymentListSource(filter), [JSON.stringify(filter)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const totals = usePaymentTotals(filter);
+  const methods = totals.data?.methods ?? [];
   const filtersActive = methodFilter !== 'all' || bankFilter !== 'all' || partyFilter !== 'all' || !!fromDate || !!toDate;
 
   // Totals are kept per currency: amounts in different currencies are never added together
-  const sumByCurrency = (rows: { currency?: string }[], amount: (r: any) => number): Record<string, number> =>
-    rows.reduce<Record<string, number>>((acc, r) => { const c = r.currency || currency; acc[c] = (acc[c] ?? 0) + amount(r); return acc; }, {});
+  const sumByCurrency = <R,>(rows: R[], cur: (r: R) => string | null | undefined, amount: (r: R) => number): Record<string, number> =>
+    rows.reduce<Record<string, number>>((acc, r) => { const c = cur(r) || currency; acc[c] = (acc[c] ?? 0) + amount(r); return acc; }, {});
   const fmtTotals = (m: Record<string, number>) => {
     const entries = Object.entries(m);
     return entries.length === 0 ? formatCurrency(0, currency) : entries.map(([c, v]) => formatCurrency(v, c)).join(' + ');
   };
-  const totalDisbursed = sumByCurrency(filteredPayments.filter(p => p.partyType === 'Supplier'), p => p.amount);
-  const totalReceived = sumByCurrency(filteredPayments.filter(p => p.partyType === 'Customer'), p => p.amount);
+  const totalDisbursed = sumByCurrency(totals.data?.disbursed ?? [], t => t.currency, t => t.total);
+  const totalReceived = sumByCurrency(totals.data?.received ?? [], t => t.currency, t => t.total);
   // Bank balances come from v_bank_balances (opening balance + recorded payments)
   const scopedBanks = bankAccounts.filter(b => inCompany(b.companyId));
-  const totalBankBalance = sumByCurrency(scopedBanks, b => b.currentBalance);
+  const totalBankBalance = sumByCurrency(scopedBanks, b => b.currency, b => b.currentBalance);
 
   const columns: Column<Payment>[] = [
     {
       key: 'paymentNumber',
+      sortKey: 'payment_number',
       header: 'Payment # / Ref',
       render: (p) => (
         <div className="cursor-pointer group" onClick={() => setViewingPayment(p)}>
@@ -75,6 +80,7 @@ export const PaymentsPage: React.FC = () => {
     },
     {
       key: 'invoiceNumber',
+      sortKey: 'invoice_number',
       header: 'Linked Invoice',
       render: (p) => (
         <button
@@ -87,6 +93,7 @@ export const PaymentsPage: React.FC = () => {
     },
     {
       key: 'party',
+      sortKey: 'party_name',
       header: 'Beneficiary / Customer',
       render: (p) => (
         <div>
@@ -97,6 +104,7 @@ export const PaymentsPage: React.FC = () => {
     },
     {
       key: 'paymentDate',
+      sortKey: 'payment_date',
       header: 'Payment Date',
       render: (p) => (
         <div>
@@ -107,6 +115,7 @@ export const PaymentsPage: React.FC = () => {
     },
     {
       key: 'bankAccount',
+      sortKey: 'bank_account_name',
       header: 'Account / Mode',
       render: (p) => (
         <div>
@@ -117,6 +126,7 @@ export const PaymentsPage: React.FC = () => {
     },
     {
       key: 'amount',
+      sortKey: 'amount',
       header: 'Amount',
       align: 'right',
       render: (p) => (
@@ -194,6 +204,13 @@ export const PaymentsPage: React.FC = () => {
         />
       </div>
 
+      {totals.error && (
+        <p role="alert" className="text-xs text-rose-500">
+          Payment totals could not be loaded: {totals.error.message}{' '}
+          <button type="button" className="underline" onClick={() => void totals.refetch()}>Retry</button>
+        </p>
+      )}
+
       {/* Filter Toolbar */}
       <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-700 rounded-2xl shadow-card text-xs">
         <span className="text-slate-400 font-semibold px-1">Filter by:</span>
@@ -251,13 +268,11 @@ export const PaymentsPage: React.FC = () => {
 
       {/* Payments Table */}
       <DataTable
-        data={filteredPayments}
-        collection={['payments', 'invoices']}
+        server={source}
         columns={columns}
         keyExtractor={p => p.id}
         title="Transaction Records"
         searchPlaceholder="Search payments by reference, invoice #, party, cheque #..."
-        searchFields={['paymentNumber', 'invoiceNumber', 'partyName', 'transactionReference', 'chequeNumber', 'paymentMethod']}
         exportFilename="Payments_Register"
       />
 

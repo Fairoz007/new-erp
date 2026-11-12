@@ -7,6 +7,7 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { useInvoiceById } from '../../services/queries-expenses';
 
 interface PaymentDetailModalProps {
   payment: Payment | null;
@@ -19,12 +20,14 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { invoices, bankAccounts, currency } = useFleet();
+  const { bankAccounts, currency } = useFleet();
   const { openInvoiceModal, openBillModal } = useUI();
+  // the linked invoice, read by id (its balance and status as of now)
+  const invoiceQ = useInvoiceById(isOpen ? payment?.invoiceId : null);
 
   if (!payment) return null;
 
-  const linkedInvoice = invoices.find(i => i.id === payment.invoiceId || i.invoiceNumber === payment.invoiceNumber);
+  const linkedInvoice = invoiceQ.data && invoiceQ.data.id === payment.invoiceId ? invoiceQ.data : undefined;
   const bank = bankAccounts.find(b => b.id === payment.bankAccountId);
 
   return (

@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test:db": "node supabase/tests/schema.test.mjs supabase/migrations",
     "test:e2e": "node e2e/remote.e2e.mjs",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "scan:secrets": "node scripts/secret-scan.mjs --dist",
+    "bundle:check": "node scripts/bundle-report.mjs --budget 250"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

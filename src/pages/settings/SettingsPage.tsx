@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy, useRef, useState } from 'react';
 import { ApprovalRulesEditor } from './ApprovalRulesEditor';
 import { Database, Download, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
@@ -10,6 +10,18 @@ import { useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { exportToJSON } from '../../utils/export';
+import type { CollectionKey } from '../../services/core';
+import { expenseSource, paymentSource, fetchAllOf } from '../../services/queries';
+import { fetchAllInvoicesForExport, fetchAllJournalsForExport } from '../../services/queries-system';
+
+// Collections held in the app (loaded on first read); the large tables are fetched from the
+// database page by page (≤1000 rows per request) when the export runs.
+const CLIENT_EXPORT_KEYS = ['companies', 'vehicles', 'tyres', 'tyreEvents', 'oilChanges', 'maintenanceRecords', 'workOrders',
+  'accidents', 'suppliers', 'customers', 'reconciliations', 'bankAccounts', 'chartOfAccounts', 'fixedAssets', 'depreciationRuns',
+  'employees', 'payrollRuns', 'documents', 'approvalRules', 'approvalRequests'] as const;
+const EXPORT_ORDER = ['companies', 'vehicles', 'tyres', 'tyreEvents', 'oilChanges', 'maintenanceRecords', 'workOrders', 'accidents',
+  'expenses', 'suppliers', 'customers', 'invoices', 'reconciliations', 'payments', 'bankAccounts', 'chartOfAccounts', 'journalEntries',
+  'fixedAssets', 'depreciationRuns', 'employees', 'payrollRuns', 'documents', 'approvalRules', 'approvalRequests'];
 
 // Removed with the move to the shared database (see docs/audit/agent-D.md):
 //  * "Import Backup"  - would overwrite the browser cache only; a shared DB must never be bulk-overwritten from a paste box.
@@ -36,23 +48,32 @@ export const SettingsPage: React.FC = () => {
   const canEditOffices = hasPermission('edit', 'companies') || hasPermission('create', 'companies');
   const [tab, setTab] = useState<SettingsTab>('organization');
   const { addToast } = useUI();
-  const [exporting, setExporting] = useState(false);
+  const [exportStep, setExportStep] = useState<string | null>(null);
+  const exportAbort = useRef<AbortController | null>(null);
+  const exporting = exportStep !== null;
+  // Reading the collections on the Data export tab starts loading them (FleetContext loads on first read).
+  const clientCollections = tab === 'data'
+    ? Object.fromEntries(CLIENT_EXPORT_KEYS.map(k => [k, (fleet as unknown as Record<string, unknown[]>)[k]])) as Record<string, unknown[]>
+    : {};
+  const clientLoaded = CLIENT_EXPORT_KEYS.every(k => fleet.isCollectionLoaded(k as CollectionKey));
+  const clientErrors = CLIENT_EXPORT_KEYS.filter(k => fleet.loadErrors[k as CollectionKey]);
 
-  // Read-only export of exactly what this user can see (RLS has already filtered what the app loaded).
-  const handleExport = () => {
-    if (exporting) return;
-    setExporting(true);
+  // Read-only export of exactly what this user can see (RLS filters every query).
+  const handleExport = async () => {
+    if (exporting) { exportAbort.current?.abort(); return; }
+    if (!clientLoaded || clientErrors.length) return;
+    const ctrl = new AbortController();
+    exportAbort.current = ctrl;
+    const step = (label: string) => (p: { loaded: number; total: number }) =>
+      setExportStep(`${label} ${p.loaded.toLocaleString()} / ${p.total.toLocaleString()}`);
     try {
-      const collections = {
-        companies: fleet.companies, vehicles: fleet.vehicles, tyres: fleet.tyres, tyreEvents: fleet.tyreEvents,
-        oilChanges: fleet.oilChanges, maintenanceRecords: fleet.maintenanceRecords, workOrders: fleet.workOrders,
-        accidents: fleet.accidents, expenses: fleet.expenses, suppliers: fleet.suppliers, customers: fleet.customers,
-        invoices: fleet.invoices, reconciliations: fleet.reconciliations, payments: fleet.payments,
-        bankAccounts: fleet.bankAccounts, chartOfAccounts: fleet.chartOfAccounts, journalEntries: fleet.journalEntries,
-        fixedAssets: fleet.fixedAssets, depreciationRuns: fleet.depreciationRuns, employees: fleet.employees,
-        payrollRuns: fleet.payrollRuns, documents: fleet.documents, approvalRules: fleet.approvalRules,
-        approvalRequests: fleet.approvalRequests,
-      } as Record<string, unknown[]>;
+      setExportStep('Starting…');
+      const invoices = await fetchAllInvoicesForExport(step('Invoices'), ctrl.signal);
+      const payments = await fetchAllOf(paymentSource({}), step('Payments'), ctrl.signal);
+      const expenses = await fetchAllOf(expenseSource({}), step('Expenses'), ctrl.signal);
+      const journalEntries = await fetchAllJournalsForExport(step('Journal entries'), ctrl.signal);
+      const all: Record<string, unknown[]> = { ...clientCollections, invoices, payments, expenses, journalEntries };
+      const collections = Object.fromEntries(EXPORT_ORDER.map(k => [k, all[k] ?? []])) as Record<string, unknown[]>;
       const counts = Object.fromEntries(Object.entries(collections).map(([k, v]) => [k, Array.isArray(v) ? v.length : 0]));
       exportToJSON('ERP_Visible_Data', {
         exportedAt: new Date().toISOString(),
@@ -63,9 +84,11 @@ export const SettingsPage: React.FC = () => {
       });
       addToast({ type: 'success', title: 'Export created', message: 'A JSON file with your visible data was downloaded.' });
     } catch (e) {
-      addToast({ type: 'error', title: 'Export failed', message: (e as Error).message });
+      if ((e as Error).name === 'AbortError') addToast({ type: 'info', title: 'Export cancelled', message: 'No file was created.' });
+      else addToast({ type: 'error', title: 'Export failed', message: (e as Error).message });
     } finally {
-      setExporting(false);
+      setExportStep(null);
+      exportAbort.current = null;
     }
   };
 
@@ -137,16 +160,22 @@ export const SettingsPage: React.FC = () => {
               <p className="text-[11px] text-slate-400 mt-1">
                 Read-only snapshot for archiving or audits. It cannot be imported back; restores are done by an administrator from database backups.
               </p>
+              {clientErrors.length > 0 && (
+                <p className="text-[11px] text-rose-600 mt-1">
+                  Some records could not be loaded ({clientErrors.join(', ')}), so the export is unavailable.{' '}
+                  <button className="underline font-bold cursor-pointer" onClick={() => void fleet.reload(clientErrors as unknown as CollectionKey[])}>Retry</button>
+                </p>
+              )}
             </div>
             <Button
               variant="outline"
               size="sm"
               className="rounded-full shrink-0"
-              onClick={handleExport}
-              disabled={exporting}
+              onClick={() => void handleExport()}
+              disabled={!exporting && (!clientLoaded || clientErrors.length > 0)}
               leftIcon={<Download className="w-4 h-4 text-forest-500" />}
             >
-              Export JSON
+              {exporting ? `Cancel (${exportStep})` : clientLoaded ? 'Export JSON' : 'Loading records…'}
             </Button>
           </div>
         </CardContent>

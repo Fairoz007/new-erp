@@ -829,7 +829,35 @@ export interface VehicleFinancialCollections {
   invoices: Invoice[];
 }
 
+/** Expense and revenue totals of one vehicle (vehicle_financial_totals() in the database). */
+export interface VehicleMoneyTotals {
+  /** Approved expenses, category Insurance */
+  insurance: number;
+  /** Approved expenses, category Registration */
+  registration: number;
+  /** Approved expenses of every other category except Maintenance, Oil, Tyres and Accident */
+  other: number;
+  /** Approved sales invoices with the vehicle on the header, credit notes deducted */
+  revenue: number;
+}
+
 export function getVehicleFinancialSummary(vehicleId: string, c: VehicleFinancialCollections): VehicleFinancialSummary {
+  const sum = <T,>(list: T[], pick: (x: T) => number) => list.reduce((s, x) => s + (pick(x) || 0), 0);
+  const vehicleExps = c.expenses.filter(e => e.vehicleId === vehicleId && isApprovedExpense(e));
+  return getVehicleFinancialSummaryFromTotals(vehicleId, c, {
+    insurance: sum(vehicleExps.filter(e => e.category === 'Insurance'), e => e.total),
+    registration: sum(vehicleExps.filter(e => e.category === 'Registration'), e => e.total),
+    other: sum(vehicleExps.filter(e => !['Insurance', 'Registration', 'Maintenance', 'Oil', 'Tyres', 'Accident'].includes(e.category)), e => e.total),
+    // Revenue = approved (GL-posted) sales invoices for this vehicle, net of approved credit notes
+    revenue: c.invoices
+      .filter(i => i.invoiceType === 'Sales' && i.vehicleId === vehicleId && i.approvalStatus === 'Approved')
+      .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.grandTotal) : i.grandTotal), 0),
+  });
+}
+
+/** Same summary with expenses and revenue already totalled in the database. */
+export function getVehicleFinancialSummaryFromTotals(vehicleId: string, c: Omit<VehicleFinancialCollections, 'expenses' | 'invoices'>,
+  t: VehicleMoneyTotals | undefined): VehicleFinancialSummary {
   const vehicle = c.vehicles.find(v => v.id === vehicleId);
   if (!vehicle) {
     return {
@@ -849,22 +877,14 @@ export function getVehicleFinancialSummary(vehicleId: string, c: VehicleFinancia
   const totalTyre = sum(c.tyres.filter(t => t.vehicleId === vehicleId), t => t.purchaseCost)
     + sum(c.tyreEvents.filter(te => te.vehicleId === vehicleId), te => te.cost);
 
-  const vehicleExps = c.expenses.filter(e => e.vehicleId === vehicleId && isApprovedExpense(e));
-  const totalIns = sum(vehicleExps.filter(e => e.category === 'Insurance'), e => e.total) + (vehicle.insurancePremiumAnnual || 0);
-  const totalReg = sum(vehicleExps.filter(e => e.category === 'Registration'), e => e.total);
-  const otherExp = sum(
-    vehicleExps.filter(e => !['Insurance', 'Registration', 'Maintenance', 'Oil', 'Tyres', 'Accident'].includes(e.category)),
-    e => e.total,
-  );
+  const totalIns = (t?.insurance ?? 0) + (vehicle.insurancePremiumAnnual || 0);
+  const totalReg = t?.registration ?? 0;
+  const otherExp = t?.other ?? 0;
 
   const operatingCost = totalMnt + totalAcc + totalOil + totalTyre + totalIns + totalReg + otherExp;
   const lifetimeCost = purchaseVal + operatingCost;
   const distance = Math.max(1, vehicle.currentMileage - (vehicle.initialOdometer || 0));
-
-  // Revenue = approved (GL-posted) sales invoices for this vehicle, net of approved credit notes
-  const totalRev = c.invoices
-    .filter(i => i.invoiceType === 'Sales' && i.vehicleId === vehicleId && i.approvalStatus === 'Approved')
-    .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.grandTotal) : i.grandTotal), 0);
+  const totalRev = t?.revenue ?? 0;
 
   return {
     purchaseValue: purchaseVal,

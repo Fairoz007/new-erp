@@ -2,12 +2,13 @@
 // Conventions: docs/audit/CONTRACTS.md. Every async function throws ServiceError on failure.
 // Sensitive columns (civil_id, passport_number, iban, salaries) are readable only by roles with
 // 'payroll:view' in the employee's office (RLS); never cache them outside FleetContext state.
+import { roundMoney } from '../utils/money';
 import { ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd } from './core';
 import type { CollectionKey, Fetchers } from './core';
 import type { Employee, EmployeeDepartment, PayrollLineItem, PayrollRun } from '../types/hr';
 import { requireCompany } from './accounting';
 
-const r3 = (v: number) => Math.round((v + Number.EPSILON) * 1000) / 1000;
+const r3 = (v: number) => roundMoney(v, 3);
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ---------------------------------------------------------------------------------------------

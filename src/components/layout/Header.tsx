@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useFleet } from '../../context/FleetContext';
+import { useUnreadNotificationCount } from '../../services/queries-dashboards';
 import { useUI, QuickModalType, AppPage } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from './UserAvatar';
@@ -63,7 +64,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSidebar, isSidebarCollapsed }) => {
   const headerRef = useRef<HTMLElement>(null);
-  const { companies, selectedCompanyId, setSelectedCompanyId, currency, notifications } = useFleet();
+  const { companies, selectedCompanyId, setSelectedCompanyId, currency } = useFleet();
   const { setIsSearchOpen, setIsNotificationDrawerOpen, openQuickModal, setCurrentPage } = useUI();
   const { currentUser, signOut, canAccessPage, hasPermission } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -73,7 +74,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // counted in the database (no row cap); shared cache entry with the sidebar badge
+  const unreadCount = useUnreadNotificationCount().data ?? 0;
   const currentCompany = companies.find(c => c.id === selectedCompanyId);
 
   useEffect(() => {

@@ -1,42 +1,55 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+/**
+ * Content-Security-Policy for production builds, as a <meta> tag (the app is static files, so
+ * this works on any host). Only this origin may run scripts; network calls may go only to the
+ * configured Supabase project. Not added in dev: Vite's dev server injects inline scripts.
+ * frame-ancestors cannot be set from a meta tag; see docs/OPERATIONS.md for the host headers.
+ */
+function cspPlugin(supabaseUrl: string | undefined): Plugin {
+  let origin = 'https://*.supabase.co';
+  try { if (supabaseUrl) origin = new URL(supabaseUrl).origin; } catch { /* keep the wildcard */ }
+  const ws = origin.replace(/^http/, 'ws');
+  const policy = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",   // React style props and Google Fonts CSS
+    "font-src 'self' data: https://fonts.gstatic.com",
+    `img-src 'self' data: blob: ${origin}`,
+    `connect-src 'self' ${origin} ${ws}`,
+    `frame-src 'self' blob: ${origin}`,                                 // document viewer (signed storage URLs, PDFs)
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+  return {
+    name: 'erp-csp',
+    apply: 'build',
+    transformIndexHtml: html => html.replace('<meta charset="UTF-8" />',
+      `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />\n    <meta name="referrer" content="strict-origin-when-cross-origin" />`),
+  };
+}
+
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  // Expose NEXT_PUBLIC_* vars (Supabase dashboard naming) alongside Vite's default VITE_*
-  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  build: {
-    chunkSizeWarningLimit: 800,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react/') || id.includes('react-dom/') || id.includes('scheduler/')) {
-              return 'vendor-react';
-            }
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
-            }
-            if (id.includes('jspdf') || id.includes('html2canvas')) {
-              return 'vendor-pdf';
-            }
-            if (id.includes('@supabase')) {
-              return 'vendor-supabase';
-            }
-            if (id.includes('lucide-react')) {
-              return 'vendor-icons';
-            }
-            return 'vendor-misc';
-          }
-        },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), ['VITE_', 'NEXT_PUBLIC_']);
+  return {
+    plugins: [react(), cspPlugin(env.VITE_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL)],
+    // Expose NEXT_PUBLIC_* vars (Supabase dashboard naming) alongside Vite's default VITE_*
+    envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
       },
     },
-  },
+    build: {
+      // No manualChunks: grouping every node_modules package into a few vendor chunks made the
+      // entry chunk import (and preload) the PDF and chart libraries on every visit. Rollup's own
+      // splitting keeps them in the lazy chunks that use them. Budget: scripts/bundle-report.mjs.
+      chunkSizeWarningLimit: 600,
+    },
+  };
 });

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -21,7 +21,8 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, todayYmd } from '../../utils/date';
-import { getCompanyBalanceSheet, getCompanyProfitLoss, getTrialBalance } from '../../services/accounting';
+import { useBalanceSheet, useInvoiceSummary, useProfitLoss, useTrialBalance } from '../../services/queries';
+import { useDashboardOpenInvoices, useJournalCount, useRecentJournals } from '../../services/queries-dashboards';
 
 const FinanceValue: React.FC<{
   label: string;
@@ -57,8 +58,6 @@ export const FinanceOverview: React.FC = () => {
     selectedCompany,
     currency,
     bankAccounts,
-    invoices,
-    journalEntries,
     reconciliations,
     approvalRequests,
     chartOfAccounts,
@@ -66,52 +65,50 @@ export const FinanceOverview: React.FC = () => {
   const { setCurrentPage } = useUI();
 
   const companyMatches = (companyId: string) => selectedCompanyId === 'all' || companyId === selectedCompanyId;
-  const scopedInvoices = invoices.filter(invoice => companyMatches(invoice.companyId));
-  const scopedJournals = journalEntries.filter(entry => companyMatches(entry.companyId));
   const scopedReconciliations = reconciliations.filter(item => companyMatches(item.companyId));
   const scopedApprovals = approvalRequests.filter(item => companyMatches(item.companyId));
   const scopedBankAccounts = bankAccounts.filter(account => companyMatches(account.companyId) && account.active);
 
-  // All three statements come from the same per-company ledger (opening balances + posted lines).
+  // All three statements come from the same per-company ledger (opening balances + posted lines),
+  // totalled in the database (ledger_movements); the balance sheet and trial balance share one call.
   const today = todayYmd();
-  const pnl = useMemo(() => getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId, { startDate: `${today.slice(0, 4)}-01-01`, endDate: today }), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
-  const balanceSheet = useMemo(() => getCompanyBalanceSheet(chartOfAccounts, journalEntries, selectedCompanyId, today), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
-  const trialBalance = useMemo(() => getTrialBalance(chartOfAccounts, journalEntries, today, selectedCompanyId), [chartOfAccounts, journalEntries, selectedCompanyId, today]);
+  const pnlQ = useProfitLoss(chartOfAccounts, selectedCompanyId, { startDate: `${today.slice(0, 4)}-01-01`, endDate: today });
+  const bsQ = useBalanceSheet(chartOfAccounts, selectedCompanyId, today);
+  const tbQ = useTrialBalance(chartOfAccounts, today, selectedCompanyId);
+  const pnl = pnlQ.data;
+  const balanceSheet = bsQ.data;
+  const trialBalance = tbQ.data;
+  // Invoice figures (invoice_summary), draft journal count, the 5 most urgent open invoices and the 5 newest journals
+  const summary = useInvoiceSummary(selectedCompanyId);
+  const draftCount = useJournalCount(selectedCompanyId, 'Draft');
+  const outstanding = useDashboardOpenInvoices('outstanding', selectedCompanyId === 'all' ? undefined : [selectedCompanyId], 5);
+  const recent = useRecentJournals(selectedCompanyId, 5);
+  const loadError = pnlQ.error ?? bsQ.error ?? summary.error ?? draftCount.error ?? outstanding.error ?? recent.error;
+  const retryAll = () => { void pnlQ.refetch(); void bsQ.refetch(); void summary.refetch(); void draftCount.refetch(); void outstanding.refetch(); void recent.refetch(); };
+  const ready = !!(pnl && balanceSheet && trialBalance && summary.data && draftCount.data !== undefined);
   // An empty ledger is trivially "balanced"; say so instead of claiming the books were checked.
-  const hasLedger = trialBalance.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
+  const hasLedger = !!trialBalance?.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 
   const cashBalance = scopedBankAccounts.reduce((sum, account) => sum + account.currentBalance, 0);
-  const receivables = scopedInvoices
-    .filter(invoice => invoice.invoiceType === 'Sales' && invoice.paymentStatus !== 'Cancelled')
-    .reduce((sum, invoice) => sum + invoice.outstandingAmount, 0);
-  const payables = scopedInvoices
-    .filter(invoice => invoice.invoiceType === 'Purchase' && invoice.paymentStatus !== 'Cancelled')
-    .reduce((sum, invoice) => sum + invoice.outstandingAmount, 0);
-  const workingCapital = balanceSheet.assets.totalCurrentAssets - balanceSheet.liabilities.totalCurrentLiabilities;
-  const overdueReceivables = scopedInvoices.filter(invoice => invoice.invoiceType === 'Sales' && invoice.paymentStatus === 'Overdue');
+  // open balances of documents that are not cancelled (credit notes carry none)
+  const receivables = summary.data?.fo_receivables ?? 0;
+  const payables = summary.data?.fo_payables ?? 0;
+  const workingCapital = balanceSheet ? balanceSheet.assets.totalCurrentAssets - balanceSheet.liabilities.totalCurrentLiabilities : 0;
+  const overdueReceivableCount = summary.data?.fo_overdue_sales ?? 0;
   const pendingApprovals = scopedApprovals.filter(approval => approval.status === 'Pending');
-  const draftJournals = scopedJournals.filter(entry => entry.status === 'Draft');
+  const draftJournalCount = draftCount.data ?? 0;
   const openReconciliations = scopedReconciliations.filter(item => !['Matched', 'Reconciled'].includes(item.status));
 
   const closeChecks = [
-    { label: 'Trial balance', detail: !hasLedger ? 'No balances posted yet' : trialBalance.isBalanced ? 'Debit and credit totals agree' : `${formatCurrency(trialBalance.difference, currency)} variance`, passed: hasLedger && trialBalance.isBalanced },
-    { label: 'Draft journals', detail: draftJournals.length === 0 ? 'No unposted vouchers' : `${draftJournals.length} voucher${draftJournals.length === 1 ? '' : 's'} require posting`, passed: draftJournals.length === 0 },
+    { label: 'Trial balance', detail: !hasLedger ? 'No balances posted yet' : trialBalance!.isBalanced ? 'Debit and credit totals agree' : `${formatCurrency(trialBalance!.difference, currency)} variance`, passed: hasLedger && !!trialBalance?.isBalanced },
+    { label: 'Draft journals', detail: draftJournalCount === 0 ? 'No unposted vouchers' : `${draftJournalCount} voucher${draftJournalCount === 1 ? '' : 's'} require posting`, passed: draftJournalCount === 0 },
     { label: 'Approvals', detail: pendingApprovals.length === 0 ? 'Approval queue is clear' : `${pendingApprovals.length} request${pendingApprovals.length === 1 ? '' : 's'} pending`, passed: pendingApprovals.length === 0 },
     { label: 'Reconciliation', detail: openReconciliations.length === 0 ? 'Invoices are reconciled' : `${openReconciliations.length} item${openReconciliations.length === 1 ? '' : 's'} need review`, passed: openReconciliations.length === 0 },
   ];
   const passedChecks = closeChecks.filter(check => check.passed).length;
 
-  const recentJournals = [...scopedJournals]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
-  const outstandingInvoices = scopedInvoices
-    .filter(invoice => invoice.outstandingAmount > 0 && invoice.paymentStatus !== 'Cancelled')
-    .sort((a, b) => {
-      if (a.paymentStatus === 'Overdue' && b.paymentStatus !== 'Overdue') return -1;
-      if (b.paymentStatus === 'Overdue' && a.paymentStatus !== 'Overdue') return 1;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    })
-    .slice(0, 5);
+  const recentJournals = recent.data ?? [];
+  const outstandingInvoices = outstanding.data ?? [];
 
   const destinations: { label: string; detail: string; page: AppPage; icon: React.ReactNode }[] = [
     { label: 'Trial Balance', detail: 'Validate ledger equilibrium', page: 'trial-balance', icon: <Scale className="h-5 w-5" /> },
@@ -124,23 +121,35 @@ export const FinanceOverview: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {loadError && (
+        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          Some figures could not be loaded: {loadError.message}{' '}
+          <button type="button" onClick={retryAll} className="font-semibold underline">Retry</button>
+        </p>
+      )}
       <section className="finance-hero overflow-hidden rounded-xl border border-slate-700 bg-white shadow-sm">
         <div className="grid gap-6 p-6 lg:grid-cols-[1.3fr_0.7fr] lg:p-8">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={!hasLedger ? 'amber' : trialBalance.isBalanced ? 'emerald' : 'rose'} dot>
-                {!hasLedger ? 'No ledger activity yet' : trialBalance.isBalanced ? 'Books balanced' : 'Review required'}
-              </Badge>
-              <span className="text-xs font-medium text-slate-400">{pnl.period}</span>
+              {!trialBalance ? (
+                <Badge variant="amber" dot>{tbQ.error ? 'Ledger unavailable' : 'Loading ledger…'}</Badge>
+              ) : (
+                <Badge variant={!hasLedger ? 'amber' : trialBalance.isBalanced ? 'emerald' : 'rose'} dot>
+                  {!hasLedger ? 'No ledger activity yet' : trialBalance.isBalanced ? 'Books balanced' : 'Review required'}
+                </Badge>
+              )}
+              {pnl && <span className="text-xs font-medium text-slate-400">{pnl.period}</span>}
             </div>
             <p className="mt-6 text-sm font-medium text-slate-400">Net operating result</p>
             <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2">
               <p className="text-4xl font-bold tracking-[-0.035em] text-slate-100 tabular-nums sm:text-5xl">
-                {formatCurrency(pnl.netProfit, currency)}
+                {pnl ? formatCurrency(pnl.netProfit, currency) : '…'}
               </p>
-              <span className={`mb-1 text-sm font-semibold ${pnl.netProfitMarginPercentage >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {pnl.netProfitMarginPercentage.toFixed(2)}% margin
-              </span>
+              {pnl && (
+                <span className={`mb-1 text-sm font-semibold ${pnl.netProfitMarginPercentage >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {pnl.netProfitMarginPercentage.toFixed(2)}% margin
+                </span>
+              )}
             </div>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
               Consolidated from posted ledger balances for {selectedCompanyId === 'all' ? 'all active entities' : selectedCompany?.name}.
@@ -154,7 +163,7 @@ export const FinanceOverview: React.FC = () => {
                 <p className="text-sm font-semibold text-slate-100">Period close readiness</p>
                 <p className="mt-1 text-xs text-slate-400">Live controls from current records</p>
               </div>
-              <span className="text-2xl font-bold text-slate-100 tabular-nums">{passedChecks}/{closeChecks.length}</span>
+              <span className="text-2xl font-bold text-slate-100 tabular-nums">{ready ? `${passedChecks}/${closeChecks.length}` : '…'}</span>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800" aria-label={`${passedChecks} of ${closeChecks.length} close checks passed`}>
               <div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: `${(passedChecks / closeChecks.length) * 100}%` }} />
@@ -168,9 +177,9 @@ export const FinanceOverview: React.FC = () => {
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         <FinanceValue label="Cash & bank" value={formatCurrency(cashBalance, currency)} detail={`${scopedBankAccounts.length} active bank account${scopedBankAccounts.length === 1 ? '' : 's'}`} icon={<Banknote className="h-5 w-5" />} />
-        <FinanceValue label="Accounts receivable" value={formatCurrency(receivables, currency)} detail={`${overdueReceivables.length} overdue customer invoice${overdueReceivables.length === 1 ? '' : 's'}`} icon={<ReceiptText className="h-5 w-5" />} tone={overdueReceivables.length ? 'rose' : 'emerald'} />
-        <FinanceValue label="Accounts payable" value={formatCurrency(payables, currency)} detail="Open approved and unpaid supplier invoices" icon={<WalletCards className="h-5 w-5" />} tone="amber" />
-        <FinanceValue label="Working capital" value={formatCurrency(workingCapital, currency)} detail="Current assets less current liabilities" icon={<TrendingUp className="h-5 w-5" />} tone={workingCapital >= 0 ? 'emerald' : 'rose'} />
+        <FinanceValue label="Accounts receivable" value={summary.data ? formatCurrency(receivables, currency) : '…'} detail={`${overdueReceivableCount} overdue customer invoice${overdueReceivableCount === 1 ? '' : 's'}`} icon={<ReceiptText className="h-5 w-5" />} tone={overdueReceivableCount ? 'rose' : 'emerald'} />
+        <FinanceValue label="Accounts payable" value={summary.data ? formatCurrency(payables, currency) : '…'} detail="Open approved and unpaid supplier invoices" icon={<WalletCards className="h-5 w-5" />} tone="amber" />
+        <FinanceValue label="Working capital" value={balanceSheet ? formatCurrency(workingCapital, currency) : '…'} detail="Current assets less current liabilities" icon={<TrendingUp className="h-5 w-5" />} tone={workingCapital >= 0 ? 'emerald' : 'rose'} />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
@@ -200,7 +209,9 @@ export const FinanceOverview: React.FC = () => {
             <p className="mt-1 text-sm text-slate-400">Prioritized by overdue state and due date</p>
           </CardHeader>
           <div className="divide-y divide-slate-700">
-            {outstandingInvoices.length ? outstandingInvoices.map(invoice => (
+            {outstanding.loading ? (
+              <p className="px-6 py-10 text-center text-sm text-slate-400">Loading…</p>
+            ) : outstandingInvoices.length ? outstandingInvoices.map(invoice => (
               <button key={invoice.id} onClick={() => setCurrentPage('invoices')} className="grid w-full grid-cols-[1fr_auto] gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-850 sm:px-6">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -249,7 +260,8 @@ export const FinanceOverview: React.FC = () => {
           <p className="mt-1 text-sm text-slate-400">Latest posted and draft journal vouchers</p>
         </CardHeader>
         <div className="divide-y divide-slate-700">
-          {recentJournals.length === 0 && (
+          {recent.loading && <p className="px-6 py-10 text-center text-sm text-slate-400">Loading…</p>}
+          {!recent.loading && recentJournals.length === 0 && (
             <p className="px-6 py-10 text-center text-sm text-slate-400">No journal entries have been posted yet.</p>
           )}
           {recentJournals.map(entry => (

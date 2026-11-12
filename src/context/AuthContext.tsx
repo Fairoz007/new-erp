@@ -93,6 +93,7 @@ interface AuthContextType {
   status: AuthStatus;
   error: string | null;
   passwordRecovery: boolean;         // arrived via invite/recovery link: must set a password
+  sessionEnded: boolean;             // signed out without asking (token could not be refreshed, signed out elsewhere)
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearPasswordRecovery: () => void;
@@ -124,6 +125,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const userSignOut = useRef(false);
+  const hadSession = useRef(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +156,14 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
-      if (event === 'SIGNED_OUT') setPasswordRecovery(false);
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecovery(false);
+        // Not the user's own sign-out: the session expired or was revoked. Say so on the login screen.
+        if (hadSession.current && !userSignOut.current) setSessionEnded(true);
+        userSignOut.current = false;
+      }
+      if (event === 'SIGNED_IN') setSessionEnded(false);
+      hadSession.current = !!s;
       setSession(s);
       setSessionChecked(true);
     });
@@ -241,6 +252,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const signOut = useCallback(async () => {
+    userSignOut.current = true;
     try {
       await authService.signOut();
     } finally {
@@ -355,6 +367,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     status,
     error,
     passwordRecovery,
+    sessionEnded,
     signIn,
     signOut,
     clearPasswordRecovery,

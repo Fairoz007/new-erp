@@ -108,3 +108,164 @@ volume: before and after"), measured in one run so both sides use the same data.
 | D0-1 | 18 files: every form that defaults a date to "today" (expenses, invoices, payments, journals, reversals, maintenance, accidents, depreciation, contracts, transfers, documents), the P&L and balance-sheet "as of" defaults, the 7- and 30-day windows on the dashboard and monthly expenses, export file names | Open any of these forms in Oman between 00:00 and 04:00 local time | High: documents dated the previous day; due dates and alert windows shifted by a day | `new Date().toISOString().slice(0, 10)` is the UTC date. Replaced with local-date helpers `todayYmd`, `addDaysYmd`, `currentMonthYm`, `toYmd` in `src/utils/date.ts` (unit tests in Phase 2). |
 | D0-2 | Every form using the shared `Input`, `Select`, `Textarea` (all pages) | Use a screen reader, or click a field label | Medium (accessibility, WCAG 1.3.1 / 4.1.2) | Labels were not associated with their control and errors were not announced. The shared components now set `id`/`htmlFor`, `aria-invalid`, `aria-describedby` (error or hint) and `aria-required`; unlabeled inputs use their placeholder as `aria-label`. |
 | D0-3 | Every page: secondary text colour | — | Medium (WCAG 1.4.3) | Recorded here, fixed with the palette review in Phase 5. |
+
+---
+
+## Phase 1: Data layer and performance
+
+### What changed
+
+- **No whole-table loads.** `FleetContext` no longer loads invoices, payments, expenses, journal
+  entries, audit logs or notifications. Pages read them through `src/services/queries*.ts`:
+  lists are paged, sorted, filtered and searched in Postgres (DataTable `server` mode), and every
+  figure (KPIs, ageing, dashboards, statements) comes from an aggregate function. No request asks
+  for more than 1,000 rows (`PAGE_MAX`, and every page function refuses a larger page).
+- **Smaller collections load on demand.** The remaining collections (vehicles, employees, parties,
+  chart of accounts, …) are fetched the first time a page reads them, not all at sign-in.
+- **Cache and invalidation** (`src/lib/queryCache.ts`): results are cached per user in memory,
+  tagged by the tables they read. A write invalidates its tables; realtime events are coalesced
+  (400 ms) and invalidate the same way; a tab that becomes visible refreshes stale results.
+  Nothing business-related is stored in the browser.
+- **Database** (migrations `20261113000000` … `0400`): list indexes; `ledger_movements`,
+  `general_ledger_page`, `general_ledger_summary`; list views (`v_invoice_list`, `v_payment_list`,
+  `v_journal_list`, `v_expense_list`, `v_notification_list`, `v_audit_log_list`, all
+  `security_invoker`); `invoice_page`, `invoice_summary`, `expense_page`, `expense_summary`,
+  `expense_page_figures`, `expense_totals`, `payment_totals`, `dashboard_series`,
+  `dashboard_open_invoices`, `party_statement`, `vehicle_financial_totals`, `invoice_tax_by_month`,
+  `reconcilable_invoice_page`, `notification_counts`, `unread_notification_count`,
+  `office_record_counts`. List and figure functions run as the caller (RLS decides the offices);
+  the two ledger functions that must run as owner check `accounting:view` /
+  `financial-statements:view` per office.
+- **One statement engine.** The trial balance, P&L, balance sheet and general ledger still use the
+  TS functions in `accounting.ts`; they now take movements (Σ debit / Σ credit per account) from
+  `ledger_movements` instead of summing every journal line in the browser.
+- **Code splitting.** `manualChunks` was removed (it forced the PDF and chart libraries into chunks
+  preloaded on every visit) and the dashboard became a lazy page like the others.
+- **Virtual scrolling** (`src/components/ui/useVirtualRows.ts`) for tables that can show more than
+  200 rows at once without paging: the attendance day sheet and month summary. Every other long
+  list is paged.
+
+### Parity (numbers did not change)
+
+| What | Test |
+|---|---|
+| Trial balance, P&L, balance sheet, for all offices and each office | `src/services/__tests__/ledgerParity.test.ts`: old path (all entries in the browser) and new path (`ledger_movements`) give identical statements on the same database |
+| General ledger running balance and brought-forward balance | same file, and `20261113000000_advance_data_layer.test.mjs` |
+| General ledger account totals | `20261113000400_advance_ledger_system.test.mjs` |
+| Invoice page figures (AP/AR, totals, ageing buckets, top parties, view counts) | `20261113000000_advance_data_layer.test.mjs` |
+| Dashboard and finance figures | `20261113000100_advance_dashboards.test.mjs` |
+| Party statements (both styles), vehicle financials, VAT by month | `20261113000200_advance_reports.test.mjs` (compared with ports of the old TS functions) |
+| Expense and payment figures | `20261113000300_advance_expenses_payments.test.mjs` |
+| Office record counts, notification counts, audit list | `20261113000400_advance_ledger_system.test.mjs` |
+
+### Numbers or behaviour that changed, and why
+
+| Change | Why | Proof |
+|---|---|---|
+| P&L per office and consolidated P&L for users with "financial statements: view" but not "accounting: view" now show figures instead of zeros | The old report summed journal lines the user could not load; `ledger_movements` answers for both permissions, as the statement pages already did | `20261113000200_advance_reports.test.mjs` |
+| Unread notifications count no longer stops at 500; audit log no longer stops at the newest 1,000 | Counted / paged in the database | `20261113000100…`, `0400` tests |
+| Statement-only users' JSON export no longer contains the synthetic "Summary" daily-total journals | They were never real journals | — |
+| Ties in "oldest due first" lists are ordered by invoice date, then number | The order used to depend on load order | `20261113000100` test |
+| Statement report lines on the same day are ordered by Postgres text order of the reference | Ordering moved to the database; balances are unaffected | `20261113000200` test |
+| Payment method filter options are sorted alphabetically | Built from the database | — |
+| Global search lists at most 8 invoices, with the true total in the heading | It used to list every match from a fully loaded table | — |
+| Loading and error states instead of zeros while figures load | Figures now arrive separately from the page | — |
+
+### Search fields
+
+Searching moved to a `search_text` column per list view; every word must match.
+
+| List | Now searches | Difference |
+|---|---|---|
+| Invoices | number, reference, PO, party, plate, office, notes | also office and notes; no longer status or amount |
+| Payments | number, invoice, party, transaction reference, cheque, method, bank account, bank | also bank fields |
+| Expenses | number, plate, category, description, supplier, cost centre, invoice and receipt numbers, employee, custom field values | also invoice/receipt numbers and employee; no longer status, amount or date |
+| Journals | number, reference, description, source | same fields |
+| Audit log | user, action, entity, changed fields with old and new values | wider than the four shortened values shown |
+
+### Defaults chosen
+
+- Page size 25 by default (DataTable), maximum 1,000 per request; exports fetch 1,000-row pages
+  with progress and cancel. Notifications page 40 per step, drawer 50, general ledger 50 lines
+  per account then 200 per "Show more".
+- Cached results are fresh for 30 s; older ones are shown at once and refreshed in the background.
+- `p_today` (the browser's local date) is passed to every "overdue" calculation, so overdue never
+  depends on the server's time zone.
+- The dashboard series is capped at 400 days per call.
+
+### Measurements after Phase 1
+
+| | Before | After | Target |
+|---|---|---|---|
+| Initial JS (gzip) | 562.3 kB | 205.7 kB | < 250 kB |
+| Largest request | every row of every table (530,000 journal lines in 400-row pages ≈ 1,325 requests at the target volume) | ≤ 1,000 rows | ≤ 1,000 |
+
+"Database at target volume: before and after" is below.
+
+### Not verified
+
+- No page was opened signed in, in a browser, against a real Supabase project (no staging). The
+  PostgREST side (embedded `journal_lines` through `v_journal_list`, count-only `head` queries,
+  `or=` filters on `v_payment_list`) is covered only by SQL tests of the same queries.
+- First screen < 2.5 s and page change < 500 ms are not measured (need staging).
+
+---
+
+## Work from later phases done alongside Phase 1
+
+These parts were independent of the page conversions and were done while those ran. Each is
+listed again in its own phase.
+
+| Phase | Item | Test |
+|---|---|---|
+| 2 | One money helper (`src/utils/money.ts`): rounding half away from zero like Postgres `round()`, no `-0.000` | `src/utils/__tests__/money.test.ts` |
+| 2 | Local-date helper tests in Asia/Muscat | `src/utils/__tests__/date.test.ts` |
+| 2 | Error mapping in one place (`friendlyMessage` in `src/services/core.ts`) | `src/services/__tests__/errors.test.ts` |
+| 2 | Offline banner; everything refreshes on reconnect. "Your session has ended" on the sign-in screen when a session expires without the user signing out | not verified in a browser |
+| 6 | Content-Security-Policy meta tag in production builds (`vite.config.ts`); host headers in `docs/OPERATIONS.md` | checked in the browser on the production build: policy present, no violations |
+| 6 | Secret scan (`npm run scan:secrets`) | passes: nothing found |
+| 6 | Schema-wide security audit (`supabase/tests/security_audit.test.mjs`) | passes |
+| 8 | `client_errors` table, error reporter, `app_health`, `system_health`, `docs/OPERATIONS.md` | `20261113002000_observability.test.mjs` |
+
+### Defects found by these checks
+
+| # | Area | Severity | Fix |
+|---|---|---|---|
+| D1-1 | `budget_total(uuid)` ran as owner: any signed-in user could read another office's budget total by id | Medium | Now runs as the caller (`20261113003000_security_hardening.sql`) |
+| D1-2 | `preview_doc_number` showed the next document number of any office | Low | Only for offices the caller can access |
+| D1-3 | Negative amounts ending in exactly half a fil rounded toward zero in the browser (`-1.0005` → `-1.000`) but away from zero in the database (`-1.001`) | Low | One helper with the database's rule; `money.test.ts` |
+| D1-4 | A tiny negative amount showed as `OMR -0.000` | Low | Rounded before formatting |
+
+### Database at target volume: before and after
+
+One run on PGlite (`node --max-old-space-size=8192 scripts/staging-volume-seed.mjs --pglite --scale 1
+--split 20261113000000 --json docs/perf/volume-pglite.json`): the data set is loaded and timed
+with the Phase 0 migrations, then the Phase 1+ migrations are applied to the same data and the new
+queries are timed. Data: 10 offices, 500 vehicles, 300 employees, 50,000 invoices, 240,000 journal
+entries with 530,000 lines, 436,743 audit rows. PGlite is single-threaded WebAssembly, so the times
+are pessimistic; requests and rows per request are what the browser would see.
+
+| Before (what sign-in loaded) | ms | requests | rows |
+|---|---|---|---|
+| Journal entries with lines, every page | 813,918 | 601 | 240,000 entries |
+| Invoices with lines, every page | 29,490 | 126 | 50,000 |
+| Payments, every page | 295 | 38 | 15,000 |
+| Audit log, newest 1,000 (cap) | 17 | 1 | 1,000 |
+| Account balances | 516 | 1 | 560 |
+
+| After (what a page asks for) | ms | requests | rows |
+|---|---|---|---|
+| Invoices, first page of 25 | 127 | 1 | 25 |
+| Invoices, page 200 sorted by amount | 245 | 1 | 25 |
+| Invoices, search | 101 | 1 | 25 |
+| Invoice figures, all offices / one office | 488 / 56 | 1 | 1 |
+| Trial balance / balance sheet movements, all offices | 605 | 1 | 90 |
+| P&L movements, this year | 296 | 1 | 90 |
+| General ledger, one account, 100 lines | 99 | 1 | 100 |
+| Journal list, 25 with lines | 2 | 1 | 25 |
+| Payments list, 25 | 4 | 1 | 25 |
+| Dashboard series, 6 months | 7 | 1 | 184 |
+| Audit log, 25 | 1 | 1 | 25 |
+
+The expense list returned 0 rows because the volume data set has no expenses (it seeds invoices,
+payments and manual journals); `expense_page` is covered by its tests instead.

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Car, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
@@ -10,6 +10,8 @@ import { Vehicle } from '../../types/vehicle';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
+import { getVehicleFinancialSummaryFromTotals } from '../../services/fleet';
+import { useVehicleTotals } from '../../services/queries-reports';
 
 interface VehicleProfitabilityRow {
   vehicle: Vehicle;
@@ -27,14 +29,22 @@ interface VehicleProfitabilityRow {
 }
 
 export const VehicleProfitabilityPage: React.FC = () => {
-  const { vehicles: allVehicles, getVehicleFinancialSummary, currency, selectedCompanyId } = useFleet();
+  const fleet = useFleet();
+  const { vehicles: allVehicles, maintenanceRecords, accidents, oilChanges, tyres, tyreEvents, currency, selectedCompanyId } = fleet;
+  // Expense and revenue totals for every vehicle of the office in one database call
+  const totals = useVehicleTotals(selectedCompanyId);
+  const sources = useMemo(() => ({ vehicles: allVehicles, maintenanceRecords, accidents, oilChanges, tyres, tyreEvents }),
+    [allVehicles, maintenanceRecords, accidents, oilChanges, tyres, tyreEvents]);
+  const keys = ['vehicles', 'maintenanceRecords', 'accidents', 'oilChanges', 'tyres', 'tyreEvents'] as const;
+  const collectionsLoading = keys.some(k => !fleet.isCollectionLoaded(k));
+  const loadError = totals.error?.message ?? keys.map(k => fleet.loadErrors[k]).find(Boolean) ?? null;
   const { openVehicleDetail } = useUI();
 
   const vt = useVehicleTypeFilter();
   const vehicles = allVehicles.filter(v => (!selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId) && vt.matches(v.id));
 
   const profitabilityRows: VehicleProfitabilityRow[] = vehicles.map(v => {
-    const sum = getVehicleFinancialSummary(v.id);
+    const sum = getVehicleFinancialSummaryFromTotals(v.id, sources, totals.data?.get(v.id));
     const rev = sum.totalRevenueGenerated;
     const opCost = sum.totalLifetimeVehicleCost - v.purchase.purchaseValue;
     const profit = rev - opCost;
@@ -184,7 +194,9 @@ export const VehicleProfitabilityPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={profitabilityRows}
-        collection={'vehicles'}
+        loading={collectionsLoading || totals.loading}
+        error={loadError}
+        onRetry={() => { void totals.refetch(); void fleet.reload([...keys]).catch(() => undefined); }}
         columns={columns}
         keyExtractor={r => r.vehicle.id}
         title="Vehicle Profit & Cost Intelligence Analysis"

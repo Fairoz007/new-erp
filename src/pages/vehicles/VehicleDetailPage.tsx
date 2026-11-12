@@ -1,5 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { setTimelineScope } from '../../services/fleet';
+import React, { useEffect, useMemo, useState } from 'react';
+import { setTimelineScope, getVehicleFinancialSummaryFromTotals } from '../../services/fleet';
+import { DataTable, type Column } from '../../components/ui/DataTable';
+import { expenseSource, invoiceSource } from '../../services/queries';
+import { useSourceCount, useVehicleTotals } from '../../services/queries-reports';
+import type { VehicleExpense } from '../../types/operations';
+import type { FinanceInvoice } from '../../services/finance';
 import {
   Car,
   Wrench,
@@ -51,12 +56,9 @@ export const VehicleDetailPage: React.FC = () => {
     tyres,
     tyreEvents,
     accidents,
-    expenses,
-    invoices,
     documents,
     timeline,
     currency,
-    getVehicleFinancialSummary,
     updateVehicle,
     reload,
     deleteVehicle,
@@ -78,6 +80,12 @@ export const VehicleDetailPage: React.FC = () => {
     setTimelineScope(vehicleKey);
     reload(['timeline']).catch(() => undefined);
   }, [vehicleKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Expenses, invoices and their totals come from the database for this vehicle only
+  const totals = useVehicleTotals(null, vehicleKey ?? null, { enabled: !!vehicleKey });
+  const expSource = useMemo(() => expenseSource({ vehicle: vehicleKey ?? '' }), [vehicleKey]);
+  const invSource = useMemo(() => invoiceSource({ vehicleId: vehicleKey ?? '' }), [vehicleKey]);
+  const expenseCount = useSourceCount(expSource, { enabled: !!vehicleKey });
+  const invoiceCount = useSourceCount(invSource, { enabled: !!vehicleKey });
   const canEdit = hasPermission('edit', 'vehicles', vehicle?.companyId);
   const canDelete = hasPermission('delete', 'vehicles', vehicle?.companyId);
   const canTransfer = useCanTransfer('vehicle', vehicle?.companyId ?? '');
@@ -109,7 +117,8 @@ export const VehicleDetailPage: React.FC = () => {
     );
   }
 
-  const financialSummary = getVehicleFinancialSummary(vehicle.id);
+  const financialSummary = getVehicleFinancialSummaryFromTotals(vehicle.id, { vehicles, maintenanceRecords, accidents, oilChanges, tyres, tyreEvents },
+    totals.data?.get(vehicle.id));
   const depreciationSchedule = calculateDepreciationSchedule(vehicle);
 
   // Filtered records for this vehicle with robust foreign-key & plate connections
@@ -121,12 +130,27 @@ export const VehicleDetailPage: React.FC = () => {
   const vehicleTyres = tyres.filter(t => t.vehicleId === vehicle.id);
   const vehicleTyreEvents = tyreEvents.filter(te => te.vehicleId === vehicle.id);
   const vehicleAccidents = accidents.filter(a => a.vehicleId === vehicle.id || a.vehiclePlate === vehicle.plateNumber);
-  const vehicleExpenses = expenses.filter(e => e.vehicleId === vehicle.id || e.vehiclePlate === vehicle.plateNumber);
-  const vehicleInvoices = invoices.filter(i => 
-    i.vehicleId === vehicle.id || 
-    i.vehiclePlate === vehicle.plateNumber ||
-    (i.items && i.items.some(item => item.vehicleId === vehicle.id || item.vehiclePlate === vehicle.plateNumber))
-  );
+  // Expenses of the vehicle; invoices with the vehicle on the header or on any line (invoice_page p_vehicle)
+  const expenseColumns: Column<VehicleExpense>[] = [
+    { key: 'date', header: 'Date', sortKey: 'date', render: exp => formatDate(exp.date) },
+    { key: 'category', header: 'Category', sortKey: 'category', render: exp => (
+      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold text-[11px]">{exp.category}</span>) },
+    { key: 'description', header: 'Description', sortKey: 'description', render: exp => <span className="text-slate-200 font-medium">{exp.description}</span> },
+    { key: 'supplierName', header: 'Supplier / Merchant', sortKey: 'supplier_name', render: exp => <span className="text-slate-400">{exp.supplierName || '-'}</span> },
+    { key: 'paymentMethod', header: 'Payment Method', render: exp => <span className="text-slate-400">{exp.paymentMethod}</span> },
+    { key: 'total', header: 'Total', align: 'right', sortKey: 'total', render: exp => <span className="font-bold text-slate-100">{formatCurrency(exp.total, currency)}</span> },
+  ];
+  const invoiceColumns: Column<FinanceInvoice>[] = [
+    { key: 'invoiceNumber', header: 'Invoice #', sortKey: 'invoice_number', render: inv => <span className="font-mono font-bold text-slate-100">{inv.invoiceNumber}</span> },
+    { key: 'invoiceType', header: 'Type', sortKey: 'invoice_type', render: inv => inv.invoiceType },
+    { key: 'partyName', header: 'Party', sortKey: 'party_name', render: inv => <span className="text-slate-200">{inv.partyName}</span> },
+    { key: 'invoiceDate', header: 'Date', sortKey: 'invoice_date', render: inv => formatDate(inv.invoiceDate) },
+    { key: 'dueDate', header: 'Due Date', sortKey: 'due_date', render: inv => formatDate(inv.dueDate) },
+    { key: 'grandTotal', header: 'Amount', align: 'right', sortKey: 'grand_total', render: inv => <span className="font-bold">{formatCurrency(inv.grandTotal, currency)}</span> },
+    { key: 'paymentStatus', header: 'Status', align: 'center', sortKey: 'effective_status', render: inv => <StatusBadge status={inv.paymentStatus} size="sm" /> },
+    { key: 'action', header: 'Action', align: 'right', sortable: false, render: inv => (
+      <Button variant="ghost" size="xs" onClick={() => openInvoiceModal(inv.id)}>Print Preview</Button>) },
+  ];
   const vehicleDocuments = documents.filter(d => d.vehicleId === vehicle.id || (d.vehiclePlate && d.vehiclePlate === vehicle.plateNumber));
   const vehicleTimeline = timeline
     .filter(t => t.vehicleId === vehicle.id)
@@ -139,8 +163,8 @@ export const VehicleDetailPage: React.FC = () => {
     { id: 'oil', label: 'Oil Service', count: vehicleOilChanges.length, icon: <Droplet className="w-4 h-4" /> },
     { id: 'tyres', label: 'Tyres', count: vehicleTyres.length, icon: <Disc className="w-4 h-4" /> },
     { id: 'accidents', label: 'Accidents', count: vehicleAccidents.length, icon: <AlertTriangle className="w-4 h-4" /> },
-    { id: 'expenses', label: 'Expenses', count: vehicleExpenses.length, icon: <Receipt className="w-4 h-4" /> },
-    { id: 'invoices', label: 'Invoices', count: vehicleInvoices.length, icon: <FileText className="w-4 h-4" /> },
+    { id: 'expenses', label: 'Expenses', count: expenseCount.data ?? 0, icon: <Receipt className="w-4 h-4" /> },
+    { id: 'invoices', label: 'Invoices', count: invoiceCount.data ?? 0, icon: <FileText className="w-4 h-4" /> },
     { id: 'depreciation', label: 'Depreciation', icon: <Percent className="w-4 h-4" /> },
     { id: 'documents', label: 'Documents', count: vehicleDocuments.length, icon: <FolderOpen className="w-4 h-4" /> },
     { id: 'timeline', label: 'Timeline', count: vehicleTimeline.length, icon: <History className="w-4 h-4" /> },
@@ -864,7 +888,7 @@ export const VehicleDetailPage: React.FC = () => {
       {selectedVehicleTab === 'expenses' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-200">Vehicle Operational Expenses ({vehicleExpenses.length})</h3>
+            <h3 className="text-sm font-bold text-slate-200">Vehicle Operational Expenses ({expenseCount.data ?? 0})</h3>
             {hasPermission('create', 'expenses') && (
 <Button variant="primary" size="sm" onClick={() => openQuickModal('add-expense')} leftIcon={<Plus className="w-4 h-4" />}>
               Add Expense
@@ -872,38 +896,15 @@ export const VehicleDetailPage: React.FC = () => {
 )}
           </div>
 
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-700/60 uppercase tracking-wider text-[11px]">
-                  <tr>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Category</th>
-                    <th className="px-4 py-3">Description</th>
-                    <th className="px-4 py-3">Supplier / Merchant</th>
-                    <th className="px-4 py-3">Payment Method</th>
-                    <th className="px-4 py-3 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/40">
-                  {vehicleExpenses.map(exp => (
-                    <tr key={exp.id}>
-                      <td className="px-4 py-3">{formatDate(exp.date)}</td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold text-[11px]">
-                          {exp.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-200 font-medium">{exp.description}</td>
-                      <td className="px-4 py-3 text-slate-400">{exp.supplierName || '-'}</td>
-                      <td className="px-4 py-3 text-slate-400">{exp.paymentMethod}</td>
-                      <td className="px-4 py-3 text-right font-bold text-slate-100">{formatCurrency(exp.total, currency)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <DataTable
+            server={expSource}
+            columns={expenseColumns}
+            keyExtractor={exp => exp.id}
+            searchPlaceholder="Search expenses..."
+            exportFilename={`Vehicle_Expenses_${vehicle.plateNumber}`}
+            exportModule="expenses"
+            emptyMessage="No expenses recorded for this vehicle."
+          />
         </div>
       )}
 
@@ -919,42 +920,15 @@ export const VehicleDetailPage: React.FC = () => {
 )}
           </div>
 
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-700/60 uppercase tracking-wider text-[11px]">
-                  <tr>
-                    <th className="px-4 py-3">Invoice #</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Party</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Due Date</th>
-                    <th className="px-4 py-3 text-right">Amount</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/40">
-                  {vehicleInvoices.map(inv => (
-                    <tr key={inv.id}>
-                      <td className="px-4 py-3 font-mono font-bold text-slate-100">{inv.invoiceNumber}</td>
-                      <td className="px-4 py-3">{inv.invoiceType}</td>
-                      <td className="px-4 py-3 text-slate-200">{inv.partyName}</td>
-                      <td className="px-4 py-3">{formatDate(inv.invoiceDate)}</td>
-                      <td className="px-4 py-3">{formatDate(inv.dueDate)}</td>
-                      <td className="px-4 py-3 text-right font-bold">{formatCurrency(inv.grandTotal, currency)}</td>
-                      <td className="px-4 py-3 text-center"><StatusBadge status={inv.paymentStatus} size="sm" /></td>
-                      <td className="px-4 py-3 text-right">
-                        <Button variant="ghost" size="xs" onClick={() => openInvoiceModal(inv.id)}>
-                          Print Preview
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <DataTable
+            server={invSource}
+            columns={invoiceColumns}
+            keyExtractor={inv => inv.id}
+            searchPlaceholder="Search invoices..."
+            exportFilename={`Vehicle_Invoices_${vehicle.plateNumber}`}
+            exportModule="invoices"
+            emptyMessage="No invoices linked to this vehicle."
+          />
         </div>
       )}
 

@@ -9,9 +9,10 @@ import { Company } from '../../types/system';
 import { CompanyFormModal } from './CompanyFormModal';
 import { useCustomFields } from '../../hooks/useCustomFields';
 import { formatCustomValue } from '../../components/common/CustomFieldsForm';
+import { useOfficeRecordCounts } from '../../services/queries-system';
 
 export const CompaniesPage: React.FC = () => {
-  const { companies, vehicles, invoices, employees, selectedCompanyId, setSelectedCompanyId, addCompany, updateCompany } = useFleet();
+  const { companies, selectedCompanyId, setSelectedCompanyId, addCompany, updateCompany } = useFleet();
   const { addToast } = useUI();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('edit', 'companies');
@@ -33,6 +34,11 @@ export const CompaniesPage: React.FC = () => {
   };
 
   const officeFields = useCustomFields('office').defs.filter(d => d.showInList);
+  // Vehicles, employees and invoices per office counted in the database (office_record_counts, RLS applies)
+  const counts = useOfficeRecordCounts();
+  const countOf = (id: string) => counts.data?.get(id) ?? { vehicles: 0, employees: 0, invoices: 0 };
+  const showCount = (n: number) => (counts.data ? n.toLocaleString() : counts.error ? '—' : '…');
+  const totalOf = (k: 'vehicles' | 'employees') => companies.reduce((t, c) => t + countOf(c.id)[k], 0);
 
   return (
     <div className="space-y-6">
@@ -65,7 +71,7 @@ export const CompaniesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Group totals (computed from the loaded records) */}
+      {/* Group totals (counted in the database) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-700 rounded-[20px] p-5 shadow-card">
           <span className="text-slate-400 block text-[10px] uppercase font-medium">Offices</span>
@@ -73,13 +79,20 @@ export const CompaniesPage: React.FC = () => {
         </div>
         <div className="bg-white border border-slate-700 rounded-[20px] p-5 shadow-card">
           <span className="text-slate-400 block text-[10px] uppercase font-medium">Vehicles (all offices)</span>
-          <span className="text-2xl font-bold text-slate-100">{vehicles.length}</span>
+          <span className="text-2xl font-bold text-slate-100">{showCount(totalOf('vehicles'))}</span>
         </div>
         <div className="bg-white border border-slate-700 rounded-[20px] p-5 shadow-card">
           <span className="text-slate-400 block text-[10px] uppercase font-medium">Employees (all offices)</span>
-          <span className="text-2xl font-bold text-slate-100">{employees.length}</span>
+          <span className="text-2xl font-bold text-slate-100">{showCount(totalOf('employees'))}</span>
         </div>
       </div>
+
+      {counts.error && (
+        <div className="bg-white border border-slate-700 rounded-[20px] p-4 text-xs text-rose-600">
+          Could not load the record counts: {counts.error.message}{' '}
+          <button className="underline font-bold cursor-pointer" onClick={() => void counts.refetch()}>Retry</button>
+        </div>
+      )}
 
       {companies.length === 0 && (
         <div className="bg-white border border-slate-700 rounded-[20px] p-10 text-center text-sm text-slate-400">
@@ -90,9 +103,7 @@ export const CompaniesPage: React.FC = () => {
       {/* Offices Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {companies.map(comp => {
-          const compVehicles = vehicles.filter(v => v.companyId === comp.id);
-          const compInvoices = invoices.filter(i => i.companyId === comp.id);
-          const compStaff = employees.filter(e => e.companyId === comp.id);
+          const compCounts = countOf(comp.id);
           const isSelected = selectedCompanyId === comp.id;
 
           return (
@@ -155,19 +166,19 @@ export const CompaniesPage: React.FC = () => {
                     <span className="text-slate-400 block text-[10px] uppercase font-medium flex items-center justify-center gap-1">
                       <Car className="w-3 h-3 text-forest-500" /> Assigned Fleet
                     </span>
-                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{compVehicles.length} Vehicles</span>
+                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{showCount(compCounts.vehicles)} Vehicles</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-medium flex items-center justify-center gap-1">
                       <Users className="w-3 h-3 text-forest-500" /> Office Staff
                     </span>
-                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{compStaff.length} Employees</span>
+                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{showCount(compCounts.employees)} Employees</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-medium flex items-center justify-center gap-1">
                       <FileText className="w-3 h-3 text-forest-500" /> Invoices Logged
                     </span>
-                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{compInvoices.length} Invoices</span>
+                    <span className="text-lg font-bold text-slate-100 mt-0.5 block">{showCount(compCounts.invoices)} Invoices</span>
                   </div>
                 </div>
 

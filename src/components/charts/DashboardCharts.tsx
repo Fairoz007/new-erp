@@ -1,5 +1,4 @@
 import React from 'react';
-import { isApprovedExpense } from '../../types/operations';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -14,17 +13,29 @@ import {
 } from 'recharts';
 import { formatCurrency } from '../../utils/financial';
 import { useFleet } from '../../context/FleetContext';
-import type { Invoice } from '../../types/finance';
 import type { MaintenanceRecord } from '../../types/maintenance';
-import type { VehicleExpense } from '../../types/operations';
+import type { DaySeries } from '../../services/queries';
 
-// Every chart below is computed from loaded ERP data. With no data they render an explicit empty state,
-// never placeholder figures.
+// Every chart below is drawn from real ERP figures (daily totals aggregated in the database by
+// dashboard_series(), or records already loaded). With no data they render an explicit empty
+// state, never placeholder figures.
 const EmptyChart: React.FC<{ message: string; height?: number }> = ({ message, height = 250 }) => (
   <div style={{ height }} className="w-full flex items-center justify-center text-xs text-slate-400 text-center px-6">
     {message}
   </div>
 );
+
+/** Loading or error state of a chart whose figures come from the server. */
+export const ChartState: React.FC<{ loading?: boolean; error?: Error; onRetry?: () => void; height?: number; children: React.ReactNode }> = ({ loading, error, onRetry, height = 250, children }) => {
+  if (error) return (
+    <div role="alert" style={{ height }} className="w-full flex flex-col items-center justify-center gap-2 text-xs text-rose-500 text-center px-6">
+      <span>Could not load the figures: {error.message}</span>
+      {onRetry && <button type="button" onClick={onRetry} className="font-semibold underline text-slate-300 hover:text-slate-100">Retry</button>}
+    </div>
+  );
+  if (loading) return <div style={{ height }} aria-busy="true" className="w-full flex items-center justify-center text-xs text-slate-400">Loading…</div>;
+  return <>{children}</>;
+};
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // last n calendar months ending with the current one
@@ -64,20 +75,14 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
 
 const kFormat = (val: number) => (Math.abs(val) >= 1000 ? `${val / 1000}k` : `${val}`);
 
-// 1. Revenue vs operating cost (last 6 months). Revenue = sales invoices (credit notes deducted);
-//    cost = vehicle expenses + maintenance records.
-export const RevenueVsExpenseChart: React.FC<{
-  invoices: Invoice[];
-  expenses: VehicleExpense[];
-  maintenanceRecords: MaintenanceRecord[];
-}> = ({ invoices, expenses, maintenanceRecords }) => {
+// 1. Revenue vs operating cost (last 6 months). Revenue = sales invoices (credit notes deducted,
+//    cancelled excluded); cost = approved vehicle expenses + maintenance records. `series` holds
+//    those daily totals (dashboard_series) covering at least the last 6 calendar months.
+export const RevenueVsExpenseChart: React.FC<{ series: DaySeries[] }> = ({ series }) => {
   const data = lastMonths(6).map(m => {
-    const Revenue = invoices
-      .filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Cancelled' && ym(i.invoiceDate) === m.key)
-      .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.subtotal) : i.subtotal), 0);
-    const Expenses =
-      expenses.filter(e => isApprovedExpense(e) && ym(e.date) === m.key).reduce((s, e) => s + e.total, 0) +
-      maintenanceRecords.filter(r => ym(r.maintenanceDate) === m.key).reduce((s, r) => s + r.totalCost, 0);
+    const days = series.filter(d => ym(d.day) === m.key);
+    const Revenue = days.reduce((s, d) => s + d.sales, 0);
+    const Expenses = days.reduce((s, d) => s + d.expenses + d.maintenance, 0);
     return { month: m.label, Revenue, Expenses };
   });
   if (data.every(d => d.Revenue === 0 && d.Expenses === 0)) {
@@ -111,20 +116,19 @@ export const RevenueVsExpenseChart: React.FC<{
   );
 };
 
-// 2. Capsule bar chart: operating spend (expenses + maintenance) per day for the last 7 days.
+// 2. Capsule bar chart: operating spend (approved expenses + maintenance) per day for the last 7
+//    days, from the dashboard_series() daily totals.
 export const ReferencePillBarChart: React.FC<{
-  expenses: VehicleExpense[];
-  maintenanceRecords: MaintenanceRecord[];
+  series: DaySeries[];
   currency?: string;
-}> = ({ expenses, maintenanceRecords, currency = 'OMR' }) => {
+}> = ({ series, currency = 'OMR' }) => {
   const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const today = new Date();
+  const byDay = new Map(series.map(d => [d.day, d.expenses + d.maintenance]));
   const days = Array.from({ length: 7 }, (_, idx) => {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - idx));
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const amount =
-      expenses.filter(e => isApprovedExpense(e) && (e.date || '').slice(0, 10) === key).reduce((s, e) => s + e.total, 0) +
-      maintenanceRecords.filter(r => (r.maintenanceDate || '').slice(0, 10) === key).reduce((s, r) => s + r.totalCost, 0);
+    const amount = byDay.get(key) ?? 0;
     return { day: DAY_LABELS[d.getDay()], key, amount };
   });
   const max = Math.max(...days.map(d => d.amount));

@@ -6,11 +6,10 @@ import { UIProvider, useUI } from './context/UIContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { Button } from './components/ui/Button';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
+import { setErrorPage } from './lib/errorReporter';
 
-// Static Import for Immediate Paint on Landing Page
-import { DashboardPage } from './pages/dashboard/DashboardPage';
-
-// Lazy Loaded Submodules (Code-split for maximum load speed)
+// Every page is a lazy chunk; the shell (layout, contexts) is all that loads before sign-in.
+const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const PartyDetailPage = lazy(() => import('./pages/parties/PartyDetailPage').then(m => ({ default: m.PartyDetailPage })));
 const CompaniesPage = lazy(() => import('./pages/companies/CompaniesPage').then(m => ({ default: m.CompaniesPage })));
 const DriversPage = lazy(() => import('./pages/drivers/DriversPage').then(m => ({ default: m.DriversPage })));
@@ -214,6 +213,7 @@ const PageRenderer: React.FC = () => {
 
 const GuardedPage: React.FC = () => {
   const { currentPage } = useUI();
+  useEffect(() => { setErrorPage(currentPage); }, [currentPage]);
   return (
     <ErrorBoundary resetKey={currentPage}>
       <PageRenderer />

@@ -23,21 +23,49 @@ export class ServiceError extends Error {
   }
 }
 
+/** A save was refused because someone else changed the record first (optimistic locking). */
+export const CONFLICT = 'CONFLICT';
+
+/**
+ * Message a user can act on for a Postgres / PostgREST / network error. Messages raised on purpose
+ * by our own functions (P0001, e.g. "Permission denied: …", "above your approval limit") are kept.
+ */
+export function friendlyMessage(code: string | undefined, message: string, details?: string): string {
+  const m = message || 'Unexpected error';
+  if (code === CONFLICT) return m;
+  if (/failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(m))
+    return 'Could not reach the server. Check your connection and try again.';
+  if (code === 'PGRST301' || code === 'PGRST303' || /jwt expired|invalid jwt|refresh token/i.test(m))
+    return 'Your session has expired. Please sign in again.';
+  if (code === '42501' || /row-level security|permission denied/i.test(m))
+    return m.includes('Permission denied') ? m : 'Permission denied for this action.';
+  if (code === '23505') {
+    const what = /Key \(([^)]+)\)/.exec(details ?? '')?.[1]?.replace(/_/g, ' ');
+    return what ? `A record with the same ${what} already exists.` : 'A record with the same unique value already exists.';
+  }
+  if (code === '23503') return 'This record is linked to other records and cannot be changed or removed.';
+  if (code === '23514') return `Validation failed: ${m}`;
+  if (code === '23502') return 'A required field is missing.';
+  if (code === '22P02' || code === '22007' || code === '22008') return 'A value has the wrong format (check numbers and dates).';
+  if (code === '22003') return 'A number is too large.';
+  if (code === '40001' || code === '40P01') return 'The database was busy with a conflicting change. Please try again.';
+  if (code === '57014') return 'The request took too long. Narrow the filters (office, dates) and try again.';
+  if (code === 'PGRST116') return 'Record not found or not accessible.';
+  if (code === '54000' || /too many|limit exceeded/i.test(m)) return m;
+  return m;
+}
+
+/** True for errors worth retrying automatically (network, busy database). */
+export const isTransient = (err: unknown): boolean => {
+  const e = err as { code?: string; message?: string };
+  return e?.code === '40001' || e?.code === '40P01' || /failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(e?.message ?? '');
+};
+
 // Turn Postgres/PostgREST errors into messages a user can act on.
 export const toServiceError = (err: PostgrestError | Error | { message: string; code?: string }): ServiceError => {
   if (err instanceof ServiceError) return err;
   const code = (err as PostgrestError).code;
-  let message = err.message || 'Unexpected error';
-  if (code === '42501' || /row-level security|permission denied/i.test(message)) {
-    message = message.includes('Permission denied') ? message : 'Permission denied for this action.';
-  } else if (code === '23505') {
-    message = 'A record with the same unique value already exists.';
-  } else if (code === '23503') {
-    message = 'This record is linked to other records and cannot be changed or removed.';
-  } else if (code === '23514') {
-    message = `Validation failed: ${message}`;
-  }
-  return new ServiceError(message, {
+  return new ServiceError(friendlyMessage(code, err.message, (err as PostgrestError).details), {
     code,
     details: (err as PostgrestError).details,
     hint: (err as PostgrestError).hint,

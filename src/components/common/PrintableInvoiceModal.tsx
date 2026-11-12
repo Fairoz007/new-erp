@@ -10,11 +10,12 @@ import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { createDebitNote } from '../../services/ledger';
+import { useChildInvoices, useInvoiceById } from '../../services/queries-expenses';
 
 type Busy = null | 'duplicate' | 'credit' | 'debit' | 'submit' | 'cancel';
 
 export const PrintableInvoiceModal: React.FC = () => {
-  const { invoices, companies, duplicateInvoice, createCreditNote, updateInvoice, submitInvoice, reload } = useFleet();
+  const { companies, duplicateInvoice, createCreditNote, updateInvoice, submitInvoice, reload } = useFleet();
   const { viewingInvoiceId, closeInvoiceModal, addToast, openInvoiceModal, openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
   const printableRef = useRef<HTMLDivElement>(null);
@@ -25,17 +26,37 @@ export const PrintableInvoiceModal: React.FC = () => {
   const [dnOpen, setDnOpen] = useState(false);
   const [dn, setDn] = useState({ reason: '', description: '', amount: '', taxRate: '5' });
 
+  // The invoice with its lines, and the notes raised against it, read by id
+  const invoiceQ = useInvoiceById(viewingInvoiceId);
+  const childrenQ = useChildInvoices(viewingInvoiceId);
+
   if (!viewingInvoiceId) return null;
 
-  const invoice = invoices.find(inv => inv.id === viewingInvoiceId);
+  // useQuery keeps the previous invoice while the next one loads: only show the one asked for
+  const invoice = invoiceQ.data && invoiceQ.data.id === viewingInvoiceId ? invoiceQ.data : undefined;
+  if (!invoice && (invoiceQ.loading || invoiceQ.fetching) && !invoiceQ.error) {
+    return (
+      <Modal isOpen={true} onClose={closeInvoiceModal} title="Loading invoice…" size="sm">
+        <p className="p-4 text-center text-xs text-slate-400" role="status">Loading invoice…</p>
+      </Modal>
+    );
+  }
   if (!invoice) {
     return (
       <Modal isOpen={true} onClose={closeInvoiceModal} title="Invoice Not Found" size="sm">
         <div className="p-4 text-center space-y-4">
           <p className="text-xs text-slate-300">The requested invoice could not be found or you do not have access to it.</p>
-          <Button variant="secondary" size="sm" onClick={closeInvoiceModal}>
-            Close
-          </Button>
+          {invoiceQ.error && !/not found/i.test(invoiceQ.error.message) && (
+            <p role="alert" className="text-xs text-rose-500">{invoiceQ.error.message}</p>
+          )}
+          <div className="flex justify-center gap-2">
+            {invoiceQ.error && !/not found/i.test(invoiceQ.error.message) && (
+              <Button variant="outline" size="sm" onClick={() => void invoiceQ.refetch()}>Retry</Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={closeInvoiceModal}>
+              Close
+            </Button>
+          </div>
         </div>
       </Modal>
     );
@@ -47,7 +68,7 @@ export const PrintableInvoiceModal: React.FC = () => {
   const isPosted = invoice.approvalStatus === 'Approved';
   const isOpenDraft = invoice.approvalStatus === 'Draft' || invoice.approvalStatus === 'Rejected';
   // Credited amount is derived from this invoice's credit notes (the DB keeps the authoritative figure)
-  const creditedAmount = invoices
+  const creditedAmount = (childrenQ.data ?? [])
     .filter(i => i.isCreditNote && i.parentInvoiceId === invoice.id && i.approvalStatus !== 'Cancelled')
     .reduce((s, i) => s + Math.abs(i.grandTotal), 0);
   const canCredit = canCreate && isPosted && !invoice.isCreditNote && invoice.outstandingAmount > 0;

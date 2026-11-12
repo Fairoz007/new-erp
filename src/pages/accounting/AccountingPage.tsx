@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Scale, Trash2, Undo2 } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +13,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { FinanceOverview } from './FinanceOverview';
 import { useAuth } from '../../context/AuthContext';
 import { consolidateAccounts } from '../../services/accounting';
+import { journalRegisterSource, useJournalCount, type JournalListRow } from '../../services/queries-dashboards';
 
 type FormLine = { id: string; accountCode: string; debit: number; credit: number; description: string };
 
@@ -22,13 +23,13 @@ const blankLines = (): FormLine[] => [
 ];
 
 export const AccountingPage: React.FC = () => {
-  const { chartOfAccounts, journalEntries, addJournalEntry, reverseJournalEntry, currency, selectedCompanyId, companies } = useFleet();
+  const { chartOfAccounts, addJournalEntry, reverseJournalEntry, currency, selectedCompanyId, companies } = useFleet();
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
   const [reverseForm, setReverseForm] = useState({ date: todayYmd(), reason: '' });
   const [reverseError, setReverseError] = useState('');
   const [isReversing, setIsReversing] = useState(false);
-  const reversedIds = new Set(journalEntries.map(j => j.reversesEntryId).filter(Boolean) as string[]);
-  const canReverse = (j: JournalEntry) => j.status === 'Posted' && !reversedIds.has(j.id) && !j.reversesEntryId
+  // `reversed`: another entry reverses this one (looked up per page in the database)
+  const canReverse = (j: JournalListRow) => j.status === 'Posted' && !j.reversed && !j.reversesEntryId
     && (j.sourceModule === 'Manual' || j.sourceModule === 'Opening Balance') && hasPermission('create', 'accounting');
   const submitReversal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,9 +133,9 @@ export const AccountingPage: React.FC = () => {
     }
   };
 
-  const scopedJournalEntries = selectedCompanyId === 'all'
-    ? journalEntries
-    : journalEntries.filter(entry => entry.companyId === selectedCompanyId);
+  // Journal register: paged, sorted and searched in the database (v_journal_list)
+  const journalSource = useMemo(() => journalRegisterSource(selectedCompanyId), [selectedCompanyId]);
+  const journalCount = useJournalCount(selectedCompanyId);
 
   const updateLine = (idx: number, patch: Partial<FormLine>) =>
     setJournalForm(prev => ({ ...prev, lines: prev.lines.map((l, i) => (i === idx ? { ...l, ...patch } : l)) }));
@@ -194,9 +195,10 @@ export const AccountingPage: React.FC = () => {
     },
   ];
 
-  const journalColumns: Column<JournalEntry>[] = [
+  const journalColumns: Column<JournalListRow>[] = [
     {
       key: 'entryNumber',
+      sortKey: 'entry_number',
       header: 'Entry # / Date',
       render: (j) => (
         <div>
@@ -207,6 +209,7 @@ export const AccountingPage: React.FC = () => {
     },
     {
       key: 'description',
+      sortKey: 'description',
       header: 'Description & Reference',
       render: (j) => (
         <div className="max-w-md">
@@ -217,6 +220,7 @@ export const AccountingPage: React.FC = () => {
     },
     {
       key: 'sourceModule',
+      sortKey: 'source_module',
       header: 'Source',
       render: (j) => (
         <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-mono">
@@ -226,18 +230,21 @@ export const AccountingPage: React.FC = () => {
     },
     {
       key: 'totalDebit',
+      sortKey: 'total_debit',
       header: 'Debit Amount',
       align: 'right',
       render: (j) => <span className="font-mono text-slate-200">{formatCurrency(j.totalDebit, currency)}</span>,
     },
     {
       key: 'totalCredit',
+      sortKey: 'total_credit',
       header: 'Credit Amount',
       align: 'right',
       render: (j) => <span className="font-mono text-slate-200">{formatCurrency(j.totalCredit, currency)}</span>,
     },
     {
       key: 'status',
+      sortKey: 'status',
       header: 'Status',
       align: 'center',
       render: (j) => (
@@ -260,7 +267,7 @@ export const AccountingPage: React.FC = () => {
           onClick={() => { setReversing(j); setReverseForm({ date: todayYmd(), reason: '' }); setReverseError(''); }}>
           Reverse
         </Button>
-      ) : reversedIds.has(j.id) ? <span className="text-[10px] text-slate-400">Reversed</span> : null,
+      ) : j.reversed ? <span className="text-[10px] text-slate-400">Reversed</span> : null,
     },
   ];
 
@@ -285,7 +292,7 @@ export const AccountingPage: React.FC = () => {
             tabs={[
               { id: 'overview', label: 'Overview' },
               { id: 'coa', label: 'Accounts' },
-              { id: 'journal', label: 'Journals', count: scopedJournalEntries.length },
+              { id: 'journal', label: 'Journals', count: journalCount.data },
             ]}
           />
 
@@ -323,8 +330,7 @@ export const AccountingPage: React.FC = () => {
       {/* View: Journal Entries */}
       {activeTab === 'journal' && (
         <DataTable
-          data={scopedJournalEntries}
-          collection={'journalEntries'}
+          server={journalSource}
           columns={journalColumns}
           keyExtractor={j => j.id}
           title="General Journal Entries"

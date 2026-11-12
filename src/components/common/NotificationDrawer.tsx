@@ -6,22 +6,25 @@ import { Badge } from '../ui/Badge';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatDateTime } from '../../utils/date';
+import { useNotificationFeed, useNotificationCounts } from '../../services/queries-system';
+import type { NotificationItem } from '../../types/system';
 
 export const NotificationDrawer: React.FC = () => {
-  const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useFleet();
+  const { markNotificationAsRead, markAllNotificationsAsRead } = useFleet();
   const { isNotificationDrawerOpen, setIsNotificationDrawerOpen, openVehicleDetail, openInvoiceModal, setCurrentPage, addToast } = useUI();
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
 
-  const filteredNotifications = notifications.filter(n => {
-    if (filter === 'unread') return !n.read;
-    if (filter === 'critical') return n.severity === 'critical';
-    return true;
-  });
+  const [shown, setShown] = useState(50);
+  // Paged in the database while the drawer is open; counts from notification_counts().
+  const feed = useNotificationFeed(filter, shown, { enabled: isNotificationDrawerOpen });
+  const counts = useNotificationCounts({ enabled: isNotificationDrawerOpen });
+  const filteredNotifications = feed.data?.rows ?? [];
+  const filteredTotal = feed.data?.total ?? 0;
+  const c = counts.data ?? { total: 0, unread: 0, critical: 0 };
+  const unreadCount = c.unread;
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const handleAction = async (n: typeof notifications[0]) => {
+  const handleAction = async (n: NotificationItem) => {
     setIsNotificationDrawerOpen(false);
 
     if (n.type === 'approval_required') {
@@ -102,7 +105,7 @@ export const NotificationDrawer: React.FC = () => {
             filter === 'all' ? 'bg-slate-800 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          All ({notifications.length})
+          All ({c.total})
         </button>
         <button
           onClick={() => setFilter('unread')}
@@ -118,13 +121,20 @@ export const NotificationDrawer: React.FC = () => {
             filter === 'critical' ? 'bg-slate-800 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Critical ({notifications.filter(n => n.severity === 'critical').length})
+          Critical ({c.critical})
         </button>
       </div>
 
       {/* Notification List */}
       <div className="space-y-2.5">
-        {filteredNotifications.length > 0 ? (
+        {feed.error ? (
+          <div className="py-12 text-center text-xs text-rose-400">
+            Could not load notifications: {feed.error.message}{' '}
+            <button className="underline font-semibold cursor-pointer" onClick={() => void feed.refetch()}>Retry</button>
+          </div>
+        ) : feed.loading && !feed.data ? (
+          <div className="py-12 text-center text-xs text-slate-400">Loading…</div>
+        ) : filteredNotifications.length > 0 ? (
           filteredNotifications.map(item => (
             <div
               key={item.id}
@@ -149,12 +159,18 @@ export const NotificationDrawer: React.FC = () => {
                 {!item.read && <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1" />}
               </div>
             </div>
-          ))
+          )).concat(filteredTotal > filteredNotifications.length ? [
+            <div key="more" className="text-center pt-1">
+              <Button variant="outline" size="sm" disabled={feed.fetching} onClick={() => setShown(n => n + 50)}>
+                {feed.fetching ? 'Loading…' : `Show more (${filteredTotal - filteredNotifications.length} remaining)`}
+              </Button>
+            </div>,
+          ] : [])
         ) : (
           <div className="py-12 text-center text-slate-400 text-xs">
             <CheckCheck className="w-8 h-8 mx-auto text-emerald-400 stroke-[1.5] mb-2" />
-            <p className="font-semibold text-slate-300">{notifications.length === 0 ? 'No notifications yet' : 'Nothing here'}</p>
-            <p className="text-slate-400 mt-0.5">{notifications.length === 0 ? 'Alerts will appear when something needs your attention.' : 'No notifications matching the selected filter.'}</p>
+            <p className="font-semibold text-slate-300">{c.total === 0 ? 'No notifications yet' : 'Nothing here'}</p>
+            <p className="text-slate-400 mt-0.5">{c.total === 0 ? 'Alerts will appear when something needs your attention.' : 'No notifications matching the selected filter.'}</p>
           </div>
         )}
       </div>

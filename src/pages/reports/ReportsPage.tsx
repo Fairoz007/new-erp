@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { isApprovedExpense } from '../../types/operations';
 import { Printer } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +12,106 @@ import { EXTRA_REPORTS, REPORT_MODULE, type ReportFilters } from './extraReports
 import { Input, Select } from '../../components/ui/Input';
 import { useAuth } from '../../context/AuthContext';
 import { localToday } from '../../utils/date';
+import { expenseSource, invoiceSource, paymentSource, useExpenseTotals } from '../../services/queries';
+import { useTaxByMonth } from '../../services/queries-reports';
+import type { ServerSource } from '../../lib/serverList';
+import type { Vehicle } from '../../types/vehicle';
+
+// Registers are paged, sorted and searched in the database; exports fetch every filtered row.
+const mapSource = <T, R>(src: ServerSource<T>, map: (row: T) => R): ServerSource<R> => ({
+  ...src, fetch: async (q, signal) => { const page = await src.fetch(q, signal); return { rows: page.rows.map(map), total: page.total }; },
+});
+const sorted = (col: Column<Row>, sortKey: string): Column<Row> => ({ ...col, sortKey });
+const NO_ROWS = 'There are no records to report on for the selected office.';
+const Failed: React.FC<{ error: string; onRetry: () => void }> = ({ error, onRetry }) => (
+  <Card className="p-6 rounded-[20px] bg-white border border-rose-200 shadow-card">
+    <p className="text-sm font-semibold text-rose-600">Could not load the report</p>
+    <p className="text-xs text-slate-400 mt-1">{error}</p>
+    <Button variant="secondary" size="sm" className="mt-3" onClick={onRetry}>Retry</Button>
+  </Card>
+);
+const Loading = () => <Card className="p-6 rounded-[20px] bg-white border border-slate-700 shadow-card"><p className="text-xs text-slate-400">Loading…</p></Card>;
+
+const ExpenseRegister: React.FC<ReportFilters & { currency: string }> = ({ office, from, to, currency }) => {
+  const server = useMemo(() => expenseSource({ company: office, from, to }) as unknown as ServerSource<Row>, [office, from, to]);
+  return <DataTable server={server} keyExtractor={r => String(r.id)} exportFilename="Expense_Report" emptyMessage={NO_ROWS} columns={[
+    sorted(mono('expenseNumber', 'Expense #'), 'expense_number'), sorted(mono('vehiclePlate', 'Plate'), 'vehicle_plate'), sorted(text('category', 'Category'), 'category'),
+    sorted(text('description', 'Description'), 'description'), sorted(date('date', 'Date'), 'date'), sorted(money('total', 'Amount', currency, true), 'total'), sorted(text('status', 'Status'), 'status'),
+  ]} />;
+};
+
+const InvoiceRegister: React.FC<ReportFilters & { currency: string; kind: 'Purchase' | 'Sales' }> = ({ office, from, to, currency, kind }) => {
+  const server = useMemo(() => mapSource(invoiceSource({ companyId: office, type: kind, from, to }), (i): Row => ({
+    id: i.id, invoiceNumber: i.invoiceNumber, party: i.partyName, invoiceDate: i.invoiceDate, dueDate: i.dueDate,
+    grandTotal: i.grandTotal, amountPaid: i.amountPaid, outstanding: i.outstandingAmount, status: i.paymentStatus,
+  })), [office, from, to, kind]);
+  return <DataTable server={server} keyExtractor={r => String(r.id)} exportFilename={kind === 'Purchase' ? 'Purchase_Invoices_Report' : 'Sales_Invoices_Report'} emptyMessage={NO_ROWS} columns={[
+    sorted(mono('invoiceNumber', 'Invoice #'), 'invoice_number'), sorted(text('party', kind === 'Purchase' ? 'Supplier' : 'Customer'), 'party_name'),
+    sorted(date('invoiceDate', 'Date'), 'invoice_date'), sorted(date('dueDate', 'Due'), 'due_date'),
+    sorted(money('grandTotal', 'Total', currency), 'grand_total'), money('amountPaid', 'Paid', currency),
+    sorted(money('outstanding', 'Outstanding', currency, true), 'outstanding_amount'), sorted(text('status', 'Status'), 'effective_status'),
+  ]} />;
+};
+
+const PaymentRegister: React.FC<ReportFilters & { currency: string }> = ({ office, from, to, currency }) => {
+  const server = useMemo(() => mapSource(paymentSource({ companyId: office, from, to }), (p): Row => ({
+    id: p.id, paymentNumber: p.paymentNumber, paymentDate: p.paymentDate, direction: p.invoiceType === 'Sales' ? 'Collection' : 'Disbursal',
+    party: p.partyName, invoiceNumber: p.invoiceNumber, method: p.paymentMethod, bank: p.bankAccountName, amount: p.amount,
+  })), [office, from, to]);
+  return <DataTable server={server} keyExtractor={r => String(r.id)} exportFilename="Payment_Register" emptyMessage={NO_ROWS} columns={[
+    sorted(mono('paymentNumber', 'Payment #'), 'payment_number'), sorted(date('paymentDate', 'Date'), 'payment_date'), sorted(text('direction', 'Type'), 'invoice_type'),
+    sorted(text('party', 'Party'), 'party_name'), sorted(mono('invoiceNumber', 'Invoice'), 'invoice_number'),
+    sorted(text('method', 'Method'), 'payment_method'), sorted(text('bank', 'Bank Account'), 'bank_account_name'), sorted(money('amount', 'Amount', currency, true), 'amount'),
+  ]} />;
+};
+
+const CostPerKm: React.FC<{ vehicles: Vehicle[]; currency: string }> = ({ vehicles, currency }) => {
+  const { maintenanceRecords, oilChanges, tyres, accidents } = useFleet();
+  // approved expenses per vehicle (any office), as before
+  const exp = useExpenseTotals({}, 'vehicle');
+  if (exp.error) return <Failed error={exp.error.message} onRetry={() => { void exp.refetch(); }} />;
+  if (!exp.data) return <Loading />;
+  const expBy = new Map(exp.data.map(r => [r.vehicle_id, r.total]));
+  const rows = vehicles.map(v => {
+    const maintenance = maintenanceRecords.filter(m => m.vehicleId === v.id).reduce((s, m) => s + m.totalCost, 0);
+    const expenses = expBy.get(v.id) ?? 0;
+    const oil = oilChanges.filter(o => o.vehicleId === v.id).reduce((s, o) => s + o.totalCost, 0);
+    const tyre = tyres.filter(t => t.vehicleId === v.id).reduce((s, t) => s + t.purchaseCost, 0);
+    const acc = accidents.filter(a => a.vehicleId === v.id).reduce((s, a) => s + a.netAccidentCostToCompany, 0);
+    const totalCost = maintenance + expenses + oil + tyre + acc;
+    const distance = Math.max(0, v.currentMileage - (v.initialOdometer || 0));
+    return {
+      id: v.id, plateNumber: v.plateNumber, vehicle: `${v.brand} ${v.model}`, distance, totalCost,
+      costPerKm: distance > 0 ? totalCost / distance : null,
+    };
+  });
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-slate-400">Cost = maintenance + expenses + oil + tyres + net accident cost recorded in the system. Distance = current odometer minus initial odometer.</p>
+      <ReportTable rows={rows} filename="Cost_Per_KM_Report" columns={[
+        mono('plateNumber', 'Plate'), text('vehicle', 'Vehicle'), int('distance', 'Distance (KM)', ' KM'),
+        money('totalCost', 'Recorded Cost', currency), money('costPerKm', 'Cost per KM', currency, true),
+      ]} />
+    </div>
+  );
+};
+
+// Credit notes reduce the tax of the side they belong to; cancelled, draft and rejected invoices are excluded.
+const TaxReport: React.FC<ReportFilters & { currency: string }> = ({ office, from, to, currency }) => {
+  const q = useTaxByMonth(office, from, to);
+  if (q.error) return <Failed error={q.error.message} onRetry={() => { void q.refetch(); }} />;
+  if (!q.data) return <Loading />;
+  const rows = q.data.map(r => ({ id: r.month, month: r.month, outputTax: r.output_tax, inputTax: r.input_tax, net: r.output_tax - r.input_tax }))
+    .sort((a, b) => b.month.localeCompare(a.month));
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-slate-400">Approved and pending invoices by invoice month. Net payable = output tax on sales minus input tax on purchases (negative = recoverable).</p>
+      <ReportTable rows={rows} filename="VAT_Report" columns={[
+        mono('month', 'Month'), money('outputTax', 'Output Tax (Sales)', currency), money('inputTax', 'Input Tax (Purchases)', currency), money('net', 'Net Payable / (Recoverable)', currency, true),
+      ]} />
+    </div>
+  );
+};
 
 const reportCategories = [
   {
@@ -107,8 +206,8 @@ const AgingReport: React.FC<{ kind: 'Purchase' | 'Sales'; names: Map<string, str
 
 export const ReportsPage: React.FC = () => {
   const {
-    vehicles, maintenanceRecords, oilChanges, tyres, accidents, expenses, suppliers, customers,
-    invoices, payments, reconciliations, fixedAssets, currency, selectedCompanyId,
+    vehicles, maintenanceRecords, oilChanges, tyres, accidents, suppliers, customers,
+    reconciliations, fixedAssets, currency, selectedCompanyId,
   } = useFleet();
   const { companies } = useFleet();
   const { hasPermission } = useAuth();
@@ -173,30 +272,8 @@ export const ReportsPage: React.FC = () => {
         ]} />;
       }
 
-      case 'cost-per-km': {
-        const rows = vehiclesS.map(v => {
-          const maintenance = maintenanceRecords.filter(m => m.vehicleId === v.id).reduce((s, m) => s + m.totalCost, 0);
-          const exp = expenses.filter(e => e.vehicleId === v.id && isApprovedExpense(e)).reduce((s, e) => s + e.total, 0);
-          const oil = oilChanges.filter(o => o.vehicleId === v.id).reduce((s, o) => s + o.totalCost, 0);
-          const tyre = tyres.filter(t => t.vehicleId === v.id).reduce((s, t) => s + t.purchaseCost, 0);
-          const acc = accidents.filter(a => a.vehicleId === v.id).reduce((s, a) => s + a.netAccidentCostToCompany, 0);
-          const totalCost = maintenance + exp + oil + tyre + acc;
-          const distance = Math.max(0, v.currentMileage - (v.initialOdometer || 0));
-          return {
-            id: v.id, plateNumber: v.plateNumber, vehicle: `${v.brand} ${v.model}`, distance, totalCost,
-            costPerKm: distance > 0 ? totalCost / distance : null,
-          };
-        });
-        return (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-400">Cost = maintenance + expenses + oil + tyres + net accident cost recorded in the system. Distance = current odometer minus initial odometer.</p>
-            <ReportTable rows={rows} filename="Cost_Per_KM_Report" columns={[
-              mono('plateNumber', 'Plate'), text('vehicle', 'Vehicle'), int('distance', 'Distance (KM)', ' KM'),
-              money('totalCost', 'Recorded Cost', currency), money('costPerKm', 'Cost per KM', currency, true),
-            ]} />
-          </div>
-        );
-      }
+      case 'cost-per-km':
+        return <CostPerKm vehicles={vehiclesS} currency={currency} />;
 
       case 'maintenance-cost': {
         const rows = inCompany(maintenanceRecords).filter(m => inRange(m.maintenanceDate)).map(m => ({
@@ -244,28 +321,12 @@ export const ReportsPage: React.FC = () => {
         ]} />;
       }
 
-      case 'expense-report': {
-        const rows = inCompany(expenses).filter(e => inRange(e.date)).map(e => ({
-          id: e.id, expenseNumber: e.expenseNumber, vehiclePlate: e.vehiclePlate, category: e.category, description: e.description, date: e.date, total: e.total, status: e.status,
-        }));
-        return <ReportTable rows={rows} filename="Expense_Report" columns={[
-          mono('expenseNumber', 'Expense #'), mono('vehiclePlate', 'Plate'), text('category', 'Category'), text('description', 'Description'),
-          date('date', 'Date'), money('total', 'Amount', currency, true), text('status', 'Status'),
-        ]} />;
-      }
+      case 'expense-report':
+        return <ExpenseRegister {...filters} currency={currency} />;
 
       case 'purchase-invoices':
-      case 'sales-invoices': {
-        const kind = current === 'purchase-invoices' ? 'Purchase' : 'Sales';
-        const rows = inCompany(invoices).filter(i => i.invoiceType === kind && inRange(i.invoiceDate)).map(i => ({
-          id: i.id, invoiceNumber: i.invoiceNumber, party: i.partyName, invoiceDate: i.invoiceDate, dueDate: i.dueDate,
-          grandTotal: i.grandTotal, amountPaid: i.amountPaid, outstanding: i.outstandingAmount, status: i.paymentStatus,
-        }));
-        return <ReportTable rows={rows} filename={kind === 'Purchase' ? 'Purchase_Invoices_Report' : 'Sales_Invoices_Report'} columns={[
-          mono('invoiceNumber', 'Invoice #'), text('party', kind === 'Purchase' ? 'Supplier' : 'Customer'), date('invoiceDate', 'Date'), date('dueDate', 'Due'),
-          money('grandTotal', 'Total', currency), money('amountPaid', 'Paid', currency), money('outstanding', 'Outstanding', currency, true), text('status', 'Status'),
-        ]} />;
-      }
+      case 'sales-invoices':
+        return <InvoiceRegister {...filters} currency={currency} kind={current === 'purchase-invoices' ? 'Purchase' : 'Sales'} />;
 
       case 'reconciliation-report': {
         const rows = inCompany(reconciliations).map(r => ({
@@ -280,42 +341,16 @@ export const ReportsPage: React.FC = () => {
         ]} />;
       }
 
-      case 'payments-report': {
-        const rows = inCompany(payments).filter(p => inRange(p.paymentDate)).map(p => ({
-          id: p.id, paymentNumber: p.paymentNumber, paymentDate: p.paymentDate, direction: p.invoiceType === 'Sales' ? 'Collection' : 'Disbursal',
-          party: p.partyName, invoiceNumber: p.invoiceNumber, method: p.paymentMethod, bank: p.bankAccountName, amount: p.amount,
-        }));
-        return <ReportTable rows={rows} filename="Payment_Register" columns={[
-          mono('paymentNumber', 'Payment #'), date('paymentDate', 'Date'), text('direction', 'Type'), text('party', 'Party'), mono('invoiceNumber', 'Invoice'),
-          text('method', 'Method'), text('bank', 'Bank Account'), money('amount', 'Amount', currency, true),
-        ]} />;
-      }
+      case 'payments-report':
+        return <PaymentRegister {...filters} currency={currency} />;
 
       case 'ap-aging':
         return <AgingReport kind="Purchase" names={partyNames} companyId={office} currency={currency} />;
       case 'ar-aging':
         return <AgingReport kind="Sales" names={partyNames} companyId={office} currency={currency} />;
 
-      case 'tax-report': {
-        // Credit notes reduce the tax of the side they belong to; cancelled invoices are excluded.
-        const byMonth = new Map<string, Row>();
-        inCompany(invoices).filter(i => inRange(i.invoiceDate) && i.paymentStatus !== 'Cancelled' && i.approvalStatus !== 'Draft' && i.approvalStatus !== 'Rejected' && i.approvalStatus !== 'Cancelled').forEach(i => {
-          const key = (i.invoiceDate || '').slice(0, 7);
-          const row = byMonth.get(key) ?? { id: key, month: key, outputTax: 0, inputTax: 0, net: 0 };
-          const signed = i.isCreditNote ? -Math.abs(i.taxTotal) : i.taxTotal;   // credit-note totals already arrive negative
-          if (i.invoiceType === 'Sales') row.outputTax += signed; else row.inputTax += signed;
-          byMonth.set(key, row);
-        });
-        const rows = [...byMonth.values()].sort((a, b) => b.month.localeCompare(a.month)).map(r => ({ ...r, net: r.outputTax - r.inputTax }));
-        return (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-400">Approved and pending invoices by invoice month. Net payable = output tax on sales minus input tax on purchases (negative = recoverable).</p>
-            <ReportTable rows={rows} filename="VAT_Report" columns={[
-              mono('month', 'Month'), money('outputTax', 'Output Tax (Sales)', currency), money('inputTax', 'Input Tax (Purchases)', currency), money('net', 'Net Payable / (Recoverable)', currency, true),
-            ]} />
-          </div>
-        );
-      }
+      case 'tax-report':
+        return <TaxReport {...filters} currency={currency} />;
 
       default: {
         const extra = EXTRA_REPORTS.find(r => r.id === current);

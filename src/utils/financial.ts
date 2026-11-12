@@ -1,4 +1,5 @@
 import { Vehicle, DepreciationScheduleRow } from '../types/vehicle';
+import { roundMoney, currencyDecimals } from './money';
 
 /**
  * Format currency with proper decimal precision (OMR: 3 decimals, others: 2 decimals)
@@ -8,8 +9,9 @@ export function formatCurrency(amount: number | undefined | null, currency: stri
     amount = 0;
   }
   
-  const decimals = currency === 'OMR' ? 3 : 2;
-  const formattedNumber = amount.toLocaleString('en-US', {
+  const decimals = currencyDecimals(currency);
+  // round first (half away from zero, as the database does), so -0.0004 shows as 0.000, not -0.000
+  const formattedNumber = roundMoney(amount, decimals).toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -21,8 +23,7 @@ export function formatCurrency(amount: number | undefined | null, currency: stri
  * Decimal safe rounding
  */
 export function roundToPrecision(value: number, decimals: number = 3): number {
-  const factor = Math.pow(10, decimals);
-  return Math.round((value + Number.EPSILON) * factor) / factor;
+  return roundMoney(value, decimals);
 }
 
 /**

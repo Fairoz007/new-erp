@@ -6,10 +6,10 @@ import { Select } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
-import { getCompanyProfitLoss } from '../../services/accounting';
+import { useExpenseTotals, useProfitLoss, useProfitLossByOffice } from '../../services/queries';
+import { usePartyStatement } from '../../services/queries-reports';
 import { fetchBudgetVsActual, type BudgetActual } from '../../services/ledger';
 import { fetchFleetExpiries, EXPIRY_LABEL, type FleetExpiry } from '../../services/drivers';
-import { isApprovedExpense } from '../../types/operations';
 import { Row, text, mono, date, money, int, EmptyReport, ReportTable } from './reportKit';
 import { todayYmd } from '../../utils/date';
 
@@ -20,7 +20,12 @@ const inRange = (d: string | undefined, f: ReportFilters) => !!d && (!f.from || 
 const daysBetween = (a: string, b: string) => Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1);
 const Note: React.FC<{ children: React.ReactNode }> = ({ children }) => <p className="text-xs text-slate-400">{children}</p>;
 const Loading = () => <Card className="p-6 rounded-[20px] bg-white border border-slate-700 shadow-card"><p className="text-xs text-slate-400">Loading…</p></Card>;
-const Failed: React.FC<{ error: string }> = ({ error }) => <Card className="p-6 rounded-[20px] bg-white border border-rose-200 shadow-card"><p className="text-sm font-semibold text-rose-600">Could not load the report</p><p className="text-xs text-slate-400 mt-1">{error}</p></Card>;
+const Failed: React.FC<{ error: string; onRetry?: () => void }> = ({ error, onRetry }) => (
+  <Card className="p-6 rounded-[20px] bg-white border border-rose-200 shadow-card">
+    <p className="text-sm font-semibold text-rose-600">Could not load the report</p><p className="text-xs text-slate-400 mt-1">{error}</p>
+    {onRetry && <button type="button" className="mt-3 text-xs font-semibold text-forest-600 hover:underline" onClick={onRetry}>Retry</button>}
+  </Card>
+);
 
 // ---------------------------------------------------------------- fleet utilization
 const FleetUtilization: React.FC<ReportFilters> = f => {
@@ -78,30 +83,30 @@ const ExpiryReport: React.FC<ReportFilters> = f => {
 
 // ---------------------------------------------------------------- client / supplier statement
 const PartyStatement: React.FC<ReportFilters & { kind: 'Customer' | 'Supplier' }> = ({ kind, ...f }) => {
-  const { customers, suppliers, invoices, payments, currency } = useFleet();
+  const { customers, suppliers, currency } = useFleet();
   const parties = (kind === 'Customer' ? customers : suppliers).slice().sort((a, b) => a.name.localeCompare(b.name));
   const [partyId, setPartyId] = useState('');
   useEffect(() => { if (!parties.some(p => p.id === partyId)) setPartyId(parties[0]?.id ?? ''); }, [parties, partyId]);
-  const type = kind === 'Customer' ? 'Sales' : 'Purchase';
-  const { opening, rows } = useMemo(() => {
-    const inv = invoices.filter(i => i.partyId === partyId && i.invoiceType === type && i.approvalStatus === 'Approved' && (f.office === 'all' || i.companyId === f.office));
-    const pay = payments.filter(p => p.partyId === partyId && p.invoiceType === type && (f.office === 'all' || p.companyId === f.office));
-    const moves = [
-      ...inv.map(i => ({ id: i.id, date: i.invoiceDate, ref: i.invoiceNumber, detail: i.isCreditNote ? 'Credit note' : i.isDebitNote ? 'Debit note' : 'Invoice', charge: i.isCreditNote ? 0 : Math.abs(i.grandTotal), credit: i.isCreditNote ? Math.abs(i.grandTotal) : 0 })),
-      ...pay.map(p => ({ id: p.id, date: p.paymentDate, ref: p.paymentNumber, detail: `Payment · ${p.invoiceNumber}`, charge: 0, credit: p.amount })),
-    ].sort((a, b) => a.date.localeCompare(b.date) || a.ref.localeCompare(b.ref));
-    const open = moves.filter(m => f.from && m.date < f.from).reduce((s, m) => s + m.charge - m.credit, 0);
-    let bal = open;
-    const out = moves.filter(m => (!f.from || m.date >= f.from) && (!f.to || m.date <= f.to)).map(m => { bal += m.charge - m.credit; return { ...m, balance: Math.round(bal * 1000) / 1000 }; });
-    return { opening: open, rows: out };
-  }, [invoices, payments, partyId, type, f.office, f.from, f.to]);
+  // Approved invoices, credit / debit notes and payments with opening and running balance, from the database
+  const q = usePartyStatement({ partyId, kind, companyId: f.office, from: f.from, to: f.to, style: 'statement' });
+  const rows = useMemo(() => (q.data?.lines ?? []).map(l => ({
+    id: l.line_id, date: l.date, ref: l.reference,
+    detail: l.kind === 'Payment' ? `Payment · ${l.invoice_number ?? ''}` : l.kind === 'Credit Note' ? 'Credit note' : l.kind === 'Debit Note' ? 'Debit note' : 'Invoice',
+    charge: l.charge, credit: l.credit, balance: l.running_balance,
+  })), [q.data]);
   if (parties.length === 0) return <EmptyReport message={`No ${kind === 'Customer' ? 'clients' : 'suppliers'} you can see.`} />;
-  const closing = rows.length ? rows[rows.length - 1].balance : opening;
+  const picker = (
+    <div className="w-72"><Select label={kind === 'Customer' ? 'Client' : 'Supplier'} value={partyId} onChange={e => setPartyId(e.target.value)}>
+      {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+    </Select></div>
+  );
+  if (q.error) return <div className="space-y-3">{picker}<Failed error={q.error.message} onRetry={() => { void q.refetch(); }} /></div>;
+  if (!q.data) return <div className="space-y-3">{picker}<Loading /></div>;
+  const opening = q.data.opening_balance;
+  const closing = q.data.closing_balance;
   return (
     <div className="space-y-3">
-      <div className="w-72"><Select label={kind === 'Customer' ? 'Client' : 'Supplier'} value={partyId} onChange={e => setPartyId(e.target.value)}>
-        {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </Select></div>
+      {picker}
       <Note>Approved invoices, credit and debit notes, and payments. Opening balance before {f.from || 'the start'}: <strong className="text-slate-200">{formatCurrency(opening, currency)}</strong>. Closing balance: <strong className="text-slate-200">{formatCurrency(closing, currency)}</strong> ({kind === 'Customer' ? 'owed by the client' : 'owed to the supplier'}).</Note>
       <ReportTable rows={rows} filename={`${kind === 'Customer' ? 'Client' : 'Supplier'}_Statement`} title={`${kind === 'Customer' ? 'Client' : 'Supplier'} statement: ${parties.find(p => p.id === partyId)?.name ?? ''}`} columns={[
         date('date', 'Date'), mono('ref', 'Reference'), text('detail', 'Detail'), money('charge', kind === 'Customer' ? 'Charged' : 'Billed', currency), money('credit', kind === 'Customer' ? 'Received / credited' : 'Paid / credited', currency), money('balance', 'Balance', currency, true),
@@ -132,16 +137,15 @@ const PayrollSummary: React.FC<ReportFilters> = f => {
 
 // ---------------------------------------------------------------- expense by category
 const ExpenseByCategory: React.FC<ReportFilters> = f => {
-  const { expenses, companies, currency } = useFleet();
-  const m = new Map<string, Row>();
-  for (const e of expenses) {
-    if (!isApprovedExpense(e) || !inRange(e.date, f) || (f.office !== 'all' && e.companyId !== f.office)) continue;
-    const k = `${e.companyId}|${e.category}`;
-    const r = m.get(k) ?? { id: k, office: companies.find(c => c.id === e.companyId)?.name ?? '', category: e.category, count: 0, net: 0, vat: 0, total: 0 };
-    r.count += 1; r.net += e.total - e.tax; r.vat += e.tax; r.total += e.total;
-    m.set(k, r);
-  }
-  const rows = [...m.values()].sort((a, b) => b.total - a.total);
+  const { companies, currency } = useFleet();
+  // Approved expenses per office and category, totalled in the database
+  const q = useExpenseTotals({ company: f.office, from: f.from, to: f.to }, 'office_category');
+  if (q.error) return <Failed error={q.error.message} onRetry={() => { void q.refetch(); }} />;
+  if (!q.data) return <Loading />;
+  const rows: Row[] = q.data.map(r => ({
+    id: `${r.company_id}|${r.category}`, office: companies.find(c => c.id === r.company_id)?.name ?? '', category: r.category,
+    count: r.count, net: r.net, vat: r.tax, total: r.total,
+  })).sort((a, b) => b.total - a.total);
   const grand = rows.reduce((s, r) => s + r.total, 0);
   return (
     <div className="space-y-2">
@@ -191,10 +195,15 @@ const BudgetVsActualReport: React.FC<ReportFilters> = f => {
 
 // ---------------------------------------------------------------- P&L per office / consolidated
 const PnlByOffice: React.FC<ReportFilters> = f => {
-  const { chartOfAccounts, journalEntries, companies, currency } = useFleet();
+  const { chartOfAccounts, companies, currency, isCollectionLoaded } = useFleet();
   const offices = f.office === 'all' ? companies : companies.filter(c => c.id === f.office);
+  // ledger_movements() for the period, one call for every office
+  const q = useProfitLossByOffice(chartOfAccounts, offices.map(o => o.id), { startDate: f.from || undefined, endDate: f.to || undefined });
+  if (q.error) return <Failed error={q.error.message} onRetry={() => { void q.refetch(); }} />;
+  if (!q.data || !isCollectionLoaded('chartOfAccounts')) return <Loading />;
+  const byOffice = q.data;
   const rows = offices.map(o => {
-    const p = getCompanyProfitLoss(chartOfAccounts, journalEntries, o.id, { startDate: f.from || undefined, endDate: f.to || undefined });
+    const p = byOffice.get(o.id)!;
     return { id: o.id, office: o.name, revenue: p.totalRevenue, direct: p.totalDirectCosts, gross: p.grossProfit, opex: p.totalOperatingExpenses, depreciation: p.depreciationExpense, net: p.netProfit, margin: p.netProfitMarginPercentage };
   });
   return (
@@ -209,8 +218,11 @@ const PnlByOffice: React.FC<ReportFilters> = f => {
 };
 
 const ConsolidatedPnl: React.FC<ReportFilters> = f => {
-  const { chartOfAccounts, journalEntries, currency } = useFleet();
-  const p = getCompanyProfitLoss(chartOfAccounts, journalEntries, 'all', { startDate: f.from || undefined, endDate: f.to || undefined });
+  const { chartOfAccounts, currency, isCollectionLoaded } = useFleet();
+  const q = useProfitLoss(chartOfAccounts, 'all', { startDate: f.from || undefined, endDate: f.to || undefined });
+  if (q.error) return <Failed error={q.error.message} onRetry={() => { void q.refetch(); }} />;
+  if (!q.data || !isCollectionLoaded('chartOfAccounts')) return <Loading />;
+  const p = q.data;
   const rows: Row[] = [
     ...p.revenues.map(r => ({ id: `r${r.accountCode}`, section: 'Revenue', line: `${r.accountCode} ${r.accountName}`, amount: r.amount })),
     { id: 'tr', section: 'Revenue', line: 'Total revenue', amount: p.totalRevenue },

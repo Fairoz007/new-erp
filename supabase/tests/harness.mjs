@@ -51,6 +51,8 @@ export async function setup(dir = 'supabase/migrations', opts = {}) {
   await db.exec(SUPABASE_STUB);
   let files = readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
   if (opts.order) files = opts.order(files);
+  // SKIP_MIGRATIONS=<regex>: leave out migrations being written (local development only)
+  if (process.env.SKIP_MIGRATIONS) files = files.filter(f => !new RegExp(process.env.SKIP_MIGRATIONS).test(f));
   for (const f of files) {
     try { await db.exec(readFileSync(join(dir, f), 'utf8')); if (!opts.quiet) console.log('OK   migration', f); }
     catch (e) { console.log('FAIL migration', f, '\n  ', e.message); process.exit(1); }

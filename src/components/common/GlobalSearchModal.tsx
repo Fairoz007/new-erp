@@ -5,12 +5,25 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { StatusBadge } from './StatusBadge';
 import { VehiclePhoto, useVehiclePhotoUrls } from '../../pages/vehicles/VehiclePhoto';
+import { useDebounced, useInvoiceSearch } from '../../services/queries-expenses';
+
+// Invoices are searched in the database (v_invoice_list.search_text, every word must match); at most this many are listed.
+const INVOICE_LIMIT = 8;
+const NO_INVOICES: never[] = [];
 
 export const GlobalSearchModal: React.FC = () => {
   const { isSearchOpen, setIsSearchOpen, setCurrentPage, openVehicleDetail, openInvoiceModal, openBillModal, openPartyDetail } = useUI();
-  const { vehicles, invoices, workOrders, maintenanceRecords, suppliers, customers, documents, accidents } = useFleet();
+  const { vehicles, workOrders, maintenanceRecords, suppliers, customers, documents, accidents } = useFleet();
   const { canAccessPage } = useAuth();
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounced(query, 250);
+  const invoiceSearchOn = isSearchOpen && canAccessPage('invoices') && !!debouncedQuery.trim() && debouncedQuery.length >= 2;
+  const invoiceSearch = useInvoiceSearch(debouncedQuery.trim(), INVOICE_LIMIT, { enabled: invoiceSearchOn });
+  // only results for the words typed now (the cache keeps the previous search on screen while loading)
+  const invoiceResultsCurrent = invoiceSearchOn && debouncedQuery === query && !invoiceSearch.loading;
+  const invoiceRows = invoiceResultsCurrent ? invoiceSearch.data?.rows ?? NO_INVOICES : NO_INVOICES;
+  const invoiceTotal = invoiceResultsCurrent ? invoiceSearch.data?.total ?? 0 : 0;
+  const invoicesPending = canAccessPage('invoices') && !!query.trim() && query.length >= 2 && !invoiceResultsCurrent && !invoiceSearch.error;
 
   const results = useMemo(() => {
     if (!query.trim() || query.length < 2) return null;
@@ -26,13 +39,8 @@ export const GlobalSearchModal: React.FC = () => {
         v.model.toLowerCase().includes(q)
     );
 
-    // Invoices
-    const matchedInvoices = !canAccessPage('invoices') ? [] : invoices.filter(
-      i =>
-        i.invoiceNumber.toLowerCase().includes(q) ||
-        i.partyName.toLowerCase().includes(q) ||
-        (i.vehiclePlate && i.vehiclePlate.toLowerCase().includes(q))
-    );
+    // Invoices (server-side search, first INVOICE_LIMIT rows)
+    const matchedInvoices = invoiceRows;
 
     // Work Orders
     const matchedWorkOrders = !canAccessPage('work-orders') ? [] : workOrders.filter(
@@ -71,7 +79,7 @@ export const GlobalSearchModal: React.FC = () => {
 
     const totalCount =
       matchedVehicles.length +
-      matchedInvoices.length +
+      invoiceTotal +
       matchedWorkOrders.length +
       matchedMaintenance.length +
       matchedSuppliers.length +
@@ -83,6 +91,7 @@ export const GlobalSearchModal: React.FC = () => {
       totalCount,
       vehicles: matchedVehicles,
       invoices: matchedInvoices,
+      invoiceTotal,
       workOrders: matchedWorkOrders,
       maintenance: matchedMaintenance,
       suppliers: matchedSuppliers,
@@ -90,7 +99,7 @@ export const GlobalSearchModal: React.FC = () => {
       documents: matchedDocuments,
       accidents: matchedAccidents,
     };
-  }, [query, vehicles, invoices, workOrders, maintenanceRecords, suppliers, customers, documents, accidents, canAccessPage]);
+  }, [query, vehicles, invoiceRows, invoiceTotal, workOrders, maintenanceRecords, suppliers, customers, documents, accidents, canAccessPage]);
   const vehiclePhotoUrl = useVehiclePhotoUrls(results?.vehicles.map(v => v.photoUrl) ?? []);
 
   if (!isSearchOpen) return null;
@@ -140,7 +149,18 @@ export const GlobalSearchModal: React.FC = () => {
             </div>
           )}
 
-          {results && results.totalCount === 0 && (
+          {results && invoiceSearch.error && (
+            <p role="alert" className="text-xs text-rose-500 pt-3">
+              Invoices could not be searched: {invoiceSearch.error.message}{' '}
+              <button type="button" className="underline" onClick={() => void invoiceSearch.refetch()}>Retry</button>
+            </p>
+          )}
+
+          {results && results.totalCount === 0 && invoicesPending && (
+            <p className="py-6 text-center text-xs text-slate-400" role="status">Searching invoices…</p>
+          )}
+
+          {results && results.totalCount === 0 && !invoicesPending && (
             <div className="py-12 text-center text-slate-400 text-xs">
               <p className="text-slate-300 font-medium">No results found for &ldquo;{query}&rdquo;</p>
               <p className="text-slate-400 mt-1">Try searching by plate number, internal ID, supplier name or invoice reference.</p>
@@ -187,7 +207,7 @@ export const GlobalSearchModal: React.FC = () => {
           {results && results.invoices.length > 0 && (
             <div className="pt-3">
               <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" /> Invoices ({results.invoices.length})
+                <FileText className="w-3.5 h-3.5" /> Invoices ({results.invoiceTotal}){results.invoiceTotal > results.invoices.length && <span className="normal-case font-medium text-slate-400"> · first {results.invoices.length} shown, refine the search for more</span>}
               </p>
               <div className="space-y-1.5">
                 {results.invoices.map(inv => (

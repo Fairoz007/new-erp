@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Paperclip, Eye } from 'lucide-react';
 import { Tabs } from '../../components/ui/Tabs';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -9,17 +9,16 @@ import type { ExpenseCategory as ExpenseCategoryRow } from '../../services/org';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
-import { VehicleExpense, ExpenseCategory } from '../../types/operations';
+import { VehicleExpense } from '../../types/operations';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
-import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
+import { useCustomFields, withCustomColumns } from '../../hooks/useCustomFields';
+import { expenseSource, useExpenseSummary, type ExpenseFilter } from '../../services/queries';
+import { useExpensePageFigures, useOpenExpense, useServerCustomFieldFilter } from '../../services/queries-expenses';
 
-
-// Expenses that count as costs: approved (posted) or waiting for approval. Drafts and rejected ones do not.
-const counts = (e: VehicleExpense) => e.status === 'Approved' || e.status === 'Pending Approval';
 
 const mimeOf = (name: string): string => {
   const ext = name.split('.').pop()?.toLowerCase();
@@ -27,7 +26,7 @@ const mimeOf = (name: string): string => {
 };
 
 export const ExpensesPage: React.FC = () => {
-  const { expenses, vehicles, currency, selectedCompanyId } = useFleet();
+  const { vehicles, currency, selectedCompanyId } = useFleet();
   const { openQuickModal, openVehicleDetail, openBillModal } = useUI();
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('create', 'expenses');
@@ -38,36 +37,47 @@ export const ExpensesPage: React.FC = () => {
   const [toDate, setToDate] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [tab, setTab] = useState('list');
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<VehicleExpense | null>(null);
   const { rows: dbCategories } = useMaster<ExpenseCategoryRow>('expenseCategories');
-  const categoryNames = Array.from(new Set([...dbCategories.map(c => c.name), ...expenses.map(e => e.category)])).sort();
-  const opened = openId ? expenses.find(e => e.id === openId) ?? null : null;
 
-  const filteredExpenses = expenses.filter(e => {
-    if (selectedCompanyId && selectedCompanyId !== 'all' && e.companyId !== selectedCompanyId) return false;
-    if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
-    if (statusFilter === 'unpaid' ? !(e.status === 'Approved' && e.paymentStatus === 'Unpaid') : statusFilter !== 'all' && e.status !== statusFilter) return false;
-    if (vehicleFilter !== 'all' && e.vehicleId !== vehicleFilter) return false;
-    if (fromDate && e.date < fromDate) return false;
-    if (toDate && e.date > toDate) return false;
-    if (receiptFilter === 'with-receipt' && !e.attachmentUrl) return false;
-    if (receiptFilter === 'no-receipt' && e.attachmentUrl) return false;
-    return true;
-  });
+  // custom fields: list columns and filter (Settings → Custom fields); the filter runs in the database
+  const cfList = useCustomFields('expense');
+  const { cf, ui: cfFilter } = useServerCustomFieldFilter(cfList.defs);
 
-  const inOffice = expenses.filter(e => !selectedCompanyId || selectedCompanyId === 'all' || e.companyId === selectedCompanyId);
-  const scoped = inOffice.filter(counts);
-  const totalFuel = scoped.filter(e => e.category === 'Fuel').reduce((s, e) => s + e.total, 0);
-  const pending = inOffice.filter(e => e.status === 'Pending Approval');
-  const unpaid = inOffice.filter(e => e.status === 'Approved' && e.paymentStatus === 'Unpaid');
-  const drafts = inOffice.filter(e => e.status === 'Draft' || e.status === 'Rejected');
-  const totalExpenses = scoped.filter(e => e.status === 'Approved').reduce((s, e) => s + e.total, 0);
-  // Breakdown of what the current filters show, largest category first
-  const filteredTotal = filteredExpenses.filter(counts).reduce((s, e) => s + e.total, 0);
-  const byCategory = Object.entries(filteredExpenses.filter(counts).reduce<Record<string, number>>((acc, e) => { acc[e.category] = (acc[e.category] ?? 0) + e.total; return acc; }, {}))
-    .sort((a, b) => b[1] - a[1]);
+  // The register is paged, filtered and searched in the database (expense_page); the figures come
+  // from expense_summary / expense_page_figures. "Counted" = approved or pending approval.
+  const filter: ExpenseFilter = {
+    company: selectedCompanyId,
+    category: categoryFilter,
+    status: statusFilter,
+    vehicle: vehicleFilter,
+    from: fromDate || undefined,
+    to: toDate || undefined,
+    receipt: receiptFilter !== 'all' ? receiptFilter as ExpenseFilter['receipt'] : undefined,
+  };
+  const filterKey = JSON.stringify(filter);
+  const source = useMemo(() => expenseSource({ ...filter, cf }), [filterKey, JSON.stringify(cf)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const summary = useExpenseSummary(filter);
+  const figures = useExpensePageFigures(filter);
+  const s = summary.data;
+  const fig = figures.data;
+  const opened = useOpenExpense(openRow);
+
+  const categoryNames = Array.from(new Set([...dbCategories.map(c => c.name), ...(fig?.categories ?? [])])).sort();
+  const totalFuel = s?.fuel_total ?? 0;
+  const pendingTotal = fig?.pending_total ?? 0;
+  const pendingCount = s?.pending_count ?? 0;
+  const unpaidTotal = fig?.unpaid_total ?? 0;
+  const unpaidCount = s?.unpaid_count ?? 0;
+  const draftCount = s?.draft_count ?? 0;
+  const totalExpenses = s?.approved_total ?? 0;
+  // Breakdown of what the current filters show (custom field filter and search excluded), largest category first
+  const filteredTotal = s?.filtered_total ?? 0;
+  const filteredCount = fig?.filtered_count ?? 0;
+  const byCategory = s?.by_category ?? [];
   const scopedVehicles = vehicles.filter(v => !selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId);
-  const totalReceiptsAttached = scoped.filter(e => !!e.attachmentUrl).length;
+  const totalReceiptsAttached = s?.receipts_count ?? 0;
+  const figuresError = summary.error ?? figures.error;
 
   const openReceipt = (e: VehicleExpense) => {
     if (!e.attachmentUrl) return;
@@ -79,6 +89,7 @@ export const ExpensesPage: React.FC = () => {
   const columns: Column<VehicleExpense>[] = [
     {
       key: 'expenseNumber',
+      sortKey: 'expense_number',
       header: 'Expense # / Plate',
       render: (e) => (
         <div className={e.vehicleId ? 'cursor-pointer' : ''} onClick={() => e.vehicleId && openVehicleDetail(e.vehicleId, 'expenses')}>
@@ -94,6 +105,7 @@ export const ExpensesPage: React.FC = () => {
     },
     {
       key: 'status',
+      sortKey: 'status',
       header: 'Status',
       render: (e) => (
         <div className="flex flex-col gap-1 items-start">
@@ -104,6 +116,7 @@ export const ExpensesPage: React.FC = () => {
     },
     {
       key: 'category',
+      sortKey: 'category',
       header: 'Category',
       render: (e) => (
         <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-slate-200 font-bold text-[10px]">
@@ -113,6 +126,7 @@ export const ExpensesPage: React.FC = () => {
     },
     {
       key: 'description',
+      sortKey: 'description',
       header: 'Description',
       render: (e) => (
         <div className="max-w-md">
@@ -123,6 +137,7 @@ export const ExpensesPage: React.FC = () => {
     },
     {
       key: 'date',
+      sortKey: 'date',
       header: 'Date & Cost Centre',
       render: (e) => (
         <div>
@@ -134,6 +149,7 @@ export const ExpensesPage: React.FC = () => {
     {
       key: 'receiptDocument',
       header: 'Receipt / Bill Scan',
+      sortable: false,
       render: (e) =>
         e.attachmentUrl ? (
           <button
@@ -150,6 +166,7 @@ export const ExpensesPage: React.FC = () => {
     },
     {
       key: 'total',
+      sortKey: 'total',
       header: 'Amount',
       align: 'right',
       render: (e) => (
@@ -166,7 +183,7 @@ export const ExpensesPage: React.FC = () => {
       sortable: false,
       render: (e) => (
         <div className="flex items-center justify-end" onClick={ev => ev.stopPropagation()}>
-          <Button variant="ghost" size="xs" onClick={() => setOpenId(e.id)}>Open</Button>
+          <Button variant="ghost" size="xs" onClick={() => setOpenRow(e)}>Open</Button>
           {e.attachmentUrl && (
             <Button variant="ghost" size="xs" onClick={() => openReceipt(e)} leftIcon={<Eye className="w-3 h-3" />}>
               Receipt
@@ -176,10 +193,6 @@ export const ExpensesPage: React.FC = () => {
       ),
     },
   ];
-
-  // custom fields: list columns, search and filter (Settings → Custom fields)
-  const cfList = useCustomFields('expense');
-  const { filtered: cfRows, ui: cfFilter } = useCustomFieldFilter(cfList.defs, filteredExpenses);
 
   return (
     <div className="space-y-6">
@@ -218,13 +231,13 @@ export const ExpensesPage: React.FC = () => {
         />
         <StatCard
           title="Awaiting approval"
-          value={formatCurrency(pending.reduce((s, e) => s + e.total, 0), currency)}
-          subValue={`${pending.length} expense(s) · ${drafts.length} draft(s) not submitted`}
+          value={formatCurrency(pendingTotal, currency)}
+          subValue={`${pendingCount} expense(s) · ${draftCount} draft(s) not submitted`}
         />
         <StatCard
           title="Approved, not paid"
-          value={formatCurrency(unpaid.reduce((s, e) => s + e.total, 0), currency)}
-          subValue={`${unpaid.length} expense(s) on payables`}
+          value={formatCurrency(unpaidTotal, currency)}
+          subValue={`${unpaidCount} expense(s) on payables`}
         />
         <StatCard
           title="Approved expenses"
@@ -232,16 +245,22 @@ export const ExpensesPage: React.FC = () => {
           subValue={`${totalReceiptsAttached} with receipt attached`}
         />
       </div>
+      {figuresError && (
+        <p role="alert" className="text-xs text-rose-500">
+          Expense figures could not be loaded: {figuresError.message}{' '}
+          <button type="button" className="underline" onClick={() => { void summary.refetch(); void figures.refetch(); }}>Retry</button>
+        </p>
+      )}
 
       <Tabs variant="segmented" tabs={[{ id: 'list', label: 'All expenses' }, { id: 'monthly', label: 'Monthly expenses' }]} activeTab={tab} onChange={setTab} />
-      {opened && <ExpenseDetailModal expense={opened} onClose={() => setOpenId(null)} onOpenReceipt={openReceipt} />}
-      {tab === 'monthly' ? <MonthlyExpensesPanel onOpen={e => setOpenId(e.id)} /> : <>
+      {opened && <ExpenseDetailModal expense={opened} onClose={() => setOpenRow(null)} onOpenReceipt={openReceipt} />}
+      {tab === 'monthly' ? <MonthlyExpensesPanel onOpen={setOpenRow} /> : <>
       {/* Spend breakdown for the current filters */}
       {byCategory.length > 0 && (
         <div className="bg-white border border-slate-700 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-slate-100">Spend by category</h3>
-            <span className="text-xs font-bold text-slate-300">{filteredExpenses.length} voucher(s) · {formatCurrency(filteredTotal, currency)}</span>
+            <span className="text-xs font-bold text-slate-300">{filteredCount} voucher(s) · {formatCurrency(filteredTotal, currency)}</span>
           </div>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
             {byCategory.slice(0, 8).map(([cat, amt]) => (
@@ -256,15 +275,12 @@ export const ExpensesPage: React.FC = () => {
 
       {/* DataTable */}
       <DataTable
-        data={cfRows}
-        collection={'expenses'}
+        server={source}
         columns={withCustomColumns(columns, cfList.listColumns<VehicleExpense>())}
-        searchText={cfList.searchText}
         extraFilters={cfFilter}
         keyExtractor={e => e.id}
         title="Expense register"
         searchPlaceholder="Search expenses by expense number, plate, category, vendor or cost centre..."
-        searchFields={['expenseNumber', 'vehiclePlate', 'category', 'description', 'supplierName', 'costCentre']}
         exportFilename="Expenses_Register"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">

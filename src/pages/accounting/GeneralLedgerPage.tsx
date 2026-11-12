@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BookOpen, Calendar, Download, Printer, Filter, Building2, Search, ArrowRight, UserCheck, Truck, Layers, ChevronRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -7,15 +7,158 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
-import { consolidateAccounts, getGeneralLedger } from '../../services/accounting';
+import { consolidateAccounts } from '../../services/accounting';
+import { useGeneralLedgerSummary, useLedgerLines, fetchLedgerLines, usePartyStatement, type GlAccountSummary } from '../../services/queries-system';
+
+const PAGE_LINES = 50;
+
+/** Inline loading / error line for the server-backed sections. */
+const LoadState: React.FC<{ loading: boolean; error?: Error; onRetry: () => void; colSpan?: number }> = ({ loading, error, onRetry, colSpan }) => {
+  const body = error ? (
+    <span className="text-rose-600">Could not load: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+  ) : loading ? <span className="text-slate-400">Loading…</span> : null;
+  if (!body) return null;
+  return colSpan ? <tr><td colSpan={colSpan} className="py-6 text-center text-xs">{body}</td></tr> : <div className="py-6 text-center text-xs">{body}</div>;
+};
+
+/** One account's card: lines load from the database (running balance included) when the card scrolls into view. */
+const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | null | undefined; startDate: string; endDate: string; currency: string }> = ({ acc, companyId, startDate, endDate, currency }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(typeof IntersectionObserver === 'undefined');
+  const [visible, setVisible] = useState(PAGE_LINES);
+  useEffect(() => {
+    if (inView || !ref.current) return;
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) setInView(true); }, { rootMargin: '400px' });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [inView]);
+  const shownCount = Math.min(visible, acc.lineCount);
+  const lines = useLedgerLines(companyId, acc.accountCode, startDate || undefined, endDate || undefined, shownCount, inView && shownCount > 0);
+  const rows = lines.data ?? [];
+
+  return (
+              <Card className="overflow-hidden border border-slate-700 bg-white shadow-card rounded-[20px]">
+                <div ref={ref} />
+                {/* Account Ledger Header */}
+                <div className="p-5 border-b border-slate-700 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-extrabold text-sm text-[#086343] px-2.5 py-0.5 rounded-full bg-[#DCEFE5]">
+                        {acc.accountCode}
+                      </span>
+                      <h3 className="text-base font-bold text-slate-100">{acc.accountName}</h3>
+                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">({acc.category})</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6 text-xs font-mono">
+                    <div>
+                      <span className="text-slate-400 font-sans">Opening Balance: </span>
+                      <span className="font-bold text-slate-100">{formatCurrency(acc.openingBalance, currency)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-sans">Closing Balance: </span>
+                      <span className="font-extrabold text-[#086343]">{formatCurrency(acc.closingBalance, currency)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ledger Transactions Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-850 border-b border-slate-700 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                        <th className="py-3.5 px-4">Date</th>
+                        <th className="py-3.5 px-4">JE Number</th>
+                        <th className="py-3.5 px-4">Reference</th>
+                        <th className="py-3.5 px-4">Description</th>
+                        <th className="py-3.5 px-4">Vehicle</th>
+                        <th className="py-3.5 px-4 text-right text-[#086343]">Debit</th>
+                        <th className="py-3.5 px-4 text-right text-slate-400">Credit</th>
+                        <th className="py-3.5 px-4 text-right font-mono">Running Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700/80 bg-white">
+                      {acc.lineCount === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-slate-400 italic">
+                            No ledger movements recorded for this account in the specified period.
+                          </td>
+                        </tr>
+                      ) : rows.length === 0 ? (
+                        <LoadState loading={lines.loading || !inView} error={lines.error} onRetry={() => void lines.refetch()} colSpan={8} />
+                      ) : (
+                        rows.map(line => (
+                          <tr key={line.id} className="hover:bg-slate-850/60 transition-colors">
+                            <td className="py-3 px-4 text-slate-300 font-mono font-medium">{formatDate(line.date)}</td>
+                            <td className="py-3 px-4 font-mono font-bold text-[#086343]">{line.entryNumber}</td>
+                            <td className="py-3 px-4 font-mono text-slate-400">{line.reference || '-'}</td>
+                            <td className="py-3 px-4 text-slate-200 font-medium">{line.description}</td>
+                            <td className="py-3 px-4">
+                              {line.vehiclePlate ? (
+                                <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 font-mono text-[10px] text-[#086343] font-bold">
+                                  {line.vehiclePlate}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono font-bold text-[#086343]">
+                              {line.debit > 0 ? formatCurrency(line.debit, currency) : '-'}
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono font-bold text-slate-400">
+                              {line.credit > 0 ? formatCurrency(line.credit, currency) : '-'}
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-100">
+                              {formatCurrency(line.runningBalance, currency)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                      {rows.length > 0 && lines.error && (
+                        <LoadState loading={false} error={lines.error} onRetry={() => void lines.refetch()} colSpan={8} />
+                      )}
+                      {rows.length > 0 && acc.lineCount > shownCount && (
+                        <tr>
+                          <td colSpan={8} className="py-3 px-4 text-center">
+                            <button
+                              className="text-xs font-bold text-[#086343] underline cursor-pointer disabled:opacity-60"
+                              disabled={lines.fetching}
+                              onClick={() => setVisible(v => v + 200)}
+                            >
+                              {lines.fetching ? 'Loading…' : `Show more (${acc.lineCount - shownCount} more lines, totals above include all)`}
+                            </button>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-850 border-t border-slate-700 font-bold text-slate-100 text-xs">
+                        <td colSpan={5} className="py-3 px-4 text-right uppercase tracking-wider font-mono">
+                          Account Activity Totals:
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-[#086343] font-bold">
+                          {formatCurrency(acc.totalDebit, currency)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-slate-400 font-bold">
+                          {formatCurrency(acc.totalCredit, currency)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-extrabold text-[#086343]">
+                          {formatCurrency(acc.closingBalance, currency)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </Card>
+  );
+};
 
 export const GeneralLedgerPage: React.FC = () => {
-  const { chartOfAccounts, journalEntries, suppliers, customers, getPartyLedger, currency, selectedCompany, selectedCompanyId } = useFleet();
+  const { chartOfAccounts, suppliers, customers, currency, selectedCompany, selectedCompanyId, isCollectionLoaded } = useFleet();
   const accountOptions = consolidateAccounts(chartOfAccounts, selectedCompanyId);
-  const { ledgerFocus, openLedgerFor } = useUI();
+  const { ledgerFocus, openLedgerFor, addToast } = useUI();
   const [accountSearch, setAccountSearch] = useState('');
-  // Long ledgers render in pages of 50 lines: thousands of rows at once freeze the browser
-  const [visibleLines, setVisibleLines] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<'gl' | 'party'>('gl');
   const [selectedAccountCode, setSelectedAccountCode] = useState<string>('all');
   const [partyType, setPartyType] = useState<'Supplier' | 'Customer'>('Supplier');
@@ -32,11 +175,14 @@ export const GeneralLedgerPage: React.FC = () => {
   }, [ledgerFocus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const effectivePartyId = selectedPartyId || (partyType === 'Supplier' ? suppliers : customers)[0]?.id || '';
-  const glData = useMemo(
-    () => getGeneralLedger(chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency),
-    [chartOfAccounts, journalEntries, selectedAccountCode, startDate, endDate, selectedCompanyId, currency],
-  );
-  const partyLedger = getPartyLedger(effectivePartyId, partyType);
+  // Totals per account come from one aggregate (general_ledger_summary); each account's lines are
+  // paged from general_ledger_page with the running balance computed in the database.
+  const summary = useGeneralLedgerSummary(chartOfAccounts, selectedCompanyId, selectedAccountCode, startDate || undefined, endDate || undefined, currency);
+  const glData = summary.data ?? [];
+  const accountsLoading = !isCollectionLoaded('chartOfAccounts');
+  const party = usePartyStatement(activeTab === 'party' ? effectivePartyId : '', partyType,
+    partyType === 'Supplier' ? suppliers : customers, selectedCompanyId);
+  const partyLedger = party.data ?? { openingBalance: 0, lines: [], totalDebit: 0, totalCredit: 0, closingBalance: 0 };
 
   const selectedParty = partyType === 'Supplier'
     ? suppliers.find(s => s.id === effectivePartyId)
@@ -44,37 +190,57 @@ export const GeneralLedgerPage: React.FC = () => {
 
   const totalDebits = glData.reduce((s, a) => s + a.totalDebit, 0);
   const totalCredits = glData.reduce((s, a) => s + a.totalCredit, 0);
-  const totalTransactions = glData.reduce((s, a) => s + a.lines.length, 0);
+  const totalTransactions = glData.reduce((s, a) => s + a.lineCount, 0);
 
-  const exportGLCSV = () => {
-    const headers = ['Account Code', 'Account Name', 'Date', 'JE #', 'Reference', 'Description', 'Vehicle Plate', 'Debit', 'Credit', 'Running Balance'];
-    const rows: string[] = [headers.join(',')];
+  // Export fetches every line of every account in range, ≤1000 per request, with progress.
+  const [exportProgress, setExportProgress] = useState<{ loaded: number; total: number } | null>(null);
+  const exportAbort = useRef<AbortController | null>(null);
+  const exportGLCSV = async () => {
+    if (exportProgress) { exportAbort.current?.abort(); return; }
+    const ctrl = new AbortController();
+    exportAbort.current = ctrl;
+    const total = totalTransactions;
+    setExportProgress({ loaded: 0, total });
+    try {
+      const headers = ['Account Code', 'Account Name', 'Date', 'JE #', 'Reference', 'Description', 'Vehicle Plate', 'Debit', 'Credit', 'Running Balance'];
+      const rows: string[] = [headers.join(',')];
+      let done = 0;
+      for (const acc of glData) {
+        if (acc.lineCount === 0) continue;
+        const lines = await fetchLedgerLines(selectedCompanyId, acc.accountCode, startDate || undefined, endDate || undefined, acc.lineCount,
+          p => setExportProgress({ loaded: done + p.loaded, total }), ctrl.signal);
+        done += lines.length;
+        lines.forEach(line => {
+          rows.push(
+            [
+              `"${acc.accountCode}"`,
+              `"${acc.accountName.replace(/"/g, '""')}"`,
+              `"${line.date}"`,
+              `"${line.entryNumber}"`,
+              `"${line.reference || ''}"`,
+              `"${line.description.replace(/"/g, '""')}"`,
+              `"${line.vehiclePlate || ''}"`,
+              line.debit.toFixed(3),
+              line.credit.toFixed(3),
+              line.runningBalance.toFixed(3),
+            ].join(',')
+          );
+        });
+      }
 
-    glData.forEach(acc => {
-      acc.lines.forEach(line => {
-        rows.push(
-          [
-            `"${acc.accountCode}"`,
-            `"${acc.accountName.replace(/"/g, '""')}"`,
-            `"${line.date}"`,
-            `"${line.entryNumber}"`,
-            `"${line.reference || ''}"`,
-            `"${line.description.replace(/"/g, '""')}"`,
-            `"${line.vehiclePlate || ''}"`,
-            line.debit.toFixed(3),
-            line.credit.toFixed(3),
-            line.runningBalance.toFixed(3),
-          ].join(',')
-        );
-      });
-    });
-
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `General_Ledger_${startDate}_to_${endDate}.csv`;
-    link.click();
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `General_Ledger_${startDate}_to_${endDate}.csv`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') addToast({ type: 'error', title: 'Export failed', message: (e as Error).message });
+    } finally {
+      setExportProgress(null);
+      exportAbort.current = null;
+    }
   };
 
   return (
@@ -91,8 +257,9 @@ export const GeneralLedgerPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <Button variant="secondary" size="md" onClick={exportGLCSV} leftIcon={<Download className="w-4 h-4" />}>
-            Export Ledger
+          <Button variant="secondary" size="md" onClick={() => void exportGLCSV()} disabled={!exportProgress && (summary.loading || !!summary.error)}
+            leftIcon={<Download className="w-4 h-4" />}>
+            {exportProgress ? `Cancel export (${exportProgress.loaded.toLocaleString()} / ${exportProgress.total.toLocaleString()})` : 'Export Ledger'}
           </Button>
           <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
             Print Statement
@@ -211,119 +378,19 @@ export const GeneralLedgerPage: React.FC = () => {
 
           {/* Accounts General Ledger Tables */}
           <div className="space-y-6">
-            {glData.length === 0 && (
+            {(summary.error || summary.loading || accountsLoading) && !summary.data && (
+              <Card className="p-8 text-center text-sm bg-white border border-slate-700 rounded-[20px]">
+                <LoadState loading={summary.loading || accountsLoading} error={summary.error} onRetry={() => void summary.refetch()} />
+              </Card>
+            )}
+            {summary.data && !accountsLoading && glData.length === 0 && (
               <Card className="p-8 text-center text-sm text-slate-400 bg-white border border-slate-700 rounded-[20px]">
                 No chart of accounts is set up for this selection yet, so there is no ledger to show.
               </Card>
             )}
             {glData.map(acc => (
-              <Card key={acc.accountCode} className="overflow-hidden border border-slate-700 bg-white shadow-card rounded-[20px]">
-                {/* Account Ledger Header */}
-                <div className="p-5 border-b border-slate-700 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-extrabold text-sm text-[#086343] px-2.5 py-0.5 rounded-full bg-[#DCEFE5]">
-                        {acc.accountCode}
-                      </span>
-                      <h3 className="text-base font-bold text-slate-100">{acc.accountName}</h3>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">({acc.category})</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6 text-xs font-mono">
-                    <div>
-                      <span className="text-slate-400 font-sans">Opening Balance: </span>
-                      <span className="font-bold text-slate-100">{formatCurrency(acc.openingBalance, currency)}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 font-sans">Closing Balance: </span>
-                      <span className="font-extrabold text-[#086343]">{formatCurrency(acc.closingBalance, currency)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ledger Transactions Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-850 border-b border-slate-700 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                        <th className="py-3.5 px-4">Date</th>
-                        <th className="py-3.5 px-4">JE Number</th>
-                        <th className="py-3.5 px-4">Reference</th>
-                        <th className="py-3.5 px-4">Description</th>
-                        <th className="py-3.5 px-4">Vehicle</th>
-                        <th className="py-3.5 px-4 text-right text-[#086343]">Debit</th>
-                        <th className="py-3.5 px-4 text-right text-slate-400">Credit</th>
-                        <th className="py-3.5 px-4 text-right font-mono">Running Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700/80 bg-white">
-                      {acc.lines.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="py-8 text-center text-slate-400 italic">
-                            No ledger movements recorded for this account in the specified period.
-                          </td>
-                        </tr>
-                      ) : (
-                        acc.lines.slice(0, visibleLines[acc.accountCode] ?? 50).map(line => (
-                          <tr key={line.id} className="hover:bg-slate-850/60 transition-colors">
-                            <td className="py-3 px-4 text-slate-300 font-mono font-medium">{formatDate(line.date)}</td>
-                            <td className="py-3 px-4 font-mono font-bold text-[#086343]">{line.entryNumber}</td>
-                            <td className="py-3 px-4 font-mono text-slate-400">{line.reference || '-'}</td>
-                            <td className="py-3 px-4 text-slate-200 font-medium">{line.description}</td>
-                            <td className="py-3 px-4">
-                              {line.vehiclePlate ? (
-                                <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 font-mono text-[10px] text-[#086343] font-bold">
-                                  {line.vehiclePlate}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-right font-mono font-bold text-[#086343]">
-                              {line.debit > 0 ? formatCurrency(line.debit, currency) : '-'}
-                            </td>
-                            <td className="py-3 px-4 text-right font-mono font-bold text-slate-400">
-                              {line.credit > 0 ? formatCurrency(line.credit, currency) : '-'}
-                            </td>
-                            <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-100">
-                              {formatCurrency(line.runningBalance, currency)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                      {acc.lines.length > (visibleLines[acc.accountCode] ?? 50) && (
-                        <tr>
-                          <td colSpan={8} className="py-3 px-4 text-center">
-                            <button
-                              className="text-xs font-bold text-[#086343] underline cursor-pointer"
-                              onClick={() => setVisibleLines(v => ({ ...v, [acc.accountCode]: (v[acc.accountCode] ?? 50) + 200 }))}
-                            >
-                              Show more ({acc.lines.length - (visibleLines[acc.accountCode] ?? 50)} more lines, totals above include all)
-                            </button>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-850 border-t border-slate-700 font-bold text-slate-100 text-xs">
-                        <td colSpan={5} className="py-3 px-4 text-right uppercase tracking-wider font-mono">
-                          Account Activity Totals:
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-[#086343] font-bold">
-                          {formatCurrency(acc.totalDebit, currency)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-slate-400 font-bold">
-                          {formatCurrency(acc.totalCredit, currency)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono font-extrabold text-[#086343]">
-                          {formatCurrency(acc.closingBalance, currency)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </Card>
+              <AccountLedgerCard key={`${acc.accountCode}:${selectedCompanyId}:${startDate}:${endDate}`} acc={acc}
+                companyId={selectedCompanyId} startDate={startDate} endDate={endDate} currency={currency} />
             ))}
           </div>
         </>
@@ -398,6 +465,7 @@ export const GeneralLedgerPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/80 bg-white">
+                  {!party.data && <LoadState loading={party.loading} error={party.error} onRetry={() => void party.refetch()} colSpan={6} />}
                   {partyLedger.lines.map(line => (
                     <tr key={line.id} className="hover:bg-slate-850/60 transition-colors">
                       <td className="py-3 px-4 text-slate-300 font-mono font-medium">{formatDate(line.date)}</td>

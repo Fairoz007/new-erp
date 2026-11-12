@@ -8,6 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Input';
 import { Tabs } from '../../components/ui/Tabs';
 import { Badge } from '../../components/ui/Badge';
+import { useVirtualRows } from '../../components/ui/useVirtualRows';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -93,6 +94,7 @@ const DaySheet: React.FC<{ day: string; staff: Employee[]; rows: Attendance[]; o
 }) => {
   const { addToast } = useUI();
   const byEmp = useMemo(() => new Map(rows.map(r => [r.employeeId, r])), [rows]);
+  const vDay = useVirtualRows(staff.length, { rowHeight: 62 });
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -151,13 +153,14 @@ const DaySheet: React.FC<{ day: string; staff: Employee[]; rows: Attendance[]; o
           </div>
         )}
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" {...vDay.containerProps}>
         <table className={tableCls}>
-          <thead><tr><th className={thCls}>Employee</th><th className={thCls}>Status</th><th className={thCls}>In</th><th className={thCls}>Out</th><th className={thCls}>Overtime (h)</th><th className={thCls}>Notes</th><th className={thCls} /></tr></thead>
+          <thead className={vDay.active ? 'sticky top-0 z-10 bg-white' : undefined}><tr><th className={thCls}>Employee</th><th className={thCls}>Status</th><th className={thCls}>In</th><th className={thCls}>Out</th><th className={thCls}>Overtime (h)</th><th className={thCls}>Notes</th><th className={thCls} /></tr></thead>
           <tbody>
             {loading && staff.length === 0 && <tr><td className={tdCls} colSpan={7}>Loading…</td></tr>}
             {!loading && staff.length === 0 && <tr><td className={tdCls} colSpan={7}>No employees on the roll in this office on this date.</td></tr>}
-            {staff.map(e => {
+            {vDay.padTop > 0 && <tr aria-hidden="true" style={{ height: vDay.padTop }}><td colSpan={7} /></tr>}
+            {staff.slice(vDay.start, vDay.end).map(e => {
               const v = valueOf(e);
               const saved = byEmp.get(e.id);
               const fromLeave = !!saved?.leaveRequestId;
@@ -181,6 +184,7 @@ const DaySheet: React.FC<{ day: string; staff: Employee[]; rows: Attendance[]; o
                 </tr>
               );
             })}
+            {vDay.padBottom > 0 && <tr aria-hidden="true" style={{ height: vDay.padBottom }}><td colSpan={7} /></tr>}
           </tbody>
         </table>
       </div>
@@ -190,8 +194,15 @@ const DaySheet: React.FC<{ day: string; staff: Employee[]; rows: Attendance[]; o
 
 const MonthSummary: React.FC<{ staff: Employee[]; rows: Attendance[]; label: string }> = ({ staff, rows, label }) => {
   const cols: AttendanceStatus[] = ['Present', 'Late', 'Half Day', 'Absent', 'On Leave', 'Holiday', 'Weekend'];
+  // rows grouped once per employee (was a filter over the whole month for every employee)
+  const byEmployee = useMemo(() => {
+    const m = new Map<string, Attendance[]>();
+    for (const r of rows) { const l = m.get(r.employeeId); if (l) l.push(r); else m.set(r.employeeId, [r]); }
+    return m;
+  }, [rows]);
+  const vMonth = useVirtualRows(staff.length, { rowHeight: 49 });
   const sum = (id: string) => {
-    const mine = rows.filter(r => r.employeeId === id);
+    const mine = byEmployee.get(id) ?? [];
     return { by: Object.fromEntries(cols.map(c => [c, mine.filter(r => r.status === c).length])) as Record<AttendanceStatus, number>, ot: mine.reduce((t, r) => t + r.overtimeHours, 0), n: mine.length };
   };
   const exportCsv = () => {
@@ -207,12 +218,13 @@ const MonthSummary: React.FC<{ staff: Employee[]; rows: Attendance[]; label: str
         <p className="text-xs text-slate-400 font-semibold">{label}</p>
         <Button variant="outline" size="xs" leftIcon={<Download className="w-3 h-3" />} onClick={exportCsv} disabled={staff.length === 0}>Export CSV</Button>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" {...vMonth.containerProps}>
         <table className={tableCls}>
-          <thead><tr><th className={thCls}>Employee</th>{cols.map(c => <th key={c} className={`${thCls} text-center`}>{c}</th>)}<th className={`${thCls} text-right`}>Overtime (h)</th><th className={`${thCls} text-center`}>Days recorded</th></tr></thead>
+          <thead className={vMonth.active ? 'sticky top-0 z-10 bg-white' : undefined}><tr><th className={thCls}>Employee</th>{cols.map(c => <th key={c} className={`${thCls} text-center`}>{c}</th>)}<th className={`${thCls} text-right`}>Overtime (h)</th><th className={`${thCls} text-center`}>Days recorded</th></tr></thead>
           <tbody>
             {staff.length === 0 && <tr><td className={tdCls} colSpan={cols.length + 3}>No employees in this office.</td></tr>}
-            {staff.map(e => { const s = sum(e.id); return (
+            {vMonth.padTop > 0 && <tr aria-hidden="true" style={{ height: vMonth.padTop }}><td colSpan={cols.length + 3} /></tr>}
+            {staff.slice(vMonth.start, vMonth.end).map(e => { const s = sum(e.id); return (
               <tr key={e.id}>
                 <td className={tdCls}><p className="font-semibold text-slate-100">{e.name}</p><p className="text-[11px] text-slate-400">{e.employeeCode}</p></td>
                 {cols.map(c => <td key={c} className={`${tdCls} text-center ${c === 'Absent' && s.by[c] ? 'text-rose-500 font-bold' : ''}`}>{s.by[c] || '—'}</td>)}
@@ -220,6 +232,7 @@ const MonthSummary: React.FC<{ staff: Employee[]; rows: Attendance[]; label: str
                 <td className={`${tdCls} text-center`}>{s.n}</td>
               </tr>
             ); })}
+            {vMonth.padBottom > 0 && <tr aria-hidden="true" style={{ height: vMonth.padBottom }}><td colSpan={cols.length + 3} /></tr>}
           </tbody>
         </table>
       </div>

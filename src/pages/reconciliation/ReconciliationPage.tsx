@@ -11,6 +11,8 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
+import type { FinanceInvoice } from '../../services/finance';
+import { PICKER_LIMIT, useDebounced, useInvoiceOptions } from '../../services/queries-expenses';
 
 // No pre-filled business numbers: the user enters the PO / receipt figures being matched.
 const emptyForm = {
@@ -27,7 +29,7 @@ const emptyForm = {
 };
 
 export const ReconciliationPage: React.FC = () => {
-  const { reconciliations, invoices, workOrders, addReconciliation, currency, selectedCompanyId } = useFleet();
+  const { reconciliations, workOrders, addReconciliation, currency, selectedCompanyId } = useFleet();
   const { addToast } = useUI();
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('create', 'reconciliation');
@@ -35,10 +37,15 @@ export const ReconciliationPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [recForm, setRecForm] = useState(emptyForm);
 
-  const reconciledInvoiceIds = new Set(reconciliations.map(r => r.invoiceId));
   const inScope = (companyId: string) => !selectedCompanyId || selectedCompanyId === 'all' || companyId === selectedCompanyId;
-  const purchaseInvoices = invoices.filter(i => i.invoiceType === 'Purchase' && !i.isCreditNote && !reconciledInvoiceIds.has(i.id)
-    && i.paymentStatus !== 'Cancelled' && i.approvalStatus !== 'Cancelled' && inScope(i.companyId));
+  // Picker: purchase invoices of the office(s) in view that are not credit notes, not cancelled and
+  // not reconciled yet, searched in the database (reconcilable_invoice_page), first PICKER_LIMIT shown.
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const debouncedSearch = useDebounced(invoiceSearch.trim(), 300);
+  const options = useInvoiceOptions('reconcile', selectedCompanyId, debouncedSearch, { enabled: isModalOpen });
+  const [pickedInvoice, setPickedInvoice] = useState<FinanceInvoice | null>(null);
+  const optionRows = options.data?.rows ?? [];
+  const purchaseInvoices = pickedInvoice && !optionRows.some(i => i.id === pickedInvoice.id) ? [pickedInvoice, ...optionRows] : optionRows;
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [fromDate, setFromDate] = useState('');
@@ -49,13 +56,13 @@ export const ReconciliationPage: React.FC = () => {
     (typeFilter === 'all' || r.matchingType === typeFilter) &&
     (!fromDate || (r.createdAt ?? '').slice(0, 10) >= fromDate) &&
     (!toDate || (r.createdAt ?? '').slice(0, 10) <= toDate));
-  const selectedInvoice = purchaseInvoices.find(i => i.id === recForm.invoiceId);
+  const selectedInvoice = pickedInvoice && pickedInvoice.id === recForm.invoiceId ? pickedInvoice : undefined;
   const invoiceWorkOrders = selectedInvoice ? workOrders.filter(w => w.companyId === selectedInvoice.companyId) : [];
   const matchedCount = allScopedRecs.filter(r => r.status === 'Matched').length;
   const partialCount = allScopedRecs.filter(r => r.status === 'Partially Matched').length;
   const mismatchCount = allScopedRecs.filter(r => r.status === 'Mismatch').length;
 
-  const openModal = () => { setRecForm(emptyForm); setIsModalOpen(true); };
+  const openModal = () => { setRecForm(emptyForm); setPickedInvoice(null); setInvoiceSearch(''); setIsModalOpen(true); };
 
   const handleCreateReconciliation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,19 +270,38 @@ export const ReconciliationPage: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleCreateReconciliation} className="space-y-4">
+          <Input
+            label="Find invoice"
+            type="search"
+            value={invoiceSearch}
+            onChange={e => setInvoiceSearch(e.target.value)}
+            placeholder="Invoice #, supplier, reference, plate..."
+          />
+          {options.error && (
+            <p role="alert" className="text-xs text-rose-500">
+              Invoices could not be loaded: {options.error.message}{' '}
+              <button type="button" className="underline" onClick={() => void options.refetch()}>Retry</button>
+            </p>
+          )}
           <Select
             label="Select Invoice to Reconcile"
             value={recForm.invoiceId}
-            onChange={e => setRecForm({ ...recForm, invoiceId: e.target.value, workOrderId: '', workOrderNumber: '', workOrderAmount: '' })}
+            onChange={e => {
+              setPickedInvoice(purchaseInvoices.find(i => i.id === e.target.value) ?? null);
+              setRecForm({ ...recForm, invoiceId: e.target.value, workOrderId: '', workOrderNumber: '', workOrderAmount: '' });
+            }}
             required
           >
-            <option value="">{purchaseInvoices.length ? 'Select a purchase invoice...' : 'No purchase invoices available'}</option>
+            <option value="">{options.loading ? 'Loading invoices...' : purchaseInvoices.length ? 'Select a purchase invoice...' : debouncedSearch ? 'No matching purchase invoices' : 'No purchase invoices available'}</option>
             {purchaseInvoices.map(inv => (
               <option key={inv.id} value={inv.id}>
                 {inv.invoiceNumber} - {inv.partyName} ({formatCurrency(inv.grandTotal, inv.currency)}) - {inv.approvalStatus}
               </option>
             ))}
           </Select>
+          {(options.data?.total ?? 0) > PICKER_LIMIT && (
+            <p className="text-[11px] text-slate-400 -mt-2">Showing the {PICKER_LIMIT} newest of {options.data!.total} invoices. Type to narrow the list.</p>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select

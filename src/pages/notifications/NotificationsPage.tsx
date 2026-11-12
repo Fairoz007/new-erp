@@ -7,10 +7,12 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI, VALID_PAGES, type AppPage } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateTime } from '../../utils/date';
+import { useNotificationFeed, useNotificationCounts } from '../../services/queries-system';
+import type { NotificationItem } from '../../types/system';
 
 export const NotificationsPage: React.FC = () => {
   // refreshExpiryNotifications: new FleetContext function (wraps services/system.refreshExpiryNotifications, affects ['notifications'])
-  const { notifications, markNotificationAsRead, markAllNotificationsAsRead, refreshExpiryNotifications } = useFleet();
+  const { markNotificationAsRead, markAllNotificationsAsRead, refreshExpiryNotifications } = useFleet();
   const { openVehicleDetail, openInvoiceModal, setCurrentPage, addToast } = useUI();
   const { hasPermission, canAccessPage } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -18,13 +20,15 @@ export const NotificationsPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
   const [shown, setShown] = useState(40);
 
-  const filtered = notifications.filter(n => {
-    if (filter === 'unread') return !n.read;
-    if (filter === 'critical') return n.severity === 'critical';
-    return true;
-  });
+  // The caller's notifications are paged in the database (v_notification_list); counts come from
+  // notification_counts(). Marking read invalidates both (FleetContext invalidates the notification tables).
+  const feed = useNotificationFeed(filter, shown);
+  const counts = useNotificationCounts();
+  const filtered = feed.data?.rows ?? [];
+  const filteredTotal = feed.data?.total ?? 0;
+  const c = counts.data ?? { total: 0, unread: 0, critical: 0 };
 
-  const handleAction = async (n: typeof notifications[0]) => {
+  const handleAction = async (n: NotificationItem) => {
     // Navigate first: a failed read-receipt must not block the user from opening the item.
     if (n.type === 'approval_required') { if (canAccessPage('approvals')) setCurrentPage('approvals'); }
     else if (n.vehicleId && canAccessPage('vehicles')) openVehicleDetail(n.vehicleId);
@@ -86,7 +90,7 @@ export const NotificationsPage: React.FC = () => {
             variant="outline"
             size="sm"
             className="rounded-full"
-            disabled={busy || notifications.every(n => n.read)}
+            disabled={busy || c.unread === 0}
             onClick={handleMarkAll}
             leftIcon={<CheckCheck className="w-4 h-4 text-forest-500" />}
           >
@@ -105,7 +109,7 @@ export const NotificationsPage: React.FC = () => {
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          All ({notifications.length})
+          All ({c.total})
         </button>
         <button
           onClick={() => setFilter('unread')}
@@ -115,7 +119,7 @@ export const NotificationsPage: React.FC = () => {
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Unread ({notifications.filter(n => !n.read).length})
+          Unread ({c.unread})
         </button>
         <button
           onClick={() => setFilter('critical')}
@@ -125,20 +129,30 @@ export const NotificationsPage: React.FC = () => {
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Critical ({notifications.filter(n => n.severity === 'critical').length})
+          Critical ({c.critical})
         </button>
       </div>
 
       {/* Notifications List */}
       <div className="space-y-3">
-        {filtered.length === 0 && (
+        {(feed.error || (feed.loading && !feed.data)) && (
+          <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
+            {feed.error ? (
+              <p className="text-sm text-rose-600">
+                Could not load notifications: {feed.error.message}{' '}
+                <button className="underline font-bold cursor-pointer" onClick={() => void feed.refetch()}>Retry</button>
+              </p>
+            ) : <p className="text-sm text-slate-400">Loading…</p>}
+          </Card>
+        )}
+        {feed.data && !feed.error && filtered.length === 0 && (
           <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
             <p className="text-sm font-semibold text-slate-200">
-              {notifications.length === 0 ? 'No notifications yet' : 'No notifications match this filter'}
+              {c.total === 0 ? 'No notifications yet' : 'No notifications match this filter'}
             </p>
           </Card>
         )}
-        {filtered.slice(0, shown).map(item => (
+        {filtered.map(item => (
           <Card
             key={item.id}
             className={`p-4 sm:p-5 rounded-[20px] transition-all cursor-pointer border ${
@@ -174,9 +188,11 @@ export const NotificationsPage: React.FC = () => {
             </div>
           </Card>
         ))}
-        {filtered.length > shown && (
+        {filteredTotal > filtered.length && (
           <div className="text-center">
-            <Button variant="outline" size="sm" onClick={() => setShown(n => n + 40)}>Show more ({filtered.length - shown} remaining)</Button>
+            <Button variant="outline" size="sm" disabled={feed.fetching} onClick={() => setShown(n => n + 40)}>
+              {feed.fetching ? 'Loading…' : `Show more (${filteredTotal - filtered.length} remaining)`}
+            </Button>
           </div>
         )}
       </div>

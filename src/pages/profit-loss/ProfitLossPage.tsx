@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Printer, Calendar } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -6,23 +6,33 @@ import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, todayYmd } from '../../utils/date';
-import { getCompanyProfitLoss } from '../../services/accounting';
+import { profitLossFrom } from '../../services/accounting';
+import { useProfitLoss } from '../../services/queries';
+
+const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
+  <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
+    {error
+      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+      : <span className="text-slate-400">{loading ? 'Loading…' : ''}</span>}
+  </Card>
+);
 
 const EmptyRow: React.FC<{ text: string }> = ({ text }) => (
   <div className="py-2.5 text-slate-400 italic">{text}</div>
 );
 
 export const ProfitLossPage: React.FC = () => {
-  const { chartOfAccounts, journalEntries, selectedCompanyId, selectedCompany, currency } = useFleet();
+  const { chartOfAccounts, selectedCompanyId, selectedCompany, currency, isCollectionLoaded } = useFleet();
   const today = todayYmd();
   const [startDate, setStartDate] = useState(`${new Date().getFullYear()}-01-01`);
   const [endDate, setEndDate] = useState(today);
 
   // Built from posted journal lines in the period, classified by account category/subcategory (not by name).
-  const pnl = useMemo(
-    () => getCompanyProfitLoss(chartOfAccounts, journalEntries, selectedCompanyId, { startDate: startDate || undefined, endDate: endDate || undefined }),
-    [chartOfAccounts, journalEntries, selectedCompanyId, startDate, endDate],
-  );
+  const range = { startDate: startDate || undefined, endDate: endDate || undefined };
+  const q = useProfitLoss(chartOfAccounts, selectedCompanyId, range);
+  const accountsLoading = !isCollectionLoaded('chartOfAccounts');
+  const ready = !!q.data && !q.error && !accountsLoading;
+  const pnl = q.data ?? profitLossFrom([], new Map(), undefined, range);
   const hasActivity = pnl.revenues.length + pnl.directCosts.length + pnl.operatingExpenses.length > 0 || pnl.depreciationExpense !== 0;
 
   return (
@@ -53,6 +63,7 @@ export const ProfitLossPage: React.FC = () => {
         </div>
       </div>
 
+{!ready ? <StatementLoad loading={q.loading || accountsLoading} error={q.error} onRetry={() => void q.refetch()} /> : (<>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard title="Total Revenue" value={formatCurrency(pnl.totalRevenue, currency)} subValue={`${pnl.revenues.length} revenue account(s)`} isHero={true} />
@@ -151,6 +162,7 @@ export const ProfitLossPage: React.FC = () => {
           </p>
         </div>
       </Card>
+      </>)}
     </div>
   );
 };

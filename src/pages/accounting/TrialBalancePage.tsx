@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Scale, Download, Printer, CheckCircle2, AlertTriangle, Calendar, Filter, Building2, RefreshCw } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -7,17 +7,30 @@ import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
 import { useUI } from '../../context/UIContext';
-import { getTrialBalance } from '../../services/accounting';
+import { trialBalanceFrom } from '../../services/accounting';
+import { useTrialBalance } from '../../services/queries';
 import { exportToPDF } from '../../utils/export';
 
+const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
+  <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
+    {error
+      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+      : <span className="text-slate-400">{loading ? 'Loading…' : ''}</span>}
+  </Card>
+);
+
 export const TrialBalancePage: React.FC = () => {
-  const { chartOfAccounts, journalEntries, currency, selectedCompany, selectedCompanyId } = useFleet();
+  const { chartOfAccounts, currency, selectedCompany, selectedCompanyId, isCollectionLoaded } = useFleet();
   const { openLedgerFor } = useUI();
   const [asOfDate, setAsOfDate] = useState<string>(localToday());
   const [hideZero, setHideZero] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const tbData = useMemo(() => getTrialBalance(chartOfAccounts, journalEntries, asOfDate, selectedCompanyId), [chartOfAccounts, journalEntries, asOfDate, selectedCompanyId]);
+  // Posted totals per account from ledger_movements (database); rows and totals from trialBalanceFrom.
+  const q = useTrialBalance(chartOfAccounts, asOfDate || undefined, selectedCompanyId);
+  const accountsLoading = !isCollectionLoaded('chartOfAccounts');
+  const ready = !!q.data && !q.error && !accountsLoading;
+  const tbData = q.data ?? trialBalanceFrom([], new Map());
   // An empty ledger is trivially balanced; show that truthfully instead of a "perfect balance" banner.
   const hasLedger = tbData.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
 
@@ -36,6 +49,7 @@ export const TrialBalancePage: React.FC = () => {
   };
 
   const exportCSV = () => {
+    if (!ready) return;
     const headers = ['Account Code', 'Account Name', 'Category', 'Opening Debit', 'Opening Credit', 'Period Debit', 'Period Credit', 'Closing Debit', 'Closing Credit'];
     const csvRows = [
       headers.join(','),
@@ -74,6 +88,7 @@ export const TrialBalancePage: React.FC = () => {
   };
 
   const exportPDF = () => {
+    if (!ready) return;
     const f = (n: number) => (n > 0 ? n.toFixed(3) : '-');
     const rows = filteredRows.map(r => [r.accountCode, r.accountName, r.category, f(r.openingDebit), f(r.openingCredit), f(r.periodDebit), f(r.periodCredit), f(r.closingDebit), f(r.closingCredit)]);
     rows.push(['', 'TOTAL', '', shown.totalOpeningDebit.toFixed(3), shown.totalOpeningCredit.toFixed(3), shown.totalPeriodDebit.toFixed(3), shown.totalPeriodCredit.toFixed(3), shown.totalClosingDebit.toFixed(3), shown.totalClosingCredit.toFixed(3)]);
@@ -111,6 +126,7 @@ export const TrialBalancePage: React.FC = () => {
         </div>
       </div>
 
+{!ready ? <StatementLoad loading={q.loading || accountsLoading} error={q.error} onRetry={() => void q.refetch()} /> : (<>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
@@ -173,6 +189,7 @@ export const TrialBalancePage: React.FC = () => {
         </div>
       )}
 
+      </>)}
       {/* Filter and Date Selection Toolbar */}
       <Card className="p-5 bg-white border border-slate-700 shadow-card rounded-[20px]">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -219,6 +236,7 @@ export const TrialBalancePage: React.FC = () => {
         </div>
       </Card>
 
+{!ready ? null : (<>
       {/* Trial Balance Statement Table */}
       <Card className="overflow-hidden border border-slate-700 bg-white shadow-card rounded-[20px]">
         <div className="p-5 border-b border-slate-700 bg-white flex items-center justify-between">
@@ -332,6 +350,7 @@ export const TrialBalancePage: React.FC = () => {
           </table>
         </div>
       </Card>
+      </>)}
     </div>
   );
 };

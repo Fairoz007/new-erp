@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, Printer, Paperclip, Eye, Wallet, CheckCircle2 } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -10,9 +10,11 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { invoiceSource, useInvoiceSummary, fetchAllOf, type InvoiceFilter } from '../../services/queries';
+import { useQuery } from '../../lib/queryCache';
 
 export const InvoicesPage: React.FC = () => {
-  const { invoices, selectedCompanyId, currency, submitInvoice } = useFleet();
+  const { selectedCompanyId, currency, submitInvoice } = useFleet();
   const { openQuickModal, openInvoiceModal, openBillModal, invoiceView, setInvoiceView, openPaymentFor, addToast, setCurrentPage, openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
   const canSubmit = hasPermission('create', 'invoices') || hasPermission('edit', 'invoices');
@@ -29,62 +31,44 @@ export const InvoicesPage: React.FC = () => {
   const isPending = (i: Invoice) =>
     i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Cancelled' && i.paymentStatus !== 'Paid' && i.outstandingAmount > 0.0005;
 
-  const filteredInvoices = invoices.filter(inv => {
-    if (invoiceView === 'pending' && !isPending(inv)) return false;
-    if (invoiceView === 'overdue' && inv.paymentStatus !== 'Overdue') return false;
-    if (invoiceView === 'approval' && inv.approvalStatus !== 'Pending Approval') return false;
-    if (invoiceView === 'draft' && inv.approvalStatus !== 'Draft') return false;
-    if (invoiceView === 'paid' && inv.paymentStatus !== 'Paid') return false;
-    if (selectedCompanyId && selectedCompanyId !== 'all' && inv.companyId !== selectedCompanyId) return false;
-    if (typeFilter !== 'all' && inv.invoiceType !== typeFilter) return false;
-    if (statusFilter !== 'all' && inv.paymentStatus !== statusFilter) return false;
-    if (approvalFilter !== 'all' && inv.approvalStatus !== approvalFilter) return false;
-    if (attachmentFilter === 'with-attachment' && !inv.attachmentUrl) return false;
-    if (attachmentFilter === 'no-attachment' && inv.attachmentUrl) return false;
-    return true;
-  });
-
-  const scoped = invoices.filter(inv => !selectedCompanyId || selectedCompanyId === 'all' || inv.companyId === selectedCompanyId);
-  // AP/AR figures use posted (Approved) documents only; credit notes carry negative totals
-  const posted = scoped.filter(i => i.approvalStatus === 'Approved');
-  const totalPurchaseAmount = posted.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.grandTotal, 0);
-  const totalSalesAmount = posted.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.grandTotal, 0);
-  const totalOutstandingAP = posted.filter(i => i.invoiceType === 'Purchase').reduce((s, i) => s + i.outstandingAmount, 0);
-  const totalOutstandingAR = posted.filter(i => i.invoiceType === 'Sales').reduce((s, i) => s + i.outstandingAmount, 0);
+  // The register is paged, filtered and searched in the database (invoice_page); the figures
+  // above it come from one aggregate (invoice_summary) for the selected office.
+  const filter: InvoiceFilter = {
+    companyId: selectedCompanyId,
+    view: invoiceView,
+    type: typeFilter !== 'all' ? typeFilter as InvoiceFilter['type'] : undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    approval: approvalFilter !== 'all' ? approvalFilter : undefined,
+    attachment: attachmentFilter !== 'all' ? attachmentFilter as InvoiceFilter['attachment'] : undefined,
+  };
+  const source = useMemo(() => invoiceSource(filter), [JSON.stringify(filter)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const summary = useInvoiceSummary(selectedCompanyId);
+  const s = summary.data;
+  const totalPurchaseAmount = s?.purchase_total ?? 0;
+  const totalSalesAmount = s?.sales_total ?? 0;
+  const totalOutstandingAP = s?.ap_outstanding ?? 0;
+  const totalOutstandingAR = s?.ar_outstanding ?? 0;
   // Only documents with a stored file count (no assumed scans for purchase invoices)
-  const totalWithBills = scoped.filter(i => i.attachmentUrl).length;
-  const awaitingApproval = scoped.filter(i => i.approvalStatus === 'Pending Approval').length;
+  const totalWithBills = s?.count_with_attachment ?? 0;
+  const awaitingApproval = s?.count_approval ?? 0;
 
   // Pending balances bucketed by days past due, AP and AR separately
-  const todayMs = new Date().setHours(0, 0, 0, 0);
   const BUCKETS = ['Not yet due', '1-30 days', '31-60 days', '61-90 days', '90+ days'];
-  const bucketOf = (due: string) => {
-    const days = Math.floor((todayMs - new Date(`${due.slice(0, 10)}T00:00:00`).getTime()) / 86_400_000);
-    return days <= 0 ? 0 : days <= 30 ? 1 : days <= 60 ? 2 : days <= 90 ? 3 : 4;
-  };
-  const pendingAll = scoped.filter(isPending);
-  const aging = (type: 'Purchase' | 'Sales') => {
-    const sums = [0, 0, 0, 0, 0];
-    pendingAll.filter(i => i.invoiceType === type).forEach(i => { sums[bucketOf(i.dueDate)] += i.outstandingAmount; });
-    return sums;
-  };
-  const agingAP = aging('Purchase');
-  const agingAR = aging('Sales');
-  const pendingCount = pendingAll.length;
-  const pendingByParty = Object.values(pendingAll.reduce<Record<string, { name: string; type: string; count: number; total: number }>>((acc, i) => {
-    const k = `${i.invoiceType}:${i.partyId}`;
-    (acc[k] ??= { name: i.partyName, type: i.invoiceType === 'Purchase' ? 'Supplier' : 'Customer', count: 0, total: 0 });
-    acc[k].count += 1; acc[k].total += i.outstandingAmount;
-    return acc;
-  }, {})).sort((a, b) => b.total - a.total).slice(0, 8);
+  const agingAP = s?.aging_ap ?? [0, 0, 0, 0, 0];
+  const agingAR = s?.aging_ar ?? [0, 0, 0, 0, 0];
+  const pendingCount = s?.count_pending ?? 0;
+  const pendingByParty = s?.top_parties ?? [];
   const VIEWS: { id: typeof invoiceView; label: string; count: number }[] = [
-    { id: 'all', label: 'All', count: scoped.length },
+    { id: 'all', label: 'All', count: s?.count_all ?? 0 },
     { id: 'pending', label: 'Pending Payment', count: pendingCount },
-    { id: 'overdue', label: 'Overdue', count: scoped.filter(i => i.paymentStatus === 'Overdue').length },
+    { id: 'overdue', label: 'Overdue', count: s?.count_overdue ?? 0 },
     { id: 'approval', label: 'Awaiting Approval', count: awaitingApproval },
-    { id: 'draft', label: 'Drafts', count: scoped.filter(i => i.approvalStatus === 'Draft').length },
-    { id: 'paid', label: 'Paid', count: scoped.filter(i => i.paymentStatus === 'Paid').length },
+    { id: 'draft', label: 'Drafts', count: s?.count_draft ?? 0 },
+    { id: 'paid', label: 'Paid', count: s?.count_paid ?? 0 },
   ];
+
+  // Every invoice of the "Awaiting approval" list (all pages), for "approve all"
+  const approvalList = useQuery(`${source.key}|all`, source.tags, () => fetchAllOf(source), { enabled: invoiceView === 'approval' });
 
   // Invoices waiting for a decision. Those without an open approval request (e.g. raised by
   // maintenance) are approved/submitted here; the DB re-checks the signer's authority.
@@ -115,7 +99,7 @@ export const InvoicesPage: React.FC = () => {
     await decide(inv);
     setBusyId(null);
   };
-  const approvable = filteredInvoices.filter(i => i.approvalStatus === 'Pending Approval' && !i.isCreditNote && canApprove('invoice', i.grandTotal));
+  const approvable = (invoiceView === 'approval' ? approvalList.data ?? [] : []).filter(i => i.approvalStatus === 'Pending Approval' && !i.isCreditNote && canApprove('invoice', i.grandTotal));
   const handleApproveAll = async () => {
     if (bulkProgress || approvable.length === 0) return;
     if (!window.confirm(`Approve and post ${approvable.length} invoice(s) to the ledger? This cannot be undone.`)) return;
@@ -131,6 +115,7 @@ export const InvoicesPage: React.FC = () => {
   const columns: Column<Invoice>[] = [
     {
       key: 'invoiceNumber',
+      sortKey: 'invoice_number',
       header: 'Invoice # / Ref',
       render: (inv) => (
         <div className="cursor-pointer" onClick={() => openInvoiceModal(inv.id)}>
@@ -147,6 +132,7 @@ export const InvoicesPage: React.FC = () => {
     },
     {
       key: 'partyName',
+      sortKey: 'party_name',
       header: 'Billed To / From',
       render: (inv) => (
         <div>
@@ -157,6 +143,7 @@ export const InvoicesPage: React.FC = () => {
     },
     {
       key: 'invoiceDate',
+      sortKey: 'invoice_date',
       header: 'Date & Due',
       render: (inv) => (
         <div>
@@ -169,6 +156,7 @@ export const InvoicesPage: React.FC = () => {
     },
     {
       key: 'attachmentUrl',
+      sortKey: 'attachment_path',
       header: 'Bill Document',
       render: (inv) => {
         // attachmentUrl is a storage://documents/<path> reference resolved to a signed URL by the viewer
@@ -191,6 +179,7 @@ export const InvoicesPage: React.FC = () => {
     },
     {
       key: 'grandTotal',
+      sortKey: 'grand_total',
       header: 'Total Amount',
       align: 'right',
       render: (inv) => (
@@ -202,6 +191,7 @@ export const InvoicesPage: React.FC = () => {
     },
     {
       key: 'outstandingAmount',
+      sortKey: 'outstanding_amount',
       header: 'Balance Due',
       align: 'right',
       render: (inv) => (
@@ -215,6 +205,7 @@ export const InvoicesPage: React.FC = () => {
     },
     {
       key: 'paymentStatus',
+      sortKey: 'effective_status',
       header: 'Status',
       align: 'center',
       render: (inv) => (
@@ -306,13 +297,13 @@ export const InvoicesPage: React.FC = () => {
         />
         <StatCard
           title="Overdue Invoices"
-          value={scoped.filter(i => i.paymentStatus === 'Overdue').length}
+          value={s?.count_overdue ?? 0}
           subValue={`${awaitingApproval} invoice(s) awaiting approval`}
         />
         <StatCard
           title="Bills With Attachment"
           value={totalWithBills}
-          subValue={`${scoped.length} total register entries`}
+          subValue={`${s?.count_all ?? 0} total register entries`}
         />
       </div>
 
@@ -387,13 +378,11 @@ export const InvoicesPage: React.FC = () => {
 
       {/* DataTable */}
       <DataTable
-        data={filteredInvoices}
-        collection={'invoices'}
+        server={source}
         columns={columns}
         keyExtractor={i => i.id}
         title="Invoices & Purchase Bills Registry"
         searchPlaceholder="Search invoices by invoice number, party name, reference..."
-        searchFields={['invoiceNumber', 'partyName', 'referenceNumber', 'purchaseOrderNumber', 'vehiclePlate']}
         exportFilename="Invoices_Register"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">

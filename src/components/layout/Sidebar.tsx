@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
+import { useOverdueInvoiceCount, useUnreadNotificationCount } from '../../services/queries-dashboards';
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from './UserAvatar';
 import { PRODUCT_NAME } from '../../lib/branding';
@@ -71,14 +72,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed = false,
 }) => {
   const { currentPage, setCurrentPage } = useUI();
-  const { notifications, approvalRequests, workOrders, invoices } = useFleet();
+  const { approvalRequests, workOrders } = useFleet();
   const { currentUser, canAccessPage } = useAuth();
   const orgCtx = useOptionalOrg();
   const brandName = orgCtx?.organization?.tradeName || orgCtx?.organization?.legalName || PRODUCT_NAME;
 
-  const unreadNotifs = notifications.filter(n => !n.read).length;
+  // Badge counts are counted in the database (count-only queries), never by loading the rows
+  const unreadNotifs = useUnreadNotificationCount().data ?? 0;
   const pendingApprovals = approvalRequests.filter(a => a.status === 'Pending').length;
-  const overdueInvoices = invoices.filter(i => i.paymentStatus === 'Overdue').length;
+  const overdueInvoices = useOverdueInvoiceCount(canAccessPage('invoices')).data ?? 0;
   const canSeeLeave = canAccessPage('leave');
   const [pendingLeave, setPendingLeave] = React.useState(0);
   React.useEffect(() => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { reportError } from '../../lib/errorReporter';
 
 interface Props { children: React.ReactNode; resetKey?: string }
 interface State { error: Error | null }
@@ -18,6 +19,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('Page crashed:', error, info.componentStack);
+    reportError(error, 'boundary', { component: (info.componentStack ?? '').split('\n').filter(Boolean).slice(0, 3).join(' < ').slice(0, 300) });
   }
 
   render() {

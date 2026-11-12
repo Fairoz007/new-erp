@@ -8,7 +8,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environment: 'node',
+    setupFiles: ['src/test/setup.ts'],
     testTimeout: 120_000,
-    hookTimeout: 120_000,
+    hookTimeout: 300_000,
   },
 });

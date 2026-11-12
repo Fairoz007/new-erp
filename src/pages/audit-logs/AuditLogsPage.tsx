@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { History, Shield, Download, Filter, User } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -6,30 +6,30 @@ import { StatCard } from '../../components/ui/StatCard';
 import { AuditLog } from '../../types/system';
 import { useFleet } from '../../context/FleetContext';
 import { formatDateTime } from '../../utils/date';
-import { AUDIT_LOG_LIMIT } from '../../services/system';
+import { auditLogSource } from '../../services/queries-system';
 
 export const AuditLogsPage: React.FC = () => {
-  const { auditLogs, reload, selectedCompanyId } = useFleet();
+  const { selectedCompanyId } = useFleet();
   const [actionFilter, setActionFilter] = useState<string>('all');
 
-  // Every write adds audit rows (DB triggers); mutations do not refetch them, so load fresh on open.
-  useEffect(() => { reload(['auditLogs']).catch(() => undefined); }, [reload]);
-
-  const filteredLogs = auditLogs.filter(l => {
-    if (actionFilter !== 'all' && l.action !== actionFilter) return false;
-    // one office selected: its rows plus organization-level rows (users, roles, settings)
-    if (selectedCompanyId !== 'all' && l.companyId && l.companyId !== selectedCompanyId) return false;
-    return true;
-  });
+  // Paged, filtered and searched in the database (v_audit_log_list): every event, not only the
+  // latest 1,000. One office selected: its rows plus organization-level rows (users, roles, settings).
+  // Every write invalidates 'audit_logs', so the list refetches after changes.
+  const source = useMemo(
+    () => auditLogSource({ companyId: selectedCompanyId, action: actionFilter !== 'all' ? actionFilter : undefined }),
+    [selectedCompanyId, actionFilter],
+  );
 
   const columns: Column<AuditLog>[] = [
     {
       key: 'timestamp',
+      sortKey: 'occurred_at',
       header: 'Timestamp',
       render: (l) => <span className="font-mono text-slate-300 text-xs">{formatDateTime(l.timestamp)}</span>,
     },
     {
       key: 'userName',
+      sortKey: 'user_name',
       header: 'User & Role',
       render: (l) => (
         <div>
@@ -40,6 +40,7 @@ export const AuditLogsPage: React.FC = () => {
     },
     {
       key: 'action',
+      sortKey: 'display_action',
       header: 'Action',
       render: (l) => (
         <span className={`px-2.5 py-0.5 rounded-full font-mono font-bold text-[10px] border ${
@@ -57,6 +58,7 @@ export const AuditLogsPage: React.FC = () => {
     },
     {
       key: 'entityType',
+      sortKey: 'entity_label',
       header: 'Target Entity',
       render: (l) => (
         <div>
@@ -84,14 +86,10 @@ export const AuditLogsPage: React.FC = () => {
             Append-only record of every create, update and delete captured by database triggers, including approvals, payments and ledger entries.
           </p>
         </div>
-        {auditLogs.length >= AUDIT_LOG_LIMIT && (
-          <p className="text-[11px] text-amber-600 font-medium">Showing the latest {AUDIT_LOG_LIMIT} events only.</p>
-        )}
       </div>
 
       <DataTable
-        data={filteredLogs}
-        collection={'auditLogs'}
+        server={source}
         columns={columns}
         keyExtractor={l => l.id}
         title="System Security & Change Ledger"

@@ -1,5 +1,7 @@
 // Role dashboards: executive, finance, HR and sponsor. The fleet dashboard is the original
 // DashboardPage body. Every figure comes from data the user may see (RLS); nothing is estimated.
+// Ledger and invoice figures are aggregated in the database (ledger_movements, invoice_summary,
+// dashboard_open_invoices); only the few rows a panel lists are fetched.
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { StatCard } from '../../components/ui/StatCard';
@@ -9,7 +11,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { addDaysYmd, formatDate, localToday } from '../../utils/date';
-import { getCompanyBalanceSheet, getCompanyProfitLoss } from '../../services/accounting';
+import { balanceSheetFrom, movementsFromRows } from '../../services/accounting';
+import { useInvoiceSummary, useLedgerMovementRows, useProfitLossByOffice } from '../../services/queries';
+import { useBudgetAlerts, useDashboardOpenInvoices, usePendingExpenseCount, useProfitLossTrend } from '../../services/queries-dashboards';
 import { fetchLeaveRequests, type LeaveRequest } from '../../services/hrops';
 import { usePendingJournals } from '../approvals/JournalQueue';
 import { tableCls, tdCls, thCls } from '../setup/shared';
@@ -32,30 +36,47 @@ function useOffices(module: string) {
   return companies.filter(c => (selectedCompanyId === 'all' || c.id === selectedCompanyId) && hasPermission('view', module, c.id));
 }
 
-/** Revenue, expenses and net profit per office for a date range, from posted journals. */
+/** Revenue, expenses and net profit per office for a date range, from posted journals (one ledger_movements call). */
 function usePnlByOffice(officeIds: string[], from: string, to: string) {
-  const { chartOfAccounts, journalEntries } = useFleet();
-  return useMemo(() => officeIds.map(id => {
-    const p = getCompanyProfitLoss(chartOfAccounts, journalEntries, id, { startDate: from, endDate: to });
-    return { id, revenue: p.totalRevenue, expenses: Math.round((p.totalDirectCosts + p.totalOperatingExpenses + p.depreciationExpense) * 1000) / 1000, net: p.netProfit };
-  }), [chartOfAccounts, journalEntries, officeIds.join(','), from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { chartOfAccounts } = useFleet();
+  const q = useProfitLossByOffice(chartOfAccounts, officeIds, { startDate: from, endDate: to }, { enabled: officeIds.length > 0 });
+  const rows = useMemo(() => officeIds.map(id => {
+    const p = q.data?.get(id);
+    return { id, revenue: p?.totalRevenue ?? 0, expenses: p ? Math.round((p.totalDirectCosts + p.totalOperatingExpenses + p.depreciationExpense) * 1000) / 1000 : 0, net: p?.netProfit ?? 0 };
+  }), [q.data, officeIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { rows, loading: q.loading && officeIds.length > 0, error: q.error, refetch: q.refetch };
 }
+
+/** Loading or error line for a dashboard whose figures come from the server. */
+const LoadState: React.FC<{ loading?: boolean; error?: Error; onRetry?: () => void }> = ({ loading, error, onRetry }) => {
+  if (error) return (
+    <p role="alert" className="text-xs text-rose-500">
+      Some figures could not be loaded: {error.message}{' '}
+      {onRetry && <button type="button" onClick={onRetry} className="font-semibold underline">Retry</button>}
+    </p>
+  );
+  if (loading) return <p aria-busy="true" className="text-xs text-slate-400">Loading figures…</p>;
+  return null;
+};
 
 // ---------------------------------------------------------------- executive
 export const ExecutiveDashboard: React.FC = () => {
-  const { vehicles, employees, invoices, bankAccounts, currency } = useFleet();
+  const { vehicles, employees, bankAccounts, currency } = useFleet();
   const offices = useOffices('financial-statements');
   const pnl = usePnlByOffice(offices.map(o => o.id), yearStart(), localToday());
+  // approved invoices with an open balance, per office (invoice_summary.by_office)
+  const summary = useInvoiceSummary(null);
   const rows = offices.map(o => {
-    const p = pnl.find(x => x.id === o.id)!;
-    const open = (kind: 'Sales' | 'Purchase') => invoices.filter(i => i.companyId === o.id && i.invoiceType === kind && i.approvalStatus === 'Approved' && i.outstandingAmount > 0).reduce((s, i) => s + i.outstandingAmount, 0);
+    const p = pnl.rows.find(x => x.id === o.id)!;
+    const inv = summary.data?.by_office.find(b => b.company_id === o.id);
     return { o, ...p, vehicles: vehicles.filter(v => v.companyId === o.id).length, active: vehicles.filter(v => v.companyId === o.id && v.status === 'Active').length,
-      staff: employees.filter(e => e.companyId === o.id && e.status !== 'Terminated').length, ar: open('Sales'), ap: open('Purchase'),
+      staff: employees.filter(e => e.companyId === o.id && e.status !== 'Terminated').length, ar: inv?.ar_open ?? 0, ap: inv?.ap_open ?? 0,
       cash: bankAccounts.filter(b => b.companyId === o.id).reduce((s, b) => s + b.currentBalance, 0) };
   });
   const sum = (k: 'revenue' | 'expenses' | 'net' | 'cash' | 'ar' | 'ap') => rows.reduce((s, r) => s + r[k], 0);
   return (
     <div className="space-y-6">
+      <LoadState loading={pnl.loading || summary.loading} error={pnl.error ?? summary.error} onRetry={() => { void pnl.refetch(); void summary.refetch(); }} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard title="Revenue YTD" value={formatCurrency(sum('revenue'), currency)} isHero subValue={`${offices.length} office(s)`} />
         <StatCard title="Net profit YTD" value={formatCurrency(sum('net'), currency)} subValue={`Expenses ${formatCurrency(sum('expenses'), currency)}`} />
@@ -87,29 +108,38 @@ export const ExecutiveDashboard: React.FC = () => {
 
 // ---------------------------------------------------------------- finance
 export const FinanceDashboard: React.FC = () => {
-  const { invoices, expenses, bankAccounts, notifications, currency, selectedCompanyId } = useFleet();
+  const { bankAccounts, currency, selectedCompanyId } = useFleet();
   const { setCurrentPage, openInvoiceModal } = useUI();
   const journals = usePendingJournals();
   const offices = useOffices('accounting');
   const ids = new Set(offices.map(o => o.id));
   const inScope = (c: string) => ids.has(c);
-  const today = localToday();
-  const open = invoices.filter(i => inScope(i.companyId) && i.approvalStatus === 'Approved' && i.outstandingAmount > 0 && !i.isCreditNote);
-  const ar = open.filter(i => i.invoiceType === 'Sales'); const ap = open.filter(i => i.invoiceType === 'Purchase');
-  const overdue = ar.filter(i => i.dueDate < today).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  // Open approved invoices (not credit notes) per office, from invoice_summary.by_office
+  const summary = useInvoiceSummary(null);
+  const officeRows = (summary.data?.by_office ?? []).filter(b => inScope(b.company_id));
+  const total = (k: 'ar_open' | 'ap_open' | 'ap_open_count' | 'ar_overdue_count' | 'ar_overdue_sum' | 'pending_approval') => officeRows.reduce((s, b) => s + b[k], 0);
+  const arTotal = total('ar_open'); const apTotal = total('ap_open'); const apCount = total('ap_open_count');
+  const overdueCount = total('ar_overdue_count'); const overdueSum = total('ar_overdue_sum');
+  // the 8 oldest overdue receivables in these offices
+  const overdue = useDashboardOpenInvoices('overdue_receivables', [...ids], 8);
   const banks = bankAccounts.filter(b => inScope(b.companyId));
-  const pendInv = invoices.filter(i => inScope(i.companyId) && i.approvalStatus === 'Pending Approval').length;
-  const pendExp = expenses.filter(e => inScope(e.companyId) && e.status === 'Pending Approval').length;
+  const pendInv = total('pending_approval');
+  const pendExpQ = usePendingExpenseCount([...ids]);
+  const pendExp = pendExpQ.data ?? 0;
   const pendJr = journals.rows.filter(r => inScope(r.companyId)).length;
   const pnl = usePnlByOffice([...ids], monthStart(), localToday());
-  const month = pnl.reduce((s, p) => ({ revenue: s.revenue + p.revenue, net: s.net + p.net }), { revenue: 0, net: 0 });
-  const budgetAlerts = notifications.filter(n => n.type === 'budget_threshold' && (selectedCompanyId === 'all' || n.companyId === selectedCompanyId)).slice(0, 5);
+  const month = pnl.rows.reduce((s, p) => ({ revenue: s.revenue + p.revenue, net: s.net + p.net }), { revenue: 0, net: 0 });
+  const alertsQ = useBudgetAlerts(selectedCompanyId, 5);
+  const budgetAlerts = alertsQ.data ?? [];
+  const firstError = summary.error ?? overdue.error ?? pendExpQ.error ?? pnl.error ?? alertsQ.error;
   return (
     <div className="space-y-6">
+      <LoadState loading={summary.loading || pnl.loading} error={firstError}
+        onRetry={() => { void summary.refetch(); void overdue.refetch(); void pendExpQ.refetch(); void pnl.refetch(); void alertsQ.refetch(); }} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard title="Cash in bank" value={formatCurrency(banks.reduce((s, b) => s + b.currentBalance, 0), currency)} isHero subValue={`${banks.length} account(s)`} />
-        <StatCard title="Receivables" value={formatCurrency(ar.reduce((s, i) => s + i.outstandingAmount, 0), currency)} subValue={`${overdue.length} overdue · ${formatCurrency(overdue.reduce((s, i) => s + i.outstandingAmount, 0), currency)}`} onClick={() => setCurrentPage('invoices')} />
-        <StatCard title="Payables" value={formatCurrency(ap.reduce((s, i) => s + i.outstandingAmount, 0), currency)} subValue={`${ap.length} open bill(s)`} onClick={() => setCurrentPage('invoices')} />
+        <StatCard title="Receivables" value={formatCurrency(arTotal, currency)} subValue={`${overdueCount} overdue · ${formatCurrency(overdueSum, currency)}`} onClick={() => setCurrentPage('invoices')} />
+        <StatCard title="Payables" value={formatCurrency(apTotal, currency)} subValue={`${apCount} open bill(s)`} onClick={() => setCurrentPage('invoices')} />
         <StatCard title="Waiting for approval" value={pendInv + pendExp + pendJr} subValue={`${pendInv} invoices · ${pendExp} expenses · ${pendJr} journals`} onClick={() => setCurrentPage('approvals')} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -121,8 +151,9 @@ export const FinanceDashboard: React.FC = () => {
         </Panel>
         <Panel title="Overdue receivables" note="Oldest due date first">
           <table className={tableCls}><tbody>
-            {overdue.length === 0 && <tr><td className={tdCls}>Nothing overdue.</td></tr>}
-            {overdue.slice(0, 8).map(i => (
+            {overdue.loading && <tr><td className={tdCls}>Loading…</td></tr>}
+            {!overdue.loading && (overdue.data ?? []).length === 0 && <tr><td className={tdCls}>Nothing overdue.</td></tr>}
+            {(overdue.data ?? []).map(i => (
               <tr key={i.id} className="cursor-pointer hover:bg-slate-850" onClick={() => openInvoiceModal(i.id)}>
                 <td className={tdCls}><p className="font-semibold">{i.invoiceNumber}</p><p className="text-[11px] text-slate-400">{i.partyName}</p></td>
                 <td className={tdCls}>due {formatDate(i.dueDate)}</td>
@@ -187,21 +218,24 @@ export const HrDashboard: React.FC = () => {
 
 // ---------------------------------------------------------------- sponsor (statements only)
 export const SponsorDashboard: React.FC = () => {
-  const { chartOfAccounts, journalEntries, currency } = useFleet();
+  const { chartOfAccounts, currency } = useFleet();
   const offices = useOffices('financial-statements');
   const ids = offices.map(o => o.id);
   const ytd = usePnlByOffice(ids, yearStart(), localToday());
   const months = [-5, -4, -3, -2, -1, 0];
-  const trend = useMemo(() => months.map(m => {
-    const tot = ids.reduce((s, id) => { const p = getCompanyProfitLoss(chartOfAccounts, journalEntries, id, { startDate: monthStart(m), endDate: monthEnd(m) });
-      return { revenue: s.revenue + p.totalRevenue, net: s.net + p.netProfit }; }, { revenue: 0, net: 0 });
-    return { label: monthLabel(m), ...tot };
-  }), [chartOfAccounts, journalEntries, ids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
-  const sheets = useMemo(() => ids.map(id => ({ id, bs: getCompanyBalanceSheet(chartOfAccounts, journalEntries, id, localToday()) })), [chartOfAccounts, journalEntries, ids.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
-  const total = (k: 'revenue' | 'expenses' | 'net') => ytd.reduce((s, r) => s + r[k], 0);
+  const ranges = months.map(m => ({ startDate: monthStart(m), endDate: monthEnd(m) }));
+  const trendQ = useProfitLossTrend(chartOfAccounts, ids, ranges);
+  const trend = months.map((m, i) => ({ label: monthLabel(m), revenue: trendQ.data?.[i].revenue ?? 0, net: trendQ.data?.[i].net ?? 0 }));
+  // balance sheet per office today: movements up to today (ledger_movements), one call for all offices
+  const today = localToday();
+  const bsQ = useLedgerMovementRows(null, undefined, today, { enabled: ids.length > 0 });
+  const sheets = useMemo(() => ids.map(id => ({ id, bs: balanceSheetFrom(chartOfAccounts, movementsFromRows(bsQ.data ?? [], id), id, today) })), [chartOfAccounts, bsQ.data, ids.join(','), today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const total = (k: 'revenue' | 'expenses' | 'net') => ytd.rows.reduce((s, r) => s + r[k], 0);
   const max = Math.max(1, ...trend.map(t => Math.abs(t.revenue)));
   return (
     <div className="space-y-6">
+      <LoadState loading={ytd.loading || trendQ.loading || (bsQ.loading && ids.length > 0)} error={ytd.error ?? trendQ.error ?? bsQ.error}
+        onRetry={() => { void ytd.refetch(); void trendQ.refetch(); void bsQ.refetch(); }} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard title="Revenue YTD" value={formatCurrency(total('revenue'), currency)} isHero subValue={`${offices.length} sponsored office(s)`} />
         <StatCard title="Expenses YTD" value={formatCurrency(total('expenses'), currency)} />
@@ -222,7 +256,7 @@ export const SponsorDashboard: React.FC = () => {
         <Panel title="Per office" note="Year to date and balance sheet today">
           <table className={tableCls}>
             <thead><tr><th className={thCls}>Office</th><th className={`${thCls} text-right`}>Net profit</th><th className={`${thCls} text-right`}>Assets</th><th className={`${thCls} text-right`}>Liabilities</th></tr></thead>
-            <tbody>{offices.map(o => { const p = ytd.find(x => x.id === o.id)!; const bs = sheets.find(x => x.id === o.id)!.bs; return (
+            <tbody>{offices.map(o => { const p = ytd.rows.find(x => x.id === o.id)!; const bs = sheets.find(x => x.id === o.id)!.bs; return (
               <tr key={o.id}><td className={tdCls}>{o.name}</td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(p.net, currency)}</td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(bs.assets.totalAssets, currency)}</td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(bs.liabilities.totalLiabilities, currency)}</td></tr>
             ); })}</tbody>
           </table>

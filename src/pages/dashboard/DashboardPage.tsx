@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ExecutiveDashboard, FinanceDashboard, HrDashboard, SponsorDashboard, useDashboardTabs } from './RoleDashboards';
-import { isApprovedExpense } from '../../types/operations';
 import {
   Car,
   Wrench,
@@ -28,6 +27,7 @@ import {
   RevenueVsExpenseChart,
   MaintenanceTrendChart,
   ReferencePillBarChart,
+  ChartState,
 } from '../../components/charts/DashboardCharts';
 import {
   FleetAvailabilityGaugeCard,
@@ -40,7 +40,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { useVehiclePhotoUrls } from '../vehicles/VehiclePhoto';
 import { formatCurrency } from '../../utils/financial';
-import { formatDate } from '../../utils/date';
+import { formatDate, todayYmd } from '../../utils/date';
+import { useDashboardSeries, useExpenseTotals, useInvoiceSummary, useProfitLoss } from '../../services/queries';
 
 export const FleetDashboard: React.FC = () => {
   const {
@@ -50,14 +51,9 @@ export const FleetDashboard: React.FC = () => {
     oilChanges: allOilChanges,
     tyres: allTyres,
     accidents: allAccidents,
-    expenses: allExpenses,
-    invoices: allInvoices,
-    suppliers,
-    customers,
+    chartOfAccounts,
     selectedCompanyId,
     currency,
-    getCompanyProfitLoss,
-    getCompanyBalanceSheet,
   } = useFleet();
 
   const { setCurrentPage, openVehicleDetail, openQuickModal, setInvoiceView } = useUI();
@@ -72,19 +68,24 @@ export const FleetDashboard: React.FC = () => {
   const maintenanceRecords = scoped ? allMaintenanceRecords.filter(m => m.companyId === selectedCompanyId) : allMaintenanceRecords;
   const workOrders = scoped ? allWorkOrders.filter(w => w.companyId === selectedCompanyId) : allWorkOrders;
   const accidents = scoped ? allAccidents.filter(a => a.companyId === selectedCompanyId) : allAccidents;
-  const expenses = scoped ? allExpenses.filter(e => e.companyId === selectedCompanyId) : allExpenses;
-  const invoices = scoped ? allInvoices.filter(i => i.companyId === selectedCompanyId) : allInvoices;
   const oilChanges = scoped ? allOilChanges.filter(o => scopedVehicleIds.has(o.vehicleId)) : allOilChanges;
   const tyres = scoped ? allTyres.filter(t => scopedVehicleIds.has(t.vehicleId)) : allTyres;
 
-  // Revenue YTD: posted ledger lines from 1 January of the current year to today (local dates)
+  // Revenue YTD: posted ledger lines from 1 January of the current year to today (local dates),
+  // totalled in the database (ledger_movements).
   const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const pnl = getCompanyProfitLoss(undefined, {
-    startDate: `${now.getFullYear()}-01-01`,
-    endDate: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
-  });
-  const balanceSheet = getCompanyBalanceSheet();
+  const today = todayYmd(now);
+  const showRevenue = canAccessPage('profit-loss');
+  const showPayables = canAccessPage('invoices');
+  const pnlQ = useProfitLoss(chartOfAccounts, selectedCompanyId, { startDate: `${now.getFullYear()}-01-01`, endDate: today }, { enabled: showRevenue });
+  const pnl = pnlQ.data;
+  // Approved expenses by category (expense_totals) and open supplier bills (invoice_summary)
+  const expenseTotals = useExpenseTotals({ company: selectedCompanyId }, 'category');
+  const invoiceSummary = useInvoiceSummary(selectedCompanyId, { enabled: showPayables });
+  // Daily sales / approved expenses / maintenance for the charts and the month-on-month trend:
+  // first day of the month 5 months ago to the last day of this month.
+  const monthYmd = (offset: number, last = false) => todayYmd(new Date(now.getFullYear(), now.getMonth() + offset + (last ? 1 : 0), last ? 0 : 1));
+  const series = useDashboardSeries(selectedCompanyId, monthYmd(-5), monthYmd(0, true));
 
   // Summary Metrics Calculations (Real ERP Data)
   const totalVehicles = vehicles.length;
@@ -93,20 +94,18 @@ export const FleetDashboard: React.FC = () => {
   const accidentVehicles = vehicles.filter(v => v.status === 'Accident').length;
   const inactiveVehicles = vehicles.filter(v => ['Inactive', 'Sold', 'Scrapped', 'Reserved'].includes(v.status)).length;
 
-  const totalPurchaseValue = vehicles.reduce((s, v) => s + (v.purchase.purchaseValue || 0), 0);
-  const currentAssetValue = balanceSheet.assets.netVehiclesValue;
-  const totalDepreciation = balanceSheet.assets.accumulatedDepreciation;
-
   const lifetimeMaintenanceCost = maintenanceRecords.reduce((s, m) => s + (m.totalCost || 0), 0);
   const accidentCost = accidents.reduce((s, a) => s + (a.actualRepairCost || 0), 0);
   const oilChangeCost = oilChanges.reduce((s, o) => s + (o.totalCost || 0), 0);
   const tyreCost = tyres.reduce((s, t) => s + (t.purchaseCost || 0), 0);
-  const insuranceCost = expenses.filter(e => isApprovedExpense(e) && e.category === 'Insurance').reduce((s, e) => s + e.total, 0) + vehicles.reduce((s, v) => s + (v.insurancePremiumAnnual || 0), 0);
-  const totalExpensesLifetime = expenses.filter(isApprovedExpense).reduce((s, e) => s + e.total, 0) + lifetimeMaintenanceCost;
+  const approvedExpenses = (expenseTotals.data ?? []).reduce((s, r) => s + r.total, 0);
+  const insuranceExpenses = (expenseTotals.data ?? []).filter(r => r.category === 'Insurance').reduce((s, r) => s + r.total, 0);
+  const insuranceCost = insuranceExpenses + vehicles.reduce((s, v) => s + (v.insurancePremiumAnnual || 0), 0);
+  const totalExpensesLifetime = approvedExpenses + lifetimeMaintenanceCost;
 
-  const openPurchase = invoices.filter(i => i.invoiceType === 'Purchase' && i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Paid' && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0);
-  const amountPayable = openPurchase.reduce((s, i) => s + i.outstandingAmount, 0);
-  const outstandingSupplierInvoices = openPurchase.length;
+  // Open supplier bills: approved purchase invoices (not credit notes), not paid or cancelled, with a balance
+  const amountPayable = invoiceSummary.data?.open_purchase_outstanding ?? 0;
+  const outstandingSupplierInvoices = invoiceSummary.data?.open_purchase_count ?? 0;
 
   // Revenue trend: this month vs previous month, from sales invoices (credit notes deducted). Null when there is no basis.
   const monthKey = (offset: number) => {
@@ -114,9 +113,7 @@ export const FleetDashboard: React.FC = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
   const salesIn = (key: string) =>
-    invoices
-      .filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Cancelled' && (i.invoiceDate || '').slice(0, 7) === key)
-      .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.subtotal) : i.subtotal), 0);
+    (series.data ?? []).filter(d => d.day.slice(0, 7) === key).reduce((s, d) => s + d.sales, 0);
   const salesThisMonth = salesIn(monthKey(0));
   const salesLastMonth = salesIn(monthKey(-1));
   const revenueTrend =
@@ -287,8 +284,8 @@ export const FleetDashboard: React.FC = () => {
         {canAccessPage('profit-loss') && (
         <StatCard
           title="Revenue YTD"
-          value={formatCurrency(pnl.totalRevenue, currency)}
-          trend={revenueTrend}
+          value={pnlQ.error ? 'Unavailable' : pnl ? formatCurrency(pnl.totalRevenue, currency) : '…'}
+          trend={series.data ? revenueTrend : undefined}
           onClick={() => setCurrentPage('profit-loss')}
         />
         )}
@@ -296,8 +293,8 @@ export const FleetDashboard: React.FC = () => {
         {canAccessPage('invoices') && (
         <StatCard
           title="Pending Invoices (AP)"
-          value={formatCurrency(amountPayable, currency)}
-          trend={{ value: `${outstandingSupplierInvoices}`, direction: 'neutral', label: 'Unpaid supplier bills' }}
+          value={invoiceSummary.error ? 'Unavailable' : invoiceSummary.data ? formatCurrency(amountPayable, currency) : '…'}
+          trend={invoiceSummary.data ? { value: `${outstandingSupplierInvoices}`, direction: 'neutral', label: 'Unpaid supplier bills' } : undefined}
           onClick={() => { setInvoiceView('pending'); setCurrentPage('invoices'); }}
         />
         )}
@@ -316,7 +313,9 @@ export const FleetDashboard: React.FC = () => {
                 <p className="text-xs text-slate-400">Expenses and maintenance, last 7 days</p>
               </CardHeader>
               <div className="p-4">
-                <ReferencePillBarChart expenses={expenses} maintenanceRecords={maintenanceRecords} currency={currency} />
+                <ChartState height={230} loading={series.loading} error={series.error} onRetry={series.refetch}>
+                  <ReferencePillBarChart series={series.data ?? []} currency={currency} />
+                </ChartState>
               </div>
             </Card>
 
@@ -448,7 +447,9 @@ export const FleetDashboard: React.FC = () => {
                 <p className="text-xs text-slate-400">Last 6 months, invoiced sales vs expenses + maintenance ({currency})</p>
               </CardHeader>
               <div className="p-4">
-                <RevenueVsExpenseChart invoices={invoices} expenses={expenses} maintenanceRecords={maintenanceRecords} />
+                <ChartState loading={series.loading} error={series.error} onRetry={series.refetch}>
+                  <RevenueVsExpenseChart series={series.data ?? []} />
+                </ChartState>
               </div>
             </Card>
 

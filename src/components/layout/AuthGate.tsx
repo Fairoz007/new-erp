@@ -12,7 +12,7 @@ import { SetupGate } from '../../pages/setup/SetupGate';
 // Renders the app only for a signed-in user with an active profile.
 // Must sit inside <AuthProvider> and outside anything that loads business data (FleetProvider).
 export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { status, error, session, passwordRecovery, signOut, refresh } = useAuth();
+  const { status, error, session, passwordRecovery, signOut, refresh, sessionEnded } = useAuth();
   const [notice, setNotice] = useState<string | null>(null);
 
   // No profile / inactive profile: sign out and explain on the login screen.
@@ -68,7 +68,7 @@ export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
     );
   }
 
-  if (status === 'signed-out') return <LoginPage notice={notice} />;
+  if (status === 'signed-out') return <LoginPage notice={notice ?? (sessionEnded ? 'Your session has ended. Sign in again to continue; nothing you saved was lost.' : null)} />;
 
   // loading, or no-profile/inactive while the sign-out above completes
   return (
