@@ -1,3 +1,4 @@
+import { orgName } from '../lib/branding';
 /**
  * Neutralise spreadsheet formula injection: a text cell that starts with = + - @ (or tab / CR)
  * is prefixed with an apostrophe so Excel/Sheets treat it as text. Real numbers and plain numeric
@@ -129,7 +130,7 @@ export async function exportToPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(100);
-  doc.text(`Al Hakim National LLC  |  Generated ${new Date().toLocaleString()}${opts.subtitle ? `  |  ${opts.subtitle}` : ''}`, 40, 58);
+  doc.text(`${orgName()}  |  Generated ${new Date().toLocaleString()}${opts.subtitle ? `  |  ${opts.subtitle}` : ''}`, 40, 58);
   doc.setTextColor(0);
 
   const columnStyles: Record<number, { halign: 'right' }> = {};

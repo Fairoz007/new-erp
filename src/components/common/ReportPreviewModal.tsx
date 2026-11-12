@@ -1,3 +1,4 @@
+import { orgName } from '../../lib/branding';
 import React from 'react';
 import { Printer, FileDown, FileSpreadsheet } from 'lucide-react';
 import { Modal } from '../ui/Modal';
@@ -37,7 +38,7 @@ export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
     <div id="printable-report" className="bg-white text-slate-100">
       <h2 className="text-lg font-extrabold">{title}</h2>
       <p className="text-[11px] text-slate-400 mb-3">
-        Al Hakim National LLC · Generated {new Date().toLocaleString()} · {rows.length} record{rows.length === 1 ? '' : 's'}
+        {orgName()} · Generated {new Date().toLocaleString()} · {rows.length} record{rows.length === 1 ? '' : 's'}
         {subtitle ? ` · ${subtitle}` : ''}
       </p>
       <div className="overflow-auto max-h-[60vh] print:max-h-none">

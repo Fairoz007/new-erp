@@ -189,8 +189,10 @@ export interface JournalEntry {
   totalCredit: number;
   postedBy: string;
   status: 'Draft' | 'Posted' | 'Void';
-  sourceModule?: 'Maintenance' | 'Invoice' | 'Payment' | 'Depreciation' | 'Expense' | 'Payroll' | 'Manual';
-  
+  sourceModule?: 'Maintenance' | 'Invoice' | 'Payment' | 'Depreciation' | 'Expense' | 'Payroll' | 'Manual'
+    | 'Opening Balance' | 'Reversal' | 'Gratuity' | 'Asset Disposal' | 'Period Close' | 'Transfer';
+  reversesEntryId?: string;   // set on a reversal: the entry it reverses
+
   // Bill / Receipt Attachment
   attachmentUrl?: string;
   attachmentName?: string;

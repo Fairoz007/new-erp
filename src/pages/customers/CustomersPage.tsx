@@ -196,6 +196,7 @@ export const CustomersPage: React.FC = () => {
       {/* Customers Table */}
       <DataTable
         data={customers}
+        collection={'customers'}
         columns={columns}
         keyExtractor={c => c.id}
         title="Customer Master Registry"

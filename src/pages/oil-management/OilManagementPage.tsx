@@ -163,6 +163,7 @@ export const OilManagementPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={filteredOilChanges}
+        collection={'oilChanges'}
         columns={columns}
         keyExtractor={o => o.id}
         title="Engine Oil Service Register"

@@ -135,6 +135,7 @@ export const MaintenancePage: React.FC = () => {
 
       <DataTable
         data={filteredRecords}
+        collection={'maintenanceRecords'}
         columns={columns}
         keyExtractor={m => m.id}
         title="Fleet Maintenance Ledger"

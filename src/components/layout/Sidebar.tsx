@@ -33,6 +33,7 @@ import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from './UserAvatar';
+import { orgName } from '../../lib/branding';
 
 interface NavItem {
   id: AppPage;
@@ -176,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ERP
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Al Hakim National LLC</p>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate max-w-[150px]">{orgName()}</p>
             </div>
           </div>
         </div>

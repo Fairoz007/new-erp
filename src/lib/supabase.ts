@@ -30,7 +30,9 @@ if (!isSupabaseConfigured) {
 }
 
 // Browser client (Vite SPA): sessions persist in localStorage and auto-refresh
-export const supabase = createClient<Database>(supabaseUrl ?? '', supabaseKey ?? '', {
+// Unconfigured builds get an unreachable placeholder so the module loads and AuthGate can explain
+// the problem instead of the page crashing to a blank screen.
+export const supabase = createClient<Database>(supabaseUrl || 'http://supabase-not-configured.invalid', supabaseKey || 'not-configured', {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

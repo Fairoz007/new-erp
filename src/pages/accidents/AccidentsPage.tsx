@@ -184,6 +184,7 @@ export const AccidentsPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={filteredAccidents}
+        collection={'accidents'}
         columns={columns}
         keyExtractor={a => a.id}
         title="Accident Registry"

@@ -225,6 +225,7 @@ export const ExpensesPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={filteredExpenses}
+        collection={'expenses'}
         columns={columns}
         keyExtractor={e => e.id}
         title="Vehicle Operational Expenses Registry"

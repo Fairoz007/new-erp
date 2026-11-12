@@ -13,9 +13,7 @@ import * as hr from '../services/hr';
 import * as system from '../services/system';
 import * as docs from '../services/documents';
 import { useAuth } from './AuthContext';
-import { readCache, writeCache } from '../lib/cache';
 import { supabase } from '../lib/supabase';
-import { DEFAULT_VEHICLES } from '../data/defaultVehicles';
 
 // All business data lives in Supabase. This provider loads each collection through the
 // service-layer fetchers (RLS decides what the signed-in user sees), runs every mutation through
@@ -96,7 +94,7 @@ interface Collections {
 }
 
 const EMPTY: Collections = {
-  companies: [], vehicles: DEFAULT_VEHICLES, tyres: [], tyreEvents: [], oilChanges: [], maintenanceRecords: [], workOrders: [],
+  companies: [], vehicles: [], tyres: [], tyreEvents: [], oilChanges: [], maintenanceRecords: [], workOrders: [],
   accidents: [], expenses: [], suppliers: [], customers: [], invoices: [], reconciliations: [], payments: [],
   bankAccounts: [], chartOfAccounts: [], journalEntries: [], fixedAssets: [], depreciationRuns: [], employees: [],
   payrollRuns: [], documents: [], timeline: [], notifications: [], approvalRules: [], approvalRequests: [], auditLogs: [],
@@ -145,6 +143,7 @@ export interface FleetContextType extends Collections {
   addReconciliation: typeof finance.addReconciliation;
 
   addJournalEntry: typeof accounting.addJournalEntry;
+  reverseJournalEntry: typeof accounting.reverseJournalEntry;
   addFixedAsset: typeof accounting.addFixedAsset;
   updateFixedAsset: typeof accounting.updateFixedAsset;
   deleteFixedAsset: typeof accounting.deleteFixedAsset;
@@ -261,10 +260,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       for (let key = queue.shift(); key; key = queue.shift()) {
         try {
           const rows = await fetchWithRetry(key);
-          const finalRows = key === 'vehicles' && (!rows || (rows as any[]).length === 0) ? DEFAULT_VEHICLES : rows;
-          setData(prev => ({ ...prev, [key]: finalRows }));
+          setData(prev => ({ ...prev, [key]: rows }));
           setLoadErrors(prev => { if (!(key in prev)) return prev; const m = { ...prev }; delete m[key]; return m; });
-          if (cacheUserId) void writeCache(cacheUserId, { [key]: rows });
         } catch (r) {
           console.error(`Failed to load ${key}:`, r);
           setLoadErrors(prev => ({ ...prev, [key]: (r as Error)?.message || 'Failed to load' }));
@@ -276,17 +273,11 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setIsRefreshing(false);
   }, [cacheUserId]);
 
-  // Initial load: paint cached data -> active page wave -> rest in background
+  // Initial load: active page wave first, the rest in the background. Business data is never
+  // cached in the browser: Supabase is the only source of truth.
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (cacheUserId) {
-        const cached = await readCache(cacheUserId);
-        if (alive && Object.keys(cached).length) {
-          setData(prev => ({ ...prev, ...(cached as Partial<Collections>) }));
-          setIsLoaded(true);
-        }
-      }
       const first = Array.from(new Set<CollectionKey>([...CORE_KEYS, ...(PAGE_KEYS[currentHashPage()] ?? [])]));
       await reload(first);
       if (!alive) return;
@@ -506,6 +497,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setData(prev => ({ ...prev, journalEntries: [created, ...prev.journalEntries] }));
       return created;
     }),
+    reverseJournalEntry: mutation('reverseJournalEntry', accounting.reverseJournalEntry),
     addFixedAsset: mutation('addFixedAsset', async (a: Parameters<typeof accounting.addFixedAsset>[0]) => {
       const created = await accounting.addFixedAsset(a);
       setData(prev => ({ ...prev, fixedAssets: [created, ...prev.fixedAssets] }));
@@ -674,6 +666,9 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return <FleetContext.Provider value={value}>{children}</FleetContext.Provider>;
 };
+
+/** FleetContext when rendered inside FleetProvider, otherwise undefined (shared UI components). */
+export const useOptionalFleet = () => useContext(FleetContext);
 
 export const useFleet = () => {
   const context = useContext(FleetContext);

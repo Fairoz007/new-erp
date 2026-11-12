@@ -186,6 +186,7 @@ export const TyreManagementPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={filteredTyres}
+        collection={'tyres'}
         columns={columns}
         keyExtractor={t => t.id}
         title="Fleet Tyre Registry"

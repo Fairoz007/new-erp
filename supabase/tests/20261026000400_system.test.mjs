@@ -57,7 +57,7 @@ await db.exec(`
 // --- approval notifications
 const REQ = '99999999-9999-9999-9999-999999999991', REF = '99999999-9999-9999-9999-999999999992';
 await check('new approval request notifies eligible approvers only (not requester, viewer, other company)', async () => {
-  await tx(FLEET, `insert into approval_requests (id, company_id, reference_type, reference_id, reference_number, amount, total_levels, required_roles, requested_by)
+  await db.exec(`select set_config('request.uid', '', false); insert into approval_requests (id, company_id, reference_type, reference_id, reference_number, amount, total_levels, required_roles, requested_by)
     values ('${REQ}','${HO}','Expense','${REF}','EXP-2026-0001', 250, 1, '{}', '${FLEET}')`);
   const rows = (await db.query(`select user_id from notifications where type='approval_required' order by user_id`)).rows.map(r => r.user_id);
   assert(rows.includes(ADMIN) && rows.includes(FIN), 'admin and finance manager of HO must be notified: ' + rows);
@@ -84,7 +84,7 @@ await check('decide_approval -> requester notified once, approver name recorded'
   return a.approver_name;
 });
 await check('decide_approval requires a comment', () =>
-  tx(FLEET, `insert into approval_requests (id, company_id, reference_type, reference_id, reference_number, amount, requested_by)
+  db.exec(`select set_config('request.uid', '', false); insert into approval_requests (id, company_id, reference_type, reference_id, reference_number, amount, requested_by)
              values ('99999999-9999-9999-9999-999999999993','${HO}','Expense','${REF}','EXP-2',10,'${FLEET}')`)
     .then(() => tx(ADMIN, `select decide_approval('99999999-9999-9999-9999-999999999993','Approved','   ')`)), true);
 await check('audit_logs rows carry the actor name', async () => {

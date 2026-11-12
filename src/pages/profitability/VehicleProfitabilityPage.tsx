@@ -181,6 +181,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={profitabilityRows}
+        collection={'vehicles'}
         columns={columns}
         keyExtractor={r => r.vehicle.id}
         title="Vehicle Profit & Cost Intelligence Analysis"

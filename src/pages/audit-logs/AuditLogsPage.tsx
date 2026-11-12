@@ -89,6 +89,7 @@ export const AuditLogsPage: React.FC = () => {
 
       <DataTable
         data={filteredLogs}
+        collection={'auditLogs'}
         columns={columns}
         keyExtractor={l => l.id}
         title="System Security & Change Ledger"

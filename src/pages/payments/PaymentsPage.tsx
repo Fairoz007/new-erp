@@ -252,6 +252,7 @@ export const PaymentsPage: React.FC = () => {
       {/* Payments Table */}
       <DataTable
         data={filteredPayments}
+        collection={['payments', 'invoices']}
         columns={columns}
         keyExtractor={p => p.id}
         title="Transaction Records"

@@ -164,6 +164,7 @@ export const VehiclesPage: React.FC = () => {
       {/* Fleet Table */}
       <DataTable
         data={filteredVehicles}
+        collection={'vehicles'}
         columns={columns}
         keyExtractor={v => v.id}
         title="Fleet Vehicle Inventory"

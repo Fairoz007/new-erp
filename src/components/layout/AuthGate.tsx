@@ -5,6 +5,7 @@ import { LoginPage } from '../../pages/auth/LoginPage';
 import { SetPasswordPage } from '../../pages/auth/SetPasswordPage';
 import { AuthShell, AuthNotice } from '../../pages/auth/AuthShell';
 import { Button } from '../ui/Button';
+import { isSupabaseConfigured } from '../../lib/supabase';
 
 // Renders the app only for a signed-in user with an active profile.
 // Must sit inside <AuthProvider> and outside anything that loads business data (FleetProvider).
@@ -28,6 +29,16 @@ export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
   useEffect(() => {
     if (status === 'ready') setNotice(null);
   }, [status]);
+
+  if (!isSupabaseConfigured) {
+    return (
+      <AuthShell title="Database connection not configured" subtitle="This build has no Supabase URL or public key.">
+        <AuthNotice tone="error">
+          Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local (see .env.example and README.md), then restart the app.
+        </AuthNotice>
+      </AuthShell>
+    );
+  }
 
   if (session && passwordRecovery) return <SetPasswordPage />;
 

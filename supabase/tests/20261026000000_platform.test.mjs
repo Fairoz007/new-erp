@@ -237,7 +237,11 @@ await check('direct client writes to the ledger are not granted', () => tx(ADMIN
 // 4. Linked-project order: 000000-000200, 000100-000600, then this file last
 // ---------------------------------------------------------------------
 await check('remote apply order: migration applies last and keeps other slots\' grants', async () => {
-  const r = await setup(dir, { quiet: true, order: fs => [...fs.filter(f => !f.includes('_platform')), ...fs.filter(f => f.includes('_platform'))] });
+  const r = await setup(dir, { quiet: true, order: fs => {
+    // the linked project applied 000000 after 000100-000600; migrations written later than that run after it
+    const old = fs.filter(f => f < '20261027'), later = fs.filter(f => f >= '20261027');
+    return [...old.filter(f => !f.includes('_platform')), ...old.filter(f => f.includes('_platform')), ...later];
+  } });
   const q = async (sql) => (await r.db.query(sql)).rows[0];
   const lost = (await q(`select string_agg(p.proname, ',') bad from pg_proc p where p.pronamespace='public'::regnamespace
       and p.proname in ('create_invoice','submit_invoice','run_depreciation','process_payroll','set_user_companies',

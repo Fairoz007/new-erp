@@ -16,10 +16,13 @@ import {
   FileSpreadsheet,
   Printer,
   ChevronDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
 import { useAuth } from '../../context/AuthContext';
+import { useOptionalFleet } from '../../context/FleetContext';
+import type { CollectionKey } from '../../services/core';
 import { exportToCSV, exportToPDF, cellToText } from '../../utils/export';
 import { ReportPreviewModal } from '../common/ReportPreviewModal';
 
@@ -57,6 +60,12 @@ interface DataTableProps<T> {
   pageSizeDefault?: number;
   /** Permission module that gates the export button; omitted = always allowed. */
   exportModule?: string;
+  /** Loading / error state. Pages backed by FleetContext pass `collection` and get both for free;
+   *  pages with their own data hooks pass `loading` / `error` / `onRetry` explicitly. */
+  collection?: CollectionKey | CollectionKey[];
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -74,8 +83,18 @@ export function DataTable<T extends Record<string, any>>({
   filterComponent,
   pageSizeDefault = 10,
   exportModule,
+  collection,
+  loading: loadingProp,
+  error: errorProp,
+  onRetry,
 }: DataTableProps<T>) {
   const { hasPermission } = useAuth();
+  const fleet = useOptionalFleet();
+  const keys = collection ? (Array.isArray(collection) ? collection : [collection]) : [];
+  const collectionError = keys.map(k => fleet?.loadErrors[k]).find(Boolean);
+  const error = errorProp ?? collectionError ?? null;
+  const loading = loadingProp ?? (keys.length > 0 && fleet ? !fleet.isLoaded : false);
+  const retry = onRetry ?? (keys.length && fleet ? () => { void fleet.reload(keys); } : undefined);
   const canExport = !exportModule || hasPermission('export', exportModule);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -352,7 +371,30 @@ export function DataTable<T extends Record<string, any>>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700/80 bg-white">
-            {paginatedData.length > 0 ? (
+            {error && data.length === 0 ? (
+              <tr>
+                <td colSpan={activeColumns.length} className="px-5 py-14 text-center bg-white" role="alert">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <AlertTriangle className="w-8 h-8 text-rose-500 stroke-[1.5]" />
+                    <p className="font-semibold text-rose-600 text-sm">Could not load records</p>
+                    <p className="text-xs text-slate-400 max-w-md">{error}</p>
+                    {retry && (
+                      <button onClick={retry} className="text-xs text-forest-500 hover:underline mt-1 cursor-pointer font-semibold">
+                        Try again
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ) : loading && data.length === 0 ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <tr key={`sk-${i}`} aria-hidden="true">
+                  {activeColumns.map(col => (
+                    <td key={col.key} className="px-6 py-4"><div className="h-3.5 rounded bg-slate-800/60 animate-pulse" /></td>
+                  ))}
+                </tr>
+              ))
+            ) : paginatedData.length > 0 ? (
               paginatedData.map((row, idx) => (
                 <tr
                   key={keyExtractor(row)}

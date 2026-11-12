@@ -78,6 +78,7 @@ export const rowToJournalEntry = (r: any): JournalEntry => {
     postedBy: r.poster?.name ?? '',
     status: r.status,
     sourceModule: r.source_module ?? 'Manual',
+    reversesEntryId: r.reverses_entry_id ?? undefined,
     attachmentUrl: r.attachment_path ?? undefined,
     createdAt: r.created_at,
   };
@@ -268,6 +269,13 @@ export async function addJournalEntry(entry: Omit<JournalEntry, 'id' | 'entryNum
   return getJournalEntry(id);
 }
 
+/** Reverse a posted manual / opening-balance journal (posts a mirror entry; the original stays). */
+export async function reverseJournalEntry(entryId: string, date: string, reason: string): Promise<JournalEntry> {
+  if (!reason.trim()) throw new ServiceError('A reason is required to reverse a journal entry.');
+  const id = await rpcAny<string>('reverse_journal_entry', { p_entry: entryId, p_date: date, p_reason: reason.trim() });
+  return getJournalEntry(id);
+}
+
 export async function addFixedAsset(asset: Omit<FixedAsset, 'id' | 'assetCode' | 'createdAt' | 'updatedAt'>): Promise<FixedAsset> {
   requireCompany(asset.companyId);
   if (!(asset.purchaseCost >= 0) || !(asset.salvageValue >= 0) || asset.salvageValue > asset.purchaseCost) {
@@ -331,6 +339,7 @@ export async function runAutoDepreciation(params?: {
 
 export const affects: Record<string, CollectionKey[]> = {
   addJournalEntry: ['journalEntries', 'chartOfAccounts'],
+  reverseJournalEntry: ['journalEntries', 'chartOfAccounts', 'bankAccounts'],
   addFixedAsset: ['fixedAssets'],
   updateFixedAsset: ['fixedAssets'],
   deleteFixedAsset: ['fixedAssets'],

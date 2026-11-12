@@ -227,6 +227,7 @@ export const ReconciliationPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={scopedRecs}
+        collection={'reconciliations'}
         columns={columns}
         keyExtractor={r => r.id}
         title="Audit & Reconciliation Ledger"

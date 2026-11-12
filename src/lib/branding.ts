@@ -1,0 +1,14 @@
+// Organization branding for code outside React (PDF/CSV exports, document titles).
+// The organization profile (Setup Wizard step 1) is the source; OrgContext calls setBranding()
+// once it loads. Until then a neutral product name is used, never a hard-coded company.
+export const PRODUCT_NAME = 'Fleet & Finance ERP';
+
+let current = { name: PRODUCT_NAME, logoUrl: '' as string | undefined };
+
+export function setBranding(b: { name?: string | null; logoUrl?: string | null }): void {
+  current = { name: b.name?.trim() || PRODUCT_NAME, logoUrl: b.logoUrl || undefined };
+  if (typeof document !== 'undefined') document.title = current.name === PRODUCT_NAME ? PRODUCT_NAME : `${current.name} · ${PRODUCT_NAME}`;
+}
+
+export const orgName = (): string => current.name;
+export const orgLogoUrl = (): string | undefined => current.logoUrl;

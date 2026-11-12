@@ -193,6 +193,7 @@ export const SuppliersPage: React.FC = () => {
       {/* Suppliers Table */}
       <DataTable
         data={suppliers}
+        collection={'suppliers'}
         columns={columns}
         keyExtractor={s => s.id}
         title="Vendor Registry"

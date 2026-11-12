@@ -196,6 +196,7 @@ export const DocumentsPage: React.FC = () => {
 
       <DataTable
         data={filteredDocs}
+        collection={'documents'}
         columns={columns}
         keyExtractor={d => d.id}
         title="Fleet Compliance & Document Registry"

@@ -273,6 +273,7 @@ export const AssetModulePage: React.FC = () => {
       {activeTab === 'register' ? (
         <DataTable
           data={filteredAssets}
+          collection={'fixedAssets'}
           columns={assetColumns}
           keyExtractor={a => a.id}
           title="Fixed Assets Master Registry"

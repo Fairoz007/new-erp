@@ -388,6 +388,7 @@ export const InvoicesPage: React.FC = () => {
       {/* DataTable */}
       <DataTable
         data={filteredInvoices}
+        collection={'invoices'}
         columns={columns}
         keyExtractor={i => i.id}
         title="Invoices & Purchase Bills Registry"

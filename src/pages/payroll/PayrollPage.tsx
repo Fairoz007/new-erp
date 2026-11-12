@@ -295,6 +295,7 @@ export const PayrollPage: React.FC = () => {
       {activeTab === 'employees' ? (
         <DataTable
           data={filteredEmployees}
+          collection={'employees'}
           columns={employeeColumns}
           keyExtractor={e => e.id}
           title="Employee Master Roster"

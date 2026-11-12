@@ -162,6 +162,7 @@ export const DepreciationPage: React.FC = () => {
       {/* Fleet Depreciation Table */}
       <DataTable
         data={vehicles}
+        collection={'vehicles'}
         columns={columns}
         keyExtractor={v => v.id}
         title="Vehicle Depreciation Registry"

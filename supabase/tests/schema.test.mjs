@@ -94,12 +94,13 @@ await check('cannot complete unapproved work order', async () => {
   return tx(ADMIN, `select complete_work_order('77777777-7777-7777-7777-777777777777', 800)`);
 }, 'check');
 await check('Fleet Manager cannot approve 800 (limit 500)', async () => {
-  await tx(ADMIN, `insert into approval_requests (id, company_id, reference_type, reference_id, reference_number, amount, requested_by)
-    values ('88888888-8888-8888-8888-888888888888','${HO}','WorkOrder','77777777-7777-7777-7777-777777777777','WO-101',800,'${ADMIN}')`);
+  // approval requests are raised server-side (DEFINER triggers); clients cannot insert them
+  await db.exec(`select set_config('request.uid', '', false); insert into approval_requests (id, company_id, reference_type, reference_id, reference_number, amount, requested_by)
+    values ('88888888-8888-8888-8888-888888888888','${HO}','WorkOrder','77777777-7777-7777-7777-777777777777','WO-101',800,'${FLEET}')`);
   return tx(FLEET, `select decide_approval('88888888-8888-8888-8888-888888888888','Approved','ok')`);
 }, 'not authorised');
 await check('approval requires a comment', () =>
-  tx(ADMIN, `select decide_approval('88888888-8888-8888-8888-888888888888','Approved','  ')`), 'check');
+  tx(ADMIN, `select decide_approval('88888888-8888-8888-8888-888888888888','Approved','  ')`), 'comment is required');
 await check('admin approves, completes WO, exactly one maintenance record', async () => {
   await tx(ADMIN, `select decide_approval('88888888-8888-8888-8888-888888888888','Approved','Go ahead')`);
   await tx(ADMIN, `select complete_work_order('77777777-7777-7777-7777-777777777777', 780)`);

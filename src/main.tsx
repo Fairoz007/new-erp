@@ -3,7 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { AuthGate } from './components/layout/AuthGate';
+import { purgeLegacyCaches } from './lib/cache';
 import './index.css';
+
+// Remove business-data snapshots left in the browser by older builds
+purgeLegacyCaches();
 
 // AuthProvider + AuthGate sit outside <App> so no business data (FleetProvider) loads
 // before a signed-in, active profile exists. The <AuthProvider> still inside App.tsx
