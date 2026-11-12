@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ExecutiveDashboard, FinanceDashboard, HrDashboard, SponsorDashboard, useDashboardTabs } from './RoleDashboards';
 import { isApprovedExpense } from '../../types/operations';
 import {
   Car,
@@ -41,7 +42,7 @@ import { useVehiclePhotoUrls } from '../vehicles/VehiclePhoto';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 
-export const DashboardPage: React.FC = () => {
+export const FleetDashboard: React.FC = () => {
   const {
     vehicles: allVehicles,
     maintenanceRecords: allMaintenanceRecords,
@@ -602,6 +603,33 @@ export const DashboardPage: React.FC = () => {
           />
         </div>
       </div>
+    </div>
+  );
+};
+
+/** One dashboard per role; the user sees the tabs their permissions allow (the first is the default). */
+export const DashboardPage: React.FC = () => {
+  const tabs = useDashboardTabs();
+  const [picked, setPicked] = useState<string | null>(null);
+  const tab = tabs.find(t => t.id === picked)?.id ?? tabs[0]?.id;
+  if (!tab) return <p className="p-6 text-sm text-slate-400">There is nothing on the dashboard for your role. Use the menu to open the pages you have access to.</p>;
+  return (
+    <div className="space-y-5">
+      {tabs.length > 1 && (
+        <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-700/80">
+          {tabs.map(t => (
+            <button key={t.id} role="tab" aria-selected={t.id === tab} onClick={() => setPicked(t.id)}
+              className={`px-4 py-2 text-xs font-bold whitespace-nowrap border-b-2 -mb-px ${t.id === tab ? 'border-[#086343] text-forest-600' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === 'executive' && <ExecutiveDashboard />}
+      {tab === 'finance' && <FinanceDashboard />}
+      {tab === 'fleet' && <FleetDashboard />}
+      {tab === 'hr' && <HrDashboard />}
+      {tab === 'sponsor' && <SponsorDashboard />}
     </div>
   );
 };

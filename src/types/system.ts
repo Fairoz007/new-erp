@@ -88,7 +88,17 @@ export type NotificationType =
   | 'payment_due'
   | 'accident_pending'
   | 'approval_required'
-  | 'document_expiry';
+  | 'document_expiry'
+  | 'employee_document_expiring'
+  | 'leave_request'
+  | 'leave_review'
+  | 'budget_threshold'
+  | 'recurring_expense_due'
+  | 'recurring_expense_overdue'
+  | 'recurring_expense_failed'
+  | 'expense_approved'
+  | 'expense_rejected'
+  | 'expense_withdrawn';
 
 export interface NotificationItem {
   id: string;
@@ -101,6 +111,7 @@ export interface NotificationItem {
   link?: string;
   vehicleId?: string;
   referenceId?: string;
+  companyId?: string;
 }
 
 export interface ApprovalRule {

@@ -23,6 +23,7 @@ export const rowToNotification = (r: Row): NotificationItem => ({
   link: r.link ?? undefined,
   vehicleId: r.vehicle_id ?? undefined,
   referenceId: r.reference_id ?? undefined,
+  companyId: r.company_id ?? undefined,
 });
 
 export const rowToApprovalRule = (r: Row): ApprovalRule => ({

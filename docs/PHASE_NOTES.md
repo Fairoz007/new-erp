@@ -217,3 +217,37 @@ This phase (migration `20261112001000_roles.sql`, tests `supabase/tests/20261112
   - The super admin and system flags of a role cannot change.
   - Roles, including system roles, can be renamed.
 - Not verified in a browser: the approval rules editor, and a Sponsor login seeing statements and nothing else. The Sponsor dashboard comes in Phase 10.
+
+## Phase 10 — Dashboards, reports and notifications
+
+Dashboards (`src/pages/dashboard/RoleDashboards.tsx`; `DashboardPage` shows them as tabs):
+- Each tab is shown only with its permission, and the first one the user may open is the default:
+  - **Executive**: super admin, or statements, ledger and vehicles view.
+  - **Finance**: accounting view.
+  - **Fleet**: vehicles view. This is the earlier dashboard.
+  - **HR**: hr view.
+  - **Owner view**: statements view without ledger access (the Sponsor).
+- Every figure is computed from loaded records: posted journals, invoices, bank balances, employees, payroll runs, leave requests and notifications. Offices are limited to the office selector and to the offices where the user holds the permission.
+  - The Owner view uses the statement summaries from Phase 9, so it shows no journal detail.
+  - The HR "monthly basic payroll" is the sum of basic salaries, not a payroll run.
+
+Reports (`src/pages/reports/extraReports.tsx`, `reportKit.tsx`; `ReportsPage` has Office, From and To filters):
+- New reports:
+  - **Fleet utilization**: km comes from odometer readings in the period. Availability is calendar days less accident downtime. Trips are not recorded, so this is not a trip-based utilization.
+  - **Expiry**: vehicle items, employee papers and documents.
+  - **Client and supplier statements**: opening balance, then each document with a running balance.
+  - **Payroll summary**.
+  - **Expense by category**: approved expenses.
+  - **Budget vs actual**: through the end month of the date range.
+  - **P&L per office**.
+  - **Consolidated P&L**.
+- Existing reports now take the office and date filters. AR/AP aging and cost per vehicle are among them.
+- Every report exports to CSV and PDF through the shared table.
+- The report list is filtered by the permission module of each report.
+
+Notifications (migration `20261112001100_notifications.sql`, tests `supabase/tests/20261112001100_notifications.test.mjs`):
+- **New leave request**: notifies, by name, each active user who may approve leave in that office, apart from the requester. Leave decisions already notified the requester.
+- **Overdue invoices**: the daily refresh already raised these. It now does so only for approved invoices; drafts and pending invoices were alerted before.
+- Expiries, approvals, recurring expenses that are due or overdue, and budget alerts were already in place (Phases 5–8).
+
+Not verified in a browser (needs the staging DB): every dashboard tab, the reports and their PDF output, and the leave alert in the bell.

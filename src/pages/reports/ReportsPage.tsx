@@ -8,27 +8,11 @@ import { useFleet } from '../../context/FleetContext';
 import { formatCurrency, calculateCurrentBookValue } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { fetchInvoiceAging, type AgingRow } from '../../services/system';
-
-type Row = Record<string, any>;
-
-// Column builders. Rows are always flat so the DataTable CSV export contains the real raw values
-// (the export reads row[key]); render() only formats them for display.
-const text = (key: string, header: string, extra: Partial<Column<Row>> = {}): Column<Row> => ({
-  key, header, render: r => <span>{r[key] ?? ''}</span>, ...extra,
-});
-const mono = (key: string, header: string): Column<Row> => ({
-  key, header, render: r => <span className="font-mono">{r[key] ?? ''}</span>,
-});
-const date = (key: string, header: string): Column<Row> => ({
-  key, header, render: r => <span>{r[key] ? formatDate(r[key]) : ''}</span>,
-});
-const money = (key: string, header: string, currency: string, bold = false): Column<Row> => ({
-  key, header, align: 'right',
-  render: r => <span className={bold ? 'font-bold' : ''}>{r[key] == null ? 'n/a' : formatCurrency(r[key], currency)}</span>,
-});
-const int = (key: string, header: string, suffix = ''): Column<Row> => ({
-  key, header, align: 'right', render: r => <span>{r[key] == null ? 'n/a' : `${Number(r[key]).toLocaleString()}${suffix}`}</span>,
-});
+import { Row, text, mono, date, money, int, EmptyReport, ReportTable } from './reportKit';
+import { EXTRA_REPORTS, REPORT_MODULE, type ReportFilters } from './extraReports';
+import { Input, Select } from '../../components/ui/Input';
+import { useAuth } from '../../context/AuthContext';
+import { localToday } from '../../utils/date';
 
 const reportCategories = [
   {
@@ -63,18 +47,6 @@ const reportCategories = [
     ],
   },
 ];
-
-const EmptyReport: React.FC<{ message?: string }> = ({ message }) => (
-  <Card className="p-6 rounded-[20px] bg-white border border-slate-700 shadow-card">
-    <p className="text-sm font-semibold text-slate-200">No data for this report</p>
-    <p className="text-xs text-slate-400 mt-1">{message ?? 'There are no records to report on for the selected office.'}</p>
-  </Card>
-);
-
-const ReportTable: React.FC<{ rows: Row[]; columns: Column<Row>[]; filename: string; keyField?: string }> = ({ rows, columns, filename, keyField = 'id' }) =>
-  rows.length === 0
-    ? <EmptyReport />
-    : <DataTable data={rows} columns={columns} keyExtractor={r => String(r[keyField])} exportFilename={filename} />;
 
 // AP / AR aging comes straight from the v_invoice_aging database view
 const AgingReport: React.FC<{ kind: 'Purchase' | 'Sales'; names: Map<string, string>; companyId: string; currency: string }> = ({ kind, names, companyId, currency }) => {
@@ -138,10 +110,18 @@ export const ReportsPage: React.FC = () => {
     vehicles, maintenanceRecords, oilChanges, tyres, accidents, expenses, suppliers, customers,
     invoices, payments, reconciliations, fixedAssets, currency, selectedCompanyId,
   } = useFleet();
-  const [selectedReport, setSelectedReport] = useState<string>('vehicle-master');
+  const { companies } = useFleet();
+  const { hasPermission } = useAuth();
+  const [selectedReport, setSelectedReport] = useState<string>('');
+  const [office, setOffice] = useState<string>(selectedCompanyId || 'all');
+  useEffect(() => { setOffice(selectedCompanyId || 'all'); }, [selectedCompanyId]);
+  const [from, setFrom] = useState(`${new Date().getFullYear()}-01-01`);
+  const [to, setTo] = useState(localToday());
+  const filters: ReportFilters = { office, from, to };
+  const inRange = (d?: string) => !!d && (!from || d >= from) && (!to || d <= to);
 
-  const scoped = !!selectedCompanyId && selectedCompanyId !== 'all';
-  const inCompany = <T extends { companyId?: string }>(list: T[]) => (scoped ? list.filter(x => x.companyId === selectedCompanyId) : list);
+  const scoped = office !== 'all';
+  const inCompany = <T extends { companyId?: string }>(list: T[]) => (scoped ? list.filter(x => x.companyId === office) : list);
   const vehiclesS = inCompany(vehicles);
   const vehicleIds = new Set(vehiclesS.map(v => v.id));
   const plateOf = (vid: string) => vehicles.find(v => v.id === vid)?.plateNumber ?? '';
@@ -154,7 +134,7 @@ export const ReportsPage: React.FC = () => {
   }, [suppliers, customers]);
 
   const renderReport = () => {
-    switch (selectedReport) {
+    switch (current) {
       case 'vehicle-master': {
         const rows = vehiclesS.map(v => ({
           id: v.id, vehicleId: v.vehicleId, plateNumber: v.plateNumber, company: v.companyName,
@@ -219,7 +199,7 @@ export const ReportsPage: React.FC = () => {
       }
 
       case 'maintenance-cost': {
-        const rows = inCompany(maintenanceRecords).map(m => ({
+        const rows = inCompany(maintenanceRecords).filter(m => inRange(m.maintenanceDate)).map(m => ({
           id: m.id, recordNumber: m.recordNumber, vehiclePlate: m.vehiclePlate, category: m.category, maintenanceDate: m.maintenanceDate,
           serviceCentre: m.serviceCentre, partsCost: m.partsCost, labourCost: m.labourCost, totalCost: m.totalCost,
         }));
@@ -230,7 +210,7 @@ export const ReportsPage: React.FC = () => {
       }
 
       case 'oil-report': {
-        const rows = oilChanges.filter(o => !scoped || vehicleIds.has(o.vehicleId)).map(o => ({
+        const rows = oilChanges.filter(o => (!scoped || vehicleIds.has(o.vehicleId)) && inRange(o.date)).map(o => ({
           id: o.id, plate: plateOf(o.vehicleId), date: o.date, odometer: o.odometer, oilType: `${o.oilBrand} ${o.oilGrade}`.trim(),
           quantityLitres: o.quantityLitres, totalCost: o.totalCost, nextMileage: o.nextOilChangeMileage, nextDate: o.nextOilChangeDate, status: o.status,
         }));
@@ -252,7 +232,7 @@ export const ReportsPage: React.FC = () => {
       }
 
       case 'accident-report': {
-        const rows = inCompany(accidents).map(a => ({
+        const rows = inCompany(accidents).filter(a => inRange(a.accidentDate)).map(a => ({
           id: a.id, accidentNumber: a.accidentNumber, vehiclePlate: a.vehiclePlate, accidentDate: a.accidentDate, status: a.status,
           actualRepairCost: a.actualRepairCost, insuranceContribution: a.insuranceContribution, thirdPartyContribution: a.thirdPartyContribution,
           netCost: a.netAccidentCostToCompany, downtimeDays: a.vehicleDowntimeDays,
@@ -265,19 +245,19 @@ export const ReportsPage: React.FC = () => {
       }
 
       case 'expense-report': {
-        const rows = inCompany(expenses).map(e => ({
-          id: e.id, expenseNumber: e.expenseNumber, vehiclePlate: e.vehiclePlate, category: e.category, description: e.description, date: e.date, total: e.total,
+        const rows = inCompany(expenses).filter(e => inRange(e.date)).map(e => ({
+          id: e.id, expenseNumber: e.expenseNumber, vehiclePlate: e.vehiclePlate, category: e.category, description: e.description, date: e.date, total: e.total, status: e.status,
         }));
         return <ReportTable rows={rows} filename="Expense_Report" columns={[
           mono('expenseNumber', 'Expense #'), mono('vehiclePlate', 'Plate'), text('category', 'Category'), text('description', 'Description'),
-          date('date', 'Date'), money('total', 'Amount', currency, true),
+          date('date', 'Date'), money('total', 'Amount', currency, true), text('status', 'Status'),
         ]} />;
       }
 
       case 'purchase-invoices':
       case 'sales-invoices': {
-        const kind = selectedReport === 'purchase-invoices' ? 'Purchase' : 'Sales';
-        const rows = inCompany(invoices).filter(i => i.invoiceType === kind).map(i => ({
+        const kind = current === 'purchase-invoices' ? 'Purchase' : 'Sales';
+        const rows = inCompany(invoices).filter(i => i.invoiceType === kind && inRange(i.invoiceDate)).map(i => ({
           id: i.id, invoiceNumber: i.invoiceNumber, party: i.partyName, invoiceDate: i.invoiceDate, dueDate: i.dueDate,
           grandTotal: i.grandTotal, amountPaid: i.amountPaid, outstanding: i.outstandingAmount, status: i.paymentStatus,
         }));
@@ -301,7 +281,7 @@ export const ReportsPage: React.FC = () => {
       }
 
       case 'payments-report': {
-        const rows = inCompany(payments).map(p => ({
+        const rows = inCompany(payments).filter(p => inRange(p.paymentDate)).map(p => ({
           id: p.id, paymentNumber: p.paymentNumber, paymentDate: p.paymentDate, direction: p.invoiceType === 'Sales' ? 'Collection' : 'Disbursal',
           party: p.partyName, invoiceNumber: p.invoiceNumber, method: p.paymentMethod, bank: p.bankAccountName, amount: p.amount,
         }));
@@ -312,14 +292,14 @@ export const ReportsPage: React.FC = () => {
       }
 
       case 'ap-aging':
-        return <AgingReport kind="Purchase" names={partyNames} companyId={selectedCompanyId} currency={currency} />;
+        return <AgingReport kind="Purchase" names={partyNames} companyId={office} currency={currency} />;
       case 'ar-aging':
-        return <AgingReport kind="Sales" names={partyNames} companyId={selectedCompanyId} currency={currency} />;
+        return <AgingReport kind="Sales" names={partyNames} companyId={office} currency={currency} />;
 
       case 'tax-report': {
         // Credit notes reduce the tax of the side they belong to; cancelled invoices are excluded.
         const byMonth = new Map<string, Row>();
-        inCompany(invoices).filter(i => i.paymentStatus !== 'Cancelled' && i.approvalStatus !== 'Draft' && i.approvalStatus !== 'Rejected' && i.approvalStatus !== 'Cancelled').forEach(i => {
+        inCompany(invoices).filter(i => inRange(i.invoiceDate) && i.paymentStatus !== 'Cancelled' && i.approvalStatus !== 'Draft' && i.approvalStatus !== 'Rejected' && i.approvalStatus !== 'Cancelled').forEach(i => {
           const key = (i.invoiceDate || '').slice(0, 7);
           const row = byMonth.get(key) ?? { id: key, month: key, outputTax: 0, inputTax: 0, net: 0 };
           const signed = i.isCreditNote ? -Math.abs(i.taxTotal) : i.taxTotal;   // credit-note totals already arrive negative
@@ -337,20 +317,30 @@ export const ReportsPage: React.FC = () => {
         );
       }
 
-      default:
+      default: {
+        const extra = EXTRA_REPORTS.find(r => r.id === current);
+        if (extra) { const R = extra.render; return <R {...filters} />; }
         return <EmptyReport message="Select a report from the list." />;
+      }
     }
   };
+
+  const visible = (id: string) => !REPORT_MODULE[id] || hasPermission('view', REPORT_MODULE[id]);
+  const categories = reportCategories.map(c => ({ group: c.group, items: [...c.items, ...EXTRA_REPORTS.filter(x => x.group === c.group)].filter(i => visible(i.id)) }))
+    .filter(c => c.items.length > 0);
+  const allItems = categories.flatMap(c => c.items);
+  const current = allItems.some(i => i.id === selectedReport) ? selectedReport : allItems[0]?.id ?? '';
+  const officeName = office === 'all' ? 'All offices' : companies.find(c => c.id === office)?.name ?? '';
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Executive Reports & Analytical Export Suite
+            Reports
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Reports computed from live ERP data for the selected office, with CSV export and browser print.
+            Live data for the chosen office and dates. Every table exports to CSV and PDF.
           </p>
         </div>
 
@@ -367,15 +357,25 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-3 items-end print:hidden">
+        <div className="w-56"><Select label="Office" value={office} onChange={e => setOffice(e.target.value)}>
+          <option value="all">All offices</option>
+          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select></div>
+        <Input label="From" type="date" value={from} onChange={e => setFrom(e.target.value)} />
+        <Input label="To" type="date" value={to} onChange={e => setTo(e.target.value)} />
+        <p className="text-[11px] text-slate-400 pb-2">Dates apply to dated reports (registers, statements, P&L). Masters such as the vehicle list show the current state.</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {reportCategories.map((cat, idx) => (
+        {categories.map((cat, idx) => (
           <Card key={idx} className="p-4 sm:p-5 rounded-[20px] bg-white border border-slate-700 shadow-card space-y-2">
             <h3 className="text-xs font-bold text-forest-600 uppercase tracking-wider pb-2 border-b border-slate-750">
               {cat.group}
             </h3>
             <div className="space-y-1">
               {cat.items.map(item => {
-                const isSelected = selectedReport === item.id;
+                const isSelected = current === item.id;
                 return (
                   <button
                     key={item.id}
@@ -398,7 +398,7 @@ export const ReportsPage: React.FC = () => {
 
       <div className="space-y-3">
         <h2 className="text-sm font-bold text-slate-200">
-          Generated Report Output: <span className="text-forest-600">{reportCategories.flatMap(c => c.items).find(i => i.id === selectedReport)?.name}</span>
+          <span className="text-forest-600">{allItems.find(i => i.id === current)?.name}</span> <span className="text-slate-400 font-normal">· {officeName} · {from || '…'} to {to || '…'}</span>
         </h2>
         {renderReport()}
       </div>
