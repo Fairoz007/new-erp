@@ -10,6 +10,7 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { disposeFixedAsset } from '../../services/ledger';
+import { RecordSelect, bankOption } from '../../components/ui/RecordSelect';
 
 interface AssetDetailModalProps {
   asset: FixedAsset | null;
@@ -273,10 +274,8 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
             <Input label="Disposal date" type="date" value={disp.date} onChange={e => setDisp({ ...disp, date: e.target.value })} />
             <Input label={`Sale proceeds (${currency})`} type="number" min="0" step="0.001" value={disp.proceeds} onChange={e => setDisp({ ...disp, proceeds: e.target.value })} />
             {proceeds > 0 && (
-              <Select label="Received into" value={disp.bankId} onChange={e => setDisp({ ...disp, bankId: e.target.value })}>
-                <option value="">Choose a bank account…</option>
-                {banks.map(b => <option key={b.id} value={b.id}>{b.bankName} · {b.accountName}</option>)}
-              </Select>
+              <RecordSelect label="Received into" required value={disp.bankId} onChange={v => setDisp({ ...disp, bankId: v })}
+                placeholder="Choose a bank account…" options={banks.map(bankOption)} />
             )}
             <Textarea label="Note" value={disp.note} onChange={e => setDisp({ ...disp, note: e.target.value })} />
             <p className={`text-xs font-semibold ${gain >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{gain >= 0 ? 'Gain' : 'Loss'} on disposal: {formatCurrency(Math.abs(gain), currency)}</p>

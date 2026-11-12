@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+import { confirmDiscard } from '../lib/unsaved';
 import { PayslipModalData } from '../types/hr';
 import { useAuth } from './AuthContext';
 
@@ -226,6 +227,8 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const setCurrentPage = (page: AppPage) => {
+    // leaving a page with an unsaved form asks first (src/lib/unsaved.ts)
+    if (page !== currentPage && !confirmDiscard()) return;
     setCurrentPageState(page);
     if (typeof window !== 'undefined') {
       if ((page === 'customer-detail' || page === 'supplier-detail') && selectedPartyId) {

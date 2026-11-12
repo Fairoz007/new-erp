@@ -26,9 +26,11 @@ interface Props {
   /** Existing party: the home office is changed with "Transfer to office", not here. */
   lockOffice?: boolean;
   disabled?: boolean;
+  /** Inline errors (partyOfficeErrors): officeId, sharedOfficeIds. */
+  errors?: { officeId?: string; sharedOfficeIds?: string };
 }
 
-export const PartyOfficeFields: React.FC<Props> = ({ module, value, onChange, lockOffice, disabled }) => {
+export const PartyOfficeFields: React.FC<Props> = ({ module, value, onChange, lockOffice, disabled, errors }) => {
   const { companies } = useFleet();
   const { hasPermission } = useAuth();
   const homeChoices = lockOffice ? companies.filter(c => c.id === value.officeId) : companies.filter(c => hasPermission('create', module, c.id));
@@ -38,12 +40,12 @@ export const PartyOfficeFields: React.FC<Props> = ({ module, value, onChange, lo
   return (
     <div className="space-y-3 rounded-xl border border-slate-700 p-3">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Select label="Home office" value={value.officeId} required disabled={disabled || lockOffice}
+        <Select label="Home office" name="officeId" error={errors?.officeId} value={value.officeId} required disabled={disabled || lockOffice}
           onChange={e => onChange({ ...value, officeId: e.target.value, sharedOfficeIds: value.sharedOfficeIds.filter(id => id !== e.target.value) })}>
           <option value="">Select office</option>
           {homeChoices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
-        <Select label="Visible to" value={value.sharing} disabled={disabled || companies.length < 2}
+        <Select label="Visible to" name="sharing" value={value.sharing} disabled={disabled || companies.length < 2}
           onChange={e => onChange({ ...value, sharing: e.target.value as PartySharing })}>
           {(Object.keys(SHARING_LABEL) as PartySharing[]).map(k => <option key={k} value={k}>{SHARING_LABEL[k]}</option>)}
         </Select>
@@ -58,13 +60,15 @@ export const PartyOfficeFields: React.FC<Props> = ({ module, value, onChange, lo
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
             {others.map(c => (
               <label key={c.id} className="flex items-center gap-2 text-xs text-slate-200">
-                <input type="checkbox" className="w-4 h-4 accent-[#086343]" disabled={disabled}
+                <input type="checkbox" name="sharedOfficeIds" className="w-4 h-4 accent-[#086343]" disabled={disabled}
+                  aria-invalid={errors?.sharedOfficeIds ? true : undefined} aria-describedby={errors?.sharedOfficeIds ? 'party-share-error' : undefined}
                   checked={value.sharedOfficeIds.includes(c.id)}
                   onChange={e => onChange({ ...value, sharedOfficeIds: e.target.checked ? [...value.sharedOfficeIds, c.id] : value.sharedOfficeIds.filter(id => id !== c.id) })} />
                 {c.name}
               </label>
             ))}
           </div>
+          {errors?.sharedOfficeIds && <p id="party-share-error" role="alert" className="text-xs text-rose-600 font-medium">{errors.sharedOfficeIds}</p>}
         </fieldset>
       )}
       <p className="text-[11px] text-slate-400">
@@ -73,6 +77,11 @@ export const PartyOfficeFields: React.FC<Props> = ({ module, value, onChange, lo
     </div>
   );
 };
+
+/** The same rules as validatePartyOffice, per field (for inline errors). */
+export const partyOfficeErrors = (v: PartyOfficeValue): { officeId?: string; sharedOfficeIds?: string } =>
+  !v.officeId ? { officeId: 'Choose the home office.' }
+    : v.sharing === 'selected' && v.sharedOfficeIds.length === 0 ? { sharedOfficeIds: 'Choose at least one office to share with, or pick another visibility.' } : {};
 
 export const validatePartyOffice = (v: PartyOfficeValue): string | null =>
   !v.officeId ? 'Choose the home office.' : v.sharing === 'selected' && v.sharedOfficeIds.length === 0 ? 'Choose at least one office to share with, or pick another visibility.' : null;

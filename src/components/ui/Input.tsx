@@ -73,10 +73,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           aria-required={required || undefined}
+          // the right on-screen keyboard on phones (callers can override)
+          inputMode={props.inputMode ?? (props.type === 'number' ? (props.step && !String(props.step).includes('.') && props.step !== 'any' ? 'numeric' : 'decimal')
+            : props.type === 'tel' ? 'tel' : props.type === 'email' ? 'email' : props.type === 'url' ? 'url' : undefined)}
+          autoComplete={props.autoComplete ?? (props.type === 'email' ? 'email' : props.type === 'tel' ? 'tel' : undefined)}
           aria-label={!label && !props['aria-labelledby'] ? (props['aria-label'] ?? props.placeholder) : props['aria-label']}
           className={twMerge(
             clsx(
-              'w-full min-h-[40px] h-10 bg-white border border-slate-700 px-3.5 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all disabled:opacity-60 disabled:bg-slate-850',
+              'w-full min-h-[44px] sm:min-h-[40px] h-11 sm:h-10 bg-white border border-slate-700 px-3.5 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all disabled:opacity-60 disabled:bg-slate-850',
               pill ? 'rounded-full px-4' : 'rounded-xl',
               leftIcon && 'pl-10',
               rightIcon && 'pr-10',
@@ -112,7 +116,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             aria-required={required || undefined}
             className={twMerge(
               clsx(
-                'w-full min-h-[40px] h-10 bg-white border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all disabled:opacity-60 appearance-none cursor-pointer pr-9',
+                'w-full min-h-[44px] sm:min-h-[40px] h-11 sm:h-10 bg-white border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 transition-all disabled:opacity-60 appearance-none cursor-pointer pr-9',
                 leftIcon && 'pl-10',
                 error && 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500',
                 className

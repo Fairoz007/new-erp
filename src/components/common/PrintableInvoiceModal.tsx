@@ -11,6 +11,7 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { createDebitNote } from '../../services/ledger';
 import { useChildInvoices, useInvoiceById } from '../../services/queries-expenses';
+import { RULES, atMost, fieldForDbMessage, focusFirstInvalid, hasErrors, positive, required, validate, type Errors } from '../../lib/validation';
 
 type Busy = null | 'duplicate' | 'credit' | 'debit' | 'submit' | 'cancel';
 
@@ -25,6 +26,12 @@ export const PrintableInvoiceModal: React.FC = () => {
   const [cnAmount, setCnAmount] = useState('');
   const [dnOpen, setDnOpen] = useState(false);
   const [dn, setDn] = useState({ reason: '', description: '', amount: '', taxRate: '5' });
+  // inline errors of the credit / debit note forms (only one is open at a time)
+  const [noteErrors, setNoteErrors] = useState<Errors>({});
+  const clearNoteError = (e: React.FormEvent<HTMLFormElement>) => {
+    const name = (e.target as HTMLInputElement).name;
+    if (name && noteErrors[name]) setNoteErrors(({ [name]: _, ...rest }) => rest);
+  };
 
   // The invoice with its lines, and the notes raised against it, read by id
   const invoiceQ = useInvoiceById(viewingInvoiceId);
@@ -78,13 +85,17 @@ export const PrintableInvoiceModal: React.FC = () => {
   const vatRates = Array.from(new Set(invoice.items.map(i => i.taxRatePercentage)));
   const vatLabel = vatRates.length === 1 ? `VAT (${vatRates[0]}%)` : 'VAT';
 
-  const run = async (kind: Exclude<Busy, null>, fn: () => Promise<void>) => {
+  const run = async (kind: Exclude<Busy, null>, fn: () => Promise<void>, dbFields?: Parameters<typeof fieldForDbMessage>[1]) => {
     if (busy) return;
     setBusy(kind);
     try {
       await fn();
     } catch (e) {
-      addToast({ type: 'error', title: 'Action failed', message: (e as Error).message });
+      const message = (e as Error).message;
+      // a rule the database checks (RULES): show it on its field as well
+      const field = dbFields ? fieldForDbMessage(message, dbFields) : null;
+      if (field) { setNoteErrors({ [field]: message }); focusFirstInvalid(); }
+      addToast({ type: 'error', title: 'Action failed', message });
     } finally {
       setBusy(null);
     }
@@ -116,39 +127,39 @@ export const PrintableInvoiceModal: React.FC = () => {
   const openCreditNote = () => {
     setCnReason('');
     setCnAmount(invoice.outstandingAmount.toFixed(3));
+    setNoteErrors({});
     setCnOpen(true);
   };
 
   const handleCreateCreditNote = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = Number(cnAmount);
-    if (!cnReason.trim()) {
-      addToast({ type: 'error', title: 'Reason required', message: 'Enter the reason for the credit note.' });
-      return;
-    }
-    if (!(amount > 0) || amount > invoice.outstandingAmount + 0.0005) {
-      addToast({ type: 'error', title: 'Invalid amount', message: `Enter an amount between 0 and ${invoice.outstandingAmount.toFixed(3)}.` });
-      return;
-    }
+    const found = validate({ amount: cnAmount, reason: cnReason }, {
+      amount: [positive('Credit amount', RULES.creditAmountPositive),
+        atMost('Credit amount', invoice.outstandingAmount + 0.0005, `Credit amount cannot be more than the outstanding ${invoice.outstandingAmount.toFixed(3)}`)],
+      reason: [required('Reason', RULES.creditReasonRequired)],
+    });
+    setNoteErrors(found);
+    if (hasErrors(found)) return;
     run('credit', async () => {
       const cn = await createCreditNote(invoice.id, cnReason.trim(), amount);
       addToast({ type: 'success', title: 'Credit Note Created', message: `${cn.invoiceNumber} posted against ${invoice.invoiceNumber}.` });
       setCnOpen(false);
-    });
+    }, { amount: [RULES.creditAmountPositive, 'Credit amount'], reason: [RULES.creditReasonRequired] });
   };
 
   const handleCreateDebitNote = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = Number(dn.amount);
     const taxRate = Number(dn.taxRate);
-    if (!dn.reason.trim() || !dn.description.trim()) {
-      addToast({ type: 'error', title: 'Details required', message: 'Enter a reason and a line description.' });
-      return;
-    }
-    if (!(amount > 0) || !(taxRate >= 0 && taxRate <= 100)) {
-      addToast({ type: 'error', title: 'Invalid amount', message: 'Enter an amount above zero and a VAT rate between 0 and 100.' });
-      return;
-    }
+    const found = validate(dn, {
+      description: [required('Line description')],
+      amount: [positive('Amount')],
+      taxRate: [v => (!(Number(v) >= 0 && Number(v) <= 100) || String(v).trim() === '' ? 'VAT % must be between 0 and 100' : null)],
+      reason: [required('Reason', 'A reason is required for a debit note')],
+    });
+    setNoteErrors(found);
+    if (hasErrors(found)) return;
     run('debit', async () => {
       await createDebitNote(invoice.id, dn.reason, [{ description: dn.description, quantity: 1, unitPrice: amount, taxRate }]);
       await reload(['invoices', 'journalEntries', 'chartOfAccounts', 'notifications']);
@@ -185,7 +196,7 @@ export const PrintableInvoiceModal: React.FC = () => {
               </Button>
             )}
             {canDebit && (
-              <Button variant="outline" size="sm" onClick={() => { setDn({ reason: '', description: '', amount: '', taxRate: String(invoice.items[0]?.taxRatePercentage ?? 5) }); setDnOpen(true); }} disabled={!!busy}
+              <Button variant="outline" size="sm" onClick={() => { setDn({ reason: '', description: '', amount: '', taxRate: String(invoice.items[0]?.taxRatePercentage ?? 5) }); setNoteErrors({}); setDnOpen(true); }} disabled={!!busy}
                 leftIcon={<FileText className="w-4 h-4" />}>
                 Create Debit Note
               </Button>
@@ -431,7 +442,7 @@ export const PrintableInvoiceModal: React.FC = () => {
       description={`Outstanding: ${formatCurrency(invoice.outstandingAmount, invoice.currency)}. The credit note is posted to the ledger immediately and reduces the outstanding amount.`}
       size="md"
     >
-      <form onSubmit={handleCreateCreditNote} className="space-y-4">
+      <form onSubmit={handleCreateCreditNote} onChange={clearNoteError} className="space-y-4" noValidate>
         <Input
           label={`Credit Amount (${invoice.currency}, incl. VAT)`}
           type="number"
@@ -441,8 +452,10 @@ export const PrintableInvoiceModal: React.FC = () => {
           value={cnAmount}
           onChange={e => setCnAmount(e.target.value)}
           required
+          name="amount"
+          error={noteErrors.amount}
         />
-        <Textarea label="Reason" rows={3} value={cnReason} onChange={e => setCnReason(e.target.value)} required />
+        <Textarea label="Reason" rows={3} value={cnReason} onChange={e => setCnReason(e.target.value)} required name="reason" error={noteErrors.reason} />
         <div className="flex justify-end gap-3">
           <Button variant="secondary" type="button" onClick={() => setCnOpen(false)} disabled={busy === 'credit'}>Cancel</Button>
           <Button variant="primary" type="submit" isLoading={busy === 'credit'} disabled={!!busy}>Issue Credit Note</Button>
@@ -457,13 +470,13 @@ export const PrintableInvoiceModal: React.FC = () => {
       description="An extra charge to the same party. It goes through the normal invoice approval and is posted to the ledger once approved."
       size="md"
     >
-      <form onSubmit={handleCreateDebitNote} className="space-y-4">
-        <Input label="Line description" value={dn.description} onChange={e => setDn({ ...dn, description: e.target.value })} required />
+      <form onSubmit={handleCreateDebitNote} onChange={clearNoteError} className="space-y-4" noValidate>
+        <Input label="Line description" value={dn.description} onChange={e => setDn({ ...dn, description: e.target.value })} required name="description" error={noteErrors.description} />
         <div className="grid grid-cols-2 gap-3">
-          <Input label={`Amount (${invoice.currency}, excl. VAT)`} type="number" step="0.001" min="0.001" value={dn.amount} onChange={e => setDn({ ...dn, amount: e.target.value })} required />
-          <Input label="VAT %" type="number" step="0.01" min="0" max="100" value={dn.taxRate} onChange={e => setDn({ ...dn, taxRate: e.target.value })} required />
+          <Input label={`Amount (${invoice.currency}, excl. VAT)`} type="number" step="0.001" min="0.001" value={dn.amount} onChange={e => setDn({ ...dn, amount: e.target.value })} required name="amount" error={noteErrors.amount} />
+          <Input label="VAT %" type="number" step="0.01" min="0" max="100" value={dn.taxRate} onChange={e => setDn({ ...dn, taxRate: e.target.value })} required name="taxRate" error={noteErrors.taxRate} />
         </div>
-        <Textarea label="Reason" rows={3} value={dn.reason} onChange={e => setDn({ ...dn, reason: e.target.value })} required />
+        <Textarea label="Reason" rows={3} value={dn.reason} onChange={e => setDn({ ...dn, reason: e.target.value })} required name="reason" error={noteErrors.reason} />
         <div className="flex justify-end gap-3">
           <Button variant="secondary" type="button" onClick={() => setDnOpen(false)} disabled={busy === 'debit'}>Cancel</Button>
           <Button variant="primary" type="submit" isLoading={busy === 'debit'} disabled={!!busy}>Issue Debit Note</Button>

@@ -10,6 +10,7 @@ import { useOrg } from '../../../context/OrgContext';
 import { addCompany, updateCompany } from '../../../services/fleet';
 import type { Company } from '../../../types/system';
 import { CURRENCIES, LoadState, NoticeBar, Section, Toggle, errText, useNotice, useOffices } from '../shared';
+import { RecordSelect } from '../../../components/ui/RecordSelect';
 
 type Contact = { name: string; role: string; phone: string; email: string };
 type Form = {
@@ -125,8 +126,8 @@ export const OfficesStep: React.FC<{ readOnly?: boolean; onChanged?: (count: num
             <Input label="Code" required value={editing.form.code} onChange={e => upd({ code: e.target.value.toUpperCase() })} error={errors.code}
               hint="Short code used in document numbers, e.g. HO, SOH" maxLength={10} />
             <Input label="Registration no." value={editing.form.registrationNumber} onChange={e => upd({ registrationNumber: e.target.value })} />
-            <Select label="Office manager" value={editing.form.managerUserId} onChange={e => upd({ managerUserId: e.target.value })}
-              options={[{ value: '', label: 'Not set' }, ...users.filter(u => u.status === 'active').map(u => ({ value: u.id, label: u.name }))]}
+            <RecordSelect label="Office manager" value={editing.form.managerUserId} onChange={v => upd({ managerUserId: v })} placeholder="Not set"
+              options={users.map(u => ({ value: u.id, label: u.name, inactive: u.status !== 'active', inactiveLabel: u.status }))}
               hint="Invite users in step 5, then come back to set a manager" />
             <Textarea label="Address" rows={2} className="sm:col-span-2" value={editing.form.address} onChange={e => upd({ address: e.target.value })} />
             <Input label="City" value={editing.form.city} onChange={e => upd({ city: e.target.value })} />

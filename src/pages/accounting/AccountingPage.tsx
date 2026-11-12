@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useRequestKey } from '../../lib/requestKey';
+import { RULES, fieldForDbMessage, focusFirstInvalid, hasErrors, required, validate, type Errors } from '../../lib/validation';
 import { Plus, Scale, Trash2, Undo2 } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -30,6 +31,7 @@ export const AccountingPage: React.FC = () => {
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
   const [reverseForm, setReverseForm] = useState({ date: todayYmd(), reason: '' });
   const [reverseError, setReverseError] = useState('');
+  const [reverseErrors, setReverseErrors] = useState<Errors<'date' | 'reason'>>({});
   const [isReversing, setIsReversing] = useState(false);
   // `reversed`: another entry reverses this one (looked up per page in the database)
   const canReverse = (j: JournalListRow) => j.status === 'Posted' && !j.reversed && !j.reversesEntryId
@@ -37,9 +39,14 @@ export const AccountingPage: React.FC = () => {
   const submitReversal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reversing) return;
-    if (!reverseForm.reason.trim()) { setReverseError('Enter the reason for the reversal.'); return; }
-    if (!reverseForm.date) { setReverseError('Choose the reversal date.'); return; }
-    setIsReversing(true); setReverseError('');
+    const found = validate(reverseForm, {
+      date: [required('Reversal date', 'Choose the reversal date.')],
+      reason: [required('Reason', 'Enter the reason for the reversal.')],
+    });
+    setReverseErrors(found);
+    setReverseError('');
+    if (hasErrors(found)) return;
+    setIsReversing(true);
     try {
       const rev = await reverseJournalEntry(reversing.id, reverseForm.date, reverseForm.reason);
       addToast({ type: 'success', title: 'Journal Reversed', message: `${reversing.entryNumber} reversed by ${rev.entryNumber}.` });
@@ -55,6 +62,15 @@ export const AccountingPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'coa' | 'journal'>('overview');
   const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  // inline errors of the journal form; line fields use `line-<id>-account|debit|credit`, `lines` is the whole set
+  const [jErrors, setJErrors] = useState<Errors>({});
+  const clearJournalError = (e: React.FormEvent<HTMLFormElement>) => {
+    const name = (e.target as HTMLInputElement).name;
+    if (!name) return;
+    // any amount change can fix the debit/credit set
+    const keys = /-(debit|credit)$/.test(name) ? [name, 'lines'] : [name];
+    setJErrors(prev => (keys.some(k => prev[k]) ? Object.fromEntries(Object.entries(prev).filter(([k]) => !keys.includes(k))) : prev));
+  };
 
   // The chart of accounts is per company: one row per code here (balances summed across offices for 'all').
   const scopedAccounts = consolidateAccounts(chartOfAccounts, selectedCompanyId);
@@ -76,6 +92,7 @@ export const AccountingPage: React.FC = () => {
 
   const openJournalModal = () => {
     setJournalForm({ companyId: defaultPostingCompany, date: todayYmd(), description: '', reference: '', lines: blankLines() });
+    setJErrors({});
     setIsJournalModalOpen(true);
   };
 
@@ -86,23 +103,22 @@ export const AccountingPage: React.FC = () => {
       addToast({ type: 'error', title: 'Permission Denied', message: 'You do not have permission to post journal entries.' });
       return;
     }
-    if (!journalForm.companyId) {
-      addToast({ type: 'error', title: 'Company Required', message: 'Choose the company (office) this journal belongs to.' });
-      return;
-    }
     const activeLines = journalForm.lines.filter(l => Number(l.debit || 0) !== 0 || Number(l.credit || 0) !== 0);
-    if (activeLines.some(l => Number(l.debit) < 0 || Number(l.credit) < 0 || !postingAccounts.some(a => a.code === l.accountCode))) {
-      addToast({ type: 'error', title: 'Invalid Line', message: "Amounts must be non-negative and every line needs an account from this company's chart." });
-      return;
+    const found: Errors = validate(journalForm, {
+      companyId: [required('Company', 'Choose the company (office) this journal belongs to.')],
+      date: [required('Journal date', RULES.journalDateRequired)],
+      description: [required('Description', RULES.journalDescriptionRequired)],
+    });
+    for (const l of activeLines) {
+      if (Number(l.debit) < 0) found[`line-${l.id}-debit`] = RULES.journalLineSide;
+      if (Number(l.credit) < 0) found[`line-${l.id}-credit`] = RULES.journalLineSide;
+      if (!postingAccounts.some(a => a.code === l.accountCode)) found[`line-${l.id}-account`] = "Choose an account from this company's chart";
     }
-    if (activeLines.length < 2 || !activeLines.some(l => Number(l.debit) > 0) || !activeLines.some(l => Number(l.credit) > 0)) {
-      addToast({ type: 'error', title: 'Incomplete Journal', message: 'A journal needs at least one debit line and one credit line.' });
-      return;
-    }
-    if (!isBalanced) {
-      addToast({ type: 'error', title: 'Unbalanced Journal', message: 'Debits must equal Credits in double-entry bookkeeping.' });
-      return;
-    }
+    if (activeLines.length < 2) found.lines = RULES.journalTwoLines;
+    else if (!activeLines.some(l => Number(l.debit) > 0) || !activeLines.some(l => Number(l.credit) > 0)) found.lines = 'A journal needs at least one debit line and one credit line.';
+    else if (!isBalanced) found.lines = 'Debits must equal Credits in double-entry bookkeeping.';
+    setJErrors(found);
+    if (hasErrors(found)) return;
 
     setIsPosting(true);
     try {
@@ -131,7 +147,14 @@ export const AccountingPage: React.FC = () => {
       else addToast({ type: 'info', title: 'Sent for approval', message: `${res.pending.requestNumber}: this journal is above your approval limit. It will be posted when an approver approves it.` });
       setIsJournalModalOpen(false);
     } catch (err) {
-      addToast({ type: 'error', title: 'Journal Rejected', message: (err as Error).message });
+      const message = (err as Error).message;
+      // a rule the database checks (RULES): show it where it applies as well
+      const field = fieldForDbMessage(message, {
+        date: [RULES.journalDateRequired], description: [RULES.journalDescriptionRequired],
+        lines: [RULES.journalTwoLines, RULES.journalLineSide, 'Unbalanced journal entry'],
+      });
+      if (field) { setJErrors({ [field]: message }); focusFirstInvalid(); }
+      addToast({ type: 'error', title: 'Journal Rejected', message });
     } finally {
       setIsPosting(false);
     }
@@ -268,7 +291,7 @@ export const AccountingPage: React.FC = () => {
       sortable: false,
       render: (j) => canReverse(j) ? (
         <Button variant="ghost" size="xs" leftIcon={<Undo2 className="w-3 h-3" />}
-          onClick={() => { setReversing(j); setReverseForm({ date: todayYmd(), reason: '' }); setReverseError(''); }}>
+          onClick={() => { setReversing(j); setReverseForm({ date: todayYmd(), reason: '' }); setReverseError(''); setReverseErrors({}); }}>
           Reverse
         </Button>
       ) : j.reversed ? <span className="text-[10px] text-slate-400">Reversed</span> : null,
@@ -353,7 +376,7 @@ export const AccountingPage: React.FC = () => {
         description="Double-entry debit and credit allocation with real-time balance validation"
         size="xl"
       >
-        <form onSubmit={handleCreateJournal} className="space-y-4">
+        <form onSubmit={handleCreateJournal} onChange={clearJournalError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select
               label="Company"
@@ -361,15 +384,17 @@ export const AccountingPage: React.FC = () => {
               onChange={e => setJournalForm({ ...journalForm, companyId: e.target.value, lines: blankLines() })}
               disabled={!!defaultPostingCompany}
               required
+              name="companyId"
+              error={jErrors.companyId}
             >
               <option value="">-- Select company --</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Input label="Posting Date" type="date" value={journalForm.date} onChange={e => setJournalForm({ ...journalForm, date: e.target.value })} required />
+            <Input label="Posting Date" type="date" value={journalForm.date} onChange={e => setJournalForm({ ...journalForm, date: e.target.value })} required name="date" error={jErrors.date} />
             <Input label="Reference" placeholder="e.g. MNT-JV-0042" value={journalForm.reference} onChange={e => setJournalForm({ ...journalForm, reference: e.target.value })} />
           </div>
 
-          <Textarea label="Voucher Description" placeholder="Explain the business transaction or adjustment..." value={journalForm.description} onChange={e => setJournalForm({ ...journalForm, description: e.target.value })} required />
+          <Textarea label="Voucher Description" placeholder="Explain the business transaction or adjustment..." value={journalForm.description} onChange={e => setJournalForm({ ...journalForm, description: e.target.value })} required name="description" error={jErrors.description} />
 
           {/* Journal Lines */}
           <div className="space-y-3 p-4 bg-slate-950/60 rounded-xl border border-slate-800">
@@ -392,6 +417,8 @@ export const AccountingPage: React.FC = () => {
                     value={line.accountCode}
                     onChange={e => updateLine(idx, { accountCode: e.target.value })}
                     disabled={!journalForm.companyId}
+                    name={`line-${line.id}-account`}
+                    error={jErrors[`line-${line.id}-account`]}
                   >
                     <option value="">-- Account --</option>
                     {postingAccounts.map(a => (
@@ -406,6 +433,8 @@ export const AccountingPage: React.FC = () => {
                     step="0.001"
                     min="0"
                     value={line.debit}
+                    name={`line-${line.id}-debit`}
+                    error={jErrors[`line-${line.id}-debit`]}
                     onChange={e => updateLine(idx, Number(e.target.value) > 0 ? { debit: Number(e.target.value), credit: 0 } : { debit: Number(e.target.value) })}
                   />
                 </div>
@@ -416,6 +445,8 @@ export const AccountingPage: React.FC = () => {
                     step="0.001"
                     min="0"
                     value={line.credit}
+                    name={`line-${line.id}-credit`}
+                    error={jErrors[`line-${line.id}-credit`]}
                     onChange={e => updateLine(idx, Number(e.target.value) > 0 ? { credit: Number(e.target.value), debit: 0 } : { credit: Number(e.target.value) })}
                   />
                 </div>
@@ -436,6 +467,8 @@ export const AccountingPage: React.FC = () => {
               </div>
             ))}
 
+            {jErrors.lines && <p role="alert" className="text-xs text-rose-600 font-medium">{jErrors.lines}</p>}
+
             {/* Balancing Indicator */}
             <div className="flex justify-between items-center pt-3 border-t border-slate-800 text-xs font-bold">
               <span className={isBalanced ? 'text-emerald-400' : 'text-rose-400'}>
@@ -450,7 +483,7 @@ export const AccountingPage: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={() => setIsJournalModalOpen(false)} disabled={isPosting}>Cancel</Button>
-            <Button variant="primary" type="submit" disabled={!isBalanced || isPosting || !journalForm.companyId} leftIcon={<Scale className="w-4 h-4" />}>
+            <Button variant="primary" type="submit" disabled={isPosting} leftIcon={<Scale className="w-4 h-4" />}>
               {isPosting ? 'Posting…' : 'Post to Ledger'}
             </Button>
           </div>
@@ -460,9 +493,9 @@ export const AccountingPage: React.FC = () => {
         description="Posts a mirror entry that cancels this journal. The original entry stays in the ledger.">
         <form onSubmit={submitReversal} className="space-y-4" noValidate>
           <Input label="Reversal date" type="date" required value={reverseForm.date}
-            onChange={e => setReverseForm(f => ({ ...f, date: e.target.value }))} error={!reverseForm.date && reverseError ? 'Required' : undefined} />
+            onChange={e => { setReverseForm(f => ({ ...f, date: e.target.value })); setReverseErrors(x => ({ ...x, date: undefined })); }} error={reverseErrors.date} />
           <Textarea label="Reason" required value={reverseForm.reason} rows={3}
-            onChange={e => setReverseForm(f => ({ ...f, reason: e.target.value }))} />
+            onChange={e => { setReverseForm(f => ({ ...f, reason: e.target.value })); setReverseErrors(x => ({ ...x, reason: undefined })); }} error={reverseErrors.reason} />
           {reverseError && <p className="text-xs text-rose-500 font-medium" role="alert">{reverseError}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" size="sm" onClick={() => setReversing(null)}>Cancel</Button>

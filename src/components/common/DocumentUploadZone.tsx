@@ -8,6 +8,7 @@ import { BUCKETS, formatFileSize, validateFile } from '../../services/storage';
 import type { BucketId } from '../../services/storage';
 import type { DocumentCategory } from '../../types/operations';
 import { todayYmd } from '../../utils/date';
+import { RecordSelect, employeeOption, vehicleOption } from '../ui/RecordSelect';
 
 export interface UploadedFileMeta {
   /** Local preview URL (blob:) for a freshly picked file; empty for an already stored file. */
@@ -287,14 +288,11 @@ export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; defaultEm
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select label="Vehicle" value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}>
-          <option value="">None (company / corporate document)</option>
-          {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
-        </Select>
-        <Select label={hrDoc ? 'Employee (required)' : 'Employee'} value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}>
-          <option value="">None</option>
-          {employees.filter(x => x.status !== 'Terminated' || x.id === form.employeeId).map(x => <option key={x.id} value={x.id}>{x.name} ({x.employeeCode})</option>)}
-        </Select>
+        {/* records of the chosen office only (a document belongs to one office); sold vehicles keep their papers */}
+        <RecordSelect label="Vehicle" value={form.vehicleId} onChange={v => setForm({ ...form, vehicleId: v })} placeholder="None (company / corporate document)"
+          options={vehicles.filter(v => !form.companyId || v.companyId === form.companyId).map(v => ({ ...vehicleOption(v), inactive: false }))} />
+        <RecordSelect label="Employee" required={hrDoc} value={form.employeeId} onChange={v => setForm({ ...form, employeeId: v })} placeholder="None"
+          options={employees.filter(x => !form.companyId || x.companyId === form.companyId).map(employeeOption)} />
         {!vehicle && !employee && (
           <Select label="Company" value={form.companyId} onChange={e => setForm({ ...form, companyId: e.target.value })} required>
             <option value="">Select company</option>

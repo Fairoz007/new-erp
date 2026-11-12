@@ -228,7 +228,7 @@ export const PaymentsPage: React.FC = () => {
           className="bg-white border border-slate-700 rounded-full px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-forest-500/20 focus:border-forest-500 cursor-pointer"
         >
           <option value="all">All Bank Accounts</option>
-          {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.bankName} - {b.accountName}</option>)}
+          {scopedBanks.map(b => <option key={b.id} value={b.id}>{b.bankName} - {b.accountName}</option>)}
         </select>
         <select
           value={partyFilter}

@@ -1,7 +1,8 @@
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useRef } from 'react';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useDialog } from './useDialog';
 
 interface ModalProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ interface ModalProps {
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | 'full';
   className?: string;
+  /** Ask before discarding typed input on Escape / backdrop / close button. Default true. */
+  guardUnsaved?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -23,20 +26,10 @@ export const Modal: React.FC<ModalProps> = ({
   footer,
   size = 'lg',
   className,
+  guardUnsaved,
 }) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    const onKey = (e: KeyboardEvent) => { if (isOpen && e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = 'unset';
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [isOpen, onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const { requestClose, titleId, descriptionId } = useDialog(isOpen, onClose, dialogRef, { guardUnsaved });
 
   if (!isOpen) return null;
 
@@ -47,36 +40,45 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-4xl',
     '2xl': 'max-w-5xl',
     '4xl': 'max-w-7xl',
-    full: 'max-w-[96vw] h-[92vh]',
+    full: 'sm:max-w-[96vw] sm:h-[92vh]',
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    // Full screen below 640 px; centred card from sm up.
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/25 backdrop-blur-xs transition-opacity duration-200"
-        onClick={onClose}
+        onClick={requestClose}
+        aria-hidden="true"
       />
 
       {/* Modal Dialog */}
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
+        tabIndex={-1}
         className={twMerge(
           clsx(
-            'relative w-full bg-white border border-slate-700 rounded-[24px] shadow-floating overflow-hidden z-10 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150',
+            'relative w-full bg-white border-0 sm:border border-slate-700 rounded-none sm:rounded-[24px] shadow-floating overflow-hidden z-10 flex flex-col min-h-full sm:min-h-0 max-h-none sm:max-h-[90vh] focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 duration-150',
             sizeStyles[size],
             className
           )
         )}
       >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-700 flex items-center justify-between gap-4 bg-white shrink-0">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-700 flex items-center justify-between gap-4 bg-white shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">{title}</h2>
-            {description && <p className="text-xs text-slate-400 mt-0.5">{description}</p>}
+            <h2 id={titleId} className="text-lg font-bold text-slate-100 flex items-center gap-2">{title}</h2>
+            {description && <p id={descriptionId} className="text-xs text-slate-400 mt-0.5">{description}</p>}
           </div>
           <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors cursor-pointer"
+            type="button"
+            onClick={requestClose}
+            className="w-11 h-11 sm:w-8 sm:h-8 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -84,11 +86,11 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-slate-700 bg-slate-850 flex flex-wrap items-center justify-end gap-3 shrink-0">
+          <div className="px-4 sm:px-6 py-4 border-t border-slate-700 bg-slate-850 flex flex-wrap items-center justify-end gap-3 shrink-0">
             {footer}
           </div>
         )}

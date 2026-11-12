@@ -1,7 +1,8 @@
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useRef } from 'react';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useDialog } from './useDialog';
 
 interface DrawerProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface DrawerProps {
   footer?: ReactNode;
   width?: 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
+  guardUnsaved?: boolean;
 }
 
 export const Drawer: React.FC<DrawerProps> = ({
@@ -23,17 +25,10 @@ export const Drawer: React.FC<DrawerProps> = ({
   footer,
   width = 'lg',
   className,
+  guardUnsaved,
 }) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const { requestClose, titleId } = useDialog(isOpen, onClose, panelRef, { guardUnsaved });
 
   if (!isOpen) return null;
 
@@ -49,14 +44,20 @@ export const Drawer: React.FC<DrawerProps> = ({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-100/35 backdrop-blur-sm transition-opacity duration-200"
-        onClick={onClose}
+        onClick={requestClose}
+        aria-hidden="true"
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+      <div className="fixed inset-y-0 right-0 max-w-full flex sm:pl-10">
         <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
           className={twMerge(
             clsx(
-              'w-screen bg-white border-l border-slate-700 shadow-2xl flex flex-col transform transition-transform duration-200 ease-in-out animate-in slide-in-from-right',
+              'w-screen bg-white border-l border-slate-700 shadow-2xl flex flex-col focus:outline-none transform transition-transform duration-200 ease-in-out motion-safe:animate-in motion-safe:slide-in-from-right',
               widthStyles[width],
               className
             )
@@ -65,12 +66,13 @@ export const Drawer: React.FC<DrawerProps> = ({
           {/* Header */}
           <div className="px-5 sm:px-6 py-4 border-b border-slate-700 flex items-center justify-between gap-4 bg-white shrink-0">
             <div>
-              <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">{title}</h2>
+              <h2 id={titleId} className="text-base font-semibold text-slate-100 flex items-center gap-2">{title}</h2>
               {description && <p className="text-sm text-slate-400 mt-1">{description}</p>}
             </div>
             <button
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              type="button"
+              onClick={requestClose}
+              className="p-3 sm:p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
@@ -78,7 +80,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           </div>
 
           {/* Content */}
-          <div className="p-6 overflow-y-auto flex-1">{children}</div>
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
 
           {/* Footer */}
           {footer && (

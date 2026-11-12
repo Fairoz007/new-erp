@@ -12,7 +12,7 @@ export interface Column<T> {
   key: keyof T & string;
   label: string;
   type: 'text' | 'number' | 'select' | 'checkbox';
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string; disabled?: boolean }[];
   required?: boolean;
   width?: string;
   placeholder?: string;
@@ -138,7 +138,10 @@ export function MasterEditor<T extends Record<string, any>>({
     } else if (c.type === 'select') {
       input = (
         <select aria-label={c.label} className={base} value={String(value ?? '')} disabled={disabled} onChange={e => onChange(e.target.value)}>
-          {(c.options ?? []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {/* a stored value that is no longer offered stays shown (never silently replaced by the first option) */}
+          {value != null && value !== '' && !(c.options ?? []).some(o => o.value === String(value)) && <option value={String(value)}>Current value (not available)</option>}
+          {(value == null || value === '') && <option value="">Choose…</option>}
+          {(c.options ?? []).map(o => <option key={o.value} value={o.value} disabled={o.disabled && o.value !== String(value)}>{o.label}</option>)}
         </select>
       );
     } else {

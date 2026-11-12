@@ -15,6 +15,7 @@ import { formatCurrency } from '../../utils/financial';
 import { localToday } from '../../utils/date';
 import type { Employee, EmployeeStatus } from '../../types/hr';
 import type { Department, Designation, PayComponent } from '../../services/org';
+import { RecordSelect, employeeOption } from '../../components/ui/RecordSelect';
 import {
   deleteEmployeePayComponent, fetchEmployeePayComponents, saveEmployeePayComponent, type EmployeePayComponent,
 } from '../../services/hrops';
@@ -69,7 +70,8 @@ export const EmployeeFormModal: React.FC<{ isOpen: boolean; employee?: Employee 
   const num = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) => set(k, (e.target.value === '' ? 0 : Number(e.target.value)) as never);
   const deptId = departments.find(d => d.name === f.department)?.id;
   const designationOptions = designations.filter(d => !d.departmentId || !deptId || d.departmentId === deptId || d.name === f.designation);
-  const managers = useMemo(() => employees.filter(e => e.id !== employee?.id && e.status !== 'Terminated'), [employees, employee?.id]);
+  // every other employee; terminated ones are listed as unavailable, and a current terminated manager stays shown
+  const managers = useMemo(() => employees.filter(e => e.id !== employee?.id).map(employeeOption), [employees, employee?.id]);
   const gross = f.basicSalary + f.housingAllowance + f.transportAllowance + f.otherAllowances;
 
   const submit = async (e: React.FormEvent) => {
@@ -123,10 +125,7 @@ export const EmployeeFormModal: React.FC<{ isOpen: boolean; employee?: Employee 
             <option value="">Choose…</option>
             {designationOptions.map(d => <option key={d.id} value={d.name}>{d.name}{d.active ? '' : ' (inactive)'}</option>)}
           </Select>
-          <Select label="Reports to" value={f.managerId ?? ''} onChange={e => set('managerId', e.target.value || null)}>
-            <option value="">No manager</option>
-            {managers.map(m => <option key={m.id} value={m.id}>{m.name} · {m.employeeCode}</option>)}
-          </Select>
+          <RecordSelect label="Reports to" value={f.managerId ?? ''} onChange={v => set('managerId', v || null)} placeholder="No manager" options={managers} />
           <Input label="Joining date" type="date" required value={f.joiningDate} onChange={e => set('joiningDate', e.target.value)} />
           <Input label="Leaving date" type="date" value={f.terminationDate ?? ''} onChange={e => set('terminationDate', e.target.value)}
             hint="Final pay and end-of-service gratuity go in that month's payroll" />

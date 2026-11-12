@@ -25,7 +25,7 @@ export const RecurringExpensesEditor: React.FC<{ readOnly?: boolean; officeIds?:
         paymentMethod: 'Bank Transfer', dayOfMonth: 1, startDate: today, endDate: '', active: true }}
       columns={[
         { key: 'companyId', label: 'Office', type: 'select', required: true, options: offices.map(o => ({ value: o.id, label: o.code })) },
-        { key: 'categoryId', label: 'Category', type: 'select', required: true, options: categories.rows.filter(c => c.active).map(c => ({ value: c.id, label: c.name })) },
+        { key: 'categoryId', label: 'Category', type: 'select', required: true, options: categories.rows.map(c => ({ value: c.id, label: c.active ? c.name : `${c.name} (inactive)`, disabled: !c.active })) },
         { key: 'description', label: 'Description', type: 'text', required: true },
         { key: 'amount', label: 'Amount', type: 'number', min: 0.001, step: '0.001', required: true, width: '100px' },
         { key: 'tax', label: 'Tax', type: 'number', min: 0, step: '0.001', width: '80px' },

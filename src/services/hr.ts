@@ -3,7 +3,7 @@
 // Sensitive columns (civil_id, passport_number, iban, salaries) are readable only by roles with
 // 'payroll:view' in the employee's office (RLS); never cache them outside FleetContext state.
 import { roundMoney } from '../utils/money';
-import { ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd, withVersion } from './core';
+import { ServiceError, fetchPaged, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd, withVersion } from './core';
 import type { CollectionKey, Fetchers } from './core';
 import type { Employee, EmployeeDepartment, PayrollLineItem, PayrollRun } from '../types/hr';
 import { requireCompany } from './accounting';
@@ -192,7 +192,9 @@ const PR_SELECT = '*, company:companies(name), approver:profiles!payroll_runs_ap
 // Fetchers
 // ---------------------------------------------------------------------------------------------
 export async function fetchEmployees(): Promise<Employee[]> {
-  const rows = await unwrap<any[]>(supabase.from('employees').select(EMP_SELECT).order('employee_code') as any);
+  // paged: a single request stops at the API's row cap (1000) and silently drops the rest
+  const rows = await fetchPaged<any>(async (from, to) => unwrap<any[]>(
+    supabase.from('employees').select(EMP_SELECT).order('employee_code').order('id').range(from, to) as any));
   return rows.map(rowToEmployee);
 }
 

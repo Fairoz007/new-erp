@@ -15,6 +15,7 @@ import type {
   GeneralLedgerAccountSummary, GeneralLedgerLine, JournalEntry, JournalLine, ProfitLossStatement, TrialBalanceRow,
 } from '../types/finance';
 import { currentMonthYm, todayYmd } from '../utils/date';
+import { RULES } from '../lib/validation';
 
 const r3 = (v: number) => roundMoney(v, 3);
 const r2 = (v: number) => roundMoney(v, 2);
@@ -288,7 +289,7 @@ export async function addJournalEntry(entry: Omit<JournalEntry, 'id' | 'entryNum
   if (entry.status && entry.status !== 'Posted') throw new ServiceError('Only posted journal entries are supported; drafts are not stored.');
   const lines = entry.lines.filter(l => (l.debit || 0) > 0 || (l.credit || 0) > 0);
   if (lines.some(l => (l.debit || 0) < 0 || (l.credit || 0) < 0 || ((l.debit || 0) > 0 && (l.credit || 0) > 0))) {
-    throw new ServiceError('Each journal line must have either a positive debit or a positive credit.');
+    throw new ServiceError(RULES.journalLineSide);   // same wording as the database
   }
   const dr = r3(lines.reduce((s, l) => s + (l.debit || 0), 0));
   const cr = r3(lines.reduce((s, l) => s + (l.credit || 0), 0));

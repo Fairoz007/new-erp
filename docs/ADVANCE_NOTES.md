@@ -294,3 +294,63 @@ payments and manual journals); `expense_page` is covered by its tests instead.
 - The `x-request-key` header against the real Supabase API (CORS allows custom headers per
   Supabase's documentation for `request.headers`; not tried, no staging).
 - The session-expired prompt, offline banner and conflict message in a browser.
+
+---
+
+## Phase 3: Forms and validation
+
+| Item | How | Test |
+|---|---|---|
+| One validation approach | `src/lib/validation.ts`: check helpers, `validate(values, schema)` → one message per field, `RULES` with the database's own wording. Forms keep an errors map, show it under the field (`error` on Input / Select / Textarea, which sets `aria-invalid` and `aria-describedby`), clear a field's error when it changes, and use `noValidate` so the browser's own popups do not pre-empt the inline messages. | `src/lib/__tests__/validation.test.ts` |
+| Same message in browser and database | Every `RULES` message must appear in a current database function, and the payment, invoice, journal and credit-note rules are triggered for real and compared. A server rejection whose message is one of `RULES` is also shown on its field (finance forms). | `supabase/tests/validation_messages.test.mjs` |
+| Forms converted | Quick forms: vehicle, maintenance, work order, oil change, expense, accident, invoice, payment, supplier, customer, tyre, fixed asset, depreciation run. Credit and debit notes (`PrintableInvoiceModal`), manual journal and journal reversal (`AccountingPage`). The rules each checks are the rules the save already enforced. | type-check, build; not clicked through |
+| Required marks | `*` only on what the save or the database actually requires; removed where it was not (e.g. maintenance description, accident location, cheque number), added where it was (invoice quantity and unit price). | review |
+| First invalid field focused | `useDialog` (every Modal and Drawer) focuses the first `[aria-invalid="true"]` field after a submit; `focusFirstInvalid()` after a server rejection. | not verified in a browser |
+| Input types | `Input` sets `inputMode` (decimal / numeric / tel / email / url) and `autoComplete` from the type; 44 px controls below 640 px. | review |
+| Unsaved changes | `src/lib/unsaved.ts`: a dialog with an edited form asks before closing (Escape, ✕, backdrop) and page navigation asks while any form is dirty; leaving the site uses `beforeunload`. | `validation.test.ts` (guard); dialogs not verified in a browser |
+| Modal behaviour | `useDialog`: stacked Escape (top dialog only), focus trap, focus returned to the opener, scroll lock, `role="dialog"`, `aria-modal`, labelled by the title; full screen below 640 px; motion only when the user allows it. | not verified in a browser |
+| Pickers | `src/components/ui/RecordSelect.tsx`: blank first option, inactive records listed as "(inactive)" / "(sold)" and not selectable, the current value always kept, a search box above lists longer than 12 options. Used for vehicle pickers in the quick forms (office in view; sold and scrapped cannot be picked), the invoice vehicle (invoice office), document upload vehicle and employee (document office), "Reports to", office manager and asset-disposal bank. `MasterEditor` selects keep a stored value that is no longer offered. | type-check; not verified in a browser |
+
+### Defects found and fixed
+
+| # | Defect | Fix |
+|---|---|---|
+| D3-1 | Quick "Add tyre" offered positions such as "Front Left (Steer)" and "Rear Left Outer"; the table only accepts Front Left, Front Right, Rear Left, Rear Right, Spare, so every save except Spare failed. | Options are now the five accepted positions (same list as the tyre edit form). |
+| D3-2 | `post_invoice` refused a zero total with "Invoice has no lines" even when the invoice had lines. | Migration `20261113003000_validation_messages.sql` changes only the message to "Invoice total must be greater than zero", as every other invoice function says. |
+| D3-3 | Employee lists were one request, so above the API row cap (1000) the rest were silently missing from every employee picker and page. | `fetchEmployees` pages like the other collections. |
+| D3-4 | Pickers looked chosen when nothing was: required vehicle and supplier selects had no blank option, and the quick forms preselected the first vehicle of the whole list. | Blank first option; only the vehicle in view is preselected. |
+| D3-5 | Choosing another vehicle in maintenance, work order, accident and tyre forms kept the first vehicle's office, so the supplier list was for the wrong office. Changing the invoice office kept the party and vehicle of the old office. | The office follows the chosen vehicle; changing the invoice (and vehicle) office clears the dependent picks. |
+| D3-6 | "Reports to", office manager and recurring-expense category dropped a current value that had become inactive (the select showed another option while the old id stayed in state). | Inactive values are listed and kept. |
+| D3-7 | Payments page bank filter listed every office's banks while the rest of the page was office-scoped. | Uses the office-scoped list. |
+| D3-8 | The leave-balance employee picker kept an employee of the previous office after the office changed. | Resets to the first employee of the new office. |
+| D3-9 | The journal "Post" button was disabled until the entry balanced, so the date, description and line errors could not be shown. | Enabled; the submit check reports every problem inline. |
+
+### Defaults chosen
+
+- Report pickers (party statements, GL account) keep inactive records selectable: a statement of
+  an inactive supplier is still valid. Only pickers that create new records exclude them.
+- Pickers that are not record pickers (status, method, year) and the remaining small record
+  pickers (offices, banks in single-office forms) keep the plain `Select`.
+- With `noValidate`, an amount with more than three decimals is no longer refused by the browser;
+  the database rounds money to the currency's decimals as before.
+- Initial JS: 216.2 kB gzip at the Phase 2 commit (the sign-in overlay is part of the shell),
+  219.9 kB after Phase 3; budget 250 kB.
+
+### Not verified
+
+- No form was submitted in a browser (no staging database). Inline errors, focus, the unsaved
+  guard and the pickers are checked by type-check, build and unit tests only.
+- The expense pay / reject actions in `ExpenseDetailModal` disable their button instead of
+  showing field errors; not converted.
+- The custom-fields "check the additional information fields" toast remains (file and yes/no
+  fields do not mark themselves invalid).
+
+---
+
+## Phase 6 work done during Phase 3 (database only)
+
+| Item | Test |
+|---|---|
+| Bucket limits applied to existing buckets too (`20261113004000_storage_limits.sql`), private; browser limits equal the bucket limits. | `supabase/tests/storage_limits.test.mjs` |
+| Audit trail: one write per module (vehicles, expenses, invoices, suppliers) leaves an audit row with the user, office and action; users cannot delete audit rows. Tables with `company_id` and no audit trigger: `audit_logs`, `doc_sequences`, `journal_lines` (the journal header is audited), `notifications`, `tyre_events`, `vehicle_timeline` (both are themselves history logs). | `supabase/tests/audit_coverage.test.mjs` |
+| Every callable function with a page size refuses more than 1000 rows; `dashboard_series` is bounded to 400 days. | `supabase/tests/rpc_caps.test.mjs` |

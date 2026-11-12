@@ -270,7 +270,8 @@ const Balances: React.FC<{ year: number; types: LeaveType[] }> = ({ year, types 
   const [err, setErr] = useState<string | null>(null);
   const [adjusting, setAdjusting] = useState<LeaveType | null>(null);
   const emp = staff.find(e => e.id === empId);
-  useEffect(() => { if (!empId && staff[0]) setEmpId(staff[0].id); }, [staff, empId]);
+  // pick the first employee, and again when the office changes and the chosen one is no longer listed
+  useEffect(() => { if ((!empId || !staff.some(e => e.id === empId)) && staff[0]) setEmpId(staff[0].id); }, [staff, empId]);
   const load = useCallback(async () => {
     if (!empId) return;
     setLoading(true); setErr(null);

@@ -7,7 +7,7 @@ import { partyAvailableIn, type FinanceInvoice } from '../../services/finance';
 import { PICKER_LIMIT, useDebounced, useInvoiceById, useInvoiceOptions } from '../../services/queries-expenses';
 import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 import { useVehicleTypes } from '../../hooks/useVehicleTypes';
-import { PartyOfficeFields, PartyOfficeValue, validatePartyOffice } from './PartyOfficeFields';
+import { PartyOfficeFields, PartyOfficeValue, partyOfficeErrors } from './PartyOfficeFields';
 import { DocumentUploadZone, UploadedFileMeta, UploadDocumentForm } from './DocumentUploadZone';
 import { BUCKETS, formatFileSize, removeFiles, toStorageRef, uploadFile, validateFile } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +25,24 @@ import { EmployeeFormModal } from '../../pages/hr/EmployeeFormModal';
 import { GeneratePayrollModal } from '../../pages/payroll/GeneratePayrollModal';
 import { addDaysYmd, currentMonthYm, toYmd, todayYmd } from '../../utils/date';
 import { useRequestKey } from '../../lib/requestKey';
+import { RULES, atMost, email, fieldForDbMessage, focusFirstInvalid, hasErrors, notNegative, onOrAfter, positive, required, validate, type Errors } from '../../lib/validation';
+import { RecordSelect, vehicleOption } from '../ui/RecordSelect';
+
+/** Database messages (RULES) shown on the field they concern, per finance form. */
+type DbFieldMap = Parameters<typeof fieldForDbMessage>[1];
+const EXPENSE_DB_FIELDS: DbFieldMap = { total: [RULES.expenseTotalPositive] };
+const INVOICE_DB_FIELDS: DbFieldMap = { total: [RULES.invoiceTotalPositive] };
+const PAYMENT_DB_FIELDS: DbFieldMap = {
+  paymentDate: [RULES.paymentDateRequired],
+  paymentMethod: [RULES.paymentMethodRequired],
+  amount: [RULES.paymentAmountRange, 'Payment amount must be greater than zero'],
+};
+// Changing one field also clears the errors of the fields it drives (a computed total, a dependent pick).
+const LINKED: Record<string, string[]> = {
+  quantity: ['total'], unitPrice: ['total'], tax: ['total'], itemQuantity: ['total'], itemUnitPrice: ['total'],
+  categoryId: ['vehicleId'], vehicleId: ['companyId'], invoiceType: ['partyId'], invoiceDate: ['dueDate'],
+  invoiceId: ['amount', 'bankAccountId'], sharing: ['sharedOfficeIds'],
+};
 
 export const QuickActionModals: React.FC = () => {
   const { quickModal, closeQuickModal, addToast, selectedVehicleId, paymentInvoiceId, setCurrentPage } = useUI();
@@ -33,6 +51,19 @@ export const QuickActionModals: React.FC = () => {
   const reqKey = useRequestKey();
   const { renew: renewKey } = reqKey;
   useEffect(() => { renewKey(); }, [quickModal, renewKey]);
+  // Inline errors of the open form (one quick form is open at a time), cleared when a form opens or closes.
+  // Validated fields carry name = their error key: editing a field clears its error.
+  const [errors, setErrors] = useState<Errors>({});
+  useEffect(() => { setErrors({}); }, [quickModal]);
+  const fe = (name: string) => ({ name, error: errors[name] });
+  /** Show the errors found by validate(); true when there are none. */
+  const checkForm = (found: Errors) => { setErrors(found); return !hasErrors(found); };
+  const clearFieldError = (e: React.FormEvent<HTMLFormElement>) => {
+    const name = (e.target as HTMLInputElement).name;
+    if (!name) return;
+    const keys = [name, ...(LINKED[name] ?? [])];
+    setErrors(prev => (keys.some(k => prev[k]) ? Object.fromEntries(Object.entries(prev).filter(([k]) => !keys.includes(k))) : prev));
+  };
   const { currentUser, hasPermission } = useAuth();
   const {
     companies,
@@ -62,7 +93,8 @@ export const QuickActionModals: React.FC = () => {
     currency,
   } = useFleet();
 
-  const defaultVehicle = vehicles.find(v => v.id === selectedVehicleId) || vehicles[0];
+  // only the vehicle the user is looking at is preselected; otherwise the picker starts blank
+  const defaultVehicle = vehicles.find(v => v.id === selectedVehicleId);
 
   // 1. ADD VEHICLE STATE
   const [vehicleOps, setVehicleOps] = useState<VehicleOps>(EMPTY_OPS);
@@ -287,6 +319,9 @@ export const QuickActionModals: React.FC = () => {
   // Only parties shared with the form's office are offered (the database rejects the rest).
   const usable = <P extends { officeId: string; sharing: string; sharedOfficeIds: string[] }>(list: P[], officeId: string): P[] =>
     officeId ? list.filter(p => partyAvailableIn(p, officeId)) : list;
+  // vehicles of the office in view (all offices when "All" is selected); sold / scrapped ones are listed but cannot be picked
+  const vehicleOpts = vehicles.filter(v => selectedCompanyId === 'all' || v.companyId === selectedCompanyId).map(vehicleOption);
+  const officeOfVehicle = (id: string) => vehicles.find(v => v.id === id)?.companyId ?? '';
 
   const blankPartyOffice = (): PartyOfficeValue => ({
     officeId: selectedCompanyId !== 'all' ? selectedCompanyId : companies.length === 1 ? companies[0].id : '',
@@ -347,7 +382,7 @@ export const QuickActionModals: React.FC = () => {
     brand: '',
     model: '',
     size: '',
-    position: 'Front Left (Steer)',
+    position: 'Front Left',
     dotNumber: '',
     treadDepthMm: 0,
     psi: 0,
@@ -407,13 +442,17 @@ export const QuickActionModals: React.FC = () => {
   // after the write succeeded; any ServiceError is shown and the modal stays open.
   // ---------------------------------------------------------------------------------------------
   const [busy, setBusy] = useState(false);
-  const run = async (failTitle: string, fn: () => Promise<void>) => {
+  const run = async (failTitle: string, fn: () => Promise<void>, dbFields?: DbFieldMap) => {
     if (busy) return;
     setBusy(true);
     try {
       await fn();
     } catch (err) {
-      addToast({ type: 'error', title: failTitle, message: (err as Error).message });
+      const message = (err as Error).message;
+      // a rule the database checks (RULES): show it on its field as well
+      const field = dbFields ? fieldForDbMessage(message, dbFields) : null;
+      if (field) { setErrors({ [field]: message }); focusFirstInvalid(); }
+      addToast({ type: 'error', title: failTitle, message });
     } finally {
       setBusy(false);
     }
@@ -434,13 +473,15 @@ export const QuickActionModals: React.FC = () => {
   // Handlers
   const handleCreateVehicle = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vehicleForm.plateNumber || !vehicleForm.brand || !vehicleForm.model) {
-      addToast({ type: 'error', title: 'Validation Error', message: 'Plate number, Brand, and Model are required.' });
-      return;
-    }
-    if (!cfVehicle.validate()) { cfInvalid(); return; }
-    const opsError = validateOps(vehicleOps);
-    if (opsError) { addToast({ type: 'error', title: 'Validation Error', message: opsError }); return; }
+    const ok = checkForm(validate(vehicleForm, {
+      plateNumber: [required('Plate number')],
+      companyId: [required('Office')],
+      brand: [required('Brand')],
+      model: [required('Model')],
+    }));
+    const cfOk = cfVehicle.validate();
+    // the inspection dates show their own error under "Next inspection due"
+    if (!ok || !cfOk || validateOps(vehicleOps)) { if (!cfOk) cfInvalid(); return; }
     const sup = suppliers.find(s => s.id === vehicleForm.supplierId);
     let photoPath: string | undefined;
     run('Vehicle Not Saved', async () => {
@@ -529,6 +570,10 @@ export const QuickActionModals: React.FC = () => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === mntForm.vehicleId);
     const sup = suppliers.find(s => s.id === mntForm.supplierId);
+    if (!checkForm(validate({ vehicleId: v?.id, maintenanceDate: mntForm.maintenanceDate }, {
+      vehicleId: [required('Vehicle')],
+      maintenanceDate: [required('Date')],
+    }))) return;
     run('Maintenance Not Saved', async () => {
       if (!v) throw new Error('Select a vehicle.');
       // totalCost is recomputed by the database from the cost components
@@ -562,6 +607,9 @@ export const QuickActionModals: React.FC = () => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === woForm.vehicleId);
     const sup = suppliers.find(s => s.id === woForm.supplierId);
+    if (!checkForm(validate({ vehicleId: v?.id }, {
+      vehicleId: [required('Vehicle')],
+    }))) return;
     run('Work Order Not Saved', async () => {
       if (!v) throw new Error('Select a vehicle.');
       // Cost components are entered when the job is quoted/completed; approval is decided by the DB rules
@@ -603,6 +651,10 @@ export const QuickActionModals: React.FC = () => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === oilForm.vehicleId);
     const sup = suppliers.find(s => s.id === oilForm.supplierId);
+    if (!checkForm(validate({ vehicleId: v?.id, date: oilForm.date }, {
+      vehicleId: [required('Vehicle')],
+      date: [required('Date')],
+    }))) return;
     run('Oil Service Not Saved', async () => {
       if (!v) throw new Error('Select a vehicle.');
       const total = Number(oilForm.oilCost) + Number(oilForm.filterCost) + Number(oilForm.labourCost) + Number(oilForm.tax);
@@ -634,20 +686,30 @@ export const QuickActionModals: React.FC = () => {
 
   const handleCreateExpense = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cfExpense.validate()) { cfInvalid(); return; }
     const v = vehicles.find(veh => veh.id === expForm.vehicleId);
     const sup = suppliers.find(s => s.id === expForm.supplierId);
+    const expTotal = Number(expForm.quantity) * Number(expForm.unitPrice) + Number(expForm.tax);
+    const found: Errors = validate({ ...expForm, companyId: v?.companyId || expForm.companyId, vehicleId: v?.id ?? '' }, {
+      companyId: [required('Office')],
+      vehicleId: expCategory?.requiresVehicle ? [required('Vehicle', `The ${expCategory.name} category needs a vehicle.`)] : [],
+      categoryId: [required('Category')],
+      date: [required('Date')],
+      quantity: [positive('Quantity')],
+      unitPrice: [notNegative('Unit price')],
+      tax: [notNegative('VAT amount')],
+    });
+    // the total (quantity x unit price + VAT) is checked once its parts are valid; shown under Unit Price
+    if (!found.quantity && !found.unitPrice && !found.tax && !(expTotal > 0)) found.total = RULES.expenseTotalPositive;
+    const ok = checkForm(found);
+    const cfOk = cfExpense.validate();
+    if (!ok || !cfOk) { if (!cfOk) cfInvalid(); return; }
     let uploadedPath: string | undefined;
     let status = '';
     let number = '';
     run('Expense Not Saved', async () => {
       const companyId = requireOffice(v?.companyId || expForm.companyId);
       if (!expCategory) throw new Error('Choose an expense category.');
-      if (expCategory.requiresVehicle && !v) throw new Error(`The ${expCategory.name} category needs a vehicle.`);
-      if (!(Number(expForm.quantity) > 0)) throw new Error('Quantity must be greater than zero.');
-      if (Number(expForm.unitPrice) < 0 || Number(expForm.tax) < 0) throw new Error('Unit price and tax cannot be negative.');
-      const total = Number(expForm.quantity) * Number(expForm.unitPrice) + Number(expForm.tax);
-      if (!(total > 0)) throw new Error('The expense total must be greater than zero.');
+      const total = expTotal;
       try {
         const att = await uploadAttachment(expForm.attachment, companyId, 'expenses');
         uploadedPath = att?.path;
@@ -688,12 +750,16 @@ export const QuickActionModals: React.FC = () => {
         message: `${number}: ${expCategory.name} ${total.toFixed(3)} ${currency}${uploadedPath ? ' with receipt' : ''}${status === 'Approved' ? ', posted to the ledger.' : ' is waiting for an approver.'}`,
       });
       closeQuickModal();
-    });
+    }, EXPENSE_DB_FIELDS);
   };
 
   const handleCreateAccident = (e: React.FormEvent) => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === accForm.vehicleId);
+    if (!checkForm(validate({ vehicleId: v?.id, accidentDate: accForm.accidentDate }, {
+      vehicleId: [required('Vehicle')],
+      accidentDate: [required('Accident date')],
+    }))) return;
     run('Accident Not Saved', async () => {
       if (!v) throw new Error('Select a vehicle.');
       const acc = await addAccident({
@@ -728,13 +794,26 @@ export const QuickActionModals: React.FC = () => {
     const isPurchase = invoiceForm.invoiceType === 'Purchase';
     const party = isPurchase ? suppliers.find(s => s.id === invoiceForm.partyId) : customers.find(c => c.id === invoiceForm.partyId);
     const v = vehicles.find(veh => veh.id === invoiceForm.vehicleId);
+    // the form edits one line (items[0]); its fields carry the line's errors
+    const line = invoiceForm.items[0];
+    const found: Errors = validate({
+      companyId: invoiceForm.companyId, partyId: party?.id, invoiceDate: invoiceForm.invoiceDate, dueDate: invoiceForm.dueDate,
+      itemDescription: line?.description, itemQuantity: line?.quantity,
+    }, {
+      companyId: [required('Office')],
+      partyId: [required(isPurchase ? 'Supplier' : 'Customer')],
+      invoiceDate: [required('Invoice date')],
+      dueDate: [required('Due date'), onOrAfter('Due date', invoiceForm.invoiceDate, 'the invoice date')],
+      itemDescription: [required('Description')],
+      itemQuantity: [positive('Quantity')],
+    });
+    const net = invoiceForm.items.reduce((s, it) => s + Number(it.quantity) * Number(it.unitPrice), 0);
+    if (!found.itemQuantity && !(net > 0)) found.total = RULES.invoiceTotalPositive;
+    if (!checkForm(found)) return;
     let uploadedPath: string | undefined;
     run('Invoice Not Saved', async () => {
       const companyId = requireOffice(invoiceForm.companyId);
       if (!party) throw new Error(`Select a ${isPurchase ? 'supplier' : 'customer'}.`);
-      if (invoiceForm.items.some(it => !it.description.trim() || Number(it.quantity) <= 0)) {
-        throw new Error('Every line needs a description and a quantity above zero.');
-      }
       let created;
       try {
         const att = await uploadAttachment(invoiceForm.attachment, companyId, 'invoices');
@@ -782,7 +861,7 @@ export const QuickActionModals: React.FC = () => {
           : `${created.invoiceNumber} (${created.grandTotal.toFixed(3)} ${created.currency}) is awaiting approval.`,
       });
       closeQuickModal();
-    });
+    }, INVOICE_DB_FIELDS);
   };
 
   // Only posted, unpaid invoices can receive a payment (record_payment enforces the same).
@@ -812,10 +891,18 @@ export const QuickActionModals: React.FC = () => {
 
   const handleCreatePayment = (e: React.FormEvent) => {
     e.preventDefault();
+    const inv = paymentInvoice;
+    const ba = paymentBanks.find(b => b.id === paymentForm.bankAccountId);
+    const range = inv ? RULES.paymentAmountRange(inv.outstandingAmount.toFixed(3)) : '';
+    if (!checkForm(validate({ ...paymentForm, invoiceId: inv?.id, bankAccountId: ba?.id }, {
+      invoiceId: [required('Invoice', 'Select a posted invoice with an outstanding balance.')],
+      paymentDate: [required('Payment date', RULES.paymentDateRequired)],
+      amount: inv ? [positive('Payment amount', range), atMost('Payment amount', inv.outstandingAmount, range)] : [],
+      paymentMethod: [required('Payment method', RULES.paymentMethodRequired)],
+      bankAccountId: [required('Bank account', 'Select a bank account of the invoice office.')],
+    }))) return;
     run('Payment Rejected', async () => {
-      const inv = paymentInvoice;
       if (!inv) throw new Error('Select a posted invoice with an outstanding balance.');
-      const ba = paymentBanks.find(b => b.id === paymentForm.bankAccountId);
       if (!ba) throw new Error('Select a bank account of the invoice office.');
       const pay = await reqKey.run(() => addPayment({
         companyId: inv.companyId,
@@ -837,18 +924,14 @@ export const QuickActionModals: React.FC = () => {
       }));
       addToast({ type: 'success', title: 'Payment Processed', message: `${pay.paymentNumber}: ${pay.amount.toFixed(3)} ${pay.currency} against ${inv.invoiceNumber}.` });
       closeQuickModal();
-    });
+    }, PAYMENT_DB_FIELDS);
   };
 
   const handleCreateSupplier = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplierForm.name.trim()) {
-      addToast({ type: 'error', title: 'Validation Error', message: 'Supplier name is required.' });
-      return;
-    }
-    const officeErr = validatePartyOffice(supplierOffice);
-    if (officeErr) { addToast({ type: 'error', title: 'Validation Error', message: officeErr }); return; }
-    if (!cfSupplier.validate()) { cfInvalid(); return; }
+    const ok = checkForm({ ...partyOfficeErrors(supplierOffice), ...validate(supplierForm, { name: [required('Supplier name')], email: [email()] }) });
+    const cfOk = cfSupplier.validate();
+    if (!ok || !cfOk) { if (!cfOk) cfInvalid(); return; }
     run('Supplier Not Saved', async () => {
       const s = await addSupplier({
         name: supplierForm.name.trim(),
@@ -877,13 +960,9 @@ export const QuickActionModals: React.FC = () => {
 
   const handleCreateCustomer = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerForm.name.trim()) {
-      addToast({ type: 'error', title: 'Validation Error', message: 'Customer name is required.' });
-      return;
-    }
-    const officeErr = validatePartyOffice(customerOffice);
-    if (officeErr) { addToast({ type: 'error', title: 'Validation Error', message: officeErr }); return; }
-    if (!cfCustomer.validate()) { cfInvalid(); return; }
+    const ok = checkForm({ ...partyOfficeErrors(customerOffice), ...validate(customerForm, { name: [required('Customer name')], email: [email()] }) });
+    const cfOk = cfCustomer.validate();
+    if (!ok || !cfOk) { if (!cfOk) cfInvalid(); return; }
     run('Customer Not Saved', async () => {
       const c = await addCustomer({
         name: customerForm.name.trim(),
@@ -912,9 +991,12 @@ export const QuickActionModals: React.FC = () => {
     e.preventDefault();
     const v = vehicles.find(veh => veh.id === tyreForm.vehicleId);
     const sup = suppliers.find(s => s.id === tyreForm.supplierId);
+    if (!checkForm(validate({ ...tyreForm, vehicleId: v?.id }, {
+      vehicleId: [required('Vehicle')],
+      brand: [required('Tyre brand')],
+    }))) return;
     run('Tyre Not Saved', async () => {
       if (!v) throw new Error('Select a vehicle.');
-      if (!tyreForm.brand.trim()) throw new Error('Tyre brand is required.');
       await addTyre({
         vehicleId: v.id,
         brand: tyreForm.brand,
@@ -941,16 +1023,21 @@ export const QuickActionModals: React.FC = () => {
 
   const handleCreateFixedAsset = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!assetForm.name || !Number(assetForm.purchaseCost)) {
-      addToast({ type: 'error', title: 'Validation Error', message: 'Asset name and purchase cost are required.' });
-      return;
-    }
+    // salvage and useful life: the same checks as addFixedAsset (services/accounting) and the table
+    const salvageRule = 'Salvage value must be between 0 and the purchase cost.';
+    if (!checkForm(validate(assetForm, {
+      name: [required('Asset name')],
+      companyId: [required('Office')],
+      purchaseDate: [required('Purchase date')],
+      purchaseCost: [positive('Purchase cost')],
+      salvageValue: [v => (Number(v) < 0 ? salvageRule : null), atMost('Salvage value', Number(assetForm.purchaseCost), salvageRule)],
+      usefulLifeYears: [positive('Useful life')],
+    }))) return;
     run('Asset Not Saved', async () => {
       const companyId = requireOffice(assetForm.companyId);
       const cost = Number(assetForm.purchaseCost);
       const salvage = Number(assetForm.salvageValue) || 0;
       const lifeYears = Number(assetForm.usefulLifeYears);
-      if (!(lifeYears > 0)) throw new Error('Useful life must be above zero.');
       const annualRate = Number(assetForm.annualRatePercentage) || 100 / lifeYears;
       const assignedVeh = vehicles.find(v => v.id === assetForm.assignedVehicleId);
       const isVehicle = assetForm.category === 'Fleet Vehicle';
@@ -987,6 +1074,11 @@ export const QuickActionModals: React.FC = () => {
 
   const handleRunDepreciation = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!checkForm(validate(deprForm, {
+      companyId: [required('Office')],
+      period: [required('Period')],
+      runDate: [required('Run date')],
+    }))) return;
     run('Depreciation Not Run', async () => {
       const companyId = requireOffice(deprForm.companyId);
       const drun = await runAutoDepreciation({
@@ -1015,18 +1107,18 @@ export const QuickActionModals: React.FC = () => {
         description="Register a new vehicle with specifications, purchase details, and maintenance config"
         size="2xl"
       >
-        <form onSubmit={handleCreateVehicle} className="space-y-4">
+        <form onSubmit={handleCreateVehicle} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input label="Plate Number" placeholder="e.g. 1234 ABC" value={vehicleForm.plateNumber} onChange={e => setVehicleForm({ ...vehicleForm, plateNumber: e.target.value })} required />
-            <Select label="Assigned Office / Branch" value={vehicleForm.companyId} onChange={e => setVehicleForm({ ...vehicleForm, companyId: e.target.value })} required>
+            <Input label="Plate Number" placeholder="e.g. 1234 ABC" value={vehicleForm.plateNumber} onChange={e => setVehicleForm({ ...vehicleForm, plateNumber: e.target.value })} required {...fe('plateNumber')} />
+            <Select label="Assigned Office / Branch" value={vehicleForm.companyId} onChange={e => setVehicleForm({ ...vehicleForm, companyId: e.target.value, supplierId: '' })} required {...fe('companyId')}>
               <option value="">Select office</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Input label="Brand / Make" placeholder="e.g. Toyota" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} required />
-            <Input label="Model" placeholder="e.g. Land Cruiser" value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} required />
+            <Input label="Brand / Make" placeholder="e.g. Toyota" value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} required {...fe('brand')} />
+            <Input label="Model" placeholder="e.g. Land Cruiser" value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} required {...fe('model')} />
             <Input label="Variant" placeholder="e.g. VXR 4.0L" value={vehicleForm.variant} onChange={e => setVehicleForm({ ...vehicleForm, variant: e.target.value })} />
             <Input label="Year" type="number" value={vehicleForm.manufacturingYear} onChange={e => setVehicleForm({ ...vehicleForm, manufacturingYear: Number(e.target.value) })} />
           </div>
@@ -1053,8 +1145,9 @@ export const QuickActionModals: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="VIN / Chassis Number" placeholder="17-character VIN" value={vehicleForm.vin} onChange={e => setVehicleForm({ ...vehicleForm, vin: e.target.value })} />
-            <Input label={`Purchase Value (${currency})`} type="number" step="0.001" value={vehicleForm.purchaseValue} onChange={e => setVehicleForm({ ...vehicleForm, purchaseValue: Number(e.target.value) })} required />
+            <Input label={`Purchase Value (${currency})`} type="number" step="0.001" value={vehicleForm.purchaseValue} onChange={e => setVehicleForm({ ...vehicleForm, purchaseValue: Number(e.target.value) })} />
             <Select label="Supplier / Dealer" value={vehicleForm.supplierId} onChange={e => setVehicleForm({ ...vehicleForm, supplierId: e.target.value })}>
+              <option value="">None</option>
               {usable(suppliers, vehicleForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </div>
@@ -1099,11 +1192,9 @@ export const QuickActionModals: React.FC = () => {
         description="Log service history, replacement parts, labour cost, and supplier invoices"
         size="xl"
       >
-        <form onSubmit={handleCreateMaintenance} className="space-y-4">
+        <form onSubmit={handleCreateMaintenance} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Select label="Vehicle" value={mntForm.vehicleId} onChange={e => setMntForm({ ...mntForm, vehicleId: e.target.value })} required>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
-            </Select>
+            <RecordSelect label="Vehicle" value={mntForm.vehicleId} onChange={v => setMntForm({ ...mntForm, vehicleId: v, companyId: officeOfVehicle(v) || mntForm.companyId })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
             <Select label="Category" value={mntForm.category} onChange={e => setMntForm({ ...mntForm, category: e.target.value as any })}>
               <option value="General Service">General Service</option>
               <option value="Brake Service">Brake Service</option>
@@ -1115,14 +1206,15 @@ export const QuickActionModals: React.FC = () => {
               <option value="Tyres">Tyres</option>
               <option value="Body Repair">Body Repair</option>
             </Select>
-            <Input label="Date" type="date" value={mntForm.maintenanceDate} onChange={e => setMntForm({ ...mntForm, maintenanceDate: e.target.value })} required />
+            <Input label="Date" type="date" value={mntForm.maintenanceDate} onChange={e => setMntForm({ ...mntForm, maintenanceDate: e.target.value })} required {...fe('maintenanceDate')} />
           </div>
 
-          <Textarea label="Work Description" placeholder="Details of service performed and replacement parts fitted..." value={mntForm.description} onChange={e => setMntForm({ ...mntForm, description: e.target.value })} required />
+          <Textarea label="Work Description" placeholder="Details of service performed and replacement parts fitted..." value={mntForm.description} onChange={e => setMntForm({ ...mntForm, description: e.target.value })} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Odometer Reading (KM)" type="number" value={mntForm.odometerReading} onChange={e => setMntForm({ ...mntForm, odometerReading: Number(e.target.value) })} />
             <Select label="Workshop / Supplier" value={mntForm.supplierId} onChange={e => setMntForm({ ...mntForm, supplierId: e.target.value })}>
+              <option value="">None</option>
               {usable(suppliers, mntForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
             <Input label="Service Centre Name" value={mntForm.serviceCentre} onChange={e => setMntForm({ ...mntForm, serviceCentre: e.target.value })} />
@@ -1155,11 +1247,9 @@ export const QuickActionModals: React.FC = () => {
         description="Dispatch workshop job order with priority, cost estimate, and parts requirement"
         size="lg"
       >
-        <form onSubmit={handleCreateWorkOrder} className="space-y-4">
+        <form onSubmit={handleCreateWorkOrder} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select label="Vehicle" value={woForm.vehicleId} onChange={e => setWoForm({ ...woForm, vehicleId: e.target.value })} required>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
-            </Select>
+            <RecordSelect label="Vehicle" value={woForm.vehicleId} onChange={v => setWoForm({ ...woForm, vehicleId: v, companyId: officeOfVehicle(v) || woForm.companyId })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
             <Select label="Priority" value={woForm.priority} onChange={e => setWoForm({ ...woForm, priority: e.target.value as any })}>
               <option value="Low">Low Priority</option>
               <option value="Medium">Medium Priority</option>
@@ -1168,14 +1258,14 @@ export const QuickActionModals: React.FC = () => {
             </Select>
           </div>
 
-          <Textarea label="Problem Description" placeholder="Describe reported vehicle fault, noises, or inspection findings..." value={woForm.problemDescription} onChange={e => setWoForm({ ...woForm, problemDescription: e.target.value })} required />
+          <Textarea label="Problem Description" placeholder="Describe reported vehicle fault, noises, or inspection findings..." value={woForm.problemDescription} onChange={e => setWoForm({ ...woForm, problemDescription: e.target.value })} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select label="Assigned Supplier / Workshop" value={woForm.supplierId} onChange={e => setWoForm({ ...woForm, supplierId: e.target.value })}>
               <option value="">Not assigned</option>
               {usable(suppliers, woForm.companyId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
-            <Input label={`Estimated Cost (${currency})`} type="number" step="0.001" value={woForm.estimatedCost} onChange={e => setWoForm({ ...woForm, estimatedCost: Number(e.target.value) })} required />
+            <Input label={`Estimated Cost (${currency})`} type="number" step="0.001" value={woForm.estimatedCost} onChange={e => setWoForm({ ...woForm, estimatedCost: Number(e.target.value) })} />
             <Input label="Requested By" value={currentUser.name} readOnly />
           </div>
 
@@ -1196,13 +1286,11 @@ export const QuickActionModals: React.FC = () => {
         description="Update engine lubrication service and automatically calculate next due mileage"
         size="lg"
       >
-        <form onSubmit={handleCreateOilChange} className="space-y-4">
+        <form onSubmit={handleCreateOilChange} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Select label="Vehicle" value={oilForm.vehicleId} onChange={e => setOilForm({ ...oilForm, vehicleId: e.target.value })} required>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
-            </Select>
+            <RecordSelect label="Vehicle" value={oilForm.vehicleId} onChange={v => setOilForm({ ...oilForm, vehicleId: v })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
             <Input label="Odometer (KM)" type="number" value={oilForm.odometer} onChange={e => setOilForm({ ...oilForm, odometer: Number(e.target.value) })} required />
-            <Input label="Date" type="date" value={oilForm.date} onChange={e => setOilForm({ ...oilForm, date: e.target.value })} required />
+            <Input label="Date" type="date" value={oilForm.date} onChange={e => setOilForm({ ...oilForm, date: e.target.value })} required {...fe('date')} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1233,31 +1321,31 @@ export const QuickActionModals: React.FC = () => {
         description="Log operational costs such as fuel, tolls, insurance, permits, and fines with scanned receipts"
         size="lg"
       >
-        <form onSubmit={handleCreateExpense} className="space-y-4">
+        <form onSubmit={handleCreateExpense} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select label="Office" value={expOffice} disabled={!!expForm.vehicleId}
-              onChange={e => setExpForm({ ...expForm, companyId: e.target.value, employeeId: '', bankAccountId: '', supplierId: '' })} required>
+              onChange={e => setExpForm({ ...expForm, companyId: e.target.value, employeeId: '', bankAccountId: '', supplierId: '' })} required {...fe('companyId')}>
               <option value="">Select office</option>
               {companies.filter(c => hasPermission('create', 'expenses', c.id)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Select label={expCategory?.requiresVehicle ? 'Vehicle (required)' : 'Vehicle (optional)'} value={expForm.vehicleId}
+            <Select label={expCategory?.requiresVehicle ? 'Vehicle' : 'Vehicle (optional)'} required={!!expCategory?.requiresVehicle} {...fe('vehicleId')} value={expForm.vehicleId}
               onChange={e => { const veh = vehicles.find(x => x.id === e.target.value); setExpForm({ ...expForm, vehicleId: e.target.value, companyId: veh?.companyId || expForm.companyId }); }}>
               <option value="">No vehicle</option>
               {vehicles.filter(v => !expForm.companyId || v.companyId === expForm.companyId || v.id === expForm.vehicleId).map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
             </Select>
-            <Select label="Category" value={expForm.categoryId} onChange={e => setExpForm({ ...expForm, categoryId: e.target.value })} required>
+            <Select label="Category" value={expForm.categoryId} onChange={e => setExpForm({ ...expForm, categoryId: e.target.value })} required {...fe('categoryId')}>
               <option value="">Choose…</option>
               {expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </div>
-          <Input label="Date" type="date" value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} required />
+          <Input label="Date" type="date" value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} required {...fe('date')} />
 
-          <Input label="Description" placeholder="e.g. Fuel Refill Mogas 95 (78 Litres)" value={expForm.description} onChange={e => setExpForm({ ...expForm, description: e.target.value })} required />
+          <Input label="Description" placeholder="e.g. Fuel Refill Mogas 95 (78 Litres)" value={expForm.description} onChange={e => setExpForm({ ...expForm, description: e.target.value })} />
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Input label="Quantity" type="number" step="0.1" value={expForm.quantity} onChange={e => setExpForm({ ...expForm, quantity: Number(e.target.value) })} />
-            <Input label={`Unit Price (${currency})`} type="number" step="0.001" value={expForm.unitPrice} onChange={e => setExpForm({ ...expForm, unitPrice: Number(e.target.value) })} />
-            <Input label={`VAT amount (${currency})`} type="number" step="0.001" min="0" hint="5% of the net amount in Oman" value={expForm.tax} onChange={e => setExpForm({ ...expForm, tax: Number(e.target.value) })} />
+            <Input label="Quantity" type="number" step="0.1" required {...fe('quantity')} value={expForm.quantity} onChange={e => setExpForm({ ...expForm, quantity: Number(e.target.value) })} />
+            <Input label={`Unit Price (${currency})`} type="number" step="0.001" required name="unitPrice" error={errors.unitPrice ?? errors.total} value={expForm.unitPrice} onChange={e => setExpForm({ ...expForm, unitPrice: Number(e.target.value) })} />
+            <Input label={`VAT amount (${currency})`} type="number" step="0.001" min="0" {...fe('tax')} hint="5% of the net amount in Oman" value={expForm.tax} onChange={e => setExpForm({ ...expForm, tax: Number(e.target.value) })} />
             <Select label="Payment Method" value={expForm.paymentMethod} onChange={e => setExpForm({ ...expForm, paymentMethod: e.target.value })}>
               {['Bank Transfer', 'Cash', 'Card', 'Corporate Fuel Card', 'Cheque', 'Petty Cash'].map(m => <option key={m} value={m}>{m}</option>)}
             </Select>
@@ -1308,25 +1396,23 @@ export const QuickActionModals: React.FC = () => {
         description="Record collision details, police report, insurance claims, and downtime days"
         size="xl"
       >
-        <form onSubmit={handleCreateAccident} className="space-y-4">
+        <form onSubmit={handleCreateAccident} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Select label="Vehicle" value={accForm.vehicleId} onChange={e => setAccForm({ ...accForm, vehicleId: e.target.value })} required>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
-            </Select>
-            <Input label="Accident Date" type="date" value={accForm.accidentDate} onChange={e => setAccForm({ ...accForm, accidentDate: e.target.value })} required />
+            <RecordSelect label="Vehicle" value={accForm.vehicleId} onChange={v => setAccForm({ ...accForm, vehicleId: v, companyId: officeOfVehicle(v) || accForm.companyId })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
+            <Input label="Accident Date" type="date" value={accForm.accidentDate} onChange={e => setAccForm({ ...accForm, accidentDate: e.target.value })} required {...fe('accidentDate')} />
             <Input label="Time" type="time" value={accForm.accidentTime} onChange={e => setAccForm({ ...accForm, accidentTime: e.target.value })} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Location" placeholder="e.g. Sultan Qaboos Highway near Azaiba" value={accForm.location} onChange={e => setAccForm({ ...accForm, location: e.target.value })} required />
-            <Input label="Driver Name" value={accForm.driverName} onChange={e => setAccForm({ ...accForm, driverName: e.target.value })} required />
+            <Input label="Location" placeholder="e.g. Sultan Qaboos Highway near Azaiba" value={accForm.location} onChange={e => setAccForm({ ...accForm, location: e.target.value })} />
+            <Input label="Driver Name" value={accForm.driverName} onChange={e => setAccForm({ ...accForm, driverName: e.target.value })} />
           </div>
 
-          <Textarea label="Accident Description" placeholder="Detailed account of how the accident occurred..." value={accForm.accidentDescription} onChange={e => setAccForm({ ...accForm, accidentDescription: e.target.value })} required />
-          <Textarea label="Damage Description" placeholder="Visible vehicle damages (bumper, headlight, chassis, etc.)..." value={accForm.damageDescription} onChange={e => setAccForm({ ...accForm, damageDescription: e.target.value })} required />
+          <Textarea label="Accident Description" placeholder="Detailed account of how the accident occurred..." value={accForm.accidentDescription} onChange={e => setAccForm({ ...accForm, accidentDescription: e.target.value })} />
+          <Textarea label="Damage Description" placeholder="Visible vehicle damages (bumper, headlight, chassis, etc.)..." value={accForm.damageDescription} onChange={e => setAccForm({ ...accForm, damageDescription: e.target.value })} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input label="Police Report Number" placeholder="e.g. ROP-AZB-2026-8819" value={accForm.policeReportNumber} onChange={e => setAccForm({ ...accForm, policeReportNumber: e.target.value })} required />
+            <Input label="Police Report Number" placeholder="e.g. ROP-AZB-2026-8819" value={accForm.policeReportNumber} onChange={e => setAccForm({ ...accForm, policeReportNumber: e.target.value })} />
             <Input label="Insurance Claim Number" placeholder="e.g. OUI-CLM-2026-4410" value={accForm.insuranceClaimNumber} onChange={e => setAccForm({ ...accForm, insuranceClaimNumber: e.target.value })} />
             <Input label="Estimated Downtime (Days)" type="number" value={accForm.vehicleDowntimeDays} onChange={e => setAccForm({ ...accForm, vehicleDowntimeDays: Number(e.target.value) })} />
           </div>
@@ -1353,31 +1439,29 @@ export const QuickActionModals: React.FC = () => {
         description="Purchase (supplier) or sales (customer) invoice. Posted to the ledger on save when within your approval limit, otherwise sent for approval."
         size="xl"
       >
-        <form onSubmit={handleCreateInvoice} className="space-y-4">
+        <form onSubmit={handleCreateInvoice} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Select label="Invoice Type" value={invoiceForm.invoiceType} onChange={e => setInvoiceForm({ ...invoiceForm, invoiceType: e.target.value as any, partyId: '' })}>
+            <Select label="Invoice Type" name="invoiceType" value={invoiceForm.invoiceType} onChange={e => setInvoiceForm({ ...invoiceForm, invoiceType: e.target.value as any, partyId: '' })}>
               <option value="Purchase">Purchase Bill (Supplier)</option>
               <option value="Sales">Sales Invoice (Customer)</option>
             </Select>
-            <Select label="Assigned Office / Branch" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value, currency: companies.find(c => c.id === e.target.value)?.currency || currency })} required>
+            <Select label="Assigned Office / Branch" value={invoiceForm.companyId} onChange={e => setInvoiceForm({ ...invoiceForm, companyId: e.target.value, partyId: '', vehicleId: '', currency: companies.find(c => c.id === e.target.value)?.currency || currency })} required {...fe('companyId')}>
               <option value="">Select office</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Select label={invoiceForm.invoiceType === 'Purchase' ? 'Supplier' : 'Customer'} value={invoiceForm.partyId} onChange={e => setInvoiceForm({ ...invoiceForm, partyId: e.target.value })} required>
+            <Select label={invoiceForm.invoiceType === 'Purchase' ? 'Supplier' : 'Customer'} value={invoiceForm.partyId} onChange={e => setInvoiceForm({ ...invoiceForm, partyId: e.target.value })} required {...fe('partyId')}>
               <option value="">Select {invoiceForm.invoiceType === 'Purchase' ? 'supplier' : 'customer'}</option>
               {invoiceForm.invoiceType === 'Purchase'
                 ? usable(suppliers, invoiceForm.companyId).filter(s => s.status === 'Active').map(s => <option key={s.id} value={s.id}>{s.name}</option>)
                 : usable(customers, invoiceForm.companyId).filter(c => c.status === 'Active').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Select label="Vehicle (Optional)" value={invoiceForm.vehicleId} onChange={e => setInvoiceForm({ ...invoiceForm, vehicleId: e.target.value })}>
-              <option value="">-- General Fleet --</option>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
-            </Select>
+            <RecordSelect label="Vehicle (Optional)" value={invoiceForm.vehicleId} onChange={v => setInvoiceForm({ ...invoiceForm, vehicleId: v })} placeholder="-- General Fleet --"
+              options={vehicles.filter(v => !invoiceForm.companyId || v.companyId === invoiceForm.companyId).map(vehicleOption)} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input label="Invoice Date" type="date" value={invoiceForm.invoiceDate} onChange={e => setInvoiceForm({ ...invoiceForm, invoiceDate: e.target.value })} required />
-            <Input label="Due Date" type="date" value={invoiceForm.dueDate} onChange={e => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })} required />
+            <Input label="Invoice Date" type="date" value={invoiceForm.invoiceDate} onChange={e => setInvoiceForm({ ...invoiceForm, invoiceDate: e.target.value })} required {...fe('invoiceDate')} />
+            <Input label="Due Date" type="date" value={invoiceForm.dueDate} onChange={e => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })} required {...fe('dueDate')} />
             <Input label="Reference / PO #" placeholder="e.g. PO-2026-8812" value={invoiceForm.referenceNumber} onChange={e => setInvoiceForm({ ...invoiceForm, referenceNumber: e.target.value })} />
           </div>
 
@@ -1403,11 +1487,14 @@ export const QuickActionModals: React.FC = () => {
                     setInvoiceForm({ ...invoiceForm, items });
                   }}
                   required
+                  {...fe('itemDescription')}
                 />
               </div>
               <Input
                 label="Quantity"
                 type="number"
+                required
+                {...fe('itemQuantity')}
                 value={invoiceForm.items[0]?.quantity}
                 onChange={e => {
                   const qty = Number(e.target.value);
@@ -1424,6 +1511,9 @@ export const QuickActionModals: React.FC = () => {
                 label={`Unit Price (${currency})`}
                 type="number"
                 step="0.001"
+                required
+                name="itemUnitPrice"
+                error={errors.total}
                 value={invoiceForm.items[0]?.unitPrice}
                 onChange={e => {
                   const price = Number(e.target.value);
@@ -1471,14 +1561,14 @@ export const QuickActionModals: React.FC = () => {
         description="Depreciate the office's fixed assets for one month and post a balanced journal to each asset's own GL accounts"
         size="md"
       >
-        <form onSubmit={handleRunDepreciation} className="space-y-4">
+        <form onSubmit={handleRunDepreciation} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select label="Office" value={deprForm.companyId} onChange={e => setDeprForm({ ...deprForm, companyId: e.target.value })} required>
+            <Select label="Office" value={deprForm.companyId} onChange={e => setDeprForm({ ...deprForm, companyId: e.target.value })} required {...fe('companyId')}>
               <option value="">Select office</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Input label="Period (month)" type="month" value={deprForm.period} onChange={e => setDeprForm({ ...deprForm, period: e.target.value })} required />
-            <Input label="Run Date" type="date" value={deprForm.runDate} onChange={e => setDeprForm({ ...deprForm, runDate: e.target.value })} required />
+            <Input label="Period (month)" type="month" value={deprForm.period} onChange={e => setDeprForm({ ...deprForm, period: e.target.value })} required {...fe('period')} />
+            <Input label="Run Date" type="date" value={deprForm.runDate} onChange={e => setDeprForm({ ...deprForm, runDate: e.target.value })} required {...fe('runDate')} />
           </div>
 
           <Textarea label="Accounting Notes" value={deprForm.notes} onChange={e => setDeprForm({ ...deprForm, notes: e.target.value })} />
@@ -1508,7 +1598,7 @@ export const QuickActionModals: React.FC = () => {
         description="Record payment against an outstanding supplier bill or customer invoice"
         size="lg"
       >
-        <form onSubmit={handleCreatePayment} className="space-y-4">
+        <form onSubmit={handleCreatePayment} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
             <Input
@@ -1538,6 +1628,7 @@ export const QuickActionModals: React.FC = () => {
                 }));
               }}
               required
+              {...fe('invoiceId')}
             >
               <option value="">{payOptions.loading ? 'Loading invoices...' : payableInvoices.length ? '-- Choose Invoice to Settle --' : payInvoiceSearchDebounced ? 'No matching open invoices' : 'No open invoices to settle'}</option>
               {payableInvoices.map(inv => (
@@ -1557,6 +1648,7 @@ export const QuickActionModals: React.FC = () => {
               value={paymentForm.paymentDate}
               onChange={e => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
               required
+              {...fe('paymentDate')}
             />
           </div>
 
@@ -1568,11 +1660,14 @@ export const QuickActionModals: React.FC = () => {
               value={paymentForm.amount}
               onChange={e => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
               required
+              {...fe('amount')}
             />
             <Select
               label="Payment Method"
               value={paymentForm.paymentMethod}
               onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value as PaymentMethod })}
+              required
+              {...fe('paymentMethod')}
             >
               <option value="Bank Transfer">Bank Transfer</option>
               <option value="Cheque">Cheque</option>
@@ -1584,6 +1679,7 @@ export const QuickActionModals: React.FC = () => {
               value={paymentForm.bankAccountId}
               onChange={e => setPaymentForm({ ...paymentForm, bankAccountId: e.target.value })}
               required
+              {...fe('bankAccountId')}
             >
               <option value="">Select bank account</option>
               {paymentBanks.map(b => (
@@ -1599,7 +1695,6 @@ export const QuickActionModals: React.FC = () => {
                 placeholder="e.g. CHQ-00123"
                 value={paymentForm.chequeNumber}
                 onChange={e => setPaymentForm({ ...paymentForm, chequeNumber: e.target.value })}
-                required
               />
             ) : (
               <Input
@@ -1632,8 +1727,8 @@ export const QuickActionModals: React.FC = () => {
         description="Register a new spare parts vendor, authorized workshop, fuel provider or equipment dealer"
         size="lg"
       >
-        <form onSubmit={handleCreateSupplier} className="space-y-4">
-          <PartyOfficeFields module="suppliers" value={supplierOffice} onChange={setSupplierOffice} />
+        <form onSubmit={handleCreateSupplier} onChange={clearFieldError} className="space-y-4" noValidate>
+          <PartyOfficeFields module="suppliers" value={supplierOffice} onChange={setSupplierOffice} errors={errors} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Supplier Company Name"
@@ -1641,6 +1736,7 @@ export const QuickActionModals: React.FC = () => {
               value={supplierForm.name}
               onChange={e => setSupplierForm({ ...supplierForm, name: e.target.value })}
               required
+              {...fe('name')}
             />
             <Select
               label="Supplier Type"
@@ -1673,6 +1769,7 @@ export const QuickActionModals: React.FC = () => {
               label="Email"
               type="email"
               placeholder="procurement@vendor.om"
+              {...fe('email')}
               value={supplierForm.email}
               onChange={e => setSupplierForm({ ...supplierForm, email: e.target.value })}
             />
@@ -1729,8 +1826,8 @@ export const QuickActionModals: React.FC = () => {
         description="Register a corporate client or government entity for logistics and fleet contracts"
         size="lg"
       >
-        <form onSubmit={handleCreateCustomer} className="space-y-4">
-          <PartyOfficeFields module="customers" value={customerOffice} onChange={setCustomerOffice} />
+        <form onSubmit={handleCreateCustomer} onChange={clearFieldError} className="space-y-4" noValidate>
+          <PartyOfficeFields module="customers" value={customerOffice} onChange={setCustomerOffice} errors={errors} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Customer / Client Name"
@@ -1738,6 +1835,7 @@ export const QuickActionModals: React.FC = () => {
               value={customerForm.name}
               onChange={e => setCustomerForm({ ...customerForm, name: e.target.value })}
               required
+              {...fe('name')}
             />
             <Select
               label="Customer Type"
@@ -1767,6 +1865,7 @@ export const QuickActionModals: React.FC = () => {
               label="Email"
               type="email"
               placeholder="finance@client.om"
+              {...fe('email')}
               value={customerForm.email}
               onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })}
             />
@@ -1823,31 +1922,17 @@ export const QuickActionModals: React.FC = () => {
         description="Add a new tyre, assign it to a vehicle position, and log tread depth & PSI"
         size="lg"
       >
-        <form onSubmit={handleCreateTyre} className="space-y-4">
+        <form onSubmit={handleCreateTyre} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Select
-              label="Vehicle"
-              value={tyreForm.vehicleId}
-              onChange={e => setTyreForm({ ...tyreForm, vehicleId: e.target.value })}
-              required
-            >
-              {vehicles.map(v => (
-                <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>
-              ))}
-            </Select>
+            <RecordSelect label="Vehicle" value={tyreForm.vehicleId} onChange={v => setTyreForm({ ...tyreForm, vehicleId: v, companyId: officeOfVehicle(v) || tyreForm.companyId })} required {...fe('vehicleId')} placeholder="Choose a vehicle…" options={vehicleOpts} />
 
             <Select
               label="Wheel Position"
               value={tyreForm.position}
               onChange={e => setTyreForm({ ...tyreForm, position: e.target.value })}
             >
-              <option value="Front Left (Steer)">Front Left (Steer)</option>
-              <option value="Front Right (Steer)">Front Right (Steer)</option>
-              <option value="Rear Left Outer">Rear Left Outer</option>
-              <option value="Rear Left Inner">Rear Left Inner</option>
-              <option value="Rear Right Outer">Rear Right Outer</option>
-              <option value="Rear Right Inner">Rear Right Inner</option>
-              <option value="Spare">Spare Tyre</option>
+              {/* the positions the database accepts (tyres.position check), same list as the tyre edit form */}
+              {(['Front Left', 'Front Right', 'Rear Left', 'Rear Right', 'Spare'] as const).map(p => <option key={p} value={p}>{p === 'Spare' ? 'Spare Tyre' : p}</option>)}
             </Select>
 
             <Input
@@ -1864,6 +1949,7 @@ export const QuickActionModals: React.FC = () => {
               value={tyreForm.brand}
               onChange={e => setTyreForm({ ...tyreForm, brand: e.target.value })}
               required
+              {...fe('brand')}
             />
             <Input
               label="Model / Pattern"
@@ -1875,7 +1961,6 @@ export const QuickActionModals: React.FC = () => {
               placeholder="e.g. 295/80R22.5"
               value={tyreForm.size}
               onChange={e => setTyreForm({ ...tyreForm, size: e.target.value })}
-              required
             />
           </div>
 
@@ -1905,6 +1990,7 @@ export const QuickActionModals: React.FC = () => {
               value={tyreForm.supplierId}
               onChange={e => setTyreForm({ ...tyreForm, supplierId: e.target.value })}
             >
+              <option value="">None</option>
               {usable(suppliers, tyreForm.companyId).map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -1926,7 +2012,7 @@ export const QuickActionModals: React.FC = () => {
         description="Add workshop machinery, office IT hardware, or specialized tools to asset register"
         size="lg"
       >
-        <form onSubmit={handleCreateFixedAsset} className="space-y-4">
+        <form onSubmit={handleCreateFixedAsset} onChange={clearFieldError} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <Input
@@ -1935,6 +2021,7 @@ export const QuickActionModals: React.FC = () => {
                 value={assetForm.name}
                 onChange={e => setAssetForm({ ...assetForm, name: e.target.value })}
                 required
+                {...fe('name')}
               />
             </div>
             <Select
@@ -1954,6 +2041,7 @@ export const QuickActionModals: React.FC = () => {
               value={assetForm.companyId}
               onChange={e => setAssetForm({ ...assetForm, companyId: e.target.value })}
               required
+              {...fe('companyId')}
             >
               <option value="">Select office</option>
               {companies.map(c => (
@@ -1981,6 +2069,7 @@ export const QuickActionModals: React.FC = () => {
               value={assetForm.purchaseDate}
               onChange={e => setAssetForm({ ...assetForm, purchaseDate: e.target.value })}
               required
+              {...fe('purchaseDate')}
             />
             <Input
               label={`Cost (${currency})`}
@@ -1989,6 +2078,7 @@ export const QuickActionModals: React.FC = () => {
               value={assetForm.purchaseCost}
               onChange={e => setAssetForm({ ...assetForm, purchaseCost: Number(e.target.value) })}
               required
+              {...fe('purchaseCost')}
             />
             <Input
               label={`Salvage Value (${currency})`}
@@ -1996,6 +2086,7 @@ export const QuickActionModals: React.FC = () => {
               step="0.001"
               value={assetForm.salvageValue}
               onChange={e => setAssetForm({ ...assetForm, salvageValue: Number(e.target.value) })}
+              {...fe('salvageValue')}
             />
             <Input
               label="Useful Life (Years)"
@@ -2003,6 +2094,7 @@ export const QuickActionModals: React.FC = () => {
               value={assetForm.usefulLifeYears}
               onChange={e => setAssetForm({ ...assetForm, usefulLifeYears: Number(e.target.value) })}
               required
+              {...fe('usefulLifeYears')}
             />
           </div>
 
