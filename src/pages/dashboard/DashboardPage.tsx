@@ -43,6 +43,7 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate, todayYmd } from '../../utils/date';
 import { useDashboardSeries, useExpenseTotals, useInvoiceSummary, useProfitLoss } from '../../services/queries';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike, clickOnKey } from '../../lib/a11y';
 
 export const FleetDashboard: React.FC = () => {
   const {
@@ -395,7 +396,7 @@ export const FleetDashboard: React.FC = () => {
                   .sort((x, y) => Number(!!y.assignedDriver) - Number(!!x.assignedDriver))
                   .slice(0, 4)
                   .map(veh => (
-                    <div
+                    <div {...buttonLike}
                       key={veh.id}
                       onClick={() => openVehicleDetail(veh.id)}
                       className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-850/60 transition-colors cursor-pointer group"
@@ -484,12 +485,12 @@ export const FleetDashboard: React.FC = () => {
               <table className="w-full text-left text-sm text-slate-300">
                 <thead className="bg-slate-850 text-slate-400 border-b border-slate-700 uppercase tracking-wider text-[11px] font-bold">
                   <tr>
-                    <th className="px-5 py-3">Vehicle</th>
-                    <th className="px-5 py-3">Plate No</th>
-                    <th className="px-5 py-3 text-right">Mileage</th>
-                    <th className="px-5 py-3 text-right">Purchase Value</th>
-                    <th className="px-5 py-3 text-center">Status</th>
-                    <th className="px-5 py-3 text-right">Action</th>
+                    <th scope="col" className="px-5 py-3">Vehicle</th>
+                    <th scope="col" className="px-5 py-3">Plate No</th>
+                    <th scope="col" className="px-5 py-3 text-right">Mileage</th>
+                    <th scope="col" className="px-5 py-3 text-right">Purchase Value</th>
+                    <th scope="col" className="px-5 py-3 text-center">Status</th>
+                    <th scope="col" className="px-5 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/80 bg-white">
@@ -497,7 +498,7 @@ export const FleetDashboard: React.FC = () => {
                     <tr><td colSpan={6} className="px-5 py-8 text-center text-xs text-slate-400">No vehicles registered yet.</td></tr>
                   )}
                   {vehicles.slice(0, 5).map(v => (
-                    <tr
+                    <tr tabIndex={0} onKeyDown={clickOnKey}
                       key={v.id}
                       onClick={() => openVehicleDetail(v.id)}
                       className="hover:bg-slate-850/60 cursor-pointer transition-colors"
@@ -558,7 +559,7 @@ export const FleetDashboard: React.FC = () => {
             <div className="p-4 space-y-3">
               {workOrders.length === 0 && <p className="text-xs text-slate-400 py-4 text-center">No work orders yet.</p>}
               {workOrders.slice(0, 5).map((wo) => (
-                <div
+                <div {...buttonLike}
                   key={wo.id}
                   onClick={() => setCurrentPage('work-orders')}
                   className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-850/60 transition-colors cursor-pointer group"
@@ -613,7 +614,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {tabs.length > 1 && (
-        <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-700/80">
+        <div role="tablist" aria-label="Dashboard views" className="flex gap-1 overflow-x-auto border-b border-slate-700/80">
           {tabs.map(t => (
             <button key={t.id} role="tab" aria-selected={t.id === tab} onClick={() => setPicked(t.id)}
               className={`px-4 py-2 text-xs font-bold whitespace-nowrap border-b-2 -mb-px ${t.id === tab ? 'border-[#086343] text-forest-600' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>

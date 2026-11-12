@@ -52,7 +52,7 @@ export const JournalQueue: React.FC<{ onChanged?: () => void }> = ({ onChanged }
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
       <table className={tableCls}>
-        <thead><tr><th className={thCls}>Request</th><th className={thCls}>Office</th><th className={thCls}>Date</th><th className={thCls}>Lines</th><th className={`${thCls} text-right`}>Amount</th><th className={thCls} /></tr></thead>
+        <thead><tr><th scope="col" className={thCls}>Request</th><th scope="col" className={thCls}>Office</th><th scope="col" className={thCls}>Date</th><th scope="col" className={thCls}>Lines</th><th scope="col" className={`${thCls} text-right`}>Amount</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {rows.length === 0 && <tr><td className={tdCls} colSpan={6}>No journals waiting for approval.</td></tr>}
           {rows.map(r => {

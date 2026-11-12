@@ -96,7 +96,7 @@ const PartyStatement: React.FC<ReportFilters & { kind: 'Customer' | 'Supplier' }
   })), [q.data]);
   if (parties.length === 0) return <EmptyReport message={`No ${kind === 'Customer' ? 'clients' : 'suppliers'} you can see.`} />;
   const picker = (
-    <div className="w-72"><Select label={kind === 'Customer' ? 'Client' : 'Supplier'} value={partyId} onChange={e => setPartyId(e.target.value)}>
+    <div className="w-full sm:w-72"><Select label={kind === 'Customer' ? 'Client' : 'Supplier'} value={partyId} onChange={e => setPartyId(e.target.value)}>
       {parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
     </Select></div>
   );

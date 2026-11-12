@@ -8,6 +8,7 @@ import { useUI } from '../../context/UIContext';
 import { formatDateTime } from '../../utils/date';
 import { useNotificationFeed, useNotificationCounts } from '../../services/queries-system';
 import type { NotificationItem } from '../../types/system';
+import { pressable } from '../../lib/a11y';
 
 export const NotificationDrawer: React.FC = () => {
   const { markNotificationAsRead, markAllNotificationsAsRead } = useFleet();
@@ -138,7 +139,7 @@ export const NotificationDrawer: React.FC = () => {
           filteredNotifications.map(item => (
             <div
               key={item.id}
-              onClick={() => handleAction(item)}
+              {...pressable(() => handleAction(item))}
               className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
                 item.read
                   ? 'bg-slate-800/40 border-slate-800 hover:border-slate-700 text-slate-300'
@@ -156,7 +157,7 @@ export const NotificationDrawer: React.FC = () => {
                     <span className="text-[10px] text-slate-400 mt-2 block">{formatDateTime(item.date)}</span>
                   </div>
                 </div>
-                {!item.read && <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1" />}
+                {!item.read && <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1" role="img" aria-label="Unread" />}
               </div>
             </div>
           )).concat(filteredTotal > filteredNotifications.length ? [

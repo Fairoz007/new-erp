@@ -174,7 +174,7 @@ export const RolesEditor: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
           )}
           <div className="overflow-x-auto -mx-1">
             <table className={tableCls}>
-              <thead><tr><th className={thCls}>Module</th>{ACTIONS.map(a => <th key={a} className={`${thCls} text-center capitalize`}>{a}</th>)}</tr></thead>
+              <thead><tr><th scope="col" className={thCls}>Module</th>{ACTIONS.map(a => <th scope="col" key={a} className={`${thCls} text-center capitalize`}>{a}</th>)}</tr></thead>
               <tbody>
                 {MODULE_GROUPS.map(g => (
                   <React.Fragment key={g.group}>

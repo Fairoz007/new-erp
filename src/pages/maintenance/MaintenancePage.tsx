@@ -147,6 +147,7 @@ export const MaintenancePage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
           <FilterSelect
+            aria-label="Service category"
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
           >

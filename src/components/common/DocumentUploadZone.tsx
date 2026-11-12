@@ -9,6 +9,7 @@ import type { BucketId } from '../../services/storage';
 import type { DocumentCategory } from '../../types/operations';
 import { todayYmd } from '../../utils/date';
 import { RecordSelect, employeeOption, vehicleOption } from '../ui/RecordSelect';
+import { pressable } from '../../lib/a11y';
 
 export interface UploadedFileMeta {
   /** Local preview URL (blob:) for a freshly picked file; empty for an already stored file. */
@@ -144,7 +145,8 @@ export const DocumentUploadZone: React.FC<DocumentUploadZoneProps> = ({
               type="button"
               disabled={disabled}
               onClick={remove}
-              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              aria-label="Remove attachment"
+              className="p-1.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               title="Remove attachment"
             >
               <X className="w-4 h-4" />
@@ -156,7 +158,8 @@ export const DocumentUploadZone: React.FC<DocumentUploadZoneProps> = ({
           onDragOver={e => { e.preventDefault(); if (!disabled) setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          onClick={() => !disabled && fileInputRef.current?.click()}
+          {...pressable(() => { if (!disabled) fileInputRef.current?.click(); })}
+          aria-disabled={disabled || undefined}
           className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${
             isDragging
               ? 'border-indigo-500 bg-indigo-950/20'

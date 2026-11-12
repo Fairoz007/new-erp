@@ -18,6 +18,7 @@ import { VehicleExpense } from '../../types/operations';
 import { tableCls, tdCls, thCls } from '../setup/shared';
 import { EXPENSE_RELOAD } from './ExpenseDetailModal';
 import { useExpenseList } from '../../services/queries-expenses';
+import { clickOnKey } from '../../lib/a11y';
 
 export const MonthlyExpensesPanel: React.FC<{ onOpen: (e: VehicleExpense) => void }> = ({ onOpen }) => {
   const { companies, selectedCompanyId, currency, reload } = useFleet();
@@ -63,13 +64,13 @@ export const MonthlyExpensesPanel: React.FC<{ onOpen: (e: VehicleExpense) => voi
         <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
           <p className="px-4 pt-3 text-sm font-bold text-slate-100">Drafts to submit</p>
           <table className={tableCls}>
-            <thead><tr><th className={thCls}>Expense</th><th className={thCls}>Due</th><th className={`${thCls} text-right`}>Amount</th></tr></thead>
+            <thead><tr><th scope="col" className={thCls}>Expense</th><th scope="col" className={thCls}>Due</th><th scope="col" className={`${thCls} text-right`}>Amount</th></tr></thead>
             <tbody>
               {draftsQ.loading && <tr><td className={tdCls} colSpan={3}>Loading drafts…</td></tr>}
               {draftsQ.error && <tr><td className={tdCls} colSpan={3}><span role="alert" className="text-rose-500">Drafts could not be loaded: {draftsQ.error.message}</span> <button type="button" className="underline text-xs" onClick={() => void draftsQ.refetch()}>Retry</button></td></tr>}
               {!draftsQ.loading && !draftsQ.error && drafts.length === 0 && <tr><td className={tdCls} colSpan={3}>No monthly drafts waiting.</td></tr>}
               {drafts.map(e => (
-                <tr key={e.id} className="cursor-pointer hover:bg-slate-850" onClick={() => onOpen(e)}>
+                <tr tabIndex={0} onKeyDown={clickOnKey} key={e.id} className="cursor-pointer hover:bg-slate-850" onClick={() => onOpen(e)}>
                   <td className={tdCls}><p className="font-semibold text-slate-100">{e.expenseNumber}</p><p className="text-[11px] text-slate-400">{office(e.companyId)} · {e.description}</p></td>
                   <td className={tdCls}>{formatDate(e.date)} {e.date < weekAgo && <Badge variant="rose">Overdue</Badge>}</td>
                   <td className={`${tdCls} text-right font-mono`}>{formatCurrency(e.total, currency)}</td>
@@ -81,7 +82,7 @@ export const MonthlyExpensesPanel: React.FC<{ onOpen: (e: VehicleExpense) => voi
         <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
           <p className="px-4 pt-3 text-sm font-bold text-slate-100">Coming up</p>
           <table className={tableCls}>
-            <thead><tr><th className={thCls}>Template</th><th className={thCls}>Next draft</th><th className={`${thCls} text-right`}>Amount</th></tr></thead>
+            <thead><tr><th scope="col" className={thCls}>Template</th><th scope="col" className={thCls}>Next draft</th><th scope="col" className={`${thCls} text-right`}>Amount</th></tr></thead>
             <tbody>
               {upcoming.length === 0 && <tr><td className={tdCls} colSpan={3}>No active templates.</td></tr>}
               {upcoming.map(({ t, next }) => (

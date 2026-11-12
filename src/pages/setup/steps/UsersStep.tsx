@@ -189,7 +189,7 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
         action={<div className="w-56 max-w-full"><Input pill placeholder="Search users" value={search} onChange={e => setSearch(e.target.value)} leftIcon={<Search className="w-4 h-4" />} aria-label="Search users" /></div>}>
         <div className="overflow-x-auto">
           <table className={tableCls}>
-            <thead><tr><th className={thCls}>User</th><th className={thCls}>Organization role</th><th className={thCls}>Offices</th><th className={thCls}>Status</th><th className={thCls} /></tr></thead>
+            <thead><tr><th scope="col" className={thCls}>User</th><th scope="col" className={thCls}>Organization role</th><th scope="col" className={thCls}>Offices</th><th scope="col" className={thCls}>Status</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {shown.length === 0 && <tr><td colSpan={5} className={`${tdCls} text-slate-400`}>No users match.</td></tr>}
               {shown.map(u => {

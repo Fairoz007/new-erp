@@ -174,8 +174,8 @@ const ContractModal: React.FC<{
           <div className="overflow-x-auto">
             <table className="w-full text-xs min-w-[640px]">
               <thead className="text-slate-400"><tr>
-                <th className="text-left py-1">Service</th><th className="text-left">Vehicle type</th><th className="text-left">Unit</th>
-                <th className="text-left">Rate</th><th className="text-left">Tax</th><th className="text-left">Min qty</th><th />
+                <th scope="col" className="text-left py-1">Service</th><th scope="col" className="text-left">Vehicle type</th><th scope="col" className="text-left">Unit</th>
+                <th scope="col" className="text-left">Rate</th><th scope="col" className="text-left">Tax</th><th scope="col" className="text-left">Min qty</th><th scope="col"><span className="sr-only">Actions</span></th>
               </tr></thead>
               <tbody>
                 {rates.map((r, i) => (
@@ -189,7 +189,7 @@ const ContractModal: React.FC<{
                     <td className="pr-1"><select aria-label="Tax" className={cell} value={r.taxRateId} disabled={readOnly} onChange={e => setRate(i, { taxRateId: e.target.value })}>
                       <option value="">None</option>{taxes.filter(t => t.active || t.id === r.taxRateId).map(t => <option key={t.id} value={t.id}>{t.name} ({t.rate}%)</option>)}</select></td>
                     <td className="pr-1"><input aria-label="Minimum quantity" className={cell} type="number" step="0.001" min="0" value={r.minQuantity} disabled={readOnly} onChange={e => setRate(i, { minQuantity: Number(e.target.value) })} /></td>
-                    <td>{!readOnly && <button type="button" aria-label="Remove rate" className="p-1 text-slate-400 hover:text-rose-500" onClick={() => setRates(rs => rs.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5" /></button>}</td>
+                    <td>{!readOnly && <button type="button" aria-label="Remove rate" className="p-1 inline-flex items-center justify-center text-slate-400 hover:text-rose-500" onClick={() => setRates(rs => rs.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5" /></button>}</td>
                   </tr>
                 ))}
               </tbody>

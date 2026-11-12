@@ -22,6 +22,7 @@ import { ArrowRightLeft, Share2 } from 'lucide-react';
 import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
 import { FilterSelect } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike } from '../../lib/a11y';
 
 export const SuppliersPage: React.FC = () => {
   const { suppliers: allSuppliers, currency, updateSupplier, companies, selectedCompanyId } = useFleet();
@@ -71,7 +72,7 @@ export const SuppliersPage: React.FC = () => {
       header: 'Supplier / ID',
       truncate: true,
       render: (s) => (
-        <div className="cursor-pointer group" onClick={() => openPartyDetail('supplier', s.id)}>
+        <div {...buttonLike} className="cursor-pointer group" onClick={() => openPartyDetail('supplier', s.id)}>
           <span className="font-bold text-slate-100 group-hover:text-forest-400 transition-colors">{s.name}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[10px] font-mono text-forest-700 font-semibold px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700">

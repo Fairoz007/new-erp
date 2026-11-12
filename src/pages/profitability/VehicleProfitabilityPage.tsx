@@ -13,6 +13,7 @@ import { formatCurrency } from '../../utils/financial';
 import { getVehicleFinancialSummaryFromTotals } from '../../services/fleet';
 import { useVehicleTotals } from '../../services/queries-reports';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike } from '../../lib/a11y';
 
 interface VehicleProfitabilityRow {
   vehicle: Vehicle;
@@ -79,7 +80,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
       key: 'vehicleName',
       header: 'Vehicle / Category',
       render: (row) => (
-        <div className="cursor-pointer" onClick={() => openVehicleDetail(row.vehicle.id)}>
+        <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(row.vehicle.id)}>
           <span className="font-bold text-slate-100">{row.vehicle.brand} {row.vehicle.model}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-[10px] font-semibold">

@@ -65,6 +65,13 @@ Built with React 18, TypeScript, Vite and Tailwind. Data lives in Supabase (Post
 | `npm run build` | Type check and production build |
 | `npm run test:db` | Applies every migration to an in-memory Postgres (PGlite) and runs all database suites in `supabase/tests/`: schema, RLS, RPCs, triggers, the client–database contract, and a fresh-install end-to-end run. No network is used. |
 | `npm run test:e2e` | Remote suite against a real Supabase **staging** project (Auth, PostgREST, Storage). It refuses to run against production. See `e2e/README.md`. |
+| `npm run test:unit` | Vitest: money, dates, validation, error mapping, exports, ledger parity of the report calculations. |
+| `npm run test:browser` | Playwright at desktop and 375 px with axe (WCAG 2.1 AA). Signed-out screens run anywhere; the per-role run needs a staging deploy. First run: `npx playwright install chromium`. See `e2e/README.md`. |
+| `npm run lint` | Type check and secret scan of the tracked files. |
+| `npm run scan:secrets` | Secret scan including `dist/` after a build. |
+| `npm run bundle:check` | Bundle sizes; fails above the 250 kB gzip budget for the first page load. |
+
+CI (`.github/workflows/ci.yml`) runs lint, build, bundle budget, secret scan, unit and database tests on every push; the browser suite is a manual job.
 
 To run a single database suite:
 
@@ -74,11 +81,32 @@ node supabase/tests/20261112001200_e2e_fresh_install.test.mjs supabase/migration
 
 ## Daily jobs
 
-When `pg_cron` is enabled on the project, the migrations schedule two jobs:
+When `pg_cron` is enabled on the project, the migrations schedule these jobs (Settings → System health shows their last run):
 - `refresh-expiry-notifications` (03:00): vehicle, employee and document expiries, and overdue invoices.
 - `daily-finance-jobs` (02:15): monthly recurring expense drafts and budget alerts.
+- `purge-client-errors` (02:30): browser error reports older than 90 days.
+- `purge-request-keys` (02:45): idempotency keys older than 7 days.
 
 Without `pg_cron`, run them by hand: the expiry refresh from Notifications (Super Admin), and the monthly drafts from Expenses → Monthly. You can also call `refresh_expiry_notifications(null)` and `run_daily_finance_jobs()` from any scheduler with the service role.
+
+## Security headers
+
+The production build puts a Content-Security-Policy `<meta>` tag in `index.html` (`vite.config.ts`):
+scripts, styles and fonts from the app's own origin, network calls only to the configured Supabase
+project, images from the app and Supabase Storage, no plugins, no framing of other sites. A meta tag
+cannot set every header, so the host must also send:
+
+| Header | Value |
+|---|---|
+| `Content-Security-Policy` | the policy from the built `index.html`, plus `frame-ancestors 'none'` |
+| `X-Frame-Options` | `DENY` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
+
+Storage buckets are private (signed URLs, office-scoped paths) with size and type limits that the
+browser checks before upload. Details and the deploy steps: `docs/OPERATIONS.md`.
 
 ## Concepts
 
@@ -92,3 +120,5 @@ Without `pg_cron`, run them by hand: the expiry refresh from Notifications (Supe
 - `AUDIT_REPORT.md`: audit findings, what was fixed, what was verified and what is still open.
 - `docs/PHASE_NOTES.md`: the defaults chosen in each phase and the items not verified.
 - `docs/FIX_AND_COMPLETE_PROMPT.md`: the brief.
+- `docs/ADVANCE_PROMPT.md` and `docs/ADVANCE_NOTES.md`: the production-hardening brief, and per phase what changed, how it was tested, the defaults chosen and what is not verified.
+- `docs/OPERATIONS.md`: deploy, migrations, backup and restore, key rotation, adding an office, closing a period, rollback, errors and health.

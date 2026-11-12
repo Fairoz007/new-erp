@@ -11,6 +11,7 @@ import { useUI } from '../../context/UIContext';
 import { formatCurrency, calculateDepreciationSchedule, calculateCurrentBookValue } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike } from '../../lib/a11y';
 
 export const DepreciationPage: React.FC = () => {
   const { vehicles: allVehicles, currency, selectedCompanyId } = useFleet();
@@ -33,7 +34,7 @@ export const DepreciationPage: React.FC = () => {
       key: 'vehicle',
       header: 'Vehicle / Plate',
       render: (v) => (
-        <div className="cursor-pointer" onClick={() => openVehicleDetail(v.id, 'depreciation')}>
+        <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(v.id, 'depreciation')}>
           <span className="font-bold text-slate-100">{v.brand} {v.model}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-[10px] font-semibold">

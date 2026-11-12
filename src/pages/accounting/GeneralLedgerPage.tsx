@@ -72,14 +72,14 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-850 border-b border-slate-700 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                        <th className="py-3.5 px-4">Date</th>
-                        <th className="py-3.5 px-4">JE Number</th>
-                        <th className="py-3.5 px-4">Reference</th>
-                        <th className="py-3.5 px-4">Description</th>
-                        <th className="py-3.5 px-4">Vehicle</th>
-                        <th className="py-3.5 px-4 text-right text-[#086343]">Debit</th>
-                        <th className="py-3.5 px-4 text-right text-slate-400">Credit</th>
-                        <th className="py-3.5 px-4 text-right font-mono">Running Balance</th>
+                        <th scope="col" className="py-3.5 px-4">Date</th>
+                        <th scope="col" className="py-3.5 px-4">JE Number</th>
+                        <th scope="col" className="py-3.5 px-4">Reference</th>
+                        <th scope="col" className="py-3.5 px-4">Description</th>
+                        <th scope="col" className="py-3.5 px-4">Vehicle</th>
+                        <th scope="col" className="py-3.5 px-4 text-right text-[#086343]">Debit</th>
+                        <th scope="col" className="py-3.5 px-4 text-right text-slate-400">Credit</th>
+                        <th scope="col" className="py-3.5 px-4 text-right font-mono">Running Balance</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700/80 bg-white">
@@ -302,9 +302,10 @@ export const GeneralLedgerPage: React.FC = () => {
                     className="mb-1.5 w-full"
                   />
                   <FilterSelect
+                    aria-label="Account"
                     value={selectedAccountCode}
                     onChange={e => setSelectedAccountCode(e.target.value)}
-                    className="min-w-[280px]"
+                    className="w-full sm:w-auto sm:min-w-[280px]"
                   >
                     <option value="all">-- All Chart of Accounts (Consolidated) --</option>
                     {accountOptions.filter(acc => acc.code === selectedAccountCode || !accountSearch.trim() || `${acc.code} ${acc.name}`.toLowerCase().includes(accountSearch.trim().toLowerCase())).map(acc => (
@@ -318,6 +319,7 @@ export const GeneralLedgerPage: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Start Date</label>
                   <FilterInput
+                    aria-label="Start date"
                     type="date"
                     value={startDate}
                     onChange={e => setStartDate(e.target.value)}
@@ -327,6 +329,7 @@ export const GeneralLedgerPage: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">End Date</label>
                   <FilterInput
+                    aria-label="End date"
                     type="date"
                     value={endDate}
                     onChange={e => setEndDate(e.target.value)}
@@ -367,6 +370,7 @@ export const GeneralLedgerPage: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Party Category</label>
                   <FilterSelect
+                    aria-label="Party category"
                     value={partyType}
                     onChange={e => {
                       const type = e.target.value as any;
@@ -382,9 +386,10 @@ export const GeneralLedgerPage: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Select Account Name</label>
                   <FilterSelect
+                    aria-label="Account name"
                     value={effectivePartyId}
                     onChange={e => setSelectedPartyId(e.target.value)}
-                    className="min-w-[280px]"
+                    className="w-full sm:w-auto sm:min-w-[280px]"
                   >
                     {partyType === 'Supplier'
                       ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.vatNumber || s.taxNumber || 'Tax Reg OK'})</option>)
@@ -419,12 +424,12 @@ export const GeneralLedgerPage: React.FC = () => {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-850 border-b border-slate-700 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                    <th className="py-3.5 px-4">Date</th>
-                    <th className="py-3.5 px-4">Transaction / Voucher</th>
-                    <th className="py-3.5 px-4">Description</th>
-                    <th className="py-3.5 px-4 text-right text-rose-600">Invoiced / Billed</th>
-                    <th className="py-3.5 px-4 text-right text-[#086343]">Paid / Remitted</th>
-                    <th className="py-3.5 px-4 text-right font-mono">Running Balance</th>
+                    <th scope="col" className="py-3.5 px-4">Date</th>
+                    <th scope="col" className="py-3.5 px-4">Transaction / Voucher</th>
+                    <th scope="col" className="py-3.5 px-4">Description</th>
+                    <th scope="col" className="py-3.5 px-4 text-right text-rose-600">Invoiced / Billed</th>
+                    <th scope="col" className="py-3.5 px-4 text-right text-[#086343]">Paid / Remitted</th>
+                    <th scope="col" className="py-3.5 px-4 text-right font-mono">Running Balance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/80 bg-white">

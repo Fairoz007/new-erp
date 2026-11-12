@@ -224,13 +224,13 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800 text-[11px]">
                   <tr>
-                    <th className="px-3 py-2">Cycle</th>
-                    <th className="px-3 py-2">Batch #</th>
-                    <th className="px-3 py-2">Payment Date</th>
-                    <th className="px-3 py-2 text-right">Gross Pay</th>
-                    <th className="px-3 py-2 text-right">Deductions</th>
-                    <th className="px-3 py-2 text-right">Net Paid</th>
-                    <th className="px-3 py-2 text-right">Action</th>
+                    <th scope="col" className="px-3 py-2">Cycle</th>
+                    <th scope="col" className="px-3 py-2">Batch #</th>
+                    <th scope="col" className="px-3 py-2">Payment Date</th>
+                    <th scope="col" className="px-3 py-2 text-right">Gross Pay</th>
+                    <th scope="col" className="px-3 py-2 text-right">Deductions</th>
+                    <th scope="col" className="px-3 py-2 text-right">Net Paid</th>
+                    <th scope="col" className="px-3 py-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">

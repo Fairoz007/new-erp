@@ -166,9 +166,9 @@ export function MasterEditor<T extends Record<string, any>>({
           <table className={tableCls}>
             <thead>
               <tr>
-                {columns.map(c => <th key={c.key} className={thCls}>{c.label}{c.required && <span className="text-rose-500"> *</span>}</th>)}
-                {defaultFlag && <th className={thCls}>Default</th>}
-                {!readOnly && <th className={`${thCls} text-right`}>Actions</th>}
+                {columns.map(c => <th scope="col" key={c.key} className={thCls}>{c.label}{c.required && <span className="text-rose-500"> *</span>}</th>)}
+                {defaultFlag && <th scope="col" className={thCls}>Default</th>}
+                {!readOnly && <th scope="col" className={`${thCls} text-right`}>Actions</th>}
               </tr>
             </thead>
             <tbody>

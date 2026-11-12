@@ -65,7 +65,7 @@ export const PeriodClosePage: React.FC = () => {
       {err && !acting && <p role="alert" className="text-xs text-rose-500">{err}</p>}
       <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
         <table className={tableCls}>
-          <thead><tr><th className={thCls}>Month</th><th className={thCls}>Status</th><th className={thCls}>Last change</th><th className={thCls} /></tr></thead>
+          <thead><tr><th scope="col" className={thCls}>Month</th><th scope="col" className={thCls}>Status</th><th scope="col" className={thCls}>Last change</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {MONTHS.map((name, i) => {
               const p = periods.find(x => x.companyId === officeId && x.year === year && x.month === i + 1);

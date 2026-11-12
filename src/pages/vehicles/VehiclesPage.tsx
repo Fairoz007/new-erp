@@ -185,6 +185,7 @@ export const VehiclesPage: React.FC = () => {
             {vt.ui}
           <div className="flex items-center gap-1.5">
             <FilterSelect
+              aria-label="Fleet status"
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
             >

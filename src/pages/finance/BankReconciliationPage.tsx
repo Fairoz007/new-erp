@@ -51,7 +51,7 @@ export const BankReconciliationPage: React.FC = () => {
           </>
         }
       />
-      <div className="w-80">
+      <div className="w-full sm:w-80">
         <Select label="Bank account" value={bankId} onChange={e => { setBankId(e.target.value); setOpenId(null); }}>
           {banks.length === 0 && <option value="">No bank account you can reconcile</option>}
           {banks.map(b => <option key={b.id} value={b.id}>{b.bankName} · {b.accountName} ({b.accountNumber})</option>)}
@@ -61,7 +61,7 @@ export const BankReconciliationPage: React.FC = () => {
       {err && <p role="alert" className="text-xs text-rose-500">{err}</p>}
       <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
         <table className={tableCls}>
-          <thead><tr><th className={thCls}>Period</th><th className={`${thCls} text-right`}>Opening</th><th className={`${thCls} text-right`}>Closing</th><th className={thCls}>Status</th><th className={thCls} /></tr></thead>
+          <thead><tr><th scope="col" className={thCls}>Period</th><th scope="col" className={`${thCls} text-right`}>Opening</th><th scope="col" className={`${thCls} text-right`}>Closing</th><th scope="col" className={thCls}>Status</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {statements.length === 0 && <tr><td className={tdCls} colSpan={5}>No statements yet for this account.</td></tr>}
             {statements.map(s => (
@@ -184,7 +184,7 @@ const StatementModal: React.FC<{ statement: BankStatement; currency: string; onC
         </div>
         <div className="overflow-x-auto rounded-xl border border-slate-700">
           <table className={tableCls}>
-            <thead><tr><th className={thCls}>Date</th><th className={thCls}>Description</th><th className={`${thCls} text-right`}>Amount</th><th className={thCls}>Ledger match</th><th className={thCls} /></tr></thead>
+            <thead><tr><th scope="col" className={thCls}>Date</th><th scope="col" className={thCls}>Description</th><th scope="col" className={`${thCls} text-right`}>Amount</th><th scope="col" className={thCls}>Ledger match</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {lines.length === 0 && <tr><td className={tdCls} colSpan={5}>No lines. Add them below or import a CSV.</td></tr>}
               {lines.map(l => { const m = l.journalLineId ? bookById.get(l.journalLineId) : undefined; return (

@@ -425,3 +425,31 @@ their print layout.
 | Lint | No ESLint configuration exists in the project; `npm run lint` is the type-check plus the secret scan. Adding ESLint rules would change many files without changing behaviour; not done. |
 
 Result here: `test:browser` 4/4 (signed-out screens only); the per-role run needs staging.
+
+## Phase 5: Accessibility (part 2)
+
+Found with a static scan of all `.tsx` files (TypeScript parser: clickable non-buttons, unnamed
+controls, icon-only buttons, images, `th` without scope, tables without a scroll container,
+outline removal, wide fixed widths, unprefixed grids), then fixed:
+
+| Area | Fix |
+|---|---|
+| Skip link and main | "Skip to main content" link; `<main id="main-content" tabIndex={-1}>`. |
+| Sidebar on phones | A real drawer: `useDialog` (focus moves in and is trapped, Escape, focus back to the menu button, scroll lock), `role="dialog"` / `aria-modal` while open, not reachable by Tab when closed, close button, at most 85 % of the screen. Nav badges have text for screen readers. |
+| Header | 44 px icon buttons on phones; the bell says how many are unread; `aria-expanded` on menus; menus fit the screen; the search hint shows the real shortcut (⌘K, it said ⌘F). |
+| Toasts | The live region is always mounted, so toasts are announced; type spoken ("Error: …"); named 44 px dismiss button. |
+| DataTable | Sorting is a button with `aria-sort`; clickable rows are reachable and open with Enter / Space; search, rows-per-page and pagination named; 44 px menu items on phones; Escape closes the export menu. |
+| Global search | A proper dialog (`useDialog`): focus trap and return, labelled input. |
+| Clickable cards and rows | StatCard, KPIGroup, notification drawer, analytics column, document zone and row clicks on 14 pages: button role or Tab + Enter / Space. |
+| Tables | `scope="col"` on 193 header cells in 27 files; "Actions" for screen readers on empty action headers; header rows for 5 role-dashboard tables; the printable invoice table scrolls on phones. |
+| Names | Filter selects and date inputs (21 places), icon-only buttons in documents and contracts. |
+| Phone layout | Grids one column below 640 px (offices, vehicle detail); fixed widths full width on phones (general ledger, bank reconciliation, leave, budgets, reports); banners wrap. Focus outline for links and focusable elements; checkboxes 24 px with 44 px labels on phones. |
+| Colour only | Unread dots labelled. |
+
+Already fine: every image has `alt`; no outline removal without a replacement; every wrapped
+field has a label; every table scrolls inside its container; one `<main>`; one `h1` per page;
+badges carry text; the reduced-motion rule in `index.css` covers transitions and skeletons.
+
+Tests: `npm run test:browser` (sign-in page at desktop and 375 px, axe with no serious or
+critical issue) 4/4. **Not verified:** any signed-in page in a browser (no database here); the
+per-role axe run (`roles.spec.ts`) needs staging.

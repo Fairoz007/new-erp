@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   LayoutDashboard,
   Building2,
@@ -36,6 +36,7 @@ import {
   Waves,
   PiggyBank,
   Lock,
+  X,
 } from 'lucide-react';
 import { AppPage, useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
@@ -45,6 +46,7 @@ import { UserAvatar } from './UserAvatar';
 import { PRODUCT_NAME } from '../../lib/branding';
 import { useOptionalOrg } from '../../context/OrgContext';
 import { countPendingLeave } from '../../services/hrops';
+import { useDialog } from '../ui/useDialog';
 
 interface NavItem {
   id: AppPage;
@@ -76,6 +78,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { currentUser, canAccessPage } = useAuth();
   const orgCtx = useOptionalOrg();
   const brandName = orgCtx?.organization?.tradeName || orgCtx?.organization?.legalName || PRODUCT_NAME;
+  // Phones / tablets: the sidebar is an off-canvas dialog (focus moves in and is trapped, Escape closes,
+  // focus returns to the menu button, the page behind does not scroll).
+  const asideRef = useRef<HTMLElement>(null);
+  const noop = React.useCallback(() => undefined, []);
+  useDialog(isMobileOpen, onCloseMobile ?? noop, asideRef, { guardUnsaved: false });
 
   // Badge counts are counted in the database (count-only queries), never by loading the rows
   const unreadNotifs = useUnreadNotificationCount().data ?? 0;
@@ -177,22 +184,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile backdrop */}
       {isMobileOpen && (
         <div
-          role="button"
-          tabIndex={0}
-          aria-label="Close navigation"
+          aria-hidden="true"
           className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 lg:hidden"
           onClick={onCloseMobile}
-          onKeyDown={e => {
-            if (e.key === 'Escape') onCloseMobile?.();
-          }}
         />
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen z-40 ${
+        ref={asideRef}
+        tabIndex={-1}
+        {...(isMobileOpen ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Navigation menu' } : {})}
+        className={`fixed lg:sticky top-0 left-0 h-screen z-40 focus:outline-none ${
           isCollapsed ? 'lg:w-[76px]' : 'lg:w-64 xl:w-72'
-        } w-72 bg-surface-secondary border-r border-slate-700 flex flex-col shrink-0 transition-[width,transform] duration-200 lg:translate-x-0 ${
-          isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+        } w-72 max-w-[85vw] lg:max-w-none bg-surface-secondary border-r border-slate-700 flex flex-col shrink-0 transition-[width,transform,visibility] duration-200 lg:translate-x-0 lg:visible ${
+          isMobileOpen ? 'translate-x-0 shadow-2xl visible' : '-translate-x-full invisible'
         }`}
       >
         {/* Brand Header */}
@@ -212,6 +217,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate max-w-[150px]">{PRODUCT_NAME}</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            aria-label="Close navigation"
+            className="lg:hidden ml-auto w-11 h-11 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 cursor-pointer"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
         </div>
 
         {/* Scrollable Navigation */}
@@ -258,6 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             isActive ? 'bg-[#086343] text-white' : 'bg-slate-800 text-slate-400'
                           }`}>
                             {item.badge}
+                            <span className="sr-only"> {item.id === 'invoices' ? 'overdue' : item.id === 'work-orders' ? 'active' : item.id === 'notifications' ? 'unread' : 'pending'}</span>
                           </span>
                         ) : null}
                       </div>
@@ -280,12 +294,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <p className="text-[10px] text-slate-400 font-medium truncate">{currentUser.role}</p>
               </div>
             </div>
-            <div className={`w-2 h-2 rounded-full bg-[#21865B] shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="Signed in" />
+            <div className={`w-2 h-2 rounded-full bg-[#21865B] shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="Signed in" role="img" aria-label="Signed in" />
           </div>
 
           <div className={`mt-2 px-1 text-[10px] text-slate-400 items-center justify-between ${isCollapsed ? 'lg:hidden flex' : 'flex'}`}>
             <span>Enterprise v2.4</span>
-            <span className="text-[#086343] font-semibold">● Active GCC</span>
+            <span className="text-[#086343] font-semibold"><span aria-hidden="true">● </span>Active GCC</span>
           </div>
         </div>
       </aside>

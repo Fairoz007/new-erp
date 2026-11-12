@@ -97,6 +97,7 @@ export const AuditLogsPage: React.FC = () => {
         exportModule="audit-logs"
         filterComponent={
           <FilterSelect
+            aria-label="Action type"
             value={actionFilter}
             onChange={e => setActionFilter(e.target.value)}
           >

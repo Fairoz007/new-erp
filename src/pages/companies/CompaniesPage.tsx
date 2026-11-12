@@ -156,7 +156,7 @@ export const CompaniesPage: React.FC = () => {
                 </p>
 
                 {/* Operational Stats Grid */}
-                <div className="grid grid-cols-3 gap-2 p-3 bg-slate-850/60 rounded-xl border border-slate-700/80 text-center">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 bg-slate-850/60 rounded-xl border border-slate-700/80 text-center">
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-medium flex items-center justify-center gap-1">
                       <Car className="w-3 h-3 text-forest-500" /> Assigned Fleet

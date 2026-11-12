@@ -159,7 +159,7 @@ const DaySheet: React.FC<{ day: string; staff: Employee[]; rows: Attendance[]; o
       </div>
       <div className="overflow-x-auto" {...vDay.containerProps}>
         <table className={tableCls}>
-          <thead className={vDay.active ? 'sticky top-0 z-10 bg-white' : undefined}><tr><th className={thCls}>Employee</th><th className={thCls}>Status</th><th className={thCls}>In</th><th className={thCls}>Out</th><th className={thCls}>Overtime (h)</th><th className={thCls}>Notes</th><th className={thCls} /></tr></thead>
+          <thead className={vDay.active ? 'sticky top-0 z-10 bg-white' : undefined}><tr><th scope="col" className={thCls}>Employee</th><th scope="col" className={thCls}>Status</th><th scope="col" className={thCls}>In</th><th scope="col" className={thCls}>Out</th><th scope="col" className={thCls}>Overtime (h)</th><th scope="col" className={thCls}>Notes</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {loading && staff.length === 0 && <tr><td className={tdCls} colSpan={7}>Loading…</td></tr>}
             {!loading && staff.length === 0 && <tr><td className={tdCls} colSpan={7}>No employees on the roll in this office on this date.</td></tr>}
@@ -219,7 +219,7 @@ const MonthSummary: React.FC<{ staff: Employee[]; rows: Attendance[]; label: str
       </div>
       <div className="overflow-x-auto" {...vMonth.containerProps}>
         <table className={tableCls}>
-          <thead className={vMonth.active ? 'sticky top-0 z-10 bg-white' : undefined}><tr><th className={thCls}>Employee</th>{cols.map(c => <th key={c} className={`${thCls} text-center`}>{c}</th>)}<th className={`${thCls} text-right`}>Overtime (h)</th><th className={`${thCls} text-center`}>Days recorded</th></tr></thead>
+          <thead className={vMonth.active ? 'sticky top-0 z-10 bg-white' : undefined}><tr><th scope="col" className={thCls}>Employee</th>{cols.map(c => <th scope="col" key={c} className={`${thCls} text-center`}>{c}</th>)}<th scope="col" className={`${thCls} text-right`}>Overtime (h)</th><th scope="col" className={`${thCls} text-center`}>Days recorded</th></tr></thead>
           <tbody>
             {staff.length === 0 && <tr><td className={tdCls} colSpan={cols.length + 3}>No employees in this office.</td></tr>}
             {vMonth.padTop > 0 && <tr aria-hidden="true" style={{ height: vMonth.padTop }}><td colSpan={cols.length + 3} /></tr>}

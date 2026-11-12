@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight } from 'lucide-react';
 import { clsx } from 'clsx';
+import { pressable } from '../../lib/a11y';
 
 export interface StatCardProps {
   title: string;
@@ -33,7 +34,7 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <div
-      onClick={onClick}
+      {...(onClick ? pressable(onClick) : {})}
       className={clsx(
         'min-w-0 rounded-[20px] p-5 sm:p-6 flex flex-col justify-between transition-all relative overflow-hidden',
         isDarkHero

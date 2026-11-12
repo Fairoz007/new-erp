@@ -65,7 +65,7 @@ export const DocumentViewerModal: React.FC = () => {
     }
   };
 
-  const toolBtn = 'p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer';
+  const toolBtn = 'p-1.5 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer';
 
   return (
     <Modal isOpen={!!viewingBill} onClose={closeBillModal} title="Document Viewer" description={title} size="xl">
@@ -81,10 +81,10 @@ export const DocumentViewerModal: React.FC = () => {
           <div className="flex items-center gap-1.5">
             {!isPdf && src && (
               <>
-                <button onClick={() => setZoom(z => Math.max(z - 25, 50))} className={toolBtn} title="Zoom Out"><ZoomOut className="w-4 h-4" /></button>
+                <button onClick={() => setZoom(z => Math.max(z - 25, 50))} className={toolBtn} title="Zoom Out" aria-label="Zoom out"><ZoomOut className="w-4 h-4" /></button>
                 <span className="font-mono text-slate-400 px-1 text-[11px]">{zoom}%</span>
-                <button onClick={() => setZoom(z => Math.min(z + 25, 200))} className={toolBtn} title="Zoom In"><ZoomIn className="w-4 h-4" /></button>
-                <button onClick={() => setRotation(r => (r + 90) % 360)} className={toolBtn} title="Rotate"><RotateCw className="w-4 h-4" /></button>
+                <button onClick={() => setZoom(z => Math.min(z + 25, 200))} className={toolBtn} title="Zoom In" aria-label="Zoom in"><ZoomIn className="w-4 h-4" /></button>
+                <button onClick={() => setRotation(r => (r + 90) % 360)} className={toolBtn} title="Rotate" aria-label="Rotate"><RotateCw className="w-4 h-4" /></button>
                 <div className="h-4 w-px bg-slate-800 mx-1" />
               </>
             )}

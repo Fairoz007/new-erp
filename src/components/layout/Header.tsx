@@ -125,13 +125,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
       className="h-[72px] px-5 sm:px-8 bg-white border-b border-slate-700/80 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0 w-full"
     >
       {/* Left Area: Toggle & Search or Branch */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-xl">
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-xl">
         <button
           onClick={onOpenMobileMenu}
-          className="w-10 h-10 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-500 hover:text-slate-900 lg:hidden cursor-pointer"
-          aria-label="Open Menu"
+          className="w-11 h-11 sm:w-10 sm:h-10 shrink-0 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-500 hover:text-slate-900 lg:hidden cursor-pointer"
+          aria-label="Open navigation menu"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <button
@@ -144,9 +144,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
         </button>
 
         {/* Global Search Pill Bar (Exact Reference Match) */}
-        <div className="flex-1 max-w-md">
+        <div className="flex-1 min-w-0 max-w-md">
           <button
             onClick={() => setIsSearchOpen(true)}
+            aria-label="Search vehicles, VIN, accounts"
+            aria-keyshortcuts="Meta+K Control+K"
             className="w-full h-11 px-4 rounded-full bg-slate-850 border border-slate-700 hover:border-forest-500/40 hover:bg-white text-xs sm:text-sm text-slate-400 flex items-center justify-between transition-all cursor-pointer group shadow-2xs"
           >
             <div className="flex items-center gap-2.5 min-w-0">
@@ -154,14 +156,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
               <span className="truncate text-slate-400">Search vehicles, VIN, accounts...</span>
             </div>
             <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-bold bg-white rounded-md border border-slate-700 text-slate-400 font-mono shadow-2xs">
-              ⌘F
+              ⌘K
             </kbd>
           </button>
         </div>
       </div>
 
       {/* Right Area: Actions, Branch Switcher, Currency, Notifications, Profile */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {/* Office / Branch Switcher */}
         <div className="relative hidden md:block">
           <button
@@ -198,11 +200,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
               >
                 <div>
                   <p className="font-semibold flex items-center gap-1.5">
-                    <span>🏢</span> All Offices (Consolidated)
+                    <span aria-hidden="true">🏢</span> All Offices (Consolidated)
                   </p>
                   <p className="text-[10px] text-slate-400">All offices you have access to</p>
                 </div>
-                {selectedCompanyId === 'all' && <span className="text-[#086343] font-bold">✓</span>}
+                {selectedCompanyId === 'all' && <span className="text-[#086343] font-bold"><span aria-hidden="true">✓</span><span className="sr-only">Selected</span></span>}
               </button>
 
               <div className="my-1 border-t border-slate-700" />
@@ -223,14 +225,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                 >
                   <div className="min-w-0 pr-2">
                     <p className="font-semibold truncate flex items-center gap-1.5">
-                      <span>📍</span>
+                      <span aria-hidden="true">📍</span>
                       <span>{comp.name}</span>
                     </p>
                     <p className="text-[10px] text-slate-400 truncate">
                       {[comp.code, comp.city].filter(Boolean).join(' • ')}
                     </p>
                   </div>
-                  {selectedCompanyId === comp.id && <span className="text-[#086343] font-bold shrink-0">✓</span>}
+                  {selectedCompanyId === comp.id && <span className="text-[#086343] font-bold shrink-0"><span aria-hidden="true">✓</span><span className="sr-only">Selected</span></span>}
                 </button>
               ))}
             </div>
@@ -251,8 +253,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           <Button
             variant="primary"
             size="sm"
-            className="h-10 px-4"
+            className="h-11 sm:h-10 px-4"
             aria-label="Open quick actions"
+            aria-expanded={isQuickAddOpen}
             onClick={() => {
               setIsQuickAddOpen(prev => !prev);
               setIsCompanyDropdownOpen(false);
@@ -264,7 +267,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           </Button>
 
           {isQuickAddOpen && (
-            <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs space-y-0.5">
+            <div className="absolute right-0 mt-2 w-60 max-w-[calc(100vw-2rem)] bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs space-y-0.5">
               {QUICK_ADD_GROUPS.map((group, gi) => {
                 const items = group.items.filter(item => canQuickAdd(item.page, item.module));
                 if (items.length === 0) return null;
@@ -278,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                         <button
                           key={item.type}
                           onClick={() => handleQuickAddSelect(item.type)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
+                          className="w-full min-h-[44px] sm:min-h-0 flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer text-left"
                         >
                           <Icon className={`w-4 h-4 shrink-0 ${item.iconClass}`} />
                           <span>{item.label}</span>
@@ -298,23 +301,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
         {/* Circular Mail Icon Button (From Reference) */}
         <button
           onClick={() => setCurrentPage('notifications')}
-          className="w-10 h-10 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-2xs"
+          className="w-11 h-11 sm:w-10 sm:h-10 shrink-0 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-2xs"
           aria-label="Messages"
           title="Messages & Inbox"
         >
-          <Mail className="w-4 h-4" />
+          <Mail className="w-4 h-4" aria-hidden="true" />
         </button>
 
         {/* Circular Notification Bell Icon Button (From Reference) */}
         <button
           onClick={() => setIsNotificationDrawerOpen(true)}
-          className="relative w-10 h-10 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-2xs"
-          aria-label="Notifications"
+          className="relative w-11 h-11 sm:w-10 sm:h-10 shrink-0 rounded-full border border-slate-700 bg-white hover:bg-slate-850 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shadow-2xs"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
           title="System Notifications"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="w-4 h-4" aria-hidden="true" />
           {unreadCount > 0 && (
-            <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+            <span aria-hidden="true" className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
           )}
         </button>
 
@@ -326,7 +329,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
               setIsCompanyDropdownOpen(false);
               setIsQuickAddOpen(false);
             }}
-            className="flex h-11 items-center gap-3 pl-1 pr-2 rounded-full bg-white hover:bg-slate-850 border border-slate-700 transition-all cursor-pointer shadow-2xs"
+            className="flex h-11 shrink-0 items-center gap-3 pl-1 pr-2 rounded-full bg-white hover:bg-slate-850 border border-slate-700 transition-all cursor-pointer shadow-2xs"
             title="Account"
             aria-label="Open account menu"
             aria-expanded={isUserDropdownOpen}
@@ -340,7 +343,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           </button>
 
           {isUserDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
+            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
               <div className="px-3 py-2 border-b border-slate-700 mb-1 flex items-center gap-2.5">
                 <UserAvatar name={currentUser.name} src={currentUser.avatar} />
                 <div className="min-w-0">
@@ -356,7 +359,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
               <button
                 onClick={() => void handleSignOut()}
                 disabled={isSigningOut}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full min-h-[44px] sm:min-h-0 flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-850 hover:text-slate-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <LogOut className="w-4 h-4 text-rose-500 shrink-0" />
                 <span>{isSigningOut ? 'Signing out…' : 'Sign out'}</span>

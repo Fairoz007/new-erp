@@ -688,13 +688,13 @@ export const VehicleDetailPage: React.FC = () => {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-700/60 uppercase tracking-wider text-[11px]">
                   <tr>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3 text-right">Odometer</th>
-                    <th className="px-4 py-3">Oil Product</th>
-                    <th className="px-4 py-3 text-right">Quantity</th>
-                    <th className="px-4 py-3 text-right">Cost</th>
-                    <th className="px-4 py-3 text-right">Next Due KM</th>
-                    <th className="px-4 py-3 text-center">Status</th>
+                    <th scope="col" className="px-4 py-3">Date</th>
+                    <th scope="col" className="px-4 py-3 text-right">Odometer</th>
+                    <th scope="col" className="px-4 py-3">Oil Product</th>
+                    <th scope="col" className="px-4 py-3 text-right">Quantity</th>
+                    <th scope="col" className="px-4 py-3 text-right">Cost</th>
+                    <th scope="col" className="px-4 py-3 text-right">Next Due KM</th>
+                    <th scope="col" className="px-4 py-3 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/40">
@@ -785,12 +785,12 @@ export const VehicleDetailPage: React.FC = () => {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-700/60 uppercase tracking-wider text-[11px]">
                   <tr>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Event Type</th>
-                    <th className="px-4 py-3 text-right">Odometer</th>
-                    <th className="px-4 py-3">Positions</th>
-                    <th className="px-4 py-3 text-right">Cost</th>
-                    <th className="px-4 py-3">Technician / Supplier</th>
+                    <th scope="col" className="px-4 py-3">Date</th>
+                    <th scope="col" className="px-4 py-3">Event Type</th>
+                    <th scope="col" className="px-4 py-3 text-right">Odometer</th>
+                    <th scope="col" className="px-4 py-3">Positions</th>
+                    <th scope="col" className="px-4 py-3 text-right">Cost</th>
+                    <th scope="col" className="px-4 py-3">Technician / Supplier</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/40">
@@ -964,7 +964,7 @@ export const VehicleDetailPage: React.FC = () => {
               <CardHeader>
                 <CardTitle>Three-Way Valuation Overview</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-3 gap-4 text-center text-xs">
+              <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center text-xs">
                 <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
                   <span className="text-slate-400 block">Purchase Value</span>
                   <span className="text-base font-bold text-slate-100 mt-1 block">{formatCurrency(vehicle.purchase.purchaseValue, currency)}</span>
@@ -991,11 +991,11 @@ export const VehicleDetailPage: React.FC = () => {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-700/60 uppercase tracking-wider text-[11px]">
                   <tr>
-                    <th className="px-4 py-3">Fiscal Year</th>
-                    <th className="px-4 py-3 text-right">Opening Value</th>
-                    <th className="px-4 py-3 text-right">Depreciation Amount</th>
-                    <th className="px-4 py-3 text-right">Accumulated Depreciation</th>
-                    <th className="px-4 py-3 text-right">Closing Book Value</th>
+                    <th scope="col" className="px-4 py-3">Fiscal Year</th>
+                    <th scope="col" className="px-4 py-3 text-right">Opening Value</th>
+                    <th scope="col" className="px-4 py-3 text-right">Depreciation Amount</th>
+                    <th scope="col" className="px-4 py-3 text-right">Accumulated Depreciation</th>
+                    <th scope="col" className="px-4 py-3 text-right">Closing Book Value</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/40">

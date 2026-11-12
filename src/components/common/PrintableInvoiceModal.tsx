@@ -242,7 +242,7 @@ export const PrintableInvoiceModal: React.FC = () => {
               {(company?.code || invoice.companyName || '?').slice(0, 3)}
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">{company?.name || invoice.companyName}</h1>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">{company?.name || invoice.companyName}</h2>
               {company && (
                 <>
                   <p className="text-slate-600 mt-0.5">{[company.address, company.city, company.country].filter(Boolean).join(', ')}</p>
@@ -318,17 +318,17 @@ export const PrintableInvoiceModal: React.FC = () => {
         </div>
 
         {/* Line Items Table */}
-        <div className="mt-6">
+        <div className="mt-6 overflow-x-auto print:overflow-visible">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b-2 border-slate-800 text-[11px] text-slate-800 font-bold uppercase tracking-wider">
-                <th className="py-2.5 px-2">#</th>
-                <th className="py-2.5 px-2">Item & Description</th>
-                <th className="py-2.5 px-2 text-center">Qty</th>
-                <th className="py-2.5 px-2 text-right">Unit Price</th>
-                <th className="py-2.5 px-2 text-right">Discount</th>
-                <th className="py-2.5 px-2 text-right">VAT</th>
-                <th className="py-2.5 px-2 text-right">Total ({invoice.currency})</th>
+                <th scope="col" className="py-2.5 px-2">#</th>
+                <th scope="col" className="py-2.5 px-2">Item & Description</th>
+                <th scope="col" className="py-2.5 px-2 text-center">Qty</th>
+                <th scope="col" className="py-2.5 px-2 text-right">Unit Price</th>
+                <th scope="col" className="py-2.5 px-2 text-right">Discount</th>
+                <th scope="col" className="py-2.5 px-2 text-right">VAT</th>
+                <th scope="col" className="py-2.5 px-2 text-right">Total ({invoice.currency})</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">

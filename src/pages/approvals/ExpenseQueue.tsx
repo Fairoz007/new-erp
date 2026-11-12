@@ -30,7 +30,7 @@ export const ExpenseQueue: React.FC = () => {
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
       <table className={tableCls}>
-        <thead><tr><th className={thCls}>Expense</th><th className={thCls}>Office</th><th className={thCls}>Date</th><th className={`${thCls} text-right`}>Amount</th><th className={thCls} /></tr></thead>
+        <thead><tr><th scope="col" className={thCls}>Expense</th><th scope="col" className={thCls}>Office</th><th scope="col" className={thCls}>Date</th><th scope="col" className={`${thCls} text-right`}>Amount</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>
           {pending.loading && <tr><td className={tdCls} colSpan={5}>Loading…</td></tr>}
           {pending.error && <tr><td className={tdCls} colSpan={5}><span role="alert" className="text-rose-500">Expenses could not be loaded: {pending.error.message}</span> <Button size="xs" variant="ghost" onClick={() => void pending.refetch()}>Retry</Button></td></tr>}

@@ -273,6 +273,7 @@ export const AssetModulePage: React.FC = () => {
           emptyMessage="No fixed assets registered for this selection."
           filterComponent={
             <FilterSelect
+              aria-label="Asset category"
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
             >
@@ -295,14 +296,14 @@ export const AssetModulePage: React.FC = () => {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-850 border-b border-slate-700 text-slate-400 text-[11px] uppercase tracking-wider">
-                    <th className="py-3 px-4 font-semibold">Batch #</th>
-                    <th className="py-3 px-4 font-semibold">Period</th>
-                    <th className="py-3 px-4 font-semibold">Execution Date</th>
-                    <th className="py-3 px-4 font-semibold text-center">Assets Processed</th>
-                    <th className="py-3 px-4 font-semibold text-right">Total Depreciation</th>
-                    <th className="py-3 px-4 font-semibold">Linked GL Journal</th>
-                    <th className="py-3 px-4 font-semibold">Processed By</th>
-                    <th className="py-3 px-4 font-semibold text-right">Action</th>
+                    <th scope="col" className="py-3 px-4 font-semibold">Batch #</th>
+                    <th scope="col" className="py-3 px-4 font-semibold">Period</th>
+                    <th scope="col" className="py-3 px-4 font-semibold">Execution Date</th>
+                    <th scope="col" className="py-3 px-4 font-semibold text-center">Assets Processed</th>
+                    <th scope="col" className="py-3 px-4 font-semibold text-right">Total Depreciation</th>
+                    <th scope="col" className="py-3 px-4 font-semibold">Linked GL Journal</th>
+                    <th scope="col" className="py-3 px-4 font-semibold">Processed By</th>
+                    <th scope="col" className="py-3 px-4 font-semibold text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/60 bg-white">
@@ -355,12 +356,12 @@ export const AssetModulePage: React.FC = () => {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950 text-slate-400 text-[11px] uppercase border-b border-slate-800">
-                    <th className="py-2 px-3">Asset Code</th>
-                    <th className="py-2 px-3">Asset Name</th>
-                    <th className="py-2 px-3">Category</th>
-                    <th className="py-2 px-3 text-right">Previous BV</th>
-                    <th className="py-2 px-3 text-right text-rose-400">Depreciation</th>
-                    <th className="py-2 px-3 text-right text-emerald-400">New Net BV</th>
+                    <th scope="col" className="py-2 px-3">Asset Code</th>
+                    <th scope="col" className="py-2 px-3">Asset Name</th>
+                    <th scope="col" className="py-2 px-3">Category</th>
+                    <th scope="col" className="py-2 px-3 text-right">Previous BV</th>
+                    <th scope="col" className="py-2 px-3 text-right text-rose-400">Depreciation</th>
+                    <th scope="col" className="py-2 px-3 text-right text-emerald-400">New Net BV</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">

@@ -286,7 +286,7 @@ const Balances: React.FC<{ year: number; types: LeaveType[] }> = ({ year, types 
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/40">
       <div className="flex flex-wrap items-end gap-3 p-3 border-b border-slate-700">
-        <div className="w-72"><Select label="Employee" value={empId} onChange={e => setEmpId(e.target.value)}>
+        <div className="w-full sm:w-72"><Select label="Employee" value={empId} onChange={e => setEmpId(e.target.value)}>
           {staff.length === 0 && <option value="">No employees</option>}
           {staff.map(e => <option key={e.id} value={e.id}>{e.name} ({e.employeeCode})</option>)}
         </Select></div>
@@ -295,7 +295,7 @@ const Balances: React.FC<{ year: number; types: LeaveType[] }> = ({ year, types 
       {err && <p role="alert" className="text-xs text-rose-500 p-3">{err}</p>}
       <div className="overflow-x-auto">
         <table className={tableCls}>
-          <thead><tr><th className={thCls}>Leave type</th><th className={`${thCls} text-right`}>Entitled</th><th className={`${thCls} text-right`}>Adjustments</th><th className={`${thCls} text-right`}>Taken</th><th className={`${thCls} text-right`}>Pending</th><th className={`${thCls} text-right`}>Remaining</th><th className={thCls} /></tr></thead>
+          <thead><tr><th scope="col" className={thCls}>Leave type</th><th scope="col" className={`${thCls} text-right`}>Entitled</th><th scope="col" className={`${thCls} text-right`}>Adjustments</th><th scope="col" className={`${thCls} text-right`}>Taken</th><th scope="col" className={`${thCls} text-right`}>Pending</th><th scope="col" className={`${thCls} text-right`}>Remaining</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {loading && <tr><td className={tdCls} colSpan={7}>Loading…</td></tr>}
             {!loading && types.map(t => { const b = bal[t.id]; return (

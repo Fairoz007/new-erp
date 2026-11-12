@@ -46,7 +46,7 @@ export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
           <thead>
             <tr>
               {columns.map(c => (
-                <th key={c} className="text-left font-bold px-2 py-1.5 bg-slate-850 border border-slate-700 whitespace-nowrap">{c}</th>
+                <th scope="col" key={c} className="text-left font-bold px-2 py-1.5 bg-slate-850 border border-slate-700 whitespace-nowrap">{c}</th>
               ))}
             </tr>
           </thead>

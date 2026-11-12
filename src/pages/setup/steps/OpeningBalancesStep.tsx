@@ -181,7 +181,7 @@ const Importer: React.FC<{ kind: Kind; offices: Company[]; goLive: string; curre
       {rows.length > 0 && (
         <div className="overflow-x-auto max-h-80 overflow-y-auto border border-slate-700 rounded-xl">
           <table className={tableCls}>
-            <thead className="sticky top-0 bg-white"><tr><th className={thCls}>#</th>{t.headers.slice(0, 6).map(h => <th key={h} className={thCls}>{h}</th>)}<th className={thCls}>Result</th></tr></thead>
+            <thead className="sticky top-0 bg-white"><tr><th scope="col" className={thCls}>#</th>{t.headers.slice(0, 6).map(h => <th scope="col" key={h} className={thCls}>{h}</th>)}<th scope="col" className={thCls}>Result</th></tr></thead>
             <tbody>
               {rows.map((c, i) => (
                 <tr key={i} className={c.errors.length || c.status === 'failed' ? 'bg-rose-50/50' : c.status === 'posted' ? 'bg-emerald-50/50' : ''}>

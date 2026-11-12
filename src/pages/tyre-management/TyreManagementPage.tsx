@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { TyreEditModal } from './TyreEditModal';
 import { FilterSelect } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike } from '../../lib/a11y';
 
 type TyreRow = Tyre & { vehiclePlate: string; vehicleName: string };
 
@@ -57,7 +58,7 @@ export const TyreManagementPage: React.FC = () => {
       render: (t) => {
         const v = vehicles.find(veh => veh.id === t.vehicleId);
         return (
-          <div className="cursor-pointer" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
+          <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
             <span className="font-bold text-slate-100">{v?.brand} {v?.model}</span>
             <div className="flex items-center gap-1.5 mt-1">
               <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
@@ -197,6 +198,7 @@ export const TyreManagementPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
           <FilterSelect
+            aria-label="Condition"
             value={filter}
             onChange={e => setFilter(e.target.value)}
           >

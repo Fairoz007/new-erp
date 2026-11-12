@@ -13,6 +13,7 @@ import { formatDate } from '../../utils/date';
 import { paymentListSource, usePaymentTotals, type PaymentListFilter } from '../../services/queries-expenses';
 import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { clickOnKey } from '../../lib/a11y';
 
 export const PaymentsPage: React.FC = () => {
   const { bankAccounts, currency, selectedCompanyId } = useFleet();
@@ -62,7 +63,7 @@ export const PaymentsPage: React.FC = () => {
       sortKey: 'payment_number',
       header: 'Payment # / Ref',
       render: (p) => (
-        <div className="cursor-pointer group" onClick={() => setViewingPayment(p)}>
+        <div tabIndex={0} onKeyDown={clickOnKey} className="cursor-pointer group" onClick={() => setViewingPayment(p)}>
           <span className="font-mono font-bold text-slate-100 group-hover:text-forest-400 transition-colors">{p.paymentNumber}</span>
           {p.transactionReference && <p className="text-[10px] text-slate-400 font-mono">Ref: {p.transactionReference}</p>}
           {p.chequeNumber && <p className="text-[10px] text-slate-400 font-mono">Cheque: {p.chequeNumber}</p>}

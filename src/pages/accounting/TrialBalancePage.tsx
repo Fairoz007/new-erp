@@ -127,7 +127,7 @@ export const TrialBalancePage: React.FC = () => {
           No opening balances or posted journal entries exist up to {formatDate(asOfDate)}. The trial balance is empty.
         </div>
       ) : tbData.isBalanced ? (
-        <div className="p-4 bg-[#DCEFE5] border border-[#BDE2D0] rounded-2xl flex items-center justify-between text-[#06452F]">
+        <div className="p-4 bg-[#DCEFE5] border border-[#BDE2D0] rounded-2xl flex flex-wrap items-center justify-between gap-3 text-[#06452F]">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-[#086343] shrink-0" />
             <div>
@@ -142,7 +142,7 @@ export const TrialBalancePage: React.FC = () => {
           </span>
         </div>
       ) : (
-        <div className="p-4 bg-[#FEECEC] border border-[#FECACA] rounded-2xl flex items-center justify-between text-[#991B1B]">
+        <div className="p-4 bg-[#FEECEC] border border-[#FECACA] rounded-2xl flex flex-wrap items-center justify-between gap-3 text-[#991B1B]">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
             <div>
@@ -167,6 +167,7 @@ export const TrialBalancePage: React.FC = () => {
               <Calendar className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400 font-semibold">As of Date:</span>
               <FilterInput
+                aria-label="As of date"
                 type="date"
                 value={asOfDate}
                 onChange={e => setAsOfDate(e.target.value)}
@@ -176,6 +177,7 @@ export const TrialBalancePage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-slate-400" />
               <FilterSelect
+                aria-label="Account category"
                 value={filterCategory}
                 onChange={e => setFilterCategory(e.target.value)}
               >
@@ -219,15 +221,15 @@ export const TrialBalancePage: React.FC = () => {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-850 border-b border-slate-700 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                <th className="py-3.5 px-4">Account Code</th>
-                <th className="py-3.5 px-4">Account Description</th>
-                <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-slate-850/60">Opening Dr</th>
-                <th className="py-3.5 px-4 text-right bg-slate-850/60">Opening Cr</th>
-                <th className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-slate-850/80">Period Dr</th>
-                <th className="py-3.5 px-4 text-right bg-slate-850/80">Period Cr</th>
-                <th className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-[#DCEFE5]/30 text-[#086343] font-bold">Closing Dr</th>
-                <th className="py-3.5 px-4 text-right bg-[#DCEFE5]/30 text-[#086343] font-bold">Closing Cr</th>
+                <th scope="col" className="py-3.5 px-4">Account Code</th>
+                <th scope="col" className="py-3.5 px-4">Account Description</th>
+                <th scope="col" className="py-3.5 px-4">Category</th>
+                <th scope="col" className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-slate-850/60">Opening Dr</th>
+                <th scope="col" className="py-3.5 px-4 text-right bg-slate-850/60">Opening Cr</th>
+                <th scope="col" className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-slate-850/80">Period Dr</th>
+                <th scope="col" className="py-3.5 px-4 text-right bg-slate-850/80">Period Cr</th>
+                <th scope="col" className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-[#DCEFE5]/30 text-[#086343] font-bold">Closing Dr</th>
+                <th scope="col" className="py-3.5 px-4 text-right bg-[#DCEFE5]/30 text-[#086343] font-bold">Closing Cr</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/80 bg-white">

@@ -14,6 +14,7 @@ import { formatDate } from '../../utils/date';
 import { useAuth } from '../../context/AuthContext';
 import { FilterSelect } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike } from '../../lib/a11y';
 
 
 type OilRow = OilChange & { vehiclePlate: string; vehicleName: string; _companyId?: string };
@@ -51,7 +52,7 @@ export const OilManagementPage: React.FC = () => {
       render: (o) => {
         const v = vehicles.find(veh => veh.id === o.vehicleId);
         return (
-          <div className="cursor-pointer group" onClick={() => openVehicleDetail(o.vehicleId, 'oil')}>
+          <div {...buttonLike} className="cursor-pointer group" onClick={() => openVehicleDetail(o.vehicleId, 'oil')}>
             <span className="font-bold text-slate-100 text-sm group-hover:text-[#086343] transition-colors">
               {v?.brand} {v?.model}
             </span>
@@ -174,6 +175,7 @@ export const OilManagementPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
           <FilterSelect
+            aria-label="Warning level"
             value={filter}
             onChange={e => setFilter(e.target.value)}
           >

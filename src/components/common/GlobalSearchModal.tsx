@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Search, Car, FileText, Wrench, Building2, ShieldAlert, Folder, ArrowRight, X, AlertTriangle } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
@@ -6,6 +6,8 @@ import { useUI } from '../../context/UIContext';
 import { StatusBadge } from './StatusBadge';
 import { VehiclePhoto, useVehiclePhotoUrls } from '../../pages/vehicles/VehiclePhoto';
 import { useDebounced, useInvoiceSearch } from '../../services/queries-expenses';
+import { buttonLike } from '../../lib/a11y';
+import { useDialog } from '../ui/useDialog';
 
 // Invoices are searched in the database (v_invoice_list.search_text, every word must match); at most this many are listed.
 const INVOICE_LIMIT = 8;
@@ -16,6 +18,9 @@ export const GlobalSearchModal: React.FC = () => {
   const { vehicles, workOrders, maintenanceRecords, suppliers, customers, documents, accidents } = useFleet();
   const { canAccessPage } = useAuth();
   const [query, setQuery] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+  // dialog behaviour shared with Modal: focus trap, Escape, focus returns to the search button, no page scroll
+  const { titleId } = useDialog(isSearchOpen, () => setIsSearchOpen(false), panelRef, { guardUnsaved: false });
   const debouncedQuery = useDebounced(query, 250);
   const invoiceSearchOn = isSearchOpen && canAccessPage('invoices') && !!debouncedQuery.trim() && debouncedQuery.length >= 2;
   const invoiceSearch = useInvoiceSearch(debouncedQuery.trim(), INVOICE_LIMIT, { enabled: invoiceSearchOn });
@@ -110,14 +115,17 @@ export const GlobalSearchModal: React.FC = () => {
       <div
         className="fixed inset-0 bg-slate-100/35 backdrop-blur-sm transition-opacity duration-150"
         onClick={() => setIsSearchOpen(false)}
+        aria-hidden="true"
       />
 
-      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh]">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="relative w-full max-w-3xl bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh]">
         {/* Search Input Bar */}
         <div className="flex items-center px-4 py-3.5 border-b border-slate-800 bg-slate-850 gap-3">
-          <Search className="w-5 h-5 text-indigo-400 shrink-0" />
+          <Search className="w-5 h-5 text-indigo-400 shrink-0" aria-hidden="true" />
+          <h2 id={titleId} className="sr-only">Search</h2>
           <input
             type="text"
+            aria-label="Search records"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search fleet by Plate Number, VIN, Invoice #, Work Order, Supplier, Driver, Document..."
@@ -125,11 +133,11 @@ export const GlobalSearchModal: React.FC = () => {
             autoFocus
           />
           {query && (
-            <button onClick={() => setQuery('')} className="text-slate-400 hover:text-white p-1">
+            <button onClick={() => setQuery('')} aria-label="Clear search" className="text-slate-400 hover:text-slate-100 p-1 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center">
               <X className="w-4 h-4" />
             </button>
           )}
-          <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 font-mono">
+          <span aria-hidden="true" className="hidden sm:inline text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 font-mono">
             ESC
           </span>
         </div>
@@ -140,7 +148,7 @@ export const GlobalSearchModal: React.FC = () => {
             <div className="py-12 text-center text-slate-400 text-xs">
               <p className="font-medium text-slate-300">Quick Global ERP Search</p>
               <p className="text-slate-400 mt-1">Type at least 2 characters to search across vehicles, invoices, work orders, suppliers and records.</p>
-              <div className="flex justify-center gap-2 mt-4">
+              <div className="flex flex-wrap justify-center gap-2 mt-4">
                 <span className="px-2 py-1 bg-slate-800/80 rounded border border-slate-700 text-slate-400 text-[11px]">1234 ABC</span>
                 <span className="px-2 py-1 bg-slate-800/80 rounded border border-slate-700 text-slate-400 text-[11px]">PINV-2026</span>
                 <span className="px-2 py-1 bg-slate-800/80 rounded border border-slate-700 text-slate-400 text-[11px]">WO-2026-104</span>
@@ -174,7 +182,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.vehicles.map(v => (
-                  <div
+                  <div {...buttonLike}
                     key={v.id}
                     onClick={() => {
                       openVehicleDetail(v.id);
@@ -211,7 +219,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.invoices.map(inv => (
-                  <div
+                  <div {...buttonLike}
                     key={inv.id}
                     onClick={() => {
                       openInvoiceModal(inv.id);
@@ -243,7 +251,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.workOrders.map(wo => (
-                  <div
+                  <div {...buttonLike}
                     key={wo.id}
                     onClick={() => {
                       setCurrentPage('work-orders');
@@ -273,7 +281,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.maintenance.map(m => (
-                  <div
+                  <div {...buttonLike}
                     key={m.id}
                     onClick={() => {
                       if (m.vehicleId) {
@@ -309,7 +317,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.accidents.map(a => (
-                  <div
+                  <div {...buttonLike}
                     key={a.id}
                     onClick={() => {
                       if (a.vehicleId) {
@@ -345,7 +353,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.documents.map(d => (
-                  <div
+                  <div {...buttonLike}
                     key={d.id}
                     onClick={() => {
                       if (d.documentUrl) {
@@ -383,7 +391,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.suppliers.map(sup => (
-                  <div
+                  <div {...buttonLike}
                     key={sup.id}
                     onClick={() => {
                       openPartyDetail('supplier', sup.id);
@@ -412,7 +420,7 @@ export const GlobalSearchModal: React.FC = () => {
               </p>
               <div className="space-y-1.5">
                 {results.customers.map(cus => (
-                  <div
+                  <div {...buttonLike}
                     key={cus.id}
                     onClick={() => {
                       openPartyDetail('customer', cus.id);

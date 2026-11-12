@@ -68,7 +68,7 @@ export const BudgetsPage: React.FC = () => {
       {tab === 'budgets' ? (
         <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
           <table className={tableCls}>
-            <thead><tr><th className={thCls}>Budget</th><th className={`${thCls} text-right`}>Expenses</th><th className={`${thCls} text-right`}>Income</th><th className={thCls}>Status</th><th className={thCls} /></tr></thead>
+            <thead><tr><th scope="col" className={thCls}>Budget</th><th scope="col" className={`${thCls} text-right`}>Expenses</th><th scope="col" className={`${thCls} text-right`}>Income</th><th scope="col" className={thCls}>Status</th><th scope="col" className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {mine.length === 0 && <tr><td className={tdCls} colSpan={5}>No budgets for {year} in this office.</td></tr>}
               {mine.map(b => <BudgetRow key={b.id} b={b} officeId={officeId} onOpen={() => setOpenId(b.id)} />)}
@@ -156,7 +156,7 @@ const BudgetModal: React.FC<{ budget: Budget; onClose: () => void; onChanged: ()
         {err && <p role="alert" className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err}</p>}
         <div className="flex flex-wrap gap-2 items-end">
           {editable && <>
-            <div className="w-72"><Select label="Add account" value={adding} onChange={e => setAdding(e.target.value)}>
+            <div className="w-full sm:w-72"><Select label="Add account" value={adding} onChange={e => setAdding(e.target.value)}>
               <option value="">Choose…</option>
               {accounts.filter(a => !grid[a.code]).map(a => <option key={a.code} value={a.code}>{a.code} {a.name} ({a.category === 'Revenue' ? 'income' : 'expense'})</option>)}
             </Select></div>
@@ -179,7 +179,7 @@ const BudgetModal: React.FC<{ budget: Budget; onClose: () => void; onChanged: ()
         </div>
         <div className="overflow-x-auto rounded-xl border border-slate-700">
           <table className={tableCls}>
-            <thead><tr><th className={thCls}>Account</th>{MONTHS.map(m => <th key={m} className={`${thCls} text-right`}>{m}</th>)}<th className={`${thCls} text-right`}>Year</th>{editable && <th className={thCls} />}</tr></thead>
+            <thead><tr><th scope="col" className={thCls}>Account</th>{MONTHS.map(m => <th scope="col" key={m} className={`${thCls} text-right`}>{m}</th>)}<th scope="col" className={`${thCls} text-right`}>Year</th>{editable && <th scope="col" className={thCls}><span className="sr-only">Actions</span></th>}</tr></thead>
             <tbody>
               {codes.length === 0 && <tr><td className={tdCls} colSpan={15}>No accounts yet. Add an income or expense account above.</td></tr>}
               {codes.map(c => { const a = accounts.find(x => x.code === c); return (
@@ -231,7 +231,7 @@ const BudgetVsActual: React.FC<{ officeId: string; year: number }> = ({ officeId
       {err && <p role="alert" className="text-xs text-rose-500">{err}</p>}
       <div className="rounded-2xl border border-slate-700 bg-slate-900/40 overflow-x-auto">
         <table className={tableCls}>
-          <thead><tr><th className={thCls}>Account</th><th className={`${thCls} text-right`}>Budget</th><th className={`${thCls} text-right`}>Actual</th><th className={`${thCls} text-right`}>Variance</th><th className={`${thCls} text-right`}>Used</th></tr></thead>
+          <thead><tr><th scope="col" className={thCls}>Account</th><th scope="col" className={`${thCls} text-right`}>Budget</th><th scope="col" className={`${thCls} text-right`}>Actual</th><th scope="col" className={`${thCls} text-right`}>Variance</th><th scope="col" className={`${thCls} text-right`}>Used</th></tr></thead>
           <tbody>
             {accounts.length === 0 && <tr><td className={tdCls} colSpan={5}>No approved budget and no postings for {year}.</td></tr>}
             {accounts.map(a => {

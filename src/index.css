@@ -32,9 +32,38 @@
     box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(8, 99, 67, 0.25);
   }
 
+  /* Links, clickable rows and cards made focusable with tabindex: a visible focus outline (WCAG 2.4.7) */
+  a:focus-visible,
+  [tabindex]:not([tabindex='-1']):not(button):not(input):not(select):not(textarea):focus-visible {
+    outline: 2px solid #086343;
+    outline-offset: -2px;
+  }
+  tr[tabindex]:focus-visible {
+    background-color: #F1F3F2;
+  }
+
   button,
   [role='button'] {
     min-height: 38px;
+  }
+
+  /* Phones: every button is at least 44 x 44 px to touch (WCAG 2.5.5). Utilities (sm:min-h-0 etc.) still win. */
+  @media (max-width: 639px) {
+    button,
+    [role='button'] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* checkboxes / radios: a bigger box, and the whole label row is the touch target */
+    input[type='checkbox'],
+    input[type='radio'] {
+      min-width: 24px;
+      min-height: 24px;
+    }
+    label:has(input[type='checkbox']),
+    label:has(input[type='radio']) {
+      min-height: 44px;
+    }
   }
 
   /* Custom sleek scrollbar */

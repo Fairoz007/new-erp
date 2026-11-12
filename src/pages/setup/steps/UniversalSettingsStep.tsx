@@ -139,8 +139,8 @@ const DocumentFormats: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
         <div className="overflow-x-auto">
           <table className={tableCls}>
             <thead><tr>
-              <th className={thCls}>Document</th><th className={thCls}>Prefix</th><th className={thCls}>Office code</th>
-              <th className={thCls}>Year</th><th className={thCls}>Digits</th><th className={thCls}>Example</th>{!readOnly && <th className={thCls} />}
+              <th scope="col" className={thCls}>Document</th><th scope="col" className={thCls}>Prefix</th><th scope="col" className={thCls}>Office code</th>
+              <th scope="col" className={thCls}>Year</th><th scope="col" className={thCls}>Digits</th><th scope="col" className={thCls}>Example</th>{!readOnly && <th scope="col" className={thCls}><span className="sr-only">Actions</span></th>}
             </tr></thead>
             <tbody>
               {rows.map(f => {

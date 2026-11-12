@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight } from 'lucide-react';
+import { pressable } from '../../lib/a11y';
 
 export interface KPIMetricItem {
   id?: string;
@@ -57,7 +58,7 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
         {metrics.map((metric, index) => (
           <div
             key={metric.id || index}
-            onClick={metric.onClick}
+            {...(metric.onClick ? pressable(metric.onClick) : {})}
             className={clsx(
               'p-5 sm:p-6 flex flex-col justify-between transition-colors',
               metric.onClick && 'cursor-pointer hover:bg-slate-850/70 group'

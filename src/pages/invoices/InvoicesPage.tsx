@@ -15,6 +15,7 @@ import { useQuery } from '../../lib/queryCache';
 import { FilterSelect } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Tabs } from '../../components/ui/Tabs';
+import { buttonLike } from '../../lib/a11y';
 
 export const InvoicesPage: React.FC = () => {
   const { selectedCompanyId, currency, submitInvoice } = useFleet();
@@ -121,7 +122,7 @@ export const InvoicesPage: React.FC = () => {
       sortKey: 'invoice_number',
       header: 'Invoice # / Ref',
       render: (inv) => (
-        <div className="cursor-pointer" onClick={() => openInvoiceModal(inv.id)}>
+        <div {...buttonLike} className="cursor-pointer" onClick={() => openInvoiceModal(inv.id)}>
           <span className="font-mono font-bold text-slate-100 hover:text-[#086343] transition-colors">{inv.invoiceNumber}</span>
           <div className="flex items-center gap-1.5 mt-1">
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${inv.invoiceType === 'Sales' ? 'bg-[#DCEFE5] text-[#06452F]' : 'bg-[#DBEAFE] text-[#1E40AF]'}`}>
@@ -331,9 +332,9 @@ export const InvoicesPage: React.FC = () => {
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-slate-400 text-left">
-                  <th className="py-1.5 font-semibold">Ledger</th>
-                  {BUCKETS.map(b => <th key={b} className="py-1.5 font-semibold text-right">{b}</th>)}
-                  <th className="py-1.5 font-semibold text-right">Total</th>
+                  <th scope="col" className="py-1.5 font-semibold">Ledger</th>
+                  {BUCKETS.map(b => <th scope="col" key={b} className="py-1.5 font-semibold text-right">{b}</th>)}
+                  <th scope="col" className="py-1.5 font-semibold text-right">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -378,6 +379,7 @@ export const InvoicesPage: React.FC = () => {
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <FilterSelect
+              aria-label="Invoice type"
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
             >
@@ -386,6 +388,7 @@ export const InvoicesPage: React.FC = () => {
               <option value="Sales">Sales Invoices (Customers)</option>
             </FilterSelect>
             <FilterSelect
+              aria-label="Payment status"
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
             >
@@ -397,6 +400,7 @@ export const InvoicesPage: React.FC = () => {
               <option value="Cancelled">Cancelled</option>
             </FilterSelect>
             <FilterSelect
+              aria-label="Approval state"
               value={approvalFilter}
               onChange={e => setApprovalFilter(e.target.value)}
             >
@@ -408,6 +412,7 @@ export const InvoicesPage: React.FC = () => {
               <option value="Cancelled">Cancelled</option>
             </FilterSelect>
             <FilterSelect
+              aria-label="Attachment"
               value={attachmentFilter}
               onChange={e => setAttachmentFilter(e.target.value)}
             >

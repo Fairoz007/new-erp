@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { formatCurrency } from '../../utils/financial';
 import { AlertCircle, ArrowRight } from 'lucide-react';
+import { pressable } from '../../lib/a11y';
 
 interface FleetAvailabilityProps {
   totalVehicles: number;
@@ -94,7 +95,7 @@ export const FleetAvailabilityGaugeCard: React.FC<FleetAvailabilityProps> = ({
         </div>
 
         {/* Legend beneath the semi-circle */}
-        <div className="mt-5 flex items-center justify-center gap-4 text-xs font-semibold">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-semibold">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#086343] shrink-0" />
             <span className="text-slate-100">Active ({activeVehicles})</span>
@@ -234,7 +235,7 @@ export const AttentionRequiredCard: React.FC<AttentionRequiredProps> = ({ items,
             {items.slice(0, 4).map(item => (
               <div
                 key={item.id}
-                onClick={item.onClickAction}
+                {...pressable(item.onClickAction)}
                 className="p-3 rounded-xl border border-slate-700 hover:border-forest-500/40 hover:bg-slate-850/60 transition-all cursor-pointer group flex flex-col gap-1.5"
               >
                 <div className="flex items-center justify-between gap-2">

@@ -181,5 +181,6 @@ Serve `index.html` for unknown paths only if the host needs it (the app does not
 | `refresh-expiry-notifications` | 03:00 | vehicle, employee and document expiries; overdue invoices |
 | `daily-finance-jobs` | 02:15 | monthly recurring expense drafts; budget alerts |
 | `purge-client-errors` | 02:30 | deletes error reports older than 90 days |
+| `purge-request-keys` | 02:45 | deletes idempotency keys older than 7 days |
 
 Without pg_cron, call the functions from any scheduler with the service role.

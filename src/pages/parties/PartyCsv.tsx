@@ -170,7 +170,7 @@ export const PartyImportModal: React.FC<{ kind: Kind; onClose: () => void }> = (
             <p className="text-slate-300">{rows.length} row(s): <b className="text-emerald-600">{good.length} ready</b>, <b className="text-rose-500">{rows.length - good.length} with problems</b>.</p>
             <div className="max-h-72 overflow-auto rounded-xl border border-slate-700">
               <table className="w-full text-left">
-                <thead className="sticky top-0 bg-white text-slate-400"><tr><th className="px-2 py-1">Line</th><th className="px-2 py-1">Name</th><th className="px-2 py-1">Office</th><th className="px-2 py-1">Check</th><th className="px-2 py-1">Result</th></tr></thead>
+                <thead className="sticky top-0 bg-white text-slate-400"><tr><th scope="col" className="px-2 py-1">Line</th><th scope="col" className="px-2 py-1">Name</th><th scope="col" className="px-2 py-1">Office</th><th scope="col" className="px-2 py-1">Check</th><th scope="col" className="px-2 py-1">Result</th></tr></thead>
                 <tbody className="divide-y divide-slate-700/60">
                   {rows.map(r => {
                     const res = results?.find(x => x.line === r.line);

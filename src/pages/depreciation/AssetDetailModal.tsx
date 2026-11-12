@@ -228,11 +228,11 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800 text-[11px]">
                   <tr>
-                    <th className="px-3 py-2">Batch #</th>
-                    <th className="px-3 py-2">Period</th>
-                    <th className="px-3 py-2">Run Date</th>
-                    <th className="px-3 py-2 text-right">Depreciation Posted</th>
-                    <th className="px-3 py-2 text-right">Remaining Book Value</th>
+                    <th scope="col" className="px-3 py-2">Batch #</th>
+                    <th scope="col" className="px-3 py-2">Period</th>
+                    <th scope="col" className="px-3 py-2">Run Date</th>
+                    <th scope="col" className="px-3 py-2 text-right">Depreciation Posted</th>
+                    <th scope="col" className="px-3 py-2 text-right">Remaining Book Value</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">

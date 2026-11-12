@@ -151,7 +151,7 @@ export const NotificationsPage: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-slate-100">{item.title}</h3>
-                    {!item.read && <span className="w-2 h-2 rounded-full bg-forest-500" />}
+                    {!item.read && <span className="w-2 h-2 rounded-full bg-forest-500" role="img" aria-label="Unread" />}
                   </div>
                   <p className="text-xs text-slate-300 mt-1 leading-relaxed">{item.message}</p>
                   <p className="text-[10px] text-slate-400 mt-2 font-mono">{formatDateTime(item.date)}</p>

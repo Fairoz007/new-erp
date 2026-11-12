@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AccidentUpdateModal } from './AccidentUpdateModal';
 import { FilterSelect } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike } from '../../lib/a11y';
 
 export const AccidentsPage: React.FC = () => {
   const { accidents, currency, selectedCompanyId, updateAccident } = useFleet();
@@ -44,7 +45,7 @@ export const AccidentsPage: React.FC = () => {
       key: 'accidentNumber',
       header: 'Accident # / Vehicle',
       render: (a) => (
-        <div className="cursor-pointer" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
+        <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
           <span className="font-mono font-bold text-slate-100">{a.accidentNumber}</span>
           <div className="flex items-center gap-1.5 mt-1">
             <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
@@ -195,6 +196,7 @@ export const AccidentsPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-1.5">
             {vt.ui}
           <FilterSelect
+            aria-label="Claim status"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
           >

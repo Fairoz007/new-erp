@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, ReactNode } from 'react';
+import React, { useState, useMemo, useEffect, useId, useRef, ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,6 +25,7 @@ import { useOptionalFleet } from '../../context/FleetContext';
 import type { CollectionKey } from '../../services/core';
 import { exportToCSV, exportToPDF, cellToText } from '../../utils/export';
 import { ReportPreviewModal } from '../common/ReportPreviewModal';
+import { clickOnKey } from '../../lib/a11y';
 import { useQuery } from '../../lib/queryCache';
 import { fetchAllPages, type ServerSource, type ListSort, type FetchAllProgress } from '../../lib/serverList';
 
@@ -132,6 +133,7 @@ export function DataTable<T extends Record<string, any>>({
     return init;
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  const pageSizeId = `rows-${useId().replace(/:/g, '')}`;
 
   // Debounce search input (longer in server mode: each change is a request)
   useEffect(() => {
@@ -326,6 +328,7 @@ export function DataTable<T extends Record<string, any>>({
               setCurrentPage(1);
             }}
             placeholder={searchPlaceholder}
+            aria-label={title ? `Search ${title}` : searchPlaceholder}
             pill={true}
             leftIcon={<Search className="w-4 h-4 text-slate-400" />}
             className="text-xs sm:text-sm h-10 bg-slate-850 border-slate-700 focus:bg-white"
@@ -342,6 +345,7 @@ export function DataTable<T extends Record<string, any>>({
               variant="outline"
               size="sm"
               onClick={() => setIsColumnDropdownOpen(prev => !prev)}
+              aria-expanded={isColumnDropdownOpen}
               leftIcon={<SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />}
             >
               Columns
@@ -352,7 +356,7 @@ export function DataTable<T extends Record<string, any>>({
                 <p className="px-2.5 py-1.5 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Toggle Columns</p>
                 <div className="max-h-48 overflow-y-auto space-y-0.5 mt-1">
                   {columns.map(col => (
-                    <label key={col.key} className="flex min-h-8 items-center gap-2 px-2.5 py-1.5 hover:bg-slate-850 rounded-lg cursor-pointer text-slate-200">
+                    <label key={col.key} className="flex min-h-[44px] sm:min-h-8 items-center gap-2 px-2.5 py-1.5 hover:bg-slate-850 rounded-lg cursor-pointer text-slate-200">
                       <input
                         type="checkbox"
                         checked={visibleColumns[col.key] !== false}
@@ -385,18 +389,18 @@ export function DataTable<T extends Record<string, any>>({
               </Button>
               {exportMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setExportMenuOpen(false)} />
-                  <div role="menu" className="absolute right-0 mt-1.5 w-52 z-20 bg-white border border-slate-700 rounded-xl shadow-lg py-1 text-xs font-semibold text-slate-200">
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
+                  <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setExportMenuOpen(false)} />
+                  <div role="menu" onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setExportMenuOpen(false); } }} className="absolute right-0 mt-1.5 w-52 z-20 bg-white border border-slate-700 rounded-xl shadow-lg py-1 text-xs font-semibold text-slate-200">
+                    <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
                       <FileText className="w-3.5 h-3.5" /> View as document
                     </button>
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
+                    <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
                       <Printer className="w-3.5 h-3.5" /> Print
                     </button>
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void handleExportPdf(); }}>
+                    <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void handleExportPdf(); }}>
                       <FileDown className="w-3.5 h-3.5" /> Download PDF
                     </button>
-                    <button role="menuitem" className="w-full text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void handleExportCsv(); }}>
+                    <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void handleExportCsv(); }}>
                       <FileSpreadsheet className="w-3.5 h-3.5" /> Download CSV (Excel)
                     </button>
                   </div>
@@ -432,19 +436,23 @@ export function DataTable<T extends Record<string, any>>({
             <tr>
               {activeColumns.map(col => (
                 <th
+                  scope="col"
                   key={col.key}
                   style={{ width: col.width }}
-                  className={`px-6 py-4 select-none ${isSortable(col) ? 'cursor-pointer hover:text-slate-100' : ''} ${alignCls(col.align)}`}
-                  onClick={() => isSortable(col) && handleSort(col.key)}
+                  aria-sort={isSortable(col) ? (sortKey === col.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none') : undefined}
+                  className={`px-6 py-4 select-none ${isSortable(col) ? 'hover:text-slate-100' : ''} ${alignCls(col.align)}`}
                 >
-                  <div
-                    className={`inline-flex items-center gap-1.5 ${
-                      col.align === 'right' ? 'justify-end w-full' : col.align === 'center' ? 'justify-center w-full' : ''
-                    }`}
-                  >
-                    <span>{col.header}</span>
-                    {isSortable(col) && (
-                      <span className="text-slate-400">
+                  {isSortable(col) ? (
+                    // a real button: sortable headers work with Tab + Enter / Space
+                    <button
+                      type="button"
+                      onClick={() => handleSort(col.key)}
+                      className={`inline-flex items-center gap-1.5 min-h-[44px] -my-3.5 sm:min-h-0 sm:my-0 uppercase tracking-wider font-bold cursor-pointer rounded ${
+                        col.align === 'right' ? 'justify-end w-full' : col.align === 'center' ? 'justify-center w-full' : ''
+                      }`}
+                    >
+                      <span>{col.header}</span>
+                      <span className="text-slate-400" aria-hidden="true">
                         {sortKey === col.key ? (
                           sortDirection === 'asc' ? (
                             <ArrowUp className="w-3.5 h-3.5 text-forest-500" />
@@ -455,8 +463,16 @@ export function DataTable<T extends Record<string, any>>({
                           <ArrowUpDown className="w-3.5 h-3.5 opacity-30 hover:opacity-100" />
                         )}
                       </span>
-                    )}
-                  </div>
+                    </button>
+                  ) : (
+                    <div
+                      className={`inline-flex items-center gap-1.5 ${
+                        col.align === 'right' ? 'justify-end w-full' : col.align === 'center' ? 'justify-center w-full' : ''
+                      }`}
+                    >
+                      {col.header ? <span>{col.header}</span> : <span className="sr-only">Actions</span>}
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
@@ -490,8 +506,10 @@ export function DataTable<T extends Record<string, any>>({
                 <tr
                   key={keyExtractor(row)}
                   onClick={() => onRowClick && onRowClick(row)}
+                  // clickable rows are reachable with Tab and open with Enter / Space
+                  {...(onRowClick ? { tabIndex: 0, onKeyDown: clickOnKey } : {})}
                   className={`transition-colors ${
-                    onRowClick ? 'hover:bg-slate-850/70 cursor-pointer' : 'hover:bg-slate-850/40'
+                    onRowClick ? 'hover:bg-slate-850/70 cursor-pointer focus-visible:bg-slate-850/70' : 'hover:bg-slate-850/40'
                   }`}
                 >
                   {activeColumns.map(col => {
@@ -535,8 +553,8 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Pagination Footer */}
       <div className="px-5 sm:px-6 py-3.5 border-t border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 bg-white">
-        <div className="flex items-center gap-2.5">
-          <span>
+        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+          <span role="status">
             Showing{' '}
             <strong className="text-slate-100 font-semibold">
               {totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1}
@@ -548,17 +566,18 @@ export function DataTable<T extends Record<string, any>>({
             of <strong className="text-slate-100 font-semibold">{totalRows.toLocaleString()}</strong> records
           </span>
 
-          <span className="text-slate-600">|</span>
+          <span className="text-slate-600" aria-hidden="true">|</span>
 
           <div className="flex items-center gap-1.5">
-            <span>Rows:</span>
+            <label htmlFor={pageSizeId}>Rows:</label>
             <select
+              id={pageSizeId}
               value={pageSize}
               onChange={e => {
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="min-h-8 bg-slate-850 border border-slate-700 rounded-lg px-2.5 py-0.5 text-xs text-slate-200 focus:ring-1 focus:ring-forest-500"
+              className="min-h-[44px] sm:min-h-8 bg-slate-850 border border-slate-700 rounded-lg px-2.5 py-0.5 text-xs text-slate-200 focus:ring-1 focus:ring-forest-500"
             >
               <option value={5}>5</option>
               <option value={10}>10</option>
@@ -575,6 +594,7 @@ export function DataTable<T extends Record<string, any>>({
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
             title="First Page"
+            aria-label="First page"
           >
             <ChevronsLeft className="w-3.5 h-3.5" />
           </Button>
@@ -584,6 +604,7 @@ export function DataTable<T extends Record<string, any>>({
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             title="Previous Page"
+            aria-label="Previous page"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </Button>
@@ -598,6 +619,7 @@ export function DataTable<T extends Record<string, any>>({
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
             title="Next Page"
+            aria-label="Next page"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>
@@ -607,6 +629,7 @@ export function DataTable<T extends Record<string, any>>({
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages || totalPages === 0}
             title="Last Page"
+            aria-label="Last page"
           >
             <ChevronsRight className="w-3.5 h-3.5" />
           </Button>

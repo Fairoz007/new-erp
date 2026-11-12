@@ -164,8 +164,9 @@ export const DocumentsPage: React.FC = () => {
             <button
               onClick={() => handleDelete(d)}
               disabled={!!pending[d.id]}
-              className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer disabled:opacity-50"
+              className="text-slate-500 hover:text-rose-400 p-1 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center cursor-pointer disabled:opacity-50"
               title="Delete document"
+              aria-label={`Delete document ${d.documentName}`}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -208,6 +209,7 @@ export const DocumentsPage: React.FC = () => {
         exportFilename="Documents_Register"
         filterComponent={
           <FilterSelect
+            aria-label="Document category"
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
           >

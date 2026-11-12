@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/financial';
 import { addDaysYmd, formatDate, localToday } from '../../utils/date';
+import { onActivateKey } from '../../lib/a11y';
 import { balanceSheetFrom, movementsFromRows } from '../../services/accounting';
 import { useInvoiceSummary, useLedgerMovementRows, useProfitLossByOffice } from '../../services/queries';
 import { useBudgetAlerts, useDashboardOpenInvoices, usePendingExpenseCount, useProfitLossTrend } from '../../services/queries-dashboards';
@@ -85,7 +86,7 @@ export const ExecutiveDashboard: React.FC = () => {
       </div>
       <Panel title="Offices at a glance" note="Year to date, from posted journals; fleet and staff as of today.">
         <table className={tableCls}>
-          <thead><tr><th className={thCls}>Office</th><th className={`${thCls} text-right`}>Revenue</th><th className={`${thCls} text-right`}>Expenses</th><th className={`${thCls} text-right`}>Net</th><th className={`${thCls} text-right`}>Cash</th><th className={`${thCls} text-right`}>Vehicles</th><th className={`${thCls} text-right`}>Staff</th></tr></thead>
+          <thead><tr><th scope="col" className={thCls}>Office</th><th scope="col" className={`${thCls} text-right`}>Revenue</th><th scope="col" className={`${thCls} text-right`}>Expenses</th><th scope="col" className={`${thCls} text-right`}>Net</th><th scope="col" className={`${thCls} text-right`}>Cash</th><th scope="col" className={`${thCls} text-right`}>Vehicles</th><th scope="col" className={`${thCls} text-right`}>Staff</th></tr></thead>
           <tbody>
             {rows.length === 0 && <tr><td className={tdCls} colSpan={7}>No offices to show.</td></tr>}
             {rows.map(r => (
@@ -144,17 +145,17 @@ export const FinanceDashboard: React.FC = () => {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel title="Bank and cash balances" note={`This month: revenue ${formatCurrency(month.revenue, currency)}, net ${formatCurrency(month.net, currency)}`}>
-          <table className={tableCls}><tbody>
+          <table className={tableCls}><thead className="sr-only"><tr><th scope="col">Account</th><th scope="col">Balance</th></tr></thead><tbody>
             {banks.length === 0 && <tr><td className={tdCls}>No bank accounts.</td></tr>}
             {banks.map(b => <tr key={b.id}><td className={tdCls}>{b.bankName} · {b.accountName}</td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(b.currentBalance, currency)}</td></tr>)}
           </tbody></table>
         </Panel>
         <Panel title="Overdue receivables" note="Oldest due date first">
-          <table className={tableCls}><tbody>
+          <table className={tableCls}><thead className="sr-only"><tr><th scope="col">Invoice</th><th scope="col">Due date</th><th scope="col">Outstanding</th></tr></thead><tbody>
             {overdue.loading && <tr><td className={tdCls}>Loading…</td></tr>}
             {!overdue.loading && (overdue.data ?? []).length === 0 && <tr><td className={tdCls}>Nothing overdue.</td></tr>}
             {(overdue.data ?? []).map(i => (
-              <tr key={i.id} className="cursor-pointer hover:bg-slate-850" onClick={() => openInvoiceModal(i.id)}>
+              <tr key={i.id} className="cursor-pointer hover:bg-slate-850" onClick={() => openInvoiceModal(i.id)} tabIndex={0} onKeyDown={onActivateKey(() => openInvoiceModal(i.id))}>
                 <td className={tdCls}><p className="font-semibold">{i.invoiceNumber}</p><p className="text-[11px] text-slate-400">{i.partyName}</p></td>
                 <td className={tdCls}>due {formatDate(i.dueDate)}</td>
                 <td className={`${tdCls} text-right font-mono`}>{formatCurrency(i.outstandingAmount, currency)}</td>
@@ -199,15 +200,15 @@ export const HrDashboard: React.FC = () => {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Panel title="Staff by department">
-          <table className={tableCls}><tbody>{byDept.length === 0 ? <tr><td className={tdCls}>No staff.</td></tr> : byDept.map(([d, n]) => <tr key={d}><td className={tdCls}>{d}</td><td className={`${tdCls} text-right`}>{n}</td></tr>)}</tbody></table>
+          <table className={tableCls}><thead className="sr-only"><tr><th scope="col">Department</th><th scope="col">Staff</th></tr></thead><tbody>{byDept.length === 0 ? <tr><td className={tdCls}>No staff.</td></tr> : byDept.map(([d, n]) => <tr key={d}><td className={tdCls}>{d}</td><td className={`${tdCls} text-right`}>{n}</td></tr>)}</tbody></table>
         </Panel>
         <Panel title="Papers to renew">
-          <table className={tableCls}><tbody>{papers.length === 0 ? <tr><td className={tdCls}>Nothing due.</td></tr> : papers.slice(0, 8).map(p => (
+          <table className={tableCls}><thead className="sr-only"><tr><th scope="col">Employee</th><th scope="col">Document</th><th scope="col">Expiry date</th></tr></thead><tbody>{papers.length === 0 ? <tr><td className={tdCls}>Nothing due.</td></tr> : papers.slice(0, 8).map(p => (
             <tr key={p.id}><td className={tdCls}>{p.name}</td><td className={tdCls}>{p.item}</td><td className={`${tdCls} ${p.due < today ? 'text-rose-500 font-bold' : ''}`}>{formatDate(p.due)}</td></tr>
           ))}</tbody></table>
         </Panel>
         <Panel title="Latest payroll per office">
-          <table className={tableCls}><tbody>{latestRuns.length === 0 ? <tr><td className={tdCls}>No payroll yet.</td></tr> : latestRuns.map(r => (
+          <table className={tableCls}><thead className="sr-only"><tr><th scope="col">Payroll run</th><th scope="col">Status</th><th scope="col">Net payout</th></tr></thead><tbody>{latestRuns.length === 0 ? <tr><td className={tdCls}>No payroll yet.</td></tr> : latestRuns.map(r => (
             <tr key={r!.id}><td className={tdCls}>{companies.find(c => c.id === r!.companyId)?.code} · {r!.periodLabel}</td><td className={tdCls}><Badge variant={r!.status === 'Paid' ? 'emerald' : 'amber'}>{r!.status}</Badge></td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(r!.totalNetPayout, currency)}</td></tr>
           ))}</tbody></table>
         </Panel>
@@ -255,7 +256,7 @@ export const SponsorDashboard: React.FC = () => {
         </Panel>
         <Panel title="Per office" note="Year to date and balance sheet today">
           <table className={tableCls}>
-            <thead><tr><th className={thCls}>Office</th><th className={`${thCls} text-right`}>Net profit</th><th className={`${thCls} text-right`}>Assets</th><th className={`${thCls} text-right`}>Liabilities</th></tr></thead>
+            <thead><tr><th scope="col" className={thCls}>Office</th><th scope="col" className={`${thCls} text-right`}>Net profit</th><th scope="col" className={`${thCls} text-right`}>Assets</th><th scope="col" className={`${thCls} text-right`}>Liabilities</th></tr></thead>
             <tbody>{offices.map(o => { const p = ytd.rows.find(x => x.id === o.id)!; const bs = sheets.find(x => x.id === o.id)!.bs; return (
               <tr key={o.id}><td className={tdCls}>{o.name}</td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(p.net, currency)}</td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(bs.assets.totalAssets, currency)}</td><td className={`${tdCls} text-right font-mono`}>{formatCurrency(bs.liabilities.totalLiabilities, currency)}</td></tr>
             ); })}</tbody>

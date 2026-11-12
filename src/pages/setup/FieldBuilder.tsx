@@ -223,7 +223,7 @@ export const FieldBuilder: React.FC<{ readOnly?: boolean; entities?: FieldEntity
           <p className="text-xs font-semibold text-slate-100">Per-office visibility</p>
           <div className="overflow-x-auto">
             <table className={tableCls}>
-              <thead><tr><th className={thCls}>Field</th>{offices.map(o => <th key={o.id} className={thCls}>{o.code}</th>)}</tr></thead>
+              <thead><tr><th scope="col" className={thCls}>Field</th>{offices.map(o => <th scope="col" key={o.id} className={thCls}>{o.code}</th>)}</tr></thead>
               <tbody>
                 {list.filter(f => f.active && !f.officeId).map(f => (
                   <tr key={f.id}>

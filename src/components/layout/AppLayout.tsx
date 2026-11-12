@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, ReactNode } from 'react';
+import React, { useCallback, useState, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { GlobalSearchModal } from '../common/GlobalSearchModal';
@@ -18,24 +18,24 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const failed = Object.keys(loadErrors);
   const onReconnect = useCallback(() => { void reload().catch(() => undefined); }, [reload]);
 
-  useEffect(() => {
-    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsMobileMenuOpen(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isMobileMenuOpen]);
+  // The phone navigation drawer (Escape, focus trap and return, scroll lock) is handled in Sidebar via useDialog.
+  const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
   return (
     <div className="min-h-screen w-full bg-white text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-[#DCEFE5] selection:text-[#06452F]">
+      {/* Keyboard users skip the navigation and header (WCAG 2.4.1) */}
+      <a
+        href="#main-content"
+        onClick={e => { e.preventDefault(); document.getElementById('main-content')?.focus(); }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:px-4 focus:py-3 focus:rounded-xl focus:bg-[#086343] focus:text-white focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
+      >
+        Skip to main content
+      </a>
+
       {/* Sidebar - Flush to left edge of screen */}
       <Sidebar
         isMobileOpen={isMobileMenuOpen}
-        onCloseMobile={() => setIsMobileMenuOpen(false)}
+        onCloseMobile={closeMobileMenu}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapsed={() => setIsSidebarCollapsed(value => !value)}
       />
@@ -58,12 +58,12 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         {failed.length > 0 && !isRefreshing && (
           <div role="alert" className="px-5 sm:px-8 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 flex items-center justify-between gap-3">
             <span>Some data could not be loaded ({failed.slice(0, 4).join(', ')}{failed.length > 4 ? '…' : ''}). Figures may be incomplete.</span>
-            <button className="font-bold underline cursor-pointer" onClick={() => reload(failed as any)}>Retry</button>
+            <button className="font-bold underline cursor-pointer min-h-[44px] sm:min-h-0 shrink-0" onClick={() => reload(failed as any)}>Retry</button>
           </div>
         )}
 
         {/* Page Content - Full width with balanced internal padding */}
-        <main className="flex-1 min-w-0 w-full px-5 py-6 sm:px-8 sm:py-8 space-y-6 bg-white">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 w-full focus:outline-none px-5 py-6 sm:px-8 sm:py-8 space-y-6 bg-white">
           {children}
         </main>
       </div>

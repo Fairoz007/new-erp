@@ -13,6 +13,7 @@ import { WorkOrderDetailModal } from './WorkOrderDetailModal';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { buttonLike, clickOnKey } from '../../lib/a11y';
 
 export const WorkOrdersPage: React.FC = () => {
   const { workOrders, updateWorkOrderStatus, selectedCompanyId, currency } = useFleet();
@@ -150,7 +151,7 @@ export const WorkOrdersPage: React.FC = () => {
               className="p-5 rounded-2xl bg-white border border-slate-700 hover:border-forest-500/40 shadow-card transition-all"
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-2 flex-1 min-w-0 cursor-pointer" onClick={() => setViewingOrder(wo)}>
+                <div tabIndex={0} onKeyDown={clickOnKey} className="space-y-2 flex-1 min-w-0 cursor-pointer" onClick={() => setViewingOrder(wo)}>
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="font-mono font-bold text-sm text-slate-100 hover:text-forest-400 transition-colors">
                       {wo.workOrderNumber}
@@ -261,7 +262,7 @@ export const WorkOrdersPage: React.FC = () => {
 
                 <div className="space-y-3 flex-1 overflow-y-auto max-h-[70vh]">
                   {stageOrders.slice(0, 25).map(wo => (
-                    <div
+                    <div {...buttonLike}
                       key={wo.id}
                       onClick={() => setViewingOrder(wo)}
                       className="p-4 bg-white border border-slate-700 hover:border-forest-500/40 rounded-2xl shadow-card space-y-2.5 transition-all cursor-pointer group"
