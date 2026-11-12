@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Plus } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -19,9 +20,11 @@ export const AccidentsPage: React.FC = () => {
   const [editing, setEditing] = useState<Accident | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  const vt = useVehicleTypeFilter();
   const filteredAccidents = accidents.filter(a => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && a.companyId !== selectedCompanyId) return false;
     if (statusFilter !== 'all' && a.status !== statusFilter) return false;
+    if (!vt.matches(a.vehicleId)) return false;
     return true;
   });
 
@@ -192,6 +195,8 @@ export const AccidentsPage: React.FC = () => {
         searchFields={['accidentNumber', 'vehiclePlate', 'policeReportNumber', 'insuranceClaimNumber', 'location', 'driverName']}
         exportFilename="Accidents_Register"
         filterComponent={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {vt.ui}
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
@@ -206,6 +211,7 @@ export const AccidentsPage: React.FC = () => {
             <option value="Completed">Completed</option>
             <option value="Closed">Closed</option>
           </select>
+          </div>
         }
       />
       {editing && (

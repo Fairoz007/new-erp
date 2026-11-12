@@ -28,6 +28,7 @@ export interface Organization {
   letterhead: { header?: string; footer?: string; showLogo?: boolean };
   overridableSettings: string[];
   partyApprovalRequired: boolean;      // new clients/suppliers wait for approval
+  expiryAlertDays: number;             // alert window for registration, insurance, permit, inspection, licence
   setupStatus: 'in_progress' | 'completed';
   setupStep: number;
   setupCompletedSteps: number[];
@@ -56,6 +57,7 @@ const toOrg = (r: any): Organization => ({
   letterhead: r.letterhead ?? {},
   overridableSettings: r.overridable_settings ?? [],
   partyApprovalRequired: !!r.party_approval_required,
+  expiryAlertDays: Number(r.expiry_alert_days ?? 30),
   setupStatus: r.setup_status,
   setupStep: r.setup_step ?? 1,
   setupCompletedSteps: r.setup_completed_steps ?? [],
@@ -71,7 +73,7 @@ const fromOrg = (o: Partial<OrganizationInput>) => {
     tax_number: t(o.taxNumber), address: t(o.address), city: t(o.city), country: t(o.country), phone: t(o.phone),
     email: t(o.email), website: t(o.website), logo_path: o.logoPath === undefined ? undefined : o.logoPath || null,
     base_currency: o.baseCurrency?.trim().toUpperCase(), currency_decimals: o.currencyDecimals, fy_start_month: o.fyStartMonth,
-    timezone: o.timezone, language: o.language, letterhead: o.letterhead, overridable_settings: o.overridableSettings, party_approval_required: o.partyApprovalRequired,
+    timezone: o.timezone, language: o.language, letterhead: o.letterhead, overridable_settings: o.overridableSettings, party_approval_required: o.partyApprovalRequired, expiry_alert_days: o.expiryAlertDays,
   };
   for (const k of Object.keys(row)) if (row[k] === undefined) delete row[k];
   return row;

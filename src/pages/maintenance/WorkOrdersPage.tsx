@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Plus, CheckCircle2, Eye } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -24,10 +25,12 @@ export const WorkOrdersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('open');
   const [shown, setShown] = useState(40);
   const OPEN_STATUSES = ['Draft', 'Requested', 'Approved', 'Scheduled', 'In Progress', 'Waiting for Parts'];
+  const vt = useVehicleTypeFilter();
   const filteredOrders = workOrders.filter(wo => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && wo.companyId !== selectedCompanyId) return false;
     if (statusFilter === 'open' && !OPEN_STATUSES.includes(wo.status)) return false;
     if (statusFilter !== 'open' && statusFilter !== 'all' && wo.status !== statusFilter) return false;
+    if (!vt.matches(wo.vehicleId)) return false;
     return true;
   });
 
@@ -149,6 +152,7 @@ export const WorkOrdersPage: React.FC = () => {
             {tab.label}
           </button>
         ))}
+        <span className="ml-auto">{vt.ui}</span>
       </div>
 
       {/* Empty State */}
@@ -266,7 +270,7 @@ export const WorkOrdersPage: React.FC = () => {
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
           {(['Requested', 'Approved', 'In Progress', 'Waiting for Parts', 'Completed'] as const).map(stage => {
-            const stageOrders = workOrders.filter(w => w.status === stage && (!selectedCompanyId || selectedCompanyId === 'all' || w.companyId === selectedCompanyId));
+            const stageOrders = workOrders.filter(w => w.status === stage && vt.matches(w.vehicleId) && (!selectedCompanyId || selectedCompanyId === 'all' || w.companyId === selectedCompanyId));
 
             return (
               <div key={stage} className="bg-slate-850 border border-slate-700 rounded-[20px] p-4 flex flex-col gap-3 min-w-[270px]">

@@ -16,6 +16,8 @@ import { MaintenanceCategory, MaintenanceType, WorkOrderPriority } from '../../t
 import { ExpenseCategory } from '../../types/operations';
 import { InvoiceType, PaymentMethod } from '../../types/finance';
 import { EmployeeDepartment } from '../../types/hr';
+import { VehicleOperationsFields, EMPTY_OPS, validateOps, type VehicleOps } from './VehicleOperationsFields';
+import { invalidateDrivers } from '../../hooks/useDrivers';
 
 export const QuickActionModals: React.FC = () => {
   const { quickModal, closeQuickModal, addToast, selectedVehicleId, paymentInvoiceId } = useUI();
@@ -52,6 +54,7 @@ export const QuickActionModals: React.FC = () => {
   const defaultVehicle = vehicles.find(v => v.id === selectedVehicleId) || vehicles[0];
 
   // 1. ADD VEHICLE STATE
+  const [vehicleOps, setVehicleOps] = useState<VehicleOps>(EMPTY_OPS);
   const [vehicleForm, setVehicleForm] = useState({
     companyId: '',
     plateNumber: '',
@@ -72,7 +75,7 @@ export const QuickActionModals: React.FC = () => {
     fuelType: 'Petrol' as const,
     transmission: 'Automatic' as const,
     engineCapacityCc: 2500,
-    numberOfSeats: 5,
+    numberOfSeats: 0, // 0 = the vehicle type's seat capacity (set by the database)
     currentMileage: 0,
     initialOdometer: 0,
     status: 'Active' as const,
@@ -453,6 +456,8 @@ export const QuickActionModals: React.FC = () => {
       return;
     }
     if (!cfVehicle.validate()) { cfInvalid(); return; }
+    const opsError = validateOps(vehicleOps);
+    if (opsError) { addToast({ type: 'error', title: 'Validation Error', message: opsError }); return; }
     const sup = suppliers.find(s => s.id === vehicleForm.supplierId);
     let photoPath: string | undefined;
     run('Vehicle Not Saved', async () => {
@@ -490,7 +495,7 @@ export const QuickActionModals: React.FC = () => {
           initialOdometer: Number(vehicleForm.initialOdometer),
           status: vehicleForm.status,
           photoUrl: photoPath ?? '',
-          assignedDriver: vehicleForm.assignedDriver,
+          ...vehicleOps,
           department: vehicleForm.department,
           location: vehicleForm.location,
           purchase: {
@@ -524,6 +529,8 @@ export const QuickActionModals: React.FC = () => {
           insuranceExpiryDate: '',
           insurancePremiumAnnual: 0,
         });
+        if (vehicleOps.driverId) invalidateDrivers();
+        setVehicleOps(EMPTY_OPS);
       } catch (err) {
         // the vehicle row was not saved: do not leave an orphaned photo in storage
         if (photoPath) removeFiles('media', [photoPath]).catch(() => undefined);
@@ -1104,10 +1111,14 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input label="Assigned Driver" placeholder="Driver name" value={vehicleForm.assignedDriver} onChange={e => setVehicleForm({ ...vehicleForm, assignedDriver: e.target.value })} />
             <Input label="Department" value={vehicleForm.department} onChange={e => setVehicleForm({ ...vehicleForm, department: e.target.value })} />
             <Input label="Location" value={vehicleForm.location} onChange={e => setVehicleForm({ ...vehicleForm, location: e.target.value })} />
           </div>
+
+          {vehicleForm.companyId && (
+            <VehicleOperationsFields officeId={vehicleForm.companyId} value={vehicleOps} onChange={setVehicleOps}
+              takenBy={id => vehicles.find(v => v.driverId === id)?.id} />
+          )}
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs sm:text-sm font-semibold text-slate-100">Vehicle photo (optional)</label>

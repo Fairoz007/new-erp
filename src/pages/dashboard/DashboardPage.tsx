@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { StatCard } from '../../components/ui/StatCard';
+import { FleetExpiryPanel } from './FleetExpiryPanel';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import {
@@ -459,6 +460,8 @@ export const DashboardPage: React.FC = () => {
               </div>
             </Card>
           </div>
+
+          {(canAccessPage('vehicles') || canAccessPage('drivers')) && <FleetExpiryPanel />}
 
           {/* Row 4: Fleet Master Summary Table */}
           <Card className="bg-white">

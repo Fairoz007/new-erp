@@ -156,3 +156,10 @@ export async function contractRate(companyId: string, customerId: string, date: 
   const r = rows?.[0];
   return r ? { source: r.source, contractId: r.contract_id, contractNumber: r.contract_number, description: r.description, rate: num(r.rate), taxRateId: r.tax_rate_id, unitCode: r.unit_code } : null;
 }
+
+/** Client contracts a vehicle of this office can be put on (Draft or Active). */
+export async function fetchAssignableContracts(companyId: string): Promise<Pick<Contract, 'id' | 'contractNumber' | 'title' | 'status' | 'partyId'>[]> {
+  const rows = await unwrap<Row[]>(table('contracts').select('id, contract_number, title, status, customer_id')
+    .eq('company_id', companyId).eq('party_type', 'Customer').in('status', ['Draft', 'Active']).order('contract_number'));
+  return (rows ?? []).map(r => ({ id: r.id, contractNumber: r.contract_number ?? '', title: r.title, status: r.status, partyId: r.customer_id }));
+}

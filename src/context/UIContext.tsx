@@ -8,6 +8,7 @@ export type AppPage =
   | 'companies'
   | 'vehicles'
   | 'vehicle-detail'
+  | 'drivers'
   | 'maintenance'
   | 'work-orders'
   | 'oil-management'
@@ -129,7 +130,7 @@ interface UIContextType {
 }
 
 const VALID_PAGES: AppPage[] = [
-  'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'maintenance',
+  'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'drivers', 'maintenance',
   'work-orders', 'oil-management', 'tyre-management', 'accidents', 'expenses',
   'suppliers', 'customers', 'customer-detail', 'supplier-detail', 'invoices', 'reconciliation', 'payments',
   'accounting', 'trial-balance', 'general-ledger', 'profit-loss', 'balance-sheet',

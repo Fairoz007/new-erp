@@ -350,7 +350,27 @@ export const VehicleDetailPage: React.FC = () => {
                     <span className="font-semibold text-slate-200">{[vehicle.department, vehicle.location].filter(Boolean).join(' / ') || 'Not recorded'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Registration (Mulkiya) Expiry</span>
+                    <span className="text-slate-400 block">Route</span>
+                    <span className="font-semibold text-slate-200">{vehicle.routeName || 'Not recorded'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Route permit</span>
+                    <span className="font-mono font-semibold text-slate-200">{vehicle.permitNumber || 'Not recorded'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Permit expiry</span>
+                    <span className={`font-semibold ${isDateOverdue(vehicle.permitExpiryDate) ? 'text-rose-400 font-bold' : isDateExpiringSoon(vehicle.permitExpiryDate) ? 'text-amber-400' : 'text-slate-200'}`}>{vehicle.permitExpiryDate ? formatDate(vehicle.permitExpiryDate) : 'Not recorded'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Last inspection</span>
+                    <span className="font-semibold text-slate-200">{vehicle.lastInspectionDate ? formatDate(vehicle.lastInspectionDate) : 'Not recorded'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Next inspection due</span>
+                    <span className={`font-semibold ${isDateOverdue(vehicle.nextInspectionDate) ? 'text-rose-400 font-bold' : isDateExpiringSoon(vehicle.nextInspectionDate) ? 'text-amber-400' : 'text-slate-200'}`}>{vehicle.nextInspectionDate ? formatDate(vehicle.nextInspectionDate) : 'Not recorded'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Registration (ROP/RTA) expiry</span>
                     <span className={`font-semibold ${isDateOverdue(vehicle.registrationExpiryDate) ? 'text-rose-400 font-bold' : isDateExpiringSoon(vehicle.registrationExpiryDate) ? 'text-amber-400' : 'text-slate-200'}`}>
                       {formatDate(vehicle.registrationExpiryDate)}
                     </span>
@@ -387,7 +407,7 @@ export const VehicleDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-slate-400 block">Insurance Expiry</span>
-                    <span className="font-semibold text-slate-200">{formatDate(vehicle.insuranceExpiryDate)}</span>
+                    <span className={`font-semibold ${isDateOverdue(vehicle.insuranceExpiryDate) ? 'text-rose-400 font-bold' : isDateExpiringSoon(vehicle.insuranceExpiryDate) ? 'text-amber-400' : 'text-slate-200'}`}>{formatDate(vehicle.insuranceExpiryDate)}</span>
                   </div>
                 </div>
 

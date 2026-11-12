@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Building2,
   Car,
+  IdCard,
   Wrench,
   ClipboardList,
   Droplet,
@@ -85,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'FLEET & WORKSHOP',
       items: [
         { id: 'vehicles', label: 'Vehicles Fleet', icon: Car },
+        { id: 'drivers', label: 'Drivers', icon: IdCard },
         { id: 'maintenance', label: 'Maintenance Records', icon: Wrench },
         { id: 'work-orders', label: 'Work Orders', icon: ClipboardList, badge: activeWorkOrders > 0 ? activeWorkOrders : undefined, badgeColor: 'amber' },
         { id: 'oil-management', label: 'Oil Service Tracker', icon: Droplet },

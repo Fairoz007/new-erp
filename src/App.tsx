@@ -13,6 +13,7 @@ import { DashboardPage } from './pages/dashboard/DashboardPage';
 // Lazy Loaded Submodules (Code-split for maximum load speed)
 const PartyDetailPage = lazy(() => import('./pages/parties/PartyDetailPage').then(m => ({ default: m.PartyDetailPage })));
 const CompaniesPage = lazy(() => import('./pages/companies/CompaniesPage').then(m => ({ default: m.CompaniesPage })));
+const DriversPage = lazy(() => import('./pages/drivers/DriversPage').then(m => ({ default: m.DriversPage })));
 const VehiclesPage = lazy(() => import('./pages/vehicles/VehiclesPage').then(m => ({ default: m.VehiclesPage })));
 const VehicleDetailPage = lazy(() => import('./pages/vehicles/VehicleDetailPage').then(m => ({ default: m.VehicleDetailPage })));
 const MaintenancePage = lazy(() => import('./pages/maintenance/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
@@ -117,6 +118,8 @@ const PageRenderer: React.FC = () => {
             return <CompaniesPage />;
           case 'vehicles':
             return <VehiclesPage />;
+          case 'drivers':
+            return <DriversPage />;
           case 'vehicle-detail':
             return <VehicleDetailPage />;
           case 'customer-detail':

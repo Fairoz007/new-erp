@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Plus, ArrowRight, Pencil } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -23,6 +24,7 @@ export const VehiclesPage: React.FC = () => {
   const [editing, setEditing] = useState<Vehicle | null>(null);
   const photoUrl = useVehiclePhotoUrls(vehicles.map(v => v.photoUrl));
 
+  const vt = useVehicleTypeFilter();
   const filteredVehicles = vehicles.filter(v => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && v.companyId !== selectedCompanyId) {
       return false;
@@ -30,6 +32,7 @@ export const VehiclesPage: React.FC = () => {
     if (statusFilter !== 'all' && v.status !== statusFilter) {
       return false;
     }
+    if (!vt.matches(v.id)) return false;
     return true;
   });
 
@@ -181,6 +184,8 @@ export const VehiclesPage: React.FC = () => {
         exportFilename="Vehicles_Master"
         onRowClick={v => openVehicleDetail(v.id)}
         filterComponent={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {vt.ui}
           <div className="flex items-center gap-1.5">
             <select
               value={statusFilter}
@@ -196,6 +201,7 @@ export const VehiclesPage: React.FC = () => {
               <option value="Sold">Sold</option>
               <option value="Scrapped">Scrapped</option>
             </select>
+          </div>
           </div>
         }
       />

@@ -151,7 +151,14 @@ export interface Vehicle {
   initialOdometer: number;
   status: VehicleStatus;
   photoUrl: string;
-  assignedDriver?: string;
+  assignedDriver?: string;        // display name; set by the database from driverId
+  driverId?: string | null;       // drivers row (one vehicle per driver, same office, valid licence)
+  contractId?: string | null;     // client contract the vehicle serves
+  routeName?: string;
+  permitNumber?: string;          // route / operating permit
+  permitExpiryDate?: string;
+  lastInspectionDate?: string;
+  nextInspectionDate?: string;
   department?: string;
   location?: string;
   

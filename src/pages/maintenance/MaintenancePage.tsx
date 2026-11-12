@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Plus } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -24,9 +25,11 @@ export const MaintenancePage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const { hasPermission } = useAuth();
 
+  const vt = useVehicleTypeFilter();
   const filteredRecords = maintenanceRecords.filter(m => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && m.companyId !== selectedCompanyId) return false;
     if (categoryFilter !== 'all' && m.category !== categoryFilter) return false;
+    if (!vt.matches(m.vehicleId)) return false;
     return true;
   });
 
@@ -143,6 +146,8 @@ export const MaintenancePage: React.FC = () => {
         searchFields={['recordNumber', 'vehiclePlate', 'category', 'description', 'serviceCentre', 'supplierName']}
         exportFilename="Maintenance_Records"
         filterComponent={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {vt.ui}
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
@@ -153,6 +158,7 @@ export const MaintenancePage: React.FC = () => {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          </div>
         }
       />
     </div>

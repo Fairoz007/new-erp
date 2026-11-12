@@ -6,6 +6,9 @@ import { Vehicle, VehicleStatus } from '../../types/vehicle';
 import { removeFiles, uploadFile } from '../../services/storage';
 import { useVehicleTypes } from '../../hooks/useVehicleTypes';
 import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
+import { VehicleOperationsFields, validateOps, type VehicleOps } from '../../components/common/VehicleOperationsFields';
+import { invalidateDrivers } from '../../hooks/useDrivers';
+import { useFleet } from '../../context/FleetContext';
 
 const STATUSES: VehicleStatus[] = ['Active', 'Under Maintenance', 'Accident', 'Inactive', 'Reserved', 'Sold', 'Scrapped'];
 const CATEGORIES: Vehicle['vehicleCategory'][] = ['Executive', 'Operations', 'Logistics', 'Sales', 'Pool', 'Service'];
@@ -28,6 +31,8 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
   const [error, setError] = useState('');
   const { types, idOf, error: typesError } = useVehicleTypes(vehicle.vehicleType);
   const cf = useCustomFieldsEditor('vehicle', vehicle.companyId, vehicle.customFields, idOf(form.vehicleType));
+  const { vehicles } = useFleet();
+  const takenBy = (driverId: string) => vehicles.find(v => v.driverId === driverId)?.id;
 
   useEffect(() => {
     if (isOpen) { setForm(vehicle); setPhoto(null); setError(''); }
@@ -47,6 +52,8 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
       return;
     }
     if (!cf.validate()) { setError('Check the additional information fields.'); return; }
+    const opsError = validateOps(form);
+    if (opsError) { setError(opsError); return; }
     setSaving(true);
     setError('');
     let uploadedPath: string | null = null;
@@ -59,7 +66,9 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
         countryOfRegistration: form.countryOfRegistration, color: form.color, fuelType: form.fuelType,
         transmission: form.transmission, engineCapacityCc: form.engineCapacityCc, numberOfSeats: form.numberOfSeats,
         currentMileage: form.currentMileage, initialOdometer: form.initialOdometer, status: form.status,
-        assignedDriver: form.assignedDriver, department: form.department, location: form.location,
+        driverId: form.driverId ?? null, contractId: form.contractId ?? null, routeName: form.routeName, permitNumber: form.permitNumber,
+        permitExpiryDate: form.permitExpiryDate, lastInspectionDate: form.lastInspectionDate, nextInspectionDate: form.nextInspectionDate,
+        department: form.department, location: form.location,
         purchase: form.purchase, depreciation: form.depreciation, oilConfig: form.oilConfig,
         currentMarketValue: form.currentMarketValue,
         marketValueUpdatedDate: form.currentMarketValue !== vehicle.currentMarketValue ? new Date().toISOString().slice(0, 10) : form.marketValueUpdatedDate,
@@ -73,6 +82,7 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
         updates.photoUrl = stored.path;
       }
       await onSubmit(updates);
+      if (form.driverId !== vehicle.driverId) invalidateDrivers();
       // the row now points at the new photo: drop the previous stored file (best effort)
       if (uploadedPath && vehicle.photoUrl && !/^(https?:|data:|blob:)/i.test(vehicle.photoUrl)) {
         removeFiles('media', [vehicle.photoUrl]).catch(() => undefined);
@@ -118,17 +128,20 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
           <Select label="Fuel" value={form.fuelType} onChange={e => set('fuelType', e.target.value as Vehicle['fuelType'])} options={opts(FUELS)} />
           <Select label="Transmission" value={form.transmission} onChange={e => set('transmission', e.target.value as Vehicle['transmission'])} options={opts(TRANSMISSIONS)} />
           <Input label="Engine capacity (cc)" type="number" value={form.engineCapacityCc || ''} onChange={setNum('engineCapacityCc')} />
-          <Input label="Seats" type="number" value={form.numberOfSeats || ''} onChange={setNum('numberOfSeats')} />
+          <Input label="Seats" type="number" min={0} value={form.numberOfSeats || ''} onChange={setNum('numberOfSeats')}
+            hint={types.find(t => t.name === form.vehicleType)?.seatCapacity ? `Leave empty for the type's ${types.find(t => t.name === form.vehicleType)?.seatCapacity} seats` : undefined} />
           <Input label="Chassis / VIN" value={form.vin} onChange={e => set('vin', e.target.value)} />
           <Input label="Engine number" value={form.engineNumber} onChange={e => set('engineNumber', e.target.value)} />
           <Input label="Country of registration" value={form.countryOfRegistration} onChange={e => set('countryOfRegistration', e.target.value)} />
           <Input label="Registration date" type="date" value={form.registrationDate} onChange={e => set('registrationDate', e.target.value)} />
-          <Input label="Registration expiry" type="date" value={form.registrationExpiryDate} onChange={e => set('registrationExpiryDate', e.target.value)} />
+          <Input label="Registration expiry (ROP/RTA)" type="date" value={form.registrationExpiryDate} onChange={e => set('registrationExpiryDate', e.target.value)} />
           <Input label="Current mileage (KM)" type="number" min={0} value={form.currentMileage} onChange={setNum('currentMileage')} />
-          <Input label="Assigned driver" value={form.assignedDriver ?? ''} onChange={e => set('assignedDriver', e.target.value)} />
           <Input label="Department" value={form.department ?? ''} onChange={e => set('department', e.target.value)} />
           <Input label="Location / yard" value={form.location ?? ''} onChange={e => set('location', e.target.value)} />
         </section>
+
+        <VehicleOperationsFields officeId={vehicle.companyId} vehicleId={vehicle.id} value={form as VehicleOps} takenBy={takenBy}
+          onChange={ops => setForm(f => ({ ...f, ...ops }))} />
 
         <section>
           <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Purchase & valuation</h4>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Disc, Plus, AlertTriangle, CheckCircle2, RotateCw, Activity } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { DataTable, Column } from '../../components/ui/DataTable';
@@ -40,8 +41,10 @@ export const TyreManagementPage: React.FC = () => {
   const dueSoonTyres = tyres.filter(t => t.status === 'Due Soon').length;
   const totalTyreInvestment = tyres.reduce((s, t) => s + (t.purchaseCost || 0), 0) + tyreEvents.reduce((s, te) => s + (te.cost || 0), 0);
 
+  const vt = useVehicleTypeFilter();
   const filteredTyres = tyres.filter(t => {
     if (filter !== 'all' && t.status !== filter) return false;
+    if (!vt.matches(t.vehicleId)) return false;
     return true;
   });
 
@@ -194,6 +197,8 @@ export const TyreManagementPage: React.FC = () => {
         searchFields={['vehiclePlate', 'vehicleName', 'brand', 'model', 'size', 'serialNumber', 'position']}
         exportFilename="Tyres_Register"
         filterComponent={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {vt.ui}
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
@@ -207,6 +212,7 @@ export const TyreManagementPage: React.FC = () => {
             <option value="Replaced">Replaced</option>
             <option value="Scrapped">Scrapped</option>
           </select>
+          </div>
         }
       />
       {editing && (

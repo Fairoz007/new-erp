@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Car, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { DataTable, Column } from '../../components/ui/DataTable';
@@ -29,7 +30,8 @@ export const VehicleProfitabilityPage: React.FC = () => {
   const { vehicles: allVehicles, getVehicleFinancialSummary, currency, selectedCompanyId } = useFleet();
   const { openVehicleDetail } = useUI();
 
-  const vehicles = allVehicles.filter(v => !selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId);
+  const vt = useVehicleTypeFilter();
+  const vehicles = allVehicles.filter(v => (!selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId) && vt.matches(v.id));
 
   const profitabilityRows: VehicleProfitabilityRow[] = vehicles.map(v => {
     const sum = getVehicleFinancialSummary(v.id);
@@ -150,6 +152,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
             Identify high-cost underperforming units, cost-per-kilometer metrics, and rule-based replacement vs maintenance flags (maintenance cost per KM above 0.015 / 0.025 OMR, or operating cost above 70% of purchase value).
           </p>
         </div>
+        <div className="shrink-0">{vt.ui}</div>
       </div>
 
       {/* KPI Summary Cards */}

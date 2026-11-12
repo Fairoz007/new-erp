@@ -158,6 +158,13 @@ export const rowToVehicle = (r: Row): Vehicle => ({
   status: r.status,
   photoUrl: r.photo_url ?? '',
   assignedDriver: r.assigned_driver ?? undefined,
+  driverId: r.driver_id ?? null,
+  contractId: r.contract_id ?? null,
+  routeName: r.route_name ?? '',
+  permitNumber: r.permit_number ?? '',
+  permitExpiryDate: ymd(r.permit_expiry_date),
+  lastInspectionDate: ymd(r.last_inspection_date),
+  nextInspectionDate: ymd(r.next_inspection_date),
   department: r.department ?? undefined,
   location: r.location ?? undefined,
   purchase: {
@@ -198,10 +205,14 @@ export const vehicleToRow = (v: Partial<Vehicle>): Row => {
   m('registrationDate', 'registration_date', date); m('registrationExpiryDate', 'registration_expiry_date', date);
   m('countryOfRegistration', 'country_of_registration', text); m('color', 'color', text);
   m('fuelType', 'fuel_type'); m('transmission', 'transmission');
-  m('engineCapacityCc', 'engine_capacity_cc', int); m('numberOfSeats', 'number_of_seats', int);
+  m('engineCapacityCc', 'engine_capacity_cc', int);
+  m('numberOfSeats', 'number_of_seats', s => (s ? int(s) : null));   // blank → the vehicle type's seat capacity
   m('currentMileage', 'current_mileage', s => int(s) ?? 0); m('initialOdometer', 'initial_odometer', s => int(s) ?? 0);
   m('status', 'status'); m('photoUrl', 'photo_url', text);
-  m('assignedDriver', 'assigned_driver', text); m('department', 'department', text); m('location', 'location', text);
+  m('assignedDriver', 'assigned_driver', text); m('department', 'department', text);
+  m('driverId', 'driver_id', s => s || null); m('contractId', 'contract_id', s => s || null); m('routeName', 'route_name', text);
+  m('permitNumber', 'permit_number', text); m('permitExpiryDate', 'permit_expiry_date', date);
+  m('lastInspectionDate', 'last_inspection_date', date); m('nextInspectionDate', 'next_inspection_date', date); m('location', 'location', text);
   m('purchase', 'purchase'); m('depreciation', 'depreciation'); m('oilConfig', 'oil_config');
   m('currentMarketValue', 'current_market_value', money); m('marketValueUpdatedDate', 'market_value_updated_date', date);
   m('insuranceProvider', 'insurance_provider', text); m('insurancePolicyNumber', 'insurance_policy_number', text);

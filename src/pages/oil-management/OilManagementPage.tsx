@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVehicleTypeFilter } from '../../hooks/useVehicleTypeFilter';
 import { Droplet, Plus, AlertTriangle, CheckCircle2, Clock, Wrench } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { DataTable, Column } from '../../components/ui/DataTable';
@@ -34,8 +35,10 @@ export const OilManagementPage: React.FC = () => {
   const normalCount = oilChanges.filter(o => o.status === 'Normal').length;
   const totalCost = oilChanges.reduce((s, o) => s + (o.totalCost || 0), 0);
 
+  const vt = useVehicleTypeFilter();
   const filteredOilChanges = oilChanges.filter(o => {
     if (filter !== 'all' && o.status !== filter) return false;
+    if (!vt.matches(o.vehicleId)) return false;
     return true;
   });
 
@@ -171,6 +174,8 @@ export const OilManagementPage: React.FC = () => {
         searchFields={['vehiclePlate', 'vehicleName', 'oilBrand', 'oilGrade', 'odometer']}
         exportFilename="Oil_Services"
         filterComponent={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {vt.ui}
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
@@ -181,6 +186,7 @@ export const OilManagementPage: React.FC = () => {
             <option value="Due Soon">Due Soon</option>
             <option value="Normal">Normal</option>
           </select>
+          </div>
         }
       />
     </div>
