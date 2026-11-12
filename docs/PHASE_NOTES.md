@@ -188,3 +188,32 @@ Migration `20261112000900_expenses.sql`, tests `supabase/tests/20261112000900_ex
   - Budgets are per GL account, and each category maps to an account, so a per-category budget is a budget on that category's account. Two categories sharing an account share its budget.
 - Maintenance records are not posted on their own. Their cost reaches the ledger through the supplier bill linked to the record, which avoids double posting.
 - Not verified in a browser (needs the staging DB): the expense form, detail actions, Approvals → Expenses, and the monthly panel. Not verified: the pg_cron schedule on a real project, since PGlite has no pg_cron.
+
+## Phase 9 — Roles and permissions
+
+Most of this was built in Phase 1 (migration `20261112000100_roles_permissions.sql`, because the Setup Wizard needed it):
+- Roles are data. Roles can be created, cloned, renamed and deleted.
+- Users & Roles has a module × action matrix backed by the database, plus approval limits per role and module.
+- Per-office role assignment: a user can be Finance Manager in one office and Viewer in another.
+- RLS and every RPC use the same `perm_company_ids` and `can_in` checks as the UI.
+
+This phase (migration `20261112001000_roles.sql`, tests `supabase/tests/20261112001000_roles.test.mjs`) finishes it:
+- Approval rules:
+  - Roles are named by id, so custom roles can be approvers. Existing rules and requests were backfilled from the legacy role names.
+  - Rules are edited in Settings → Approval rules, which needs super admin or settings edit rights. Each rule has a type (work orders or invoices), a threshold and the approving roles in order. With no roles, anyone whose signing limit covers the amount may decide.
+  - Expenses, payments, journals, payroll and budgets use signing limits only, not rules.
+- Financial statements are a separate permission (`financial-statements`):
+  - Trial balance, P&L, balance sheet and cash flow open with it. Existing roles had it copied from `accounting` in Phase 1, so nothing changes for them.
+  - A role that has it but not `accounting` (the Sponsor) gets account totals and per-day, per-account sums from `statement_accounts()` and `statement_daily_totals()`. It never gets journal descriptions, parties or entry numbers, and RLS still hides the ledger tables.
+- Defaults:
+  - **Admin**: everything except role definitions and Super Admin grants.
+  - **Finance Manager**: all finance, with approve rights and unlimited limits for payments, payroll, budgets, journals and parties, and expense approval.
+  - **HR Manager**: HR, drivers, attendance, leave, payroll preparation and HR documents, with unlimited leave approval and no payroll approval limit.
+  - **Sponsor**: view, export and print of dashboards, reports and financial statements, plus office and notification view. It has no write rights.
+  - Each of these holds only for the offices where the user has that role.
+- Guards:
+  - System roles cannot be deleted.
+  - A role still assigned to a user or an office membership cannot be deleted.
+  - The super admin and system flags of a role cannot change.
+  - Roles, including system roles, can be renamed.
+- Not verified in a browser: the approval rules editor, and a Sponsor login seeing statements and nothing else. The Sponsor dashboard comes in Phase 10.

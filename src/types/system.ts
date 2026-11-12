@@ -109,6 +109,8 @@ export interface ApprovalRule {
   thresholdAmount: number; // e.g. 100 or 500
   currency: string;
   requiredRoles: UserRole[];
+  /** Roles that may decide, by id (custom roles included); the legacy names are kept for display only. */
+  requiredRoleIds: string[];
   description: string;
   active: boolean;
 }
@@ -128,6 +130,7 @@ export interface ApprovalRequest {
   currentLevel: number;
   totalLevels: number;
   requiredRoles: UserRole[];
+  requiredRoleIds: string[];
   history: {
     level: number;
     approverId?: string;

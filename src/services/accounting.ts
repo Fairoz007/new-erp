@@ -185,6 +185,10 @@ export async function fetchChartOfAccounts(): Promise<LedgerAccount[]> {
     fetchAll((f, t) => supabase.from('v_account_balances').select('*').order('company_id').order('code').range(f, t)),
   ]);
   const byKey = new Map<string, any>(balances.map(b => [`${b.company_id}|${b.code}`, b]));
+  // Offices where the user may see financial statements but not the ledger (e.g. Sponsor): account
+  // totals come from statement_accounts() instead of the accounts table.
+  const statementOnly = await statementRpc<any>('statement_accounts');
+  for (const r of statementOnly) { accounts.push(r); byKey.set(`${r.company_id}|${r.code}`, r); }
   return accounts.map(a => {
     const b = byKey.get(`${a.company_id}|${a.code}`);
     return {
@@ -205,9 +209,40 @@ export async function fetchChartOfAccounts(): Promise<LedgerAccount[]> {
 }
 
 export async function fetchJournalEntries(): Promise<JournalEntry[]> {
-  const rows = await fetchAll((f, t) => supabase.from('journal_entries').select(JE_SELECT)
-    .order('date', { ascending: false }).order('entry_number', { ascending: false }).range(f, t));
-  return rows.map(rowToJournalEntry);
+  const [rows, totals] = await Promise.all([
+    fetchAll((f, t) => supabase.from('journal_entries').select(JE_SELECT)
+      .order('date', { ascending: false }).order('entry_number', { ascending: false }).range(f, t)),
+    statementRpc<{ company_id: string; date: string; account_code: string; debit: number; credit: number }>('statement_daily_totals'),
+  ]);
+  return [...rows.map(rowToJournalEntry), ...summaryEntries(totals)];
+}
+
+/** Statement RPCs return nothing for users who read the ledger itself; a database without them returns nothing too. */
+async function statementRpc<T>(fn: 'statement_accounts' | 'statement_daily_totals'): Promise<T[]> {
+  const { data, error } = await (supabase as any).rpc(fn);
+  if (error) {
+    if (/does not exist|Could not find the function/i.test(error.message ?? '')) return [];
+    throw new ServiceError(error.message, { code: error.code });
+  }
+  return (data ?? []) as T[];
+}
+
+/** One summary entry per office and day (no descriptions or parties): enough for the statements, never shown as a journal. */
+function summaryEntries(totals: { company_id: string; date: string; account_code: string; debit: number; credit: number }[]): JournalEntry[] {
+  const byDay = new Map<string, JournalEntry>();
+  for (const t of totals) {
+    const key = `${t.company_id}|${ymd(t.date)}`;
+    let e = byDay.get(key);
+    if (!e) {
+      e = { id: `summary-${key}`, entryNumber: 'Summary', companyId: t.company_id, date: ymd(t.date), description: 'Daily totals',
+            lines: [], totalDebit: 0, totalCredit: 0, postedBy: '', status: 'Posted', sourceModule: 'Summary' as JournalEntry['sourceModule'], createdAt: ymd(t.date) };
+      byDay.set(key, e);
+    }
+    const line: LedgerJournalLine = { id: `${key}|${t.account_code}`, accountCode: t.account_code, accountName: t.account_code, debit: num(t.debit), credit: num(t.credit) };
+    e.lines.push(line);
+    e.totalDebit = r3(e.totalDebit + line.debit); e.totalCredit = r3(e.totalCredit + line.credit);
+  }
+  return [...byDay.values()];
 }
 
 export async function fetchFixedAssets(): Promise<FixedAsset[]> {

@@ -31,6 +31,7 @@ export const rowToApprovalRule = (r: Row): ApprovalRule => ({
   thresholdAmount: num(r.threshold_amount),
   currency: r.currency,
   requiredRoles: (r.required_roles ?? []) as UserRole[],
+  requiredRoleIds: (r.required_role_ids ?? []) as string[],
   description: r.description ?? '',
   active: !!r.active,
 });
@@ -50,6 +51,7 @@ export const rowToApprovalRequest = (r: Row): ApprovalRequest => ({
   currentLevel: r.current_level,
   totalLevels: r.total_levels,
   requiredRoles: (r.required_roles ?? []) as UserRole[],
+  requiredRoleIds: (r.required_role_ids ?? []) as string[],
   history: ((r.approval_actions ?? []) as Row[])
     .slice()
     .sort((a, b) => a.level - b.level || String(a.acted_at).localeCompare(String(b.acted_at)))
@@ -248,3 +250,13 @@ export async function fetchInvoiceAging(invoiceType: 'Purchase' | 'Sales'): Prom
 
 // Pure helper used by the reports page (kept here so the date logic is testable)
 export const monthKey = (d: string): string => ymd(d).slice(0, 7);
+
+// Approval rules (migration 20261112001000_roles.sql): written through RPCs, super admin or settings:edit
+export function saveApprovalRule(rule: { id?: string; module: 'maintenance' | 'invoice'; thresholdAmount: number; requiredRoleIds: string[]; description?: string; active: boolean }) {
+  if (!(rule.thresholdAmount >= 0)) throw new ServiceError('The threshold cannot be negative.');
+  return rpcAny<string>('save_approval_rule', {
+    p_id: rule.id ?? null, p_module: rule.module, p_threshold: rule.thresholdAmount, p_role_ids: rule.requiredRoleIds,
+    p_description: rule.description ?? null, p_active: rule.active,
+  });
+}
+export const deleteApprovalRule = (id: string) => rpcAny<void>('delete_approval_rule', { p_id: id });

@@ -16,7 +16,7 @@ const SECTIONS = [['Operating', 'Operating activities'], ['Investing', 'Investin
 export const CashFlowPage: React.FC = () => {
   const { companies, selectedCompanyId, currency } = useFleet();
   const { hasPermission } = useAuth();
-  const offices = companies.filter(c => hasPermission('view', 'accounting', c.id));
+  const offices = companies.filter(c => hasPermission('view', 'financial-statements', c.id));
   const [officeId, setOfficeId] = useState('');
   const yearStart = `${new Date().getFullYear()}-01-01`;
   const [from, setFrom] = useState(yearStart);
@@ -54,7 +54,7 @@ export const CashFlowPage: React.FC = () => {
           <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">Money in and out of the office's bank and cash accounts, from posted journals.</p>
         </div>
         <div className="flex gap-2 print:hidden">
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length || !hasPermission('export', 'accounting', officeId)}>CSV</Button>
+          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length || !hasPermission('export', 'financial-statements', officeId)}>CSV</Button>
           <Button variant="outline" size="sm" leftIcon={<Printer className="w-4 h-4" />} onClick={() => window.print()} disabled={!rows.length}>Print / PDF</Button>
         </div>
       </div>

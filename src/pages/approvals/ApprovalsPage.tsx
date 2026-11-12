@@ -17,7 +17,7 @@ import { ExpenseQueue, usePendingExpenses } from './ExpenseQueue';
 export const ApprovalsPage: React.FC = () => {
   const { approvalRequests: allRequests, processApproval, currency, selectedCompanyId } = useFleet();
   const approvalRequests = selectedCompanyId === 'all' ? allRequests : allRequests.filter(r => r.companyId === selectedCompanyId);
-  const { currentUser, canApprove } = useAuth();
+  const { currentUser, canApprove, roles } = useAuth();
   const { addToast } = useUI();
 
   const [selectedRequest, setSelectedRequest] = useState<typeof approvalRequests[0] | null>(null);
@@ -133,7 +133,7 @@ export const ApprovalsPage: React.FC = () => {
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
                     <span>Requested By: <strong>{req.requestedByName}</strong></span>
                     <span>Date: {formatDate(req.requestedDate)}</span>
-                    <span>Required Roles: <strong>{req.requiredRoles.join(' → ')}</strong></span>
+                    <span>Required Roles: <strong>{(req.requiredRoleIds.length ? req.requiredRoleIds.map(id => roles.find(r => r.id === id)?.name ?? '—') : req.requiredRoles).join(' → ') || 'Any approver within limit'}</strong></span>
                   </div>
 
                   {/* History Logs */}

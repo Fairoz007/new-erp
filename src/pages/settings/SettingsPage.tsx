@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useState } from 'react';
+import { ApprovalRulesEditor } from './ApprovalRulesEditor';
 import { Database, Download, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -110,34 +111,10 @@ export const SettingsPage: React.FC = () => {
       {tab === 'approvals' && (
         <Card className="rounded-[20px] bg-white border border-slate-700 shadow-card">
           <CardHeader>
-            <CardTitle>Approval Threshold Rules</CardTitle>
+            <CardTitle>Approval rules</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
-            <p className="text-[11px] text-slate-400 flex items-start gap-1.5">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
-              {isSuperAdmin
-                ? 'Thresholds below decide when a request is raised. Per-role signing limits are set in Users & Roles.'
-                : 'Read-only. Per-role signing limits are set by a Super Admin in Users & Roles.'}
-            </p>
-            {approvalRules.length === 0 && (
-              <p className="text-slate-400">No approval rules are configured. Nothing requires approval until a rule is added.</p>
-            )}
-            {approvalRules.map(rule => (
-              <div key={rule.id} className="p-3.5 bg-slate-850/60 rounded-xl border border-slate-700/80 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-200 uppercase text-[11px]">
-                    {rule.module} threshold{!rule.active ? ' (inactive)' : ''}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-700 font-mono font-bold text-[10px]">
-                    &gt; {rule.thresholdAmount.toFixed(3)} {rule.currency}
-                  </span>
-                </div>
-                {rule.description && <p className="text-slate-400 text-[11px]">{rule.description}</p>}
-                <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                  Required Approvers: <span className="text-forest-600">{rule.requiredRoles.join(' -> ')}</span>
-                </p>
-              </div>
-            ))}
+            <ApprovalRulesEditor readOnly={!(isSuperAdmin || canEdit)} />
           </CardContent>
         </Card>
       )}
