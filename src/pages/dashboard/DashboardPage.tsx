@@ -1,4 +1,5 @@
 import React from 'react';
+import { isApprovedExpense } from '../../types/operations';
 import {
   Car,
   Wrench,
@@ -99,8 +100,8 @@ export const DashboardPage: React.FC = () => {
   const accidentCost = accidents.reduce((s, a) => s + (a.actualRepairCost || 0), 0);
   const oilChangeCost = oilChanges.reduce((s, o) => s + (o.totalCost || 0), 0);
   const tyreCost = tyres.reduce((s, t) => s + (t.purchaseCost || 0), 0);
-  const insuranceCost = expenses.filter(e => e.category === 'Insurance').reduce((s, e) => s + e.total, 0) + vehicles.reduce((s, v) => s + (v.insurancePremiumAnnual || 0), 0);
-  const totalExpensesLifetime = expenses.reduce((s, e) => s + e.total, 0) + lifetimeMaintenanceCost;
+  const insuranceCost = expenses.filter(e => isApprovedExpense(e) && e.category === 'Insurance').reduce((s, e) => s + e.total, 0) + vehicles.reduce((s, v) => s + (v.insurancePremiumAnnual || 0), 0);
+  const totalExpensesLifetime = expenses.filter(isApprovedExpense).reduce((s, e) => s + e.total, 0) + lifetimeMaintenanceCost;
 
   const openPurchase = invoices.filter(i => i.invoiceType === 'Purchase' && i.approvalStatus === 'Approved' && !i.isCreditNote && i.paymentStatus !== 'Paid' && i.paymentStatus !== 'Cancelled' && i.outstandingAmount > 0);
   const amountPayable = openPurchase.reduce((s, i) => s + i.outstandingAmount, 0);

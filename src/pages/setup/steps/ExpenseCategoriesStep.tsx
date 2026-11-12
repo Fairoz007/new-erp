@@ -8,16 +8,44 @@ import { Section, errText, useMaster, useOffices } from '../shared';
 
 const METHODS = ['Bank Transfer', 'Cash', 'Cheque', 'Card'];
 
+/** Recurring templates editor; also used on Expenses → Monthly expenses. */
+export const RecurringExpensesEditor: React.FC<{ readOnly?: boolean; officeIds?: string[] }> = ({ readOnly, officeIds }) => {
+  const categories = useMaster('expenseCategories');
+  const { offices: all } = useOffices();
+  const offices = officeIds ? all.filter(o => officeIds.includes(o.id)) : all;
+  const today = new Date().toISOString().slice(0, 10);
+  if (offices.length === 0) return <p className="text-xs text-slate-400">Add an office first.</p>;
+  return (
+    <MasterEditor<RecurringExpense>
+      master="recurringExpenses" readOnly={readOnly} rowKey={r => r.id} addLabel="Add recurring expense"
+      emptyText="No recurring expenses yet."
+      filter={officeIds ? r => officeIds.includes(r.companyId) : undefined}
+      blank={{ companyId: offices[0]?.id, categoryId: categories.rows.find(c => c.active)?.id ?? '', description: '', amount: 0, tax: 0,
+        paymentMethod: 'Bank Transfer', dayOfMonth: 1, startDate: today, endDate: '', active: true }}
+      columns={[
+        { key: 'companyId', label: 'Office', type: 'select', required: true, options: offices.map(o => ({ value: o.id, label: o.code })) },
+        { key: 'categoryId', label: 'Category', type: 'select', required: true, options: categories.rows.filter(c => c.active).map(c => ({ value: c.id, label: c.name })) },
+        { key: 'description', label: 'Description', type: 'text', required: true },
+        { key: 'amount', label: 'Amount', type: 'number', min: 0.001, step: '0.001', required: true, width: '100px' },
+        { key: 'tax', label: 'Tax', type: 'number', min: 0, step: '0.001', width: '80px' },
+        { key: 'paymentMethod', label: 'Paid by', type: 'select', options: METHODS.map(m => ({ value: m, label: m })) },
+        { key: 'dayOfMonth', label: 'Day', type: 'number', min: 1, max: 28, required: true, width: '70px' },
+        { key: 'startDate', label: 'From', type: 'text', required: true, placeholder: 'YYYY-MM-DD', validate: v => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? null : 'YYYY-MM-DD') },
+        { key: 'endDate', label: 'Until', type: 'text', placeholder: 'optional', validate: v => (v && !/^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? 'YYYY-MM-DD' : null) },
+        { key: 'active', label: 'Active', type: 'checkbox' },
+      ]}
+    />
+  );
+};
+
 export const ExpenseCategoriesStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   const [accounts, setAccounts] = useState<AccountTemplate[]>([]);
   const [accErr, setAccErr] = useState<string | null>(null);
   const categories = useMaster('expenseCategories');
-  const { offices } = useOffices();
   useEffect(() => {
     org.listAccountTemplates().then(a => setAccounts(a.filter(x => x.category === 'Expense'))).catch(e => setAccErr(errText(e)));
   }, []);
   const accountOptions = accounts.map(a => ({ value: a.code, label: `${a.code} ${a.name}` }));
-  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-4">
@@ -35,27 +63,8 @@ export const ExpenseCategoriesStep: React.FC<{ readOnly?: boolean }> = ({ readOn
           ]}
         />
       </Section>
-      <Section title="Recurring monthly expenses" description="Rent, permits, subscriptions and similar. Templates are saved here; the monthly job that turns them into expenses for approval is part of the Expenses module.">
-        {offices.length === 0 ? <p className="text-xs text-slate-400">Add an office first (step 3).</p> : (
-          <MasterEditor<RecurringExpense>
-            master="recurringExpenses" readOnly={readOnly} rowKey={r => r.id} addLabel="Add recurring expense"
-            emptyText="No recurring expenses yet."
-            blank={{ companyId: offices[0]?.id, categoryId: categories.rows.find(c => c.active)?.id ?? '', description: '', amount: 0, tax: 0,
-              paymentMethod: 'Bank Transfer', dayOfMonth: 1, startDate: today, endDate: '', active: true }}
-            columns={[
-              { key: 'companyId', label: 'Office', type: 'select', required: true, options: offices.map(o => ({ value: o.id, label: o.code })) },
-              { key: 'categoryId', label: 'Category', type: 'select', required: true, options: categories.rows.filter(c => c.active).map(c => ({ value: c.id, label: c.name })) },
-              { key: 'description', label: 'Description', type: 'text', required: true },
-              { key: 'amount', label: 'Amount', type: 'number', min: 0.001, step: '0.001', required: true, width: '100px' },
-              { key: 'tax', label: 'Tax', type: 'number', min: 0, step: '0.001', width: '80px' },
-              { key: 'paymentMethod', label: 'Paid by', type: 'select', options: METHODS.map(m => ({ value: m, label: m })) },
-              { key: 'dayOfMonth', label: 'Day', type: 'number', min: 1, max: 28, required: true, width: '70px' },
-              { key: 'startDate', label: 'From', type: 'text', required: true, placeholder: 'YYYY-MM-DD', validate: v => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? null : 'YYYY-MM-DD') },
-              { key: 'endDate', label: 'Until', type: 'text', placeholder: 'optional', validate: v => (v && !/^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? 'YYYY-MM-DD' : null) },
-              { key: 'active', label: 'Active', type: 'checkbox' },
-            ]}
-          />
-        )}
+      <Section title="Recurring monthly expenses" description="Rent, permits, subscriptions and similar. Each active template creates a draft expense on its day of the month (daily job); drafts are submitted for approval from Expenses → Monthly expenses.">
+        <RecurringExpensesEditor readOnly={readOnly} />
       </Section>
     </div>
   );

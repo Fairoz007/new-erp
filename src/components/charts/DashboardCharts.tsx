@@ -1,4 +1,5 @@
 import React from 'react';
+import { isApprovedExpense } from '../../types/operations';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -75,7 +76,7 @@ export const RevenueVsExpenseChart: React.FC<{
       .filter(i => i.invoiceType === 'Sales' && i.paymentStatus !== 'Cancelled' && ym(i.invoiceDate) === m.key)
       .reduce((s, i) => s + (i.isCreditNote ? -Math.abs(i.subtotal) : i.subtotal), 0);
     const Expenses =
-      expenses.filter(e => ym(e.date) === m.key).reduce((s, e) => s + e.total, 0) +
+      expenses.filter(e => isApprovedExpense(e) && ym(e.date) === m.key).reduce((s, e) => s + e.total, 0) +
       maintenanceRecords.filter(r => ym(r.maintenanceDate) === m.key).reduce((s, r) => s + r.totalCost, 0);
     return { month: m.label, Revenue, Expenses };
   });
@@ -122,7 +123,7 @@ export const ReferencePillBarChart: React.FC<{
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - idx));
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const amount =
-      expenses.filter(e => (e.date || '').slice(0, 10) === key).reduce((s, e) => s + e.total, 0) +
+      expenses.filter(e => isApprovedExpense(e) && (e.date || '').slice(0, 10) === key).reduce((s, e) => s + e.total, 0) +
       maintenanceRecords.filter(r => (r.maintenanceDate || '').slice(0, 10) === key).reduce((s, r) => s + r.totalCost, 0);
     return { day: DAY_LABELS[d.getDay()], key, amount };
   });

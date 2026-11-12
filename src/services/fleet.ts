@@ -14,7 +14,7 @@ import {
   VehiclePurchaseDetails,
 } from '../types/vehicle';
 import { MaintenanceRecord, WorkOrder, WorkOrderStatus } from '../types/maintenance';
-import { Accident, TimelineEvent, VehicleExpense } from '../types/operations';
+import { isApprovedExpense, Accident, TimelineEvent, VehicleExpense } from '../types/operations';
 import { Invoice } from '../types/finance';
 import { calculateCostPerKm, calculateCurrentBookValue, roundToPrecision } from '../utils/financial';
 
@@ -721,7 +721,7 @@ export async function updateAccident(id: string, updates: Partial<Accident>): Pr
 // ---------------------------------------------------------------------------------------------
 // expenses
 // ---------------------------------------------------------------------------------------------
-const EXPENSE_SELECT = '*, vehicle:vehicles(plate_number), supplier:suppliers(name)';
+const EXPENSE_SELECT = '*, vehicle:vehicles(plate_number), supplier:suppliers(name), employee:employees!expenses_employee_id_fkey(name)';
 
 export const rowToExpense = (r: Row): VehicleExpense => {
   const path: string | null = r.attachment_path ?? null;
@@ -751,10 +751,24 @@ export const rowToExpense = (r: Row): VehicleExpense => {
     notes: r.notes ?? undefined,
     createdAt: r.created_at,
     customFields: r.custom_fields ?? {},
+    categoryId: r.category_id ?? undefined,
+    employeeId: r.employee_id ?? undefined,
+    employeeName: r.employee?.name ?? undefined,
+    status: r.status ?? 'Approved',
+    paymentStatus: r.payment_status ?? 'Paid',
+    bankAccountId: r.bank_account_id ?? undefined,
+    paidDate: r.paid_date ? ymd(r.paid_date) : undefined,
+    journalEntryId: r.journal_entry_id ?? undefined,
+    submittedBy: r.submitted_by ?? undefined,
+    approvedBy: r.approved_by ?? undefined,
+    reviewNote: r.review_note ?? undefined,
+    recurringExpenseId: r.recurring_expense_id ?? undefined,
   };
 };
 
-export async function addExpense(data: Omit<VehicleExpense, 'id' | 'expenseNumber' | 'createdAt'>): Promise<VehicleExpense> {
+export type NewExpense = Omit<VehicleExpense, 'id' | 'expenseNumber' | 'createdAt' | 'status' | 'paymentStatus'>;
+
+export async function addExpense(data: NewExpense, opts: { submit?: boolean } = {}): Promise<VehicleExpense> {
   let attachmentPath: string | null = null;
   if (data.attachmentUrl) {
     const ref = parseStorageRef(data.attachmentUrl);
@@ -785,9 +799,20 @@ export async function addExpense(data: Omit<VehicleExpense, 'id' | 'expenseNumbe
     attachment_path: attachmentPath,
     notes: text(data.notes),
     custom_fields: data.customFields ?? {},
+    category_id: nul(data.categoryId),
+    employee_id: nul(data.employeeId),
+    bank_account_id: nul(data.bankAccountId),
   };
   const created = await unwrapOne<Row>(table('expenses').insert(row).select(EXPENSE_SELECT).single());
-  return rowToExpense(created);
+  if (!opts.submit) return rowToExpense(created);
+  // Within the user's expense limit the database approves and posts at once; above it the expense waits for approval.
+  // If submitting fails (closed period, limit), the draft stays and can be fixed and submitted from the Expenses page.
+  try {
+    await rpcAny<string>('submit_expense', { p_id: created.id });
+  } catch (e) {
+    throw new ServiceError(`Saved as draft ${created.expense_number}, but it could not be submitted: ${(e as Error).message}`);
+  }
+  return rowToExpense(await unwrapOne<Row>(table('expenses').select(EXPENSE_SELECT).eq('id', created.id).single()));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -824,7 +849,7 @@ export function getVehicleFinancialSummary(vehicleId: string, c: VehicleFinancia
   const totalTyre = sum(c.tyres.filter(t => t.vehicleId === vehicleId), t => t.purchaseCost)
     + sum(c.tyreEvents.filter(te => te.vehicleId === vehicleId), te => te.cost);
 
-  const vehicleExps = c.expenses.filter(e => e.vehicleId === vehicleId);
+  const vehicleExps = c.expenses.filter(e => e.vehicleId === vehicleId && isApprovedExpense(e));
   const totalIns = sum(vehicleExps.filter(e => e.category === 'Insurance'), e => e.total) + (vehicle.insurancePremiumAnnual || 0);
   const totalReg = sum(vehicleExps.filter(e => e.category === 'Registration'), e => e.total);
   const otherExp = sum(

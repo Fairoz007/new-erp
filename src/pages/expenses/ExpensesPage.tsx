@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 import { Plus, Paperclip, Eye } from 'lucide-react';
+import { Tabs } from '../../components/ui/Tabs';
+import { StatusBadge } from '../../components/common/StatusBadge';
+import { ExpenseDetailModal } from './ExpenseDetailModal';
+import { MonthlyExpensesPanel } from './MonthlyExpensesPanel';
+import { useMaster } from '../../hooks/useMaster';
+import type { ExpenseCategory as ExpenseCategoryRow } from '../../services/org';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
@@ -12,10 +18,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useCustomFields, useCustomFieldFilter, withCustomColumns } from '../../hooks/useCustomFields';
 
 
-const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Fuel', 'Maintenance', 'Repair', 'Oil', 'Tyres', 'Insurance', 'Registration', 'Parking', 'Toll', 'Cleaning', 'Inspection',
-  'Fines', 'Accident', 'Loan', 'Lease', 'Driver Expense', 'Roadside Assistance', 'Other',
-];
+// Expenses that count as costs: approved (posted) or waiting for approval. Drafts and rejected ones do not.
+const counts = (e: VehicleExpense) => e.status === 'Approved' || e.status === 'Pending Approval';
 
 const mimeOf = (name: string): string => {
   const ext = name.split('.').pop()?.toLowerCase();
@@ -32,10 +36,17 @@ export const ExpensesPage: React.FC = () => {
   const [vehicleFilter, setVehicleFilter] = useState<string>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [tab, setTab] = useState('list');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const { rows: dbCategories } = useMaster<ExpenseCategoryRow>('expenseCategories');
+  const categoryNames = Array.from(new Set([...dbCategories.map(c => c.name), ...expenses.map(e => e.category)])).sort();
+  const opened = openId ? expenses.find(e => e.id === openId) ?? null : null;
 
   const filteredExpenses = expenses.filter(e => {
     if (selectedCompanyId && selectedCompanyId !== 'all' && e.companyId !== selectedCompanyId) return false;
     if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
+    if (statusFilter === 'unpaid' ? !(e.status === 'Approved' && e.paymentStatus === 'Unpaid') : statusFilter !== 'all' && e.status !== statusFilter) return false;
     if (vehicleFilter !== 'all' && e.vehicleId !== vehicleFilter) return false;
     if (fromDate && e.date < fromDate) return false;
     if (toDate && e.date > toDate) return false;
@@ -44,14 +55,16 @@ export const ExpensesPage: React.FC = () => {
     return true;
   });
 
-  const scoped = expenses.filter(e => !selectedCompanyId || selectedCompanyId === 'all' || e.companyId === selectedCompanyId);
+  const inOffice = expenses.filter(e => !selectedCompanyId || selectedCompanyId === 'all' || e.companyId === selectedCompanyId);
+  const scoped = inOffice.filter(counts);
   const totalFuel = scoped.filter(e => e.category === 'Fuel').reduce((s, e) => s + e.total, 0);
-  const totalInsurance = scoped.filter(e => e.category === 'Insurance').reduce((s, e) => s + e.total, 0);
-  const totalReg = scoped.filter(e => e.category === 'Registration').reduce((s, e) => s + e.total, 0);
-  const totalExpenses = scoped.reduce((s, e) => s + e.total, 0);
+  const pending = inOffice.filter(e => e.status === 'Pending Approval');
+  const unpaid = inOffice.filter(e => e.status === 'Approved' && e.paymentStatus === 'Unpaid');
+  const drafts = inOffice.filter(e => e.status === 'Draft' || e.status === 'Rejected');
+  const totalExpenses = scoped.filter(e => e.status === 'Approved').reduce((s, e) => s + e.total, 0);
   // Breakdown of what the current filters show, largest category first
-  const filteredTotal = filteredExpenses.reduce((s, e) => s + e.total, 0);
-  const byCategory = Object.entries(filteredExpenses.reduce<Record<string, number>>((acc, e) => { acc[e.category] = (acc[e.category] ?? 0) + e.total; return acc; }, {}))
+  const filteredTotal = filteredExpenses.filter(counts).reduce((s, e) => s + e.total, 0);
+  const byCategory = Object.entries(filteredExpenses.filter(counts).reduce<Record<string, number>>((acc, e) => { acc[e.category] = (acc[e.category] ?? 0) + e.total; return acc; }, {}))
     .sort((a, b) => b[1] - a[1]);
   const scopedVehicles = vehicles.filter(v => !selectedCompanyId || selectedCompanyId === 'all' || v.companyId === selectedCompanyId);
   const totalReceiptsAttached = scoped.filter(e => !!e.attachmentUrl).length;
@@ -76,6 +89,16 @@ export const ExpensesPage: React.FC = () => {
             </span>
             <span className="text-[10px] text-slate-400 font-mono font-medium">{e.costCentre}</span>
           </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (e) => (
+        <div className="flex flex-col gap-1 items-start">
+          <StatusBadge status={e.status} size="sm" />
+          {e.status === 'Approved' && <StatusBadge status={e.paymentStatus} size="sm" />}
         </div>
       ),
     },
@@ -143,6 +166,7 @@ export const ExpensesPage: React.FC = () => {
       sortable: false,
       render: (e) => (
         <div className="flex items-center justify-end" onClick={ev => ev.stopPropagation()}>
+          <Button variant="ghost" size="xs" onClick={() => setOpenId(e.id)}>Open</Button>
           {e.attachmentUrl && (
             <Button variant="ghost" size="xs" onClick={() => openReceipt(e)} leftIcon={<Eye className="w-3 h-3" />}>
               Receipt
@@ -163,10 +187,10 @@ export const ExpensesPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-            Vehicle Expenses & Entry Bills Ledger
+            Expenses
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-            Track categorized fuel, insurance, registrations, permits, and entry bill vouchers with scanned receipt document uploads.
+            Office, vehicle and staff expenses with receipts. Expenses within your limit post to the ledger when submitted; larger ones go to Approvals.
           </p>
         </div>
 
@@ -193,22 +217,25 @@ export const ExpensesPage: React.FC = () => {
           isHero={true}
         />
         <StatCard
-          title="Insurance Premiums"
-          value={formatCurrency(totalInsurance, currency)}
-          subValue="Category: Insurance"
+          title="Awaiting approval"
+          value={formatCurrency(pending.reduce((s, e) => s + e.total, 0), currency)}
+          subValue={`${pending.length} expense(s) · ${drafts.length} draft(s) not submitted`}
         />
         <StatCard
-          title="Mulkiya Registration"
-          value={formatCurrency(totalReg, currency)}
-          subValue="Category: Registration"
+          title="Approved, not paid"
+          value={formatCurrency(unpaid.reduce((s, e) => s + e.total, 0), currency)}
+          subValue={`${unpaid.length} expense(s) on payables`}
         />
         <StatCard
-          title="Total Fleet Expenses"
+          title="Approved expenses"
           value={formatCurrency(totalExpenses, currency)}
           subValue={`${totalReceiptsAttached} with receipt attached`}
         />
       </div>
 
+      <Tabs variant="segmented" tabs={[{ id: 'list', label: 'All expenses' }, { id: 'monthly', label: 'Monthly expenses' }]} activeTab={tab} onChange={setTab} />
+      {opened && <ExpenseDetailModal expense={opened} onClose={() => setOpenId(null)} onOpenReceipt={openReceipt} />}
+      {tab === 'monthly' ? <MonthlyExpensesPanel onOpen={e => setOpenId(e.id)} /> : <>
       {/* Spend breakdown for the current filters */}
       {byCategory.length > 0 && (
         <div className="bg-white border border-slate-700 rounded-2xl p-4">
@@ -235,7 +262,7 @@ export const ExpensesPage: React.FC = () => {
         searchText={cfList.searchText}
         extraFilters={cfFilter}
         keyExtractor={e => e.id}
-        title="Vehicle Operational Expenses Registry"
+        title="Expense register"
         searchPlaceholder="Search expenses by expense number, plate, category, vendor or cost centre..."
         searchFields={['expenseNumber', 'vehiclePlate', 'category', 'description', 'supplierName', 'costCentre']}
         exportFilename="Expenses_Register"
@@ -247,9 +274,22 @@ export const ExpensesPage: React.FC = () => {
               className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
             >
               <option value="all">All Expense Categories</option>
-              {EXPENSE_CATEGORIES.map(c => (
+              {categoryNames.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              aria-label="Status"
+              className="bg-slate-850 border border-slate-700 rounded-full px-3.5 py-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-[#086343] cursor-pointer"
+            >
+              <option value="all">All statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Pending Approval">Pending approval</option>
+              <option value="Approved">Approved</option>
+              <option value="unpaid">Approved, not paid</option>
+              <option value="Rejected">Rejected</option>
             </select>
             <select
               value={receiptFilter}
@@ -274,6 +314,7 @@ export const ExpensesPage: React.FC = () => {
           </div>
         }
       />
+      </>}
     </div>
   );
 };

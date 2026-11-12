@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { isApprovedExpense } from '../../types/operations';
 import { Printer } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -195,7 +196,7 @@ export const ReportsPage: React.FC = () => {
       case 'cost-per-km': {
         const rows = vehiclesS.map(v => {
           const maintenance = maintenanceRecords.filter(m => m.vehicleId === v.id).reduce((s, m) => s + m.totalCost, 0);
-          const exp = expenses.filter(e => e.vehicleId === v.id).reduce((s, e) => s + e.total, 0);
+          const exp = expenses.filter(e => e.vehicleId === v.id && isApprovedExpense(e)).reduce((s, e) => s + e.total, 0);
           const oil = oilChanges.filter(o => o.vehicleId === v.id).reduce((s, o) => s + o.totalCost, 0);
           const tyre = tyres.filter(t => t.vehicleId === v.id).reduce((s, t) => s + t.purchaseCost, 0);
           const acc = accidents.filter(a => a.vehicleId === v.id).reduce((s, a) => s + a.netAccidentCostToCompany, 0);

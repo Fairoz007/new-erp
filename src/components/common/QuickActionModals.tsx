@@ -18,12 +18,14 @@ import { InvoiceType, PaymentMethod } from '../../types/finance';
 import { EmployeeDepartment } from '../../types/hr';
 import { VehicleOperationsFields, EMPTY_OPS, validateOps, type VehicleOps } from './VehicleOperationsFields';
 import { invalidateDrivers } from '../../hooks/useDrivers';
+import { useMaster } from '../../hooks/useMaster';
+import type { ExpenseCategory as ExpenseCategoryRow } from '../../services/org';
 import { EmployeeFormModal } from '../../pages/hr/EmployeeFormModal';
 import { GeneratePayrollModal } from '../../pages/payroll/GeneratePayrollModal';
 
 export const QuickActionModals: React.FC = () => {
   const { quickModal, closeQuickModal, addToast, selectedVehicleId, paymentInvoiceId, setCurrentPage } = useUI();
-  const { currentUser } = useAuth();
+  const { currentUser, hasPermission } = useAuth();
   const {
     companies,
     vehicles,
@@ -166,13 +168,16 @@ export const QuickActionModals: React.FC = () => {
     companyId: defaultVehicle?.companyId || '',
     date: new Date().toISOString().slice(0, 10),
     category: 'Fuel' as ExpenseCategory,
+    categoryId: '',
     description: '',
     quantity: 1,
     unitPrice: 0,
     tax: 0,
-    paymentMethod: 'Corporate Fuel Card',
+    paymentMethod: 'Bank Transfer',
     costCentre: '',
     supplierId: '',
+    employeeId: '',
+    bankAccountId: '',
     attachment: null as UploadedFileMeta | null,
   });
 
@@ -295,6 +300,8 @@ export const QuickActionModals: React.FC = () => {
   const cfCustomer = useCustomFieldsEditor('client', customerOffice.officeId || undefined, undefined);
   const expOffice = vehicles.find(v => v.id === expForm.vehicleId)?.companyId || expForm.companyId;
   const cfExpense = useCustomFieldsEditor('expense', expOffice || undefined, undefined);
+  const { rows: expenseCategories } = useMaster<ExpenseCategoryRow>('expenseCategories', { activeOnly: true });
+  const expCategory = expenseCategories.find(c => c.id === expForm.categoryId);
   useEffect(() => {
     if (quickModal === 'add-vehicle') cfVehicle.reset();
     if (quickModal === 'add-supplier') cfSupplier.reset();
@@ -624,9 +631,12 @@ export const QuickActionModals: React.FC = () => {
     const v = vehicles.find(veh => veh.id === expForm.vehicleId);
     const sup = suppliers.find(s => s.id === expForm.supplierId);
     let uploadedPath: string | undefined;
+    let status = '';
+    let number = '';
     run('Expense Not Saved', async () => {
       const companyId = requireOffice(v?.companyId || expForm.companyId);
-      if (!v) throw new Error('Select the vehicle this expense belongs to.');
+      if (!expCategory) throw new Error('Choose an expense category.');
+      if (expCategory.requiresVehicle && !v) throw new Error(`The ${expCategory.name} category needs a vehicle.`);
       if (!(Number(expForm.quantity) > 0)) throw new Error('Quantity must be greater than zero.');
       if (Number(expForm.unitPrice) < 0 || Number(expForm.tax) < 0) throw new Error('Unit price and tax cannot be negative.');
       const total = Number(expForm.quantity) * Number(expForm.unitPrice) + Number(expForm.tax);
@@ -634,12 +644,15 @@ export const QuickActionModals: React.FC = () => {
       try {
         const att = await uploadAttachment(expForm.attachment, companyId, 'expenses');
         uploadedPath = att?.path;
-        await addExpense({
+        const saved = await addExpense({
           vehicleId: v?.id || '',
           vehiclePlate: v?.plateNumber || '',
           companyId,
           date: expForm.date,
-          category: expForm.category,
+          category: expCategory.name,
+          categoryId: expCategory.id,
+          employeeId: expForm.employeeId || undefined,
+          bankAccountId: expForm.bankAccountId || undefined,
           supplierId: expForm.supplierId,
           supplierName: sup?.name,
           description: expForm.description,
@@ -654,12 +667,19 @@ export const QuickActionModals: React.FC = () => {
           attachmentSize: att?.size,
           attachmentType: att?.type,
           customFields: cfExpense.value(),
-        });
+        }, { submit: true });
+        status = saved.status;
+        number = saved.expenseNumber;
       } catch (err) {
-        if (uploadedPath) removeFiles('documents', [uploadedPath]).catch(() => undefined);
+        // A draft that saved but could not be submitted keeps its receipt
+        if (uploadedPath && !String((err as Error).message).startsWith('Saved as draft')) removeFiles('documents', [uploadedPath]).catch(() => undefined);
         throw err;
       }
-      addToast({ type: 'success', title: 'Expense Added', message: `Logged ${expForm.category} expense of ${total.toFixed(3)} ${currency}${uploadedPath ? ' with receipt' : ''}.` });
+      addToast({
+        type: 'success',
+        title: status === 'Approved' ? 'Expense Approved & Posted' : 'Expense Sent for Approval',
+        message: `${number}: ${expCategory.name} ${total.toFixed(3)} ${currency}${uploadedPath ? ' with receipt' : ''}${status === 'Approved' ? ', posted to the ledger.' : ' is waiting for an approver.'}`,
+      });
       closeQuickModal();
     });
   };
@@ -1195,22 +1215,22 @@ export const QuickActionModals: React.FC = () => {
       >
         <form onSubmit={handleCreateExpense} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Select label="Vehicle" value={expForm.vehicleId} onChange={e => setExpForm({ ...expForm, vehicleId: e.target.value })} required>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
+            <Select label="Office" value={expOffice} disabled={!!expForm.vehicleId}
+              onChange={e => setExpForm({ ...expForm, companyId: e.target.value, employeeId: '', bankAccountId: '', supplierId: '' })} required>
+              <option value="">Select office</option>
+              {companies.filter(c => hasPermission('create', 'expenses', c.id)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Select label="Category" value={expForm.category} onChange={e => setExpForm({ ...expForm, category: e.target.value as any })}>
-              <option value="Fuel">Fuel & Lubricants</option>
-              <option value="Insurance">Insurance</option>
-              <option value="Registration">Registration / Mulkiya</option>
-              <option value="Toll">Tolls & Border Fees</option>
-              <option value="Parking">Parking</option>
-              <option value="Cleaning">Cleaning & Detailing</option>
-              <option value="Fines">Traffic Fines</option>
-              <option value="Driver Expense">Driver Allowances</option>
-              <option value="Other">Other Expenses</option>
+            <Select label={expCategory?.requiresVehicle ? 'Vehicle (required)' : 'Vehicle (optional)'} value={expForm.vehicleId}
+              onChange={e => { const veh = vehicles.find(x => x.id === e.target.value); setExpForm({ ...expForm, vehicleId: e.target.value, companyId: veh?.companyId || expForm.companyId }); }}>
+              <option value="">No vehicle</option>
+              {vehicles.filter(v => !expForm.companyId || v.companyId === expForm.companyId || v.id === expForm.vehicleId).map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plateNumber})</option>)}
             </Select>
-            <Input label="Date" type="date" value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} required />
+            <Select label="Category" value={expForm.categoryId} onChange={e => setExpForm({ ...expForm, categoryId: e.target.value })} required>
+              <option value="">Choose…</option>
+              {expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
           </div>
+          <Input label="Date" type="date" value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} required />
 
           <Input label="Description" placeholder="e.g. Fuel Refill Mogas 95 (78 Litres)" value={expForm.description} onChange={e => setExpForm({ ...expForm, description: e.target.value })} required />
 
@@ -1218,13 +1238,27 @@ export const QuickActionModals: React.FC = () => {
             <Input label="Quantity" type="number" step="0.1" value={expForm.quantity} onChange={e => setExpForm({ ...expForm, quantity: Number(e.target.value) })} />
             <Input label={`Unit Price (${currency})`} type="number" step="0.001" value={expForm.unitPrice} onChange={e => setExpForm({ ...expForm, unitPrice: Number(e.target.value) })} />
             <Input label={`VAT amount (${currency})`} type="number" step="0.001" min="0" hint="5% of the net amount in Oman" value={expForm.tax} onChange={e => setExpForm({ ...expForm, tax: Number(e.target.value) })} />
-            <Input label="Payment Method" value={expForm.paymentMethod} onChange={e => setExpForm({ ...expForm, paymentMethod: e.target.value })} />
+            <Select label="Payment Method" value={expForm.paymentMethod} onChange={e => setExpForm({ ...expForm, paymentMethod: e.target.value })}>
+              {['Bank Transfer', 'Cash', 'Card', 'Corporate Fuel Card', 'Cheque', 'Petty Cash'].map(m => <option key={m} value={m}>{m}</option>)}
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select label="Paid from" value={expForm.bankAccountId} onChange={e => setExpForm({ ...expForm, bankAccountId: e.target.value })}
+              hint={expForm.bankAccountId ? 'Posted against this bank or cash account when approved.' : 'Not paid yet: posted to payables when approved and paid later.'}>
+              <option value="">Not paid yet</option>
+              {bankAccounts.filter(b => b.active !== false && b.companyId === expOffice).map(b => <option key={b.id} value={b.id}>{b.bankName} · {b.accountName}</option>)}
+            </Select>
+            <Select label="Employee (optional)" value={expForm.employeeId} onChange={e => setExpForm({ ...expForm, employeeId: e.target.value })}>
+              <option value="">-- None --</option>
+              {employees.filter(em => em.companyId === expOffice && em.status !== 'Terminated').map(em => <option key={em.id} value={em.id}>{em.name}</option>)}
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select label="Supplier / Vendor (optional)" value={expForm.supplierId} onChange={e => setExpForm({ ...expForm, supplierId: e.target.value })}>
               <option value="">-- None --</option>
-              {usable(suppliers, expForm.companyId).map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+              {usable(suppliers, expOffice).map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
             </Select>
             <Input label="Cost Centre (optional)" placeholder="e.g. Operations" value={expForm.costCentre} onChange={e => setExpForm({ ...expForm, costCentre: e.target.value })} />
           </div>

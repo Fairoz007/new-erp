@@ -435,8 +435,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setData(prev => ({ ...prev, accidents: prev.accidents.map(a => a.id === id ? { ...a, ...updated } : a) }));
       return updated;
     }),
-    addExpense: mutation('addExpense', async (e: Parameters<typeof fleet.addExpense>[0]) => {
-      const created = await fleet.addExpense(e);
+    addExpense: mutation('addExpense', async (e: Parameters<typeof fleet.addExpense>[0], opts?: Parameters<typeof fleet.addExpense>[1]) => {
+      const created = await fleet.addExpense(e, opts);
       setData(prev => ({ ...prev, expenses: [created, ...prev.expenses] }));
       return created;
     }),

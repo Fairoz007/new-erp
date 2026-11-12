@@ -152,3 +152,39 @@ Migration `20261112000800_finance.sql`, tests `supabase/tests/20261112000800_fin
 - Hard-coded "OMR" labels in the quick-action forms and the vehicle cost-per-km figures now use the organization currency. A new invoice takes the office currency.
 - Deferred to Phase 8: GL posting for expenses and paid maintenance, which need expense status and payment fields first.
 - Not verified in a browser (needs the staging DB): every new Finance page, the journal approval queue, debit notes and asset disposal. Database behaviour is covered by the finance test file.
+
+## Phase 8 — Expenses
+
+Migration `20261112000900_expenses.sql`, tests `supabase/tests/20261112000900_expenses.test.mjs`.
+
+- Expense entry (quick action "Add expense"):
+  - Fields: office, optional vehicle (required when the category says so), category from Setup → Expense categories, optional employee and supplier, quantity, price, VAT, payment method, "Paid from" bank or cash account, cost centre, receipt upload and custom fields.
+  - The employee, vehicle and bank must belong to the expense's office.
+- Workflow: Draft → submit → Approved (posted), or Pending Approval → Approved or Rejected.
+  - Saving from the form submits at once.
+  - Within the submitter's expense approval limit the expense is approved and posted immediately. The default limits are Accountant 500, Fleet Manager 500, Finance Manager unlimited.
+  - Above the limit, every approver is notified and the expense appears under Approvals → Expenses.
+  - The submitter cannot approve or reject their own expense (super admins excepted), and the approver must be within their own limit. Rejecting needs a reason, and the submitter is notified.
+  - A rejected expense can be edited and resubmitted. A pending expense can be withdrawn to draft.
+  - Submitted and approved expenses are locked. Only drafts and rejected expenses can be deleted.
+  - Submitting into a closed accounting period is refused.
+- Posting on approval:
+  - Dr the category's GL account (net), plus Dr 1300 input VAT.
+  - Credit side: the chosen bank or cash account (marked Paid), or 2010 payables when nothing was chosen (Unpaid).
+  - "Pay" later posts Dr 2010 / Cr bank. It needs payments create rights and the payment limit.
+  - A category account missing from the office chart is created. Expenses with no category account post to 5000.
+- Existing expenses recorded before this phase are treated as approved and paid. They were never posted to the ledger, and the detail view says so. They were not back-posted, because doing that could double-count costs already entered as manual journals.
+- Vehicle timeline entries and vehicle cost figures (profitability, dashboard, reports) now count approved expenses only. The timeline entry uses the office currency.
+- Monthly expenses (Expenses → Monthly expenses):
+  - Templates have an office, category, amount, VAT, supplier, vehicle, payment method, day of month (1–28), and start and end dates. They are also editable in Setup → Expense categories.
+  - `generate_recurring_expenses()` creates one draft per template and month once its day has come. It is idempotent (unique template + month) and catches up on missed months.
+  - Each new draft notifies the office. Drafts still not submitted a week after their date raise an "overdue" notification.
+  - A failure, such as a vehicle that was later moved, raises a critical notification and is retried on the next run.
+  - The panel shows drafts to submit (with an overdue flag), the next date for each template, and a "Create due drafts now" button for the user's offices.
+- Daily job: `run_daily_finance_jobs()` (drafts plus budget alerts) is scheduled with pg_cron at 02:15 when the extension is enabled. Without pg_cron, enable it in the Supabase dashboard and re-run the migration's last block, or use the button above.
+- Budget alerts:
+  - At 80% (warning) and 100% (critical) of the approved annual budget, per expense account, once per account and threshold each year.
+  - They are checked when an expense is posted and in the daily job, and link to Finance → Budgets.
+  - Budgets are per GL account, and each category maps to an account, so a per-category budget is a budget on that category's account. Two categories sharing an account share its budget.
+- Maintenance records are not posted on their own. Their cost reaches the ledger through the supplier bill linked to the record, which avoids double posting.
+- Not verified in a browser (needs the staging DB): the expense form, detail actions, Approvals → Expenses, and the monthly panel. Not verified: the pg_cron schedule on a real project, since PGlite has no pg_cron.

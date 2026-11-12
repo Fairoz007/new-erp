@@ -64,7 +64,7 @@ await check('vehicle insert writes a Purchase timeline entry (trigger)', async (
 await check('no tyres are fabricated for a new vehicle', async () => {
   if (await one(`select count(*)::int from tyres where vehicle_id='${V2}'`) !== 0) throw new Error('tyres exist');
 });
-await check('vehicle status change writes a Status timeline entry', async () => {
+await check('vehicle status change writes a Status timeline entry on approval', async () => {
   await tx(ADMIN, `update vehicles set status='Inactive' where id='${V2}'`);
   if (await one(`select count(*)::int from vehicle_timeline where category='Status' and vehicle_id='${V2}'`) !== 1) throw new Error('missing');
 });
@@ -108,6 +108,9 @@ await check('expense: total = qty x unit + tax, timeline entry', async () => {
   await tx(FLEET, `insert into expenses (id, company_id, expense_number, vehicle_id, date, category, description, quantity, unit_price, tax, total, payment_method)
     values ('cccccccc-0000-0000-0000-000000000001','${HO}','EXP-2026-0001','${V1}','2026-04-02','Fuel','Diesel',40,0.5,1,999,'Card')`);
   if (Number(await one(`select total from expenses where id='cccccccc-0000-0000-0000-000000000001'`)) !== 21) throw new Error('total');
+  // Phase 8: a new expense is a draft; the timeline entry is written when it is approved
+  if (await one(`select count(*)::int from vehicle_timeline where category='Expense'`) !== 0) throw new Error('timeline before approval');
+  await tx(FLEET, `select submit_expense('cccccccc-0000-0000-0000-000000000001')`);
   if (await one(`select count(*)::int from vehicle_timeline where category='Expense'`) !== 1) throw new Error('timeline');
 });
 await check('expense without a vehicle is allowed and writes no timeline', async () => {

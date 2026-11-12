@@ -107,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'oil-management', label: 'Oil Service Tracker', icon: Droplet },
         { id: 'tyre-management', label: 'Tyre Lifecycle', icon: Disc },
         { id: 'accidents', label: 'Accident Management', icon: AlertTriangle },
-        { id: 'expenses', label: 'Vehicle Expenses', icon: Receipt },
+        { id: 'expenses', label: 'Expenses', icon: Receipt },
         { id: 'documents', label: 'Document Repository', icon: FolderOpen },
       ],
     },

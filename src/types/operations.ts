@@ -26,7 +26,7 @@ export interface VehicleExpense {
   vehiclePlate: string;
   companyId: string;
   date: string;
-  category: ExpenseCategory;
+  category: ExpenseCategory | string;
   supplierId?: string;
   supplierName?: string;
   description: string;
@@ -45,7 +45,24 @@ export interface VehicleExpense {
   attachmentType?: string;
   notes?: string;
   createdAt: string;
+  categoryId?: string;
+  employeeId?: string;
+  employeeName?: string;
+  /** Draft → Pending Approval → Approved (posted to the ledger) or Rejected */
+  status: ExpenseStatus;
+  paymentStatus: 'Unpaid' | 'Paid';
+  bankAccountId?: string;
+  paidDate?: string;
+  journalEntryId?: string;
+  submittedBy?: string;
+  approvedBy?: string;
+  reviewNote?: string;
+  recurringExpenseId?: string;
 }
+
+export type ExpenseStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
+/** Only approved expenses are costs (drafts, pending and rejected ones are not). */
+export const isApprovedExpense = (e: { status?: ExpenseStatus }) => (e.status ?? 'Approved') === 'Approved';
 
 export type AccidentStatus =
   | 'Reported'
