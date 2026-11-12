@@ -269,3 +269,28 @@ are pessimistic; requests and rows per request are what the browser would see.
 
 The expense list returned 0 rows because the volume data set has no expenses (it seeds invoices,
 payments and manual journals); `expense_page` is covered by its tests instead.
+
+---
+
+## Phase 2: Concurrency and failure handling
+
+| Item | How | Test |
+|---|---|---|
+| Optimistic locking | Edits send back the `updated_at` they loaded (`withVersion` in the services; vehicles, offices, suppliers, customers, employees, tyres, accidents, fixed assets). Trigger `a0_version_check` refuses a save from an older copy with SQLSTATE `PT409` (HTTP 409) and the message "This record was changed by someone else since you opened it. Reload it…". After any failed save the page's data is reloaded (FleetContext mutation wrapper), so a retry shows the latest version. Employees, tyres and accidents got an `updated_at` column for this. | `20261113001000_concurrency.test.mjs` |
+| Idempotent saves | Payment, invoice, expense and journal forms keep one request key per opened form (`src/lib/requestKey.ts`), sent as `x-request-key` on their writes. Trigger `a0_request_key` claims the key on the first insert; a second save with the same key is refused ("This was already saved…"), so a double click or a retry after a timeout never creates a second document. Inserts of the same transaction share the claim (a payment and its journal). Keys are kept 7 days (`purge_request_keys`). Payroll runs were already unique per office and month. Save buttons were already disabled while busy. | same file; `src/lib/__tests__/requestKey.test.ts` |
+| Session expiry | Tokens refresh silently (supabase-js). If the session still ends without the user signing out, the app stays mounted behind a sign-in prompt, so open forms keep their input; the same user continues where they were, anyone else gets a clean reload. | not verified in a browser |
+| Lost connection | Offline banner; writes are refused while offline ("you are offline, so nothing was saved"); on reconnect every cached query is refreshed. | `requestKey.test.ts` (writes refused); banner not verified in a browser |
+| Errors | `friendlyMessage` in `src/services/core.ts` is the one place mapping Postgres / PostgREST / network errors; it names the column for missing values and the rule for check violations, keeps the messages our functions raise, and never shows a raw Postgres message for the mapped codes. Every page already had its own error boundary; crashes are now also reported (Phase 8). | `src/services/__tests__/errors.test.ts` |
+| Money and dates | See "Work from later phases done alongside Phase 1". | `money.test.ts`, `date.test.ts` |
+
+### Defaults chosen
+
+- The version check fires only when the client sends `updated_at` and it is older than the stored
+  one; server functions that set `updated_at = now()` are never refused.
+- Request keys are per opened form, renewed when the form closes or the journal is posted.
+
+### Not verified
+
+- The `x-request-key` header against the real Supabase API (CORS allows custom headers per
+  Supabase's documentation for `request.headers`; not tried, no staging).
+- The session-expired prompt, offline banner and conflict message in a browser.

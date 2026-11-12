@@ -49,7 +49,7 @@ export const CustomersPage: React.FC = () => {
     const next = c.status === 'Active' ? 'Inactive' : 'Active';
     setBusyId(c.id);
     try {
-      await updateCustomer(c.id, { status: next });
+      await updateCustomer(c.id, { status: next, updatedAt: c.updatedAt });
       addToast({ type: 'success', title: next === 'Active' ? 'Customer Activated' : 'Customer Deactivated', message: c.name });
     } catch (e) {
       addToast({ type: 'error', title: 'Update Failed', message: (e as Error).message });
@@ -289,7 +289,7 @@ export const CustomersPage: React.FC = () => {
         kind="customer"
         party={editing}
         onClose={() => setEditing(null)}
-        onSave={async (id, changes) => { await save(id, changes); }}
+        onSave={async (id, changes) => { await save(id, { ...changes, updatedAt: editing?.updatedAt }); }}
       />
 
       {importing && <PartyImportModal kind="customer" onClose={() => setImporting(false)} />}

@@ -8,7 +8,7 @@
 // derived from that one rule, for one company or summed by account code across the user's
 // companies when companyId is 'all' / undefined.
 import { roundMoney } from '../utils/money';
-import { fetchPaged, ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd } from './core';
+import { fetchPaged, ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd, withVersion } from './core';
 import type { CollectionKey, Fetchers } from './core';
 import type {
   Account, AccountCategory, BalanceSheetStatement, DepreciationRun, FixedAsset, FixedAssetCategory,
@@ -334,7 +334,7 @@ export async function updateFixedAsset(id: string, asset: Partial<FixedAsset>): 
   const row = fixedAssetToRow(asset);
   delete row.company_id;            // moving an asset between offices would orphan its posted depreciation
   if (Object.keys(row).length === 0) return;
-  const updated = await unwrap<any[]>(supabase.from('fixed_assets').update(row as any).eq('id', id).select('id') as any);
+  const updated = await unwrap<any[]>(supabase.from('fixed_assets').update(withVersion(row, asset) as any).eq('id', id).select('id') as any);
   if (!updated?.length) throw new ServiceError('Fixed asset not found or you do not have permission to edit it.');
 }
 

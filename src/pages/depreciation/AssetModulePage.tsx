@@ -67,6 +67,7 @@ export const AssetModulePage: React.FC = () => {
     try {
       await updateFixedAsset(editing.id, {
         ...editForm,
+        updatedAt: editing.updatedAt,
         purchaseCost: cost,
         salvageValue: salvage,
         usefulLifeYears: life,

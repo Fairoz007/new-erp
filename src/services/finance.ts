@@ -10,6 +10,7 @@
 import {
   CollectionKey, Fetchers, ServiceError, nul, num, rpcAny, supabase, unwrap, unwrapOne, ymd,
   fetchPaged,
+  withVersion,
 } from './core';
 import { parseStorageRef, toStorageRef } from './storage';
 import type { Supplier, Customer, SupplierType } from '../types/operations';
@@ -72,6 +73,7 @@ export function attachmentPathFrom(url: string | undefined | null): string | nul
 interface PartySummary { total_invoiced: unknown; total_paid: unknown; total_credited: unknown; outstanding: unknown; invoice_count: unknown; current_balance: unknown }
 
 export const rowToSupplier = (r: Row, s?: PartySummary): Supplier => ({
+  updatedAt: r.updated_at ?? undefined,
   id: r.id,
   supplierId: r.supplier_code,
   name: r.name,
@@ -118,6 +120,7 @@ const rowToRegistration = (r: Row) => ({
 });
 
 export const rowToCustomer = (r: Row, s?: PartySummary): Customer => ({
+  updatedAt: r.updated_at ?? undefined,
   id: r.id,
   customerId: r.customer_code,
   name: r.name,
@@ -226,7 +229,7 @@ export async function updateSupplier(id: string, supplier: Partial<Supplier>): P
   const row = supplierToRow(supplier);
   if (row.name === '') throw new ServiceError('Supplier name is required.');
   if (Object.keys(row).length === 0) return;
-  await unwrapOne(table('suppliers').update(row).eq('id', id).select('id').maybeSingle());
+  await unwrapOne(table('suppliers').update(withVersion(row, supplier)).eq('id', id).select('id').maybeSingle());
 }
 
 export async function addCustomer(
@@ -244,7 +247,7 @@ export async function updateCustomer(id: string, customer: Partial<Customer>): P
   const row = customerToRow(customer);
   if (row.name === '') throw new ServiceError('Customer name is required.');
   if (Object.keys(row).length === 0) return;
-  await unwrapOne(table('customers').update(row).eq('id', id).select('id').maybeSingle());
+  await unwrapOne(table('customers').update(withVersion(row, customer)).eq('id', id).select('id').maybeSingle());
 }
 
 /** Approve or reject a pending client/supplier registration (approve rights in its home office). */

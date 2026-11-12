@@ -5,6 +5,8 @@ export type EmployeeDepartment = string;
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Probation' | 'Terminated';
 
 export interface Employee {
+  /** Row version (updated_at) as loaded; sent back on save for the concurrent-edit check. */
+  updatedAt?: string;
   id: string;
   employeeCode: string; // e.g. "EMP-0101"
   companyId: string;

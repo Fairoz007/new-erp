@@ -74,6 +74,8 @@ export type AccidentStatus =
   | 'Closed';
 
 export interface Accident {
+  /** Row version (updated_at) as loaded; sent back on save for the concurrent-edit check. */
+  updatedAt?: string;
   id: string;
   accidentNumber: string; // e.g. "ACC-2026-009"
   vehicleId: string;
@@ -129,6 +131,8 @@ export type SupplierType =
   | 'Other';
 
 export interface Supplier {
+  /** Row version (updated_at) as loaded; sent back on save for the concurrent-edit check. */
+  updatedAt?: string;
   id: string;
   supplierId: string; // e.g. "SUP-001"
   name: string;
@@ -178,6 +182,8 @@ export interface PartyRegistration {
 }
 
 export interface Customer {
+  /** Row version (updated_at) as loaded; sent back on save for the concurrent-edit check. */
+  updatedAt?: string;
   id: string;
   customerId: string; // e.g. "CUST-001"
   name: string;

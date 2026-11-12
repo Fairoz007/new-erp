@@ -220,7 +220,7 @@ export const TyreManagementPage: React.FC = () => {
           tyre={editing}
           onClose={() => setEditing(null)}
           onSubmit={async updates => {
-            await updateTyre(editing.id, updates);
+            await updateTyre(editing.id, { ...updates, updatedAt: editing.updatedAt });
             addToast({ type: 'success', title: 'Tyre Updated', message: `${editing.brand} ${editing.position} was saved.` });
           }}
         />

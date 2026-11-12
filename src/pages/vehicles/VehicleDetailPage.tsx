@@ -1080,7 +1080,7 @@ export const VehicleDetailPage: React.FC = () => {
           vehicle={vehicle}
           onClose={() => setEditOpen(false)}
           onSubmit={async updates => {
-            await updateVehicle(vehicle.id, updates);
+            await updateVehicle(vehicle.id, { ...updates, updatedAt: vehicle.updatedAt });
             addToast({ type: 'success', title: 'Vehicle Updated', message: `${vehicle.brand} ${vehicle.model} was saved.` });
           }}
         />

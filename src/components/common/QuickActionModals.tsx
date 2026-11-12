@@ -24,9 +24,15 @@ import type { ExpenseCategory as ExpenseCategoryRow } from '../../services/org';
 import { EmployeeFormModal } from '../../pages/hr/EmployeeFormModal';
 import { GeneratePayrollModal } from '../../pages/payroll/GeneratePayrollModal';
 import { addDaysYmd, currentMonthYm, toYmd, todayYmd } from '../../utils/date';
+import { useRequestKey } from '../../lib/requestKey';
 
 export const QuickActionModals: React.FC = () => {
   const { quickModal, closeQuickModal, addToast, selectedVehicleId, paymentInvoiceId, setCurrentPage } = useUI();
+  // One request key per opened form: a retry or double click of the same save cannot create a second
+  // payment, invoice or expense (the database refuses a reused key). A new form gets a new key.
+  const reqKey = useRequestKey();
+  const { renew: renewKey } = reqKey;
+  useEffect(() => { renewKey(); }, [quickModal, renewKey]);
   const { currentUser, hasPermission } = useAuth();
   const {
     companies,
@@ -645,7 +651,7 @@ export const QuickActionModals: React.FC = () => {
       try {
         const att = await uploadAttachment(expForm.attachment, companyId, 'expenses');
         uploadedPath = att?.path;
-        const saved = await addExpense({
+        const saved = await reqKey.run(() => addExpense({
           vehicleId: v?.id || '',
           vehiclePlate: v?.plateNumber || '',
           companyId,
@@ -668,7 +674,7 @@ export const QuickActionModals: React.FC = () => {
           attachmentSize: att?.size,
           attachmentType: att?.type,
           customFields: cfExpense.value(),
-        }, { submit: true });
+        }, { submit: true }));
         status = saved.status;
         number = saved.expenseNumber;
       } catch (err) {
@@ -735,7 +741,7 @@ export const QuickActionModals: React.FC = () => {
         uploadedPath = att?.path;
         // Totals, number and party snapshot are computed by create_invoice; a non-Draft status submits it:
         // posted at once when within the user's approval limit, otherwise an approval request is raised.
-        created = await addInvoice({
+        created = await reqKey.run(() => addInvoice({
           invoiceType: invoiceForm.invoiceType,
           companyId,
           companyName: '',
@@ -763,7 +769,7 @@ export const QuickActionModals: React.FC = () => {
           attachmentName: att?.name,
           attachmentSize: att?.size,
           attachmentType: att?.type,
-        });
+        }));
       } catch (err) {
         if (uploadedPath) removeFiles('documents', [uploadedPath]).catch(() => undefined);
         throw err;
@@ -811,7 +817,7 @@ export const QuickActionModals: React.FC = () => {
       if (!inv) throw new Error('Select a posted invoice with an outstanding balance.');
       const ba = paymentBanks.find(b => b.id === paymentForm.bankAccountId);
       if (!ba) throw new Error('Select a bank account of the invoice office.');
-      const pay = await addPayment({
+      const pay = await reqKey.run(() => addPayment({
         companyId: inv.companyId,
         invoiceId: inv.id,
         invoiceNumber: inv.invoiceNumber,
@@ -828,7 +834,7 @@ export const QuickActionModals: React.FC = () => {
         transactionReference: paymentForm.transactionReference,
         chequeNumber: paymentForm.paymentMethod === 'Cheque' ? paymentForm.chequeNumber : undefined,
         notes: paymentForm.notes,
-      });
+      }));
       addToast({ type: 'success', title: 'Payment Processed', message: `${pay.paymentNumber}: ${pay.amount.toFixed(3)} ${pay.currency} against ${inv.invoiceNumber}.` });
       closeQuickModal();
     });

@@ -269,6 +269,8 @@ function mapperKeys(src, name, consts, seen = new Set()) {
 function payloadKeys(expr, src, consts, callPos, seen = new Set()) {
   expr = stripAs(expr);
   if (expr.startsWith('{') || expr.startsWith('({')) return objectKeys(expr, src, consts, seen);
+  let w = expr.match(/^withVersion\(\s*([\s\S]+?)\s*,\s*[\w.]+\s*\)$/);   // withVersion(payload, updates): payload + updated_at
+  if (w) { const k = payloadKeys(w[1], src, consts, callPos, seen); if (k) k.add('updated_at'); return k; }
   let m = expr.match(/^(\w+)\(/);                       // mapper call
   if (m) return mapperKeys(src, m[1], consts, seen);
   m = expr.match(/^[\w.?]+\.map\(\s*(\w+)\s*\)$/);      // list.map(mapper)

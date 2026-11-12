@@ -23,8 +23,11 @@ export class ServiceError extends Error {
   }
 }
 
-/** A save was refused because someone else changed the record first (optimistic locking). */
-export const CONFLICT = 'CONFLICT';
+/**
+ * SQLSTATE of a refused save: someone else changed the record first (optimistic locking), or the
+ * same form was submitted twice (request key). PostgREST answers HTTP 409. The message is ours.
+ */
+export const CONFLICT = 'PT409';
 
 /**
  * Message a user can act on for a Postgres / PostgREST / network error. Messages raised on purpose
@@ -44,8 +47,15 @@ export function friendlyMessage(code: string | undefined, message: string, detai
     return what ? `A record with the same ${what} already exists.` : 'A record with the same unique value already exists.';
   }
   if (code === '23503') return 'This record is linked to other records and cannot be changed or removed.';
-  if (code === '23514') return `Validation failed: ${m}`;
-  if (code === '23502') return 'A required field is missing.';
+  if (code === '23514') {
+    // name the rule: "violates check constraint "invoices_due_after_issue"" -> "due after issue"
+    const rule = /check constraint "([^"]+)"/.exec(m)?.[1];
+    return rule ? `A value is not allowed (rule: ${rule.replace(/^[a-z]+s?_/, '').replace(/_check$/, '').replace(/_/g, ' ') || rule}).` : `Validation failed: ${m}`;
+  }
+  if (code === '23502') {
+    const col = /column "([^"]+)"/.exec(m)?.[1];
+    return col ? `${col.replace(/_id$/, '').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())} is required.` : 'A required field is missing.';
+  }
   if (code === '22P02' || code === '22007' || code === '22008') return 'A value has the wrong format (check numbers and dates).';
   if (code === '22003') return 'A number is too large.';
   if (code === '40001' || code === '40P01') return 'The database was busy with a conflicting change. Please try again.';
@@ -93,6 +103,13 @@ export async function rpcAny<T = unknown>(fn: string, args: Record<string, unkno
   if (error) throw toServiceError(error);
   return data as T;
 }
+
+/**
+ * Adds the row version the user loaded (updates.updatedAt) to an update, so the database refuses
+ * the save if someone else changed the row since (PT409, see 20261113001000_concurrency.sql).
+ */
+export const withVersion = <R extends Record<string, unknown>>(row: R, updates: { updatedAt?: string }): R =>
+  (updates.updatedAt ? { ...row, updated_at: updates.updatedAt } : row);
 
 // numeric columns arrive as strings; null/undefined -> 0
 export const num = (v: unknown): number => (v == null || v === '' ? 0 : Number(v));

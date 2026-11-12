@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useRequestKey } from '../../lib/requestKey';
 import { Plus, Scale, Trash2, Undo2 } from 'lucide-react';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { Button } from '../../components/ui/Button';
@@ -24,6 +25,8 @@ const blankLines = (): FormLine[] => [
 
 export const AccountingPage: React.FC = () => {
   const { chartOfAccounts, addJournalEntry, reverseJournalEntry, currency, selectedCompanyId, companies } = useFleet();
+  // same key for every attempt to post this journal; renewed after it is posted
+  const journalKey = useRequestKey();
   const [reversing, setReversing] = useState<JournalEntry | null>(null);
   const [reverseForm, setReverseForm] = useState({ date: todayYmd(), reason: '' });
   const [reverseError, setReverseError] = useState('');
@@ -104,7 +107,7 @@ export const AccountingPage: React.FC = () => {
     setIsPosting(true);
     try {
       // Entry number, poster and balance are assigned/verified by the database (post_journal_entry RPC).
-      const res = await addJournalEntry({
+      const res = await journalKey.run(() => addJournalEntry({
         companyId: journalForm.companyId,
         date: journalForm.date,
         description: journalForm.description,
@@ -122,7 +125,8 @@ export const AccountingPage: React.FC = () => {
         postedBy: '',
         status: 'Posted',
         sourceModule: 'Manual',
-      });
+      }));
+      journalKey.renew();   // posted or sent for approval: the next save is a new journal
       if (res.entry) addToast({ type: 'success', title: 'Journal Entry Posted', message: `Posted ${res.entry.entryNumber} for ${totalDebit.toFixed(3)} ${currency}.` });
       else addToast({ type: 'info', title: 'Sent for approval', message: `${res.pending.requestNumber}: this journal is above your approval limit. It will be posted when an approver approves it.` });
       setIsJournalModalOpen(false);

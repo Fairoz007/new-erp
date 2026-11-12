@@ -83,7 +83,7 @@ export const EmployeeFormModal: React.FC<{ isOpen: boolean; employee?: Employee 
       const payload = { ...data, totalGrossSalary: gross, customFields: cf.value() };
       if (employee) {
         const { companyId: _c, ...changes } = payload;   // office moves go through Transfer
-        await updateEmployee(employee.id, changes);
+        await updateEmployee(employee.id, { ...changes, updatedAt: employee.updatedAt });
         addToast({ type: 'success', title: 'Employee updated', message: f.name });
       } else {
         const created = await addEmployee(payload);

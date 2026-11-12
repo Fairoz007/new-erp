@@ -100,8 +100,9 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
   const totalPaid = kind === 'customer' ? (party as Customer).amountReceived : (party as Supplier).amountPaid;
 
   const save = async (id: string, changes: Partial<Customer> | Partial<Supplier>) => {
-    if (kind === 'customer') await updateCustomer(id, changes as Partial<Customer>);
-    else await updateSupplier(id, changes as Partial<Supplier>);
+    const versioned = { ...changes, updatedAt: party.updatedAt };
+    if (kind === 'customer') await updateCustomer(id, versioned as Partial<Customer>);
+    else await updateSupplier(id, versioned as Partial<Supplier>);
     addToast({ type: 'success', title: 'Saved', message: party.name });
   };
 

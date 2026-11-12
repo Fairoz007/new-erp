@@ -25,6 +25,8 @@ export interface User {
 }
 
 export interface Company {
+  /** Row version (updated_at) as loaded; sent back on save for the concurrent-edit check. */
+  updatedAt?: string;
   id: string;
   name: string;
   code: string;

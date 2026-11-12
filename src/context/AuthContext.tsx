@@ -81,6 +81,7 @@ export type AuthStatus =
   | 'loading'       // checking session / loading profile
   | 'signed-out'    // no session
   | 'ready'         // session + active profile + matrix loaded
+  | 'session-ended' // was ready, the session expired: the app stays mounted (unsaved forms kept) behind a sign-in prompt
   | 'no-profile'    // session but no profiles row (trigger missing / deleted)
   | 'inactive'      // profile.status = inactive
   | 'error';        // failed to load profile/matrix
@@ -127,6 +128,8 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionEnded, setSessionEnded] = useState(false);
   const userSignOut = useRef(false);
+  const sessionEndedRef = useRef(false);
+  const statusRef = useRef<AuthStatus>('loading');
   const hadSession = useRef(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [status, setStatus] = useState<AuthStatus>('loading');
@@ -136,6 +139,9 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   );
 
   const [currentUser, setCurrentUser] = useState<User>(GUEST);
+  const currentUserIdRef = useRef<string>('');
+  currentUserIdRef.current = currentUser.id;
+  statusRef.current = status;
   const [users, setUsers] = useState<User[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -159,10 +165,10 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       if (event === 'SIGNED_OUT') {
         setPasswordRecovery(false);
         // Not the user's own sign-out: the session expired or was revoked. Say so on the login screen.
-        if (hadSession.current && !userSignOut.current) setSessionEnded(true);
+        if (hadSession.current && !userSignOut.current) { setSessionEnded(true); sessionEndedRef.current = true; }
         userSignOut.current = false;
       }
-      if (event === 'SIGNED_IN') setSessionEnded(false);
+      if (event === 'SIGNED_IN') { setSessionEnded(false); }
       hadSession.current = !!s;
       setSession(s);
       setSessionChecked(true);
@@ -216,6 +222,9 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   useEffect(() => {
     if (!sessionChecked) return;
     if (!userId) {
+      // Session expired while the app was open: keep everything mounted (forms keep their input)
+      // and ask for the password again. Business data stays in memory only, behind the prompt.
+      if (sessionEndedRef.current && statusRef.current === 'ready') { setStatus('session-ended'); return; }
       loadSeq.current++;
       setCurrentUser(GUEST);
       setUsers([]);
@@ -224,6 +233,13 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setRolePermissions([]);
       setApprovalLimits([]);
       setStatus('signed-out');
+      return;
+    }
+    if (statusRef.current === 'session-ended') {
+      sessionEndedRef.current = false;
+      // same person signed in again: resume where they were; anyone else: start clean
+      if (userId === currentUserIdRef.current) { void load(userId, true).catch(() => setStatus('error')); return; }
+      window.location.reload();
       return;
     }
     void load(userId);

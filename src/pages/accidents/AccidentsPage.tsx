@@ -219,7 +219,7 @@ export const AccidentsPage: React.FC = () => {
           accident={editing}
           onClose={() => setEditing(null)}
           onSubmit={async updates => {
-            await updateAccident(editing.id, updates);
+            await updateAccident(editing.id, { ...updates, updatedAt: editing.updatedAt });
             addToast({ type: 'success', title: 'Claim Updated', message: `${editing.accidentNumber} was saved.` });
           }}
         />

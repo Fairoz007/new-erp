@@ -49,7 +49,7 @@ export const SuppliersPage: React.FC = () => {
     const next = s.status === 'Active' ? 'Inactive' : 'Active';
     setBusyId(s.id);
     try {
-      await updateSupplier(s.id, { status: next });
+      await updateSupplier(s.id, { status: next, updatedAt: s.updatedAt });
       addToast({ type: 'success', title: next === 'Active' ? 'Supplier Activated' : 'Supplier Deactivated', message: s.name });
     } catch (e) {
       addToast({ type: 'error', title: 'Update Failed', message: (e as Error).message });
@@ -286,7 +286,7 @@ export const SuppliersPage: React.FC = () => {
         kind="supplier"
         party={editing}
         onClose={() => setEditing(null)}
-        onSave={async (id, changes) => { await save(id, changes); }}
+        onSave={async (id, changes) => { await save(id, { ...changes, updatedAt: editing?.updatedAt }); }}
       />
 
       {importing && <PartyImportModal kind="supplier" onClose={() => setImporting(false)} />}

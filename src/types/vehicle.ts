@@ -14,6 +14,8 @@ export type TyrePosition = 'Front Left' | 'Front Right' | 'Rear Left' | 'Rear Ri
 export type TyreStatus = 'Good' | 'Fair' | 'Due Soon' | 'Critical' | 'Replaced' | 'Scrapped';
 
 export interface Tyre {
+  /** Row version (updated_at) as loaded; sent back on save for the concurrent-edit check. */
+  updatedAt?: string;
   id: string;
   vehicleId: string;
   brand: string;

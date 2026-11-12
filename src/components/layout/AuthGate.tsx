@@ -44,11 +44,20 @@ export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   if (session && passwordRecovery) return <SetPasswordPage />;
 
-  if (status === 'ready') {
+  if (status === 'ready' || status === 'session-ended') {
     return (
-      <OrgProvider>
-        <SetupGate>{children}</SetupGate>
-      </OrgProvider>
+      <>
+        <div {...(status === 'session-ended' ? { inert: '', 'aria-hidden': true } as Record<string, unknown> : {})}>
+          <OrgProvider>
+            <SetupGate>{children}</SetupGate>
+          </OrgProvider>
+        </div>
+        {status === 'session-ended' && (
+          <div className="fixed inset-0 z-[100] overflow-y-auto bg-white/95" role="dialog" aria-modal="true" aria-label="Sign in again">
+            <LoginPage notice="Your session has ended. Sign in again to continue; the page and any unsaved form are kept." />
+          </div>
+        )}
+      </>
     );
   }
 

@@ -6,6 +6,7 @@
 import {
   CollectionKey, Fetchers, ServiceError, currentUserId, nul, num, numOrUndef, rpcAny, supabase, unwrap, unwrapOne, ymd,
   fetchPaged,
+  withVersion,
 } from './core';
 import { parseStorageRef, toStorageRef } from './storage';
 import { Company } from '../types/system';
@@ -60,6 +61,7 @@ async function vehicleInfo(vehicleId: string): Promise<{ companyId: string; mile
 // companies
 // ---------------------------------------------------------------------------------------------
 export const rowToCompany = (r: Row): Company => ({
+  updatedAt: r.updated_at ?? undefined,
   id: r.id,
   name: r.name,
   code: r.code,
@@ -119,7 +121,7 @@ export async function addCompany(data: Omit<Company, 'id'>): Promise<Company> {
 
 export async function updateCompany(id: string, updates: Partial<Company>): Promise<Company> {
   const row = await unwrapOne<Row>(
-    table('companies').update(companyToRow(updates)).eq('id', id).select('*').maybeSingle(),
+    table('companies').update(withVersion(companyToRow(updates), updates)).eq('id', id).select('*').maybeSingle(),
   ).catch(e => uniqueMessage(e, 'An office with this code already exists.'));
   return rowToCompany(row);
 }
@@ -236,7 +238,7 @@ export async function updateVehicle(id: string, updates: Partial<Vehicle>): Prom
   const patch = vehicleToRow(updates);
   delete patch.company_id; // an office transfer is not an edit: it would orphan the vehicle's records
   const updated = await unwrapOne<Row>(
-    table('vehicles').update(patch).eq('id', id).select(VEHICLE_SELECT).maybeSingle(),
+    table('vehicles').update(withVersion(patch, updates)).eq('id', id).select(VEHICLE_SELECT).maybeSingle(),
   ).catch(e => uniqueMessage(e, plateTaken(updates.plateNumber)));
   return rowToVehicle(updated);
 }
@@ -558,6 +560,7 @@ export async function addOilChange(data: Omit<OilChange, 'id' | 'status'>): Prom
 const TYRE_SELECT = '*, supplier:suppliers(name)';
 
 export const rowToTyre = (r: Row): Tyre => ({
+  updatedAt: r.updated_at ?? undefined,
   id: r.id,
   vehicleId: r.vehicle_id,
   brand: r.brand,
@@ -607,7 +610,7 @@ export async function addTyre(data: Omit<Tyre, 'id'>): Promise<Tyre> {
 export async function updateTyre(id: string, updates: Partial<Tyre>): Promise<Tyre> {
   const patch = tyreToRow(updates);
   delete patch.vehicle_id; // a tyre cannot be moved to another vehicle by an edit
-  const updated = await unwrapOne<Row>(table('tyres').update(patch).eq('id', id).select(TYRE_SELECT).maybeSingle());
+  const updated = await unwrapOne<Row>(table('tyres').update(withVersion(patch, updates)).eq('id', id).select(TYRE_SELECT).maybeSingle());
   return rowToTyre(updated);
 }
 
@@ -653,6 +656,7 @@ export async function addTyreEvent(data: Omit<TyreEvent, 'id'>): Promise<TyreEve
 const ACCIDENT_SELECT = '*, vehicle:vehicles(plate_number)';
 
 export const rowToAccident = (r: Row): Accident => ({
+  updatedAt: r.updated_at ?? undefined,
   id: r.id,
   accidentNumber: r.accident_number,
   vehicleId: r.vehicle_id,
@@ -714,7 +718,7 @@ export async function addAccident(data: Omit<Accident, 'id' | 'accidentNumber' |
 export async function updateAccident(id: string, updates: Partial<Accident>): Promise<Accident> {
   const patch = accidentToRow(updates);
   delete patch.vehicle_id;
-  const updated = await unwrapOne<Row>(table('accidents').update(patch).eq('id', id).select(ACCIDENT_SELECT).maybeSingle());
+  const updated = await unwrapOne<Row>(table('accidents').update(withVersion(patch, updates)).eq('id', id).select(ACCIDENT_SELECT).maybeSingle());
   return rowToAccident(updated);
 }
 

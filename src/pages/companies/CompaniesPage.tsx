@@ -25,7 +25,7 @@ export const CompaniesPage: React.FC = () => {
 
   const saveCompany = async (data: Omit<Company, 'id'>) => {
     if (editing) {
-      await updateCompany(editing.id, data);
+      await updateCompany(editing.id, { ...data, updatedAt: editing.updatedAt });
       addToast({ type: 'success', title: 'Office Updated', message: `${data.name} was saved.` });
     } else {
       await addCompany(data);

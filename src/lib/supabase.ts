@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
+import { keyedFetch } from './requestKey';
 
 const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {} as Record<string, string | undefined>;
 const procEnv = (typeof globalThis !== 'undefined' && (globalThis as any).process?.env) || {};
@@ -39,6 +40,8 @@ export const supabase = createClient<Database>(supabaseUrl || 'http://supabase-n
     detectSessionInUrl: true,
     storageKey: 'fleetx-auth-token',
   },
+  // adds x-request-key to writes made inside withRequestKey() (idempotent saves)
+  global: { fetch: keyedFetch },
   realtime: {
     params: {
       eventsPerSecond: 10,

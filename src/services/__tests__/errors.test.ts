@@ -13,6 +13,10 @@ describe('error mapping', () => {
     expect(friendlyMessage('22P02', 'invalid input syntax for type numeric')).toMatch(/wrong format/);
     expect(friendlyMessage('57014', 'canceling statement due to statement timeout')).toMatch(/took too long/);
   });
+  it('names the field or rule for not-null and check violations', () => {
+    expect(friendlyMessage('23502', 'null value in column "vehicle_id" of relation "expenses" violates not-null constraint')).toBe('Vehicle is required.');
+    expect(friendlyMessage('23514', 'new row for relation "invoices" violates check constraint "invoices_due_after_invoice_check"')).toBe('A value is not allowed (rule: due after invoice).');
+  });
   it('recognises network failures and expired sessions', () => {
     expect(friendlyMessage(undefined, 'TypeError: Failed to fetch')).toMatch(/reach the server/);
     expect(friendlyMessage('PGRST301', 'JWT expired')).toMatch(/session has expired/);
@@ -23,6 +27,7 @@ describe('error mapping', () => {
     const e = toServiceError({ message: 'x', code: '23514' });
     expect(e.code).toBe('23514');
     expect(toServiceError(e)).toBe(e);
-    expect(friendlyMessage(CONFLICT, 'Changed by someone else')).toBe('Changed by someone else');
+    expect(CONFLICT).toBe('PT409');
+    expect(friendlyMessage(CONFLICT, 'This record was changed by someone else')).toBe('This record was changed by someone else');
   });
 });

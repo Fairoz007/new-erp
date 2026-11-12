@@ -3,7 +3,7 @@
 // Sensitive columns (civil_id, passport_number, iban, salaries) are readable only by roles with
 // 'payroll:view' in the employee's office (RLS); never cache them outside FleetContext state.
 import { roundMoney } from '../utils/money';
-import { ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd } from './core';
+import { ServiceError, num, nul, rpcAny, supabase, unwrap, unwrapOne, ymd, withVersion } from './core';
 import type { CollectionKey, Fetchers } from './core';
 import type { Employee, EmployeeDepartment, PayrollLineItem, PayrollRun } from '../types/hr';
 import { requireCompany } from './accounting';
@@ -15,6 +15,7 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 // Mappers
 // ---------------------------------------------------------------------------------------------
 export const rowToEmployee = (r: any): Employee => ({
+  updatedAt: r.updated_at ?? undefined,
   id: r.id,
   employeeCode: r.employee_code,
   companyId: r.company_id,
@@ -232,7 +233,7 @@ export async function updateEmployee(id: string, emp: Partial<Employee>): Promis
   const row = employeeToRow(emp);
   delete row.company_id;   // payroll history is per office; transfer = terminate + re-enrol
   if (Object.keys(row).length === 0) return;
-  const updated = await unwrap<any[]>(supabase.from('employees').update(row as any).eq('id', id).select('id') as any);
+  const updated = await unwrap<any[]>(supabase.from('employees').update(withVersion(row, emp) as any).eq('id', id).select('id') as any);
   if (!updated?.length) throw new ServiceError('Employee not found or you do not have permission to edit it.');
 }
 
