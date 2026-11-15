@@ -225,8 +225,9 @@ Each gap is marked **data**, **UI**, **function** or **numbering**, with the sta
 | `public/favicon.png`, `public/apple-touch-icon.png` | the mark without the tagline, square, 64 and 192 px | Browser tab and home-screen icon |
 | `src/assets/brand/letterhead-a4.jpg` | `al hakim national letter head.pdf` at 250 dpi (2067 × 2923 px), JPEG quality 0.9, 274 kB | Background of printed and downloaded invoices, notes and statements; loaded only when printing or downloading (`loadLetterheadUrl`), never in the initial bundle |
 
-The organization logo in the `media` bucket is the same artwork at 1200 × 603 px (208 kB), uploaded
-through Settings → Organization (so the app's own upload path and checks are used).
+The organization logo for the `media` bucket is the same artwork at 1200 × 603 px (208 kB). It is to be
+uploaded through Settings → Organization (the app's own upload path and checks), so it waits for a
+signed-in Super Admin like the rest of the data below.
 
 ### Schema
 
@@ -454,3 +455,73 @@ entry" further down for what was set and when.
 - The Arabic company name appears only in the letterhead artwork; it is not typed again on the page.
 - Not verified in the signed-in app (no sign-in in the browser pane during this run): the dialog with
   a real invoice, the print dialog itself, and the statement button with a real customer.
+
+## Stage 11: Every page, every button
+
+What could be done without a signed-in user, and what could not.
+
+- **11.1 Page frame.** All 42 pages under `src/pages/*/*Page.tsx` (sign-in pages excepted, they
+  have their own shell) use `PageHeader`. The vehicle detail page was the last one with its own top
+  bar; it now uses `PageHeader` with the back link, the vehicle as title, plate, status and dossier
+  number as meta, and the same actions (nothing added or removed). Lists use `DataTable` (sticky
+  header, skeleton rows, empty state with the Add action, cards on a phone). Statement-style tables
+  (ledger, trial balance, budgets, attendance and similar) stay tables and scroll inside their own
+  box, so the page itself never scrolls sideways at 375 px.
+- **Dead controls.** A TypeScript-AST scan of every `.tsx` file found no `<Button>`/`<button>`
+  without an action (`onClick`, `type="submit"` or a spread of props), and no empty handlers,
+  `alert()`, "coming soon" or TODO markers. The two misleading controls found in stage 2 (the header
+  "Messages" button, U6, and the access-denied "Return to Executive Dashboard" wording, U14) were
+  already fixed in stages 4 and 5.
+- **375 px.** `npx playwright test` (signed-out suite: axe WCAG 2.1 AA, no sideways scroll, touch
+  targets, reduced motion) passes at desktop and at 375 px. The signed-in suite
+  (`e2e/browser/roles.spec.ts`) needs staging accounts and passwords, which the assistant may not
+  create or type, so it was not run.
+- **11.2 Not done: using every button with sample data.** Add, edit, delete/cancel, approve, post,
+  export, print and switch office need a signed-in user in the browser pane, and nobody signed in
+  during this run. The database side of add/approve/post for invoices was run in stage 12 (rolled
+  back). The column "Clicked through" below says so per page.
+
+| Page | PageHeader | Lists | Clicked through (11.2) |
+|---|---|---|---|
+| `accidents/AccidentsPage.tsx` | yes | DataTable ×1 | not run |
+| `accounting/AccountingPage.tsx` | yes | DataTable ×2 | not run |
+| `accounting/GeneralLedgerPage.tsx` | yes | statement table ×2 | not run |
+| `accounting/TrialBalancePage.tsx` | yes | statement table ×1 | not run |
+| `approvals/ApprovalsPage.tsx` | yes | cards / panels | not run |
+| `audit-logs/AuditLogsPage.tsx` | yes | DataTable ×1 | not run |
+| `balance-sheet/BalanceSheetPage.tsx` | yes | cards / panels | not run |
+| `companies/CompaniesPage.tsx` | yes | cards / panels | not run |
+| `customers/CustomersPage.tsx` | yes | DataTable ×1 | not run |
+| `dashboard/DashboardPage.tsx` | yes | statement table ×1 | not run |
+| `depreciation/AssetModulePage.tsx` | yes | DataTable ×1, statement table ×2 | not run |
+| `depreciation/DepreciationPage.tsx` | yes | DataTable ×1 | not run |
+| `documents/DocumentsPage.tsx` | yes | DataTable ×1 | not run |
+| `drivers/DriversPage.tsx` | yes | DataTable ×1 | not run |
+| `expenses/ExpensesPage.tsx` | yes | DataTable ×1 | not run |
+| `finance/BankReconciliationPage.tsx` | yes | statement table ×2 | not run |
+| `finance/BudgetsPage.tsx` | yes | statement table ×3 | not run |
+| `finance/CashFlowPage.tsx` | yes | cards / panels | not run |
+| `finance/PeriodClosePage.tsx` | yes | statement table ×1 | not run |
+| `hr/AttendancePage.tsx` | yes | statement table ×2 | not run |
+| `hr/EmployeesPage.tsx` | yes | DataTable ×1 | not run |
+| `hr/HrSetupPage.tsx` | yes | cards / panels | not run |
+| `hr/LeavePage.tsx` | yes | DataTable ×1, statement table ×1 | not run |
+| `invoices/InvoicesPage.tsx` | yes | DataTable ×1, statement table ×1 | not run |
+| `maintenance/MaintenancePage.tsx` | yes | DataTable ×1 | not run |
+| `maintenance/WorkOrdersPage.tsx` | yes | cards / panels | not run |
+| `notifications/NotificationsPage.tsx` | yes | cards / panels | not run |
+| `offices/OfficesHomePage.tsx` | yes | cards / panels | not run |
+| `oil-management/OilManagementPage.tsx` | yes | DataTable ×1 | not run |
+| `parties/PartyDetailPage.tsx` | yes | DataTable ×2 | not run |
+| `payments/PaymentsPage.tsx` | yes | DataTable ×1 | not run |
+| `payroll/PayrollPage.tsx` | yes | DataTable ×2 | not run |
+| `profit-loss/ProfitLossPage.tsx` | yes | cards / panels | not run |
+| `profitability/VehicleProfitabilityPage.tsx` | yes | DataTable ×1 | not run |
+| `reconciliation/ReconciliationPage.tsx` | yes | DataTable ×1 | not run |
+| `reports/ReportsPage.tsx` | yes | DataTable ×3 | not run |
+| `settings/SettingsPage.tsx` | yes | cards / panels | not run |
+| `suppliers/SuppliersPage.tsx` | yes | DataTable ×1 | not run |
+| `tyre-management/TyreManagementPage.tsx` | yes | DataTable ×1 | not run |
+| `users-roles/UsersRolesPage.tsx` | yes | cards / panels | not run |
+| `vehicles/VehicleDetailPage.tsx` | yes | DataTable ×2, statement table ×3 | not run |
+| `vehicles/VehiclesPage.tsx` | yes | DataTable ×1 | not run |

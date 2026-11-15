@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { Tabs, TabItem } from '../../components/ui/Tabs';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { StatCard } from '../../components/ui/StatCard';
@@ -172,22 +173,15 @@ export const VehicleDetailPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Back Navigation & Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage('vehicles')}
-            leftIcon={<ArrowLeft className="w-4 h-4" />}
-          >
-            All Vehicles
-          </Button>
-          <span className="text-slate-600">|</span>
-          <span className="text-xs text-slate-400 font-mono">Dossier #{vehicle.vehicleId}</span>
-        </div>
-
-        <div className="flex items-center flex-wrap gap-2">
+      <PageHeader
+        back={{ label: 'All vehicles', onClick: () => setCurrentPage('vehicles') }}
+        title={`${vehicle.brand} ${vehicle.model}`}
+        meta={<>
+          <span className="px-3 py-1 rounded-full bg-slate-850 border border-slate-700 font-mono font-bold text-xs text-brand-500">{vehicle.plateNumber}</span>
+          <StatusBadge status={vehicle.status} />
+          <span className="text-slate-400 font-mono">Dossier #{vehicle.vehicleId}</span>
+        </>}
+        actions={<>
           {hasPermission('create', 'maintenance') && (
 <Button variant="secondary" size="xs" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Wrench className="w-3.5 h-3.5" />}>
             + Service
@@ -223,8 +217,8 @@ export const VehicleDetailPage: React.FC = () => {
               Delete
             </Button>
           )}
-        </div>
-      </div>
+        </>}
+      />
 
       {/* Profile Header Card */}
       <div className="bg-white border border-slate-700 rounded-[24px] p-6 sm:p-7 shadow-card relative overflow-hidden">
@@ -235,17 +229,7 @@ export const VehicleDetailPage: React.FC = () => {
             </div>
 
             <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-slate-100 tracking-tight">
-                  {vehicle.brand} {vehicle.model}
-                </h1>
-                <span className="px-3 py-1 rounded-full bg-slate-850 border border-slate-700 font-mono font-bold text-xs text-brand-500">
-                  {vehicle.plateNumber}
-                </span>
-                <StatusBadge status={vehicle.status} />
-              </div>
-
-              <p className="text-xs text-slate-400 mt-1 font-medium">
+              <p className="text-xs text-slate-400 font-medium">
                 {vehicle.variant} • {vehicle.manufacturingYear} • {vehicle.companyName}
               </p>
 
