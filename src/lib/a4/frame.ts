@@ -26,10 +26,42 @@ export const DANGER: Rgb = hex(status.danger[700]);
 export const BRAND: Rgb = hex(brand[500]);
 export const WHITE: Rgb = [255, 255, 255];
 
-/** The body (safe area) in mm. */
+/** The body (safe area) in mm, portrait. */
 export const BODY = LAYOUT.body;
 export { BODY_WIDTH, LAYOUT, PAGE };
 const PT = 0.3528; // mm per point
+
+/** Where things go on a page. Portrait follows the letterhead artwork (LAYOUT). */
+export interface Geometry {
+  orientation: 'portrait' | 'landscape';
+  page: { width: number; height: number };
+  body: { left: number; right: number; top: number; bottom: number };
+  /** Title and number block, right-aligned at `right`, never wider than right - left. */
+  corner: { left: number; right: number; titleY: number; numberY: number };
+  footer: { right: number; baseline: number };
+}
+
+export const PORTRAIT: Geometry = {
+  orientation: 'portrait',
+  page: { width: PAGE.width, height: PAGE.height },
+  body: { ...LAYOUT.body },
+  corner: { ...LAYOUT.corner },
+  footer: { ...LAYOUT.footer },
+};
+
+/**
+ * Landscape A4 for tables too wide for portrait (decision 2). The letterhead image is portrait, so
+ * the header and footer are drawn instead: the logo top left, a brand rule under the header, and a
+ * footer line with the company details from Settings.
+ */
+export const LANDSCAPE: Geometry = {
+  orientation: 'landscape',
+  page: { width: PAGE.height, height: PAGE.width },
+  body: { left: 14, right: 283, top: 34, bottom: 184 },
+  corner: { left: 190, right: 283, titleY: 15, numberY: 21.5 },
+  footer: { right: 283, baseline: 197 },
+};
+const LANDSCAPE_RULE = { header: 28, footer: 189 };
 
 /** Height of one text line at `pt` points, in mm. */
 export const lineH = (pt: number) => pt * PT * 1.35;
@@ -56,6 +88,10 @@ export interface A4 {
   /** Bottom corner label before " · Page x of y". */
   footer: string;
   letterhead: Uint8Array | null;
+  g: Geometry;
+  /** Landscape only: the logo (PNG bytes and size in px) and the footer line from Settings. */
+  logo?: { bytes: Uint8Array; width: number; height: number } | null;
+  footerLine?: string;
 }
 
 export interface A4Options {
@@ -63,44 +99,84 @@ export interface A4Options {
   corner: string;
   footer?: string;
   letterhead: Uint8Array | null;
+  orientation?: 'portrait' | 'landscape';
+  logo?: A4['logo'];
+  footerLine?: string;
   /** PDF document properties. */
   properties?: { title?: string; subject?: string; author?: string; creator?: string };
 }
 
-/** Draw the letterhead, title and corner text on the current page. */
+/**
+ * Font size (pt) and lines for corner text so it fits `width` mm: one line from `max` points down;
+ * from `twoLinesBelow` points down two lines are also accepted (a long report name reads better on
+ * two lines at 10 pt than on one at 7); otherwise wrapped at `min`.
+ */
+export function fitText(doc: Doc, text: string, width: number, max: number, min: number, twoLinesBelow = 0): { size: number; lines: string[] } {
+  for (let size = max; size >= min; size -= 0.5) {
+    doc.setFontSize(size);
+    if (doc.getTextWidth(text) <= width) return { size, lines: [text] };
+    if (size <= twoLinesBelow) {
+      const lines = doc.splitTextToSize(text, width) as string[];
+      if (lines.length <= 2) return { size, lines };
+    }
+  }
+  doc.setFontSize(min);
+  return { size: min, lines: doc.splitTextToSize(text, width) as string[] };
+}
+
+/** Draw the letterhead (or the landscape header and footer), title and corner text on the current page. */
 export function drawFrame(a: A4) {
-  const { doc } = a;
-  if (a.letterhead) doc.addImage(a.letterhead, 'JPEG', 0, 0, PAGE.width, PAGE.height, 'letterhead', 'FAST');
+  const { doc, g } = a;
+  if (g.orientation === 'portrait') {
+    if (a.letterhead) doc.addImage(a.letterhead, 'JPEG', 0, 0, g.page.width, g.page.height, 'letterhead', 'FAST');
+  } else {
+    if (a.logo) {
+      const h = 18, w = (a.logo.width / a.logo.height) * h;
+      doc.addImage(a.logo.bytes, 'PNG', g.body.left, 7, w, h, 'logo', 'FAST');
+    }
+    doc.setDrawColor(...BRAND); doc.setLineWidth(0.6);
+    doc.line(g.body.left, LANDSCAPE_RULE.header, g.body.right, LANDSCAPE_RULE.header);
+    doc.setLineWidth(0.3);
+    doc.line(g.body.left, LANDSCAPE_RULE.footer, g.body.right, LANDSCAPE_RULE.footer);
+    if (a.footerLine) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(LAYOUT.font.small); doc.setTextColor(...MUTED);
+      doc.text(doc.splitTextToSize(a.footerLine, g.body.right - g.body.left - 70)[0] as string, g.body.left, g.footer.baseline);
+    }
+  }
+  const width = g.corner.right - g.corner.left;
   doc.setTextColor(...BRAND);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(LAYOUT.font.title);
-  doc.text(a.title, LAYOUT.corner.right, LAYOUT.corner.titleY, { align: 'right' });
+  const t = fitText(doc, a.title, width, LAYOUT.font.title, 8, 10.5);
+  doc.setFontSize(t.size);
+  t.lines.forEach((l, i) => doc.text(l, g.corner.right, g.corner.titleY - (t.lines.length - 1 - i) * lineH(t.size), { align: 'right' }));
   doc.setTextColor(...INK);
-  doc.setFontSize(LAYOUT.font.number);
-  doc.text(a.corner, LAYOUT.corner.right, LAYOUT.corner.numberY, { align: 'right' });
+  const n = fitText(doc, a.corner, width, LAYOUT.font.number, 7.5);
+  doc.setFontSize(n.size);
+  n.lines.forEach((l, i) => doc.text(l, g.corner.right, g.corner.numberY + i * lineH(n.size), { align: 'right' }));
   doc.setFont('helvetica', 'normal');
 }
 
-/** A new A4 portrait document with the frame on page 1. */
+/** A new A4 document (portrait unless asked) with the frame on page 1. */
 export function startA4(o: A4Options): A4 {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }) as Doc;
+  const g = o.orientation === 'landscape' ? LANDSCAPE : PORTRAIT;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: g.orientation, compress: true }) as Doc;
   if (o.properties) doc.setProperties(o.properties);
-  const a: A4 = { doc, title: o.title, corner: o.corner, footer: o.footer ?? o.corner, letterhead: o.letterhead };
+  const a: A4 = { doc, title: o.title, corner: o.corner, footer: o.footer ?? o.corner, letterhead: o.letterhead, g, logo: o.logo, footerLine: o.footerLine };
   drawFrame(a);
   return a;
 }
 
 /** Add a page with the frame. */
 export function addFramedPage(a: A4) {
-  a.doc.addPage('a4', 'portrait');
+  a.doc.addPage('a4', a.g.orientation);
   drawFrame(a);
 }
 
 /** Start a block of `height` mm at y; when it does not fit above the body bottom, continue on a new page. */
 export function ensureSpace(a: A4, y: number, height: number): number {
-  if (y + height <= BODY.bottom) return y;
+  if (y + height <= a.g.body.bottom) return y;
   addFramedPage(a);
-  return BODY.top;
+  return a.g.body.top;
 }
 
 /** Write "<footer> · Page x of y" on every page once the page count is known. Call last. */
@@ -112,7 +188,7 @@ export function stampPages(a: A4) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(LAYOUT.font.small);
     doc.setTextColor(...MUTED);
-    doc.text(pageLabel(a.footer, i, n), LAYOUT.footer.right, LAYOUT.footer.baseline, { align: 'right' });
+    doc.text(pageLabel(a.footer, i, n), a.g.footer.right, a.g.footer.baseline, { align: 'right' });
   }
 }
 
@@ -153,9 +229,12 @@ export const sellerLine = (s: Seller) =>
   [s.name, s.vat ? `VATIN ${s.vat}` : '', s.cr ? `CR ${s.cr}` : ''].filter(Boolean).join('   ·   ');
 
 /** The seller line at the top of page 1; returns the y under it. */
-export function sellerBlock(a: A4, s: Seller, y = BODY.top + 3): number {
-  return textBlock(a, [sellerLine(s)], BODY.left, y, BODY_WIDTH, LAYOUT.font.small, 'bold', MUTED);
+export function sellerBlock(a: A4, s: Seller, y = a.g.body.top + 3): number {
+  return textBlock(a, [sellerLine(s)], a.g.body.left, y, bodyWidth(a), LAYOUT.font.small, 'bold', MUTED);
 }
+
+/** Width of the body on this document's pages, in mm. */
+export const bodyWidth = (a: A4) => a.g.body.right - a.g.body.left;
 
 // ---------------------------------------------------------------- tables
 
@@ -173,7 +252,7 @@ export function a4Table(a: A4, o: A4TableOptions): number {
   const cols: Record<string, object> = { ...(columnStyles as Record<string, object>) };
   for (const i of numeric) cols[i] = { ...(cols[i] ?? {}), halign: 'right' };
   autoTable(a.doc, {
-    margin: { left: BODY.left, right: PAGE.width - BODY.right, top: BODY.top, bottom: PAGE.height - BODY.bottom },
+    margin: { left: a.g.body.left, right: a.g.page.width - a.g.body.right, top: a.g.body.top, bottom: a.g.page.height - a.g.body.bottom },
     showHead: 'everyPage',
     rowPageBreak: 'avoid',
     ...rest,
@@ -190,7 +269,7 @@ export function a4Table(a: A4, o: A4TableOptions): number {
       willDrawPage?.(data);
     },
   });
-  return a.doc.lastAutoTable?.finalY ?? (o.startY as number | undefined) ?? BODY.top;
+  return a.doc.lastAutoTable?.finalY ?? (o.startY as number | undefined) ?? a.g.body.top;
 }
 
 // ---------------------------------------------------------------- closing blocks
@@ -205,25 +284,25 @@ export function totalsBlock(a: A4, y: number, o: { totals: TotalLine[]; words?: 
   const { doc } = a;
   const totalsH = o.totals.length * lineH(LAYOUT.font.totals) + 18;
   y = ensureSpace(a, y, totalsH);
-  const tx = BODY.right - 70;
+  const tx = a.g.body.right - 70;
   let ty = y;
   for (const t of o.totals) {
     doc.setFont('helvetica', t.strong ? 'bold' : 'normal');
     doc.setFontSize(t.strong ? LAYOUT.font.totals + 1 : LAYOUT.font.totals);
     doc.setTextColor(...INK);
-    if (t.strong) { ty += 1.5; doc.setDrawColor(...INK); doc.setLineWidth(0.3); doc.line(tx, ty - lineH(LAYOUT.font.totals) + 0.6, BODY.right, ty - lineH(LAYOUT.font.totals) + 0.6); }
+    if (t.strong) { ty += 1.5; doc.setDrawColor(...INK); doc.setLineWidth(0.3); doc.line(tx, ty - lineH(LAYOUT.font.totals) + 0.6, a.g.body.right, ty - lineH(LAYOUT.font.totals) + 0.6); }
     doc.text(t.label, tx, ty);
-    doc.text(t.value, BODY.right, ty, { align: 'right' });
+    doc.text(t.value, a.g.body.right, ty, { align: 'right' });
     ty += lineH(LAYOUT.font.totals) + (t.strong ? 1 : 0);
   }
-  const w = tx - BODY.left - 8;
+  const w = tx - a.g.body.left - 8;
   let wy = y;
   if (o.words) {
-    wy = textBlock(a, ['AMOUNT IN WORDS'], BODY.left, wy, w, LAYOUT.font.small, 'bold', MUTED);
-    wy = textBlock(a, [o.currency ? `${o.currency} ${o.words}` : o.words], BODY.left, wy, w, LAYOUT.font.body, 'bold');
+    wy = textBlock(a, ['AMOUNT IN WORDS'], a.g.body.left, wy, w, LAYOUT.font.small, 'bold', MUTED);
+    wy = textBlock(a, [o.currency ? `${o.currency} ${o.words}` : o.words], a.g.body.left, wy, w, LAYOUT.font.body, 'bold');
   }
-  if (o.notes) wy = textBlock(a, [`Notes: ${o.notes}`], BODY.left, wy + 1.5, w, LAYOUT.font.small, 'normal', MUTED);
-  if (o.terms) wy = textBlock(a, [`Terms: ${o.terms}`], BODY.left, wy + 1, w, LAYOUT.font.small, 'normal', MUTED);
+  if (o.notes) wy = textBlock(a, [`Notes: ${o.notes}`], a.g.body.left, wy + 1.5, w, LAYOUT.font.small, 'normal', MUTED);
+  if (o.terms) wy = textBlock(a, [`Terms: ${o.terms}`], a.g.body.left, wy + 1, w, LAYOUT.font.small, 'normal', MUTED);
   return Math.max(ty, wy) + 4;
 }
 
@@ -236,16 +315,16 @@ export function bankAndSignatures(a: A4, y: number, bank: Array<[string, string]
   const bankH = bank.length ? bank.length * lineH(LAYOUT.font.body) + 6 : 0;
   y = ensureSpace(a, y, bankH + 24);
   if (bank.length) {
-    y = textBlock(a, ['BANK DETAILS'], BODY.left, y, BODY_WIDTH, LAYOUT.font.small, 'bold', MUTED);
-    y = factsBlock(a, bank, BODY.left, y, 26, BODY_WIDTH / 2) + 3;
+    y = textBlock(a, ['BANK DETAILS'], a.g.body.left, y, bodyWidth(a), LAYOUT.font.small, 'bold', MUTED);
+    y = factsBlock(a, bank, a.g.body.left, y, 26, bodyWidth(a) / 2) + 3;
   }
   const sy = y + 14;
   doc.setDrawColor(...INK); doc.setLineWidth(0.2);
-  doc.line(BODY.left, sy, BODY.left + 60, sy);
-  doc.line(BODY.right - 60, sy, BODY.right, sy);
+  doc.line(a.g.body.left, sy, a.g.body.left + 60, sy);
+  doc.line(a.g.body.right - 60, sy, a.g.body.right, sy);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(LAYOUT.font.small); doc.setTextColor(...INK);
-  doc.text(labels[0], BODY.left, sy + 4);
-  doc.text(labels[1], BODY.right, sy + 4, { align: 'right' });
+  doc.text(labels[0], a.g.body.left, sy + 4);
+  doc.text(labels[1], a.g.body.right, sy + 4, { align: 'right' });
   return sy + 4 + lineH(LAYOUT.font.small);
 }
 

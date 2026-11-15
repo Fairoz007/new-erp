@@ -17,3 +17,22 @@ export const orgLogoUrl = (): string | undefined => current.logoUrl;
 let reportUser = '';
 export function setReportUser(name: string | null | undefined): void { reportUser = name?.trim() || ''; }
 export const currentReportUser = (): string => reportUser;
+
+// Company details for printed documents (seller line, landscape footer), from Settings → Organization.
+// OrgContext sets them; empty until the organization has loaded (nothing is invented).
+export interface DocumentCompany {
+  legalName: string; vatNumber: string; crNumber: string;
+  address: string; city: string; country: string; phone: string; email: string;
+}
+const EMPTY_COMPANY: DocumentCompany = { legalName: '', vatNumber: '', crNumber: '', address: '', city: '', country: '', phone: '', email: '' };
+let documentCompany: DocumentCompany = EMPTY_COMPANY;
+export function setDocumentCompany(c: Partial<DocumentCompany> | null): void {
+  documentCompany = { ...EMPTY_COMPANY, ...Object.fromEntries(Object.entries(c ?? {}).map(([k, v]) => [k, (v ?? '').toString().trim()])) };
+}
+export const currentDocumentCompany = (): DocumentCompany => documentCompany;
+
+// The office chosen in the header (null = All offices), printed on list exports. FleetContext sets it.
+export interface DocumentOffice { code: string; name: string; vatNumber: string; registrationNumber: string }
+let reportOffice: DocumentOffice | null = null;
+export function setReportOffice(o: DocumentOffice | null): void { reportOffice = o; }
+export const currentReportOffice = (): DocumentOffice | null => reportOffice;

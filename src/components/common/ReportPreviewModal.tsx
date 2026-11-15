@@ -13,13 +13,19 @@ interface ReportPreviewModalProps {
   rows: string[][];
   onDownloadPdf: () => void;
   onDownloadCsv: () => void;
+  /** Prints the same A4 pages as Download PDF. */
+  onPrint: () => void;
+  /** A PDF is being made (Download PDF / Print show as busy). */
+  pdfBusy?: boolean;
+  /** Error or notice from the last PDF action. */
+  message?: string | null;
 }
 
 const PREVIEW_LIMIT = 500;
 
 /** Document-style view of a register: read it on screen, print it, or download it as PDF / CSV. */
 export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
-  isOpen, onClose, title, subtitle, columns, rows, onDownloadPdf, onDownloadCsv,
+  isOpen, onClose, title, subtitle, columns, rows, onDownloadPdf, onDownloadCsv, onPrint, pdfBusy = false, message,
 }) => (
   <Modal
     isOpen={isOpen}
@@ -28,10 +34,11 @@ export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
     description="Print-ready view of the records currently listed (filters and sorting applied)."
     size="4xl"
     footer={
-      <div className="flex flex-wrap justify-end gap-2 no-print">
+      <div className="flex flex-wrap items-center justify-end gap-2 no-print">
+        {message && <span role="alert" className="text-xs text-rose-600 mr-auto">{message}</span>}
         <Button variant="outline" size="sm" onClick={onDownloadCsv} leftIcon={<FileSpreadsheet className="w-4 h-4" />}>Download CSV</Button>
-        <Button variant="outline" size="sm" onClick={onDownloadPdf} leftIcon={<FileDown className="w-4 h-4" />}>Download PDF</Button>
-        <Button variant="primary" size="sm" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>Print</Button>
+        <Button variant="outline" size="sm" onClick={onDownloadPdf} disabled={pdfBusy} leftIcon={<FileDown className="w-4 h-4" />}>Download PDF</Button>
+        <Button variant="primary" size="sm" onClick={onPrint} isLoading={pdfBusy} disabled={pdfBusy} leftIcon={<Printer className="w-4 h-4" />}>Print</Button>
       </div>
     }
   >

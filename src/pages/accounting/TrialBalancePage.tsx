@@ -66,7 +66,7 @@ export const TrialBalancePage: React.FC = () => {
     const rows = filteredRows.map(r => [r.accountCode, r.accountName, r.category, f(r.openingDebit), f(r.openingCredit), f(r.periodDebit), f(r.periodCredit), f(r.closingDebit), f(r.closingCredit)]);
     const totals = ['', 'TOTAL', '', shown.totalOpeningDebit.toFixed(3), shown.totalOpeningCredit.toFixed(3), shown.totalPeriodDebit.toFixed(3), shown.totalPeriodCredit.toFixed(3), shown.totalClosingDebit.toFixed(3), shown.totalClosingCredit.toFixed(3)];
     void exportToPDF('Trial_Balance', 'Trial Balance Statement', ['Code', 'Account', 'Category', 'Opening Dr', 'Opening Cr', 'Period Dr', 'Period Cr', 'Closing Dr', 'Closing Cr'], rows,
-      { subtitle: `As of ${asOfDate} (${currency})`, rightAlign: [3, 4, 5, 6, 7, 8], totals,
+      { subtitle: `Amounts in ${currency}`, period: { asOf: asOfDate }, rightAlign: [3, 4, 5, 6, 7, 8], totals,
         filters: [['Category', filterCategory === 'all' ? '' : filterCategory], ['Zero balances', hideZero ? 'hidden' : '']] });
   };
 

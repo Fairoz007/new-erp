@@ -24,7 +24,8 @@ import { EmptyState } from './EmptyState';
 import { useAuth } from '../../context/AuthContext';
 import { useOptionalFleet } from '../../context/FleetContext';
 import type { CollectionKey } from '../../services/core';
-import { exportToCSV, exportToPDF, cellToText } from '../../utils/export';
+import { exportToCSV, exportToPDF, printTablePdf, cellToText, type PdfOptions } from '../../utils/export';
+import { useReportExportInfo } from './ReportExportContext';
 import { ReportPreviewModal } from '../common/ReportPreviewModal';
 import { clickOnKey } from '../../lib/a11y';
 import { useQuery } from '../../lib/queryCache';
@@ -294,13 +295,36 @@ export function DataTable<T extends Record<string, any>>({
     const flat = rows.map((row, i) => Object.fromEntries(exportColumns.map(c => [c.key, csvValue(row, c, i)])));
     exportToCSV(exportFilename, flat, exportColumns.map(c => ({ key: c.key, label: c.header })));
   };
-  const handleExportPdf = async () => {
+  // what the PDF says about the rows: the report's office and dates (Reports) or the header office,
+  // plus the search applied to this list
+  const reportInfo = useReportExportInfo();
+  const pdfOptions = (): PdfOptions => ({
+    rightAlign: exportColumns.map((c, i) => (c.align === 'right' ? i : -1)).filter(i => i >= 0),
+    ...(reportInfo && 'office' in reportInfo ? { office: reportInfo.office } : {}),
+    period: reportInfo?.period,
+    filters: [...(reportInfo?.filters ?? []), ['Search', searchTerm.trim()]],
+  });
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const runPdf = async (print: boolean) => {
     setExportMenuOpen(false);
     const rows = previewData ?? await allRows();
     if (!rows) return;
-    const rightAlign = exportColumns.map((c, i) => (c.align === 'right' ? i : -1)).filter(i => i >= 0);
-    void exportToPDF(exportFilename, reportTitle, exportColumns.map(c => c.header), previewRows(rows), { rightAlign });
+    setPdfBusy(true);
+    setExportError(null);
+    try {
+      const args = [exportFilename, reportTitle, exportColumns.map(c => c.header), previewRows(rows), pdfOptions()] as const;
+      if (print) {
+        if (await printTablePdf(...args) === 'downloaded') setExportError('This browser cannot print the PDF directly, so it was downloaded. Open it to print.');
+      } else {
+        await exportToPDF(...args);
+      }
+    } catch (e) {
+      setExportError((e as Error).message || 'The PDF could not be made');
+    } finally {
+      setPdfBusy(false);
+    }
   };
+  const handleExportPdf = () => runPdf(false);
   const openPreview = async () => {
     setExportMenuOpen(false);
     const rows = await allRows();
@@ -432,6 +456,9 @@ export function DataTable<T extends Record<string, any>>({
               columns={exportColumns.map(c => c.header)}
               rows={previewRows(previewData)}
               onDownloadPdf={() => { void handleExportPdf(); }}
+              onPrint={() => { void runPdf(true); }}
+              pdfBusy={pdfBusy}
+              message={exportError}
               onDownloadCsv={() => { void handleExportCsv(); }}
             />
           )}
@@ -441,6 +468,7 @@ export function DataTable<T extends Record<string, any>>({
               <Button variant="ghost" size="xs" onClick={() => exportAbort.current?.abort()}>Cancel</Button>
             </div>
           )}
+          {pdfBusy && !previewOpen && <span role="status" aria-live="polite" className="text-xs text-slate-300">Preparing PDF…</span>}
           {exportError && <span role="alert" className="text-xs text-rose-600">{exportError}</span>}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ReportExportContext, type ReportExportInfo } from '../../components/ui/ReportExportContext';
 import { Printer } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -205,6 +206,10 @@ const AgingReport: React.FC<{ kind: 'Purchase' | 'Sales'; names: Map<string, str
   );
 };
 
+// Reports that show the current state (not limited by the From/To dates): their PDFs say
+// "As of <today>" instead of a period.
+const UNDATED_REPORTS = new Set(['vehicle-master', 'vehicle-asset', 'depreciation-report', 'cost-per-km', 'tyre-report', 'reconciliation-report', 'ap-aging', 'ar-aging']);
+
 export const ReportsPage: React.FC = () => {
   const {
     vehicles, maintenanceRecords, oilChanges, tyres, accidents, suppliers, customers,
@@ -367,6 +372,11 @@ export const ReportsPage: React.FC = () => {
   const allItems = categories.flatMap(c => c.items);
   const current = allItems.some(i => i.id === selectedReport) ? selectedReport : allItems[0]?.id ?? '';
   const officeName = office === 'all' ? 'All offices' : companies.find(c => c.id === office)?.name ?? '';
+  const officeRow = office === 'all' ? undefined : companies.find(c => c.id === office);
+  const exportInfo = useMemo<ReportExportInfo>(() => ({
+    office: officeRow ? { code: officeRow.code, name: officeRow.name, vatNumber: officeRow.vatNumber, registrationNumber: officeRow.registrationNumber } : null,
+    period: UNDATED_REPORTS.has(current) ? undefined : { from: from || undefined, to: to || undefined },
+  }), [officeRow, current, from, to]);
 
   return (
     <div className="space-y-6">
@@ -430,7 +440,9 @@ export const ReportsPage: React.FC = () => {
         <h2 className="text-sm font-bold text-slate-200">
           <span className="text-forest-600">{allItems.find(i => i.id === current)?.name}</span> <span className="text-slate-400 font-normal">· {officeName} · {from || '…'} to {to || '…'}</span>
         </h2>
-        {renderReport()}
+        <ReportExportContext.Provider value={exportInfo}>
+          {renderReport()}
+        </ReportExportContext.Provider>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { Employee, PayrollRun } from '../types/hr';
 import { CollectionKey, Fetchers, dedupFetch } from '../services/core';
 import type { LedgerAccount } from '../services/accounting';
 import { invalidate, markAllStale, setCacheScope } from '../lib/queryCache';
+import { setReportOffice } from '../lib/branding';
 import * as fleet from '../services/fleet';
 import * as finance from '../services/finance';
 import * as accounting from '../services/accounting';
@@ -332,6 +333,10 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     () => (selectedCompanyId === 'all' ? undefined : data.companies.find(c => c.id === selectedCompanyId)),
     [data.companies, selectedCompanyId],
   );
+  // the office printed on list exports (null = All offices)
+  useEffect(() => {
+    setReportOffice(selectedCompany ? { code: selectedCompany.code, name: selectedCompany.name, vatNumber: selectedCompany.vatNumber, registrationNumber: selectedCompany.registrationNumber } : null);
+  }, [selectedCompany]);
 
   // Run a service mutation, then refresh what it affects (non-blocking)
   const mutation = useCallback(<A extends unknown[], R>(name: string, fn: (...args: A) => Promise<R>) =>

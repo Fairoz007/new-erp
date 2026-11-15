@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import * as org from '../services/org';
 import type { Organization } from '../services/org';
-import { setBranding } from '../lib/branding';
+import { setBranding, setDocumentCompany } from '../lib/branding';
 
 interface OrgContextType {
   organization: Organization | null;
@@ -52,6 +52,13 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     setBranding({ name: organization?.tradeName || organization?.legalName, logoUrl });
   }, [organization?.tradeName, organization?.legalName, logoUrl]);
+
+  useEffect(() => {
+    setDocumentCompany(organization ? {
+      legalName: organization.legalName || organization.tradeName, vatNumber: organization.vatNumber, crNumber: organization.crNumber,
+      address: organization.address, city: organization.city, country: organization.country, phone: organization.phone, email: organization.email,
+    } : null);
+  }, [organization]);
 
   const value = useMemo<OrgContextType>(() => ({
     organization,
