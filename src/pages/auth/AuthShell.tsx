@@ -25,7 +25,7 @@ export const AuthNotice: React.FC<{ tone: 'error' | 'info' | 'success'; children
   const styles = {
     error: 'bg-rose-50 border-rose-200 text-rose-700',
     info: 'bg-slate-850 border-slate-700 text-slate-300',
-    success: 'bg-[#DCEFE5] border-[#21865B]/30 text-[#06452F]',
+    success: 'bg-brand-100 border-success/30 text-brand-600',
   };
   return (
     <div role={tone === 'error' ? 'alert' : 'status'} className={`text-xs rounded-xl border px-3.5 py-2.5 ${styles[tone]}`}>

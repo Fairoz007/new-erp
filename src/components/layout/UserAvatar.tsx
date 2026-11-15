@@ -13,7 +13,7 @@ export const UserAvatar: React.FC<{ name: string; src?: string; className?: stri
   return (
     <div
       className={twMerge(
-        'w-8 h-8 rounded-full bg-[#DCEFE5] text-[#06452F] overflow-hidden shrink-0 border border-slate-700 flex items-center justify-center text-[11px] font-bold select-none',
+        'w-8 h-8 rounded-full bg-brand-100 text-brand-600 overflow-hidden shrink-0 border border-slate-700 flex items-center justify-center text-[11px] font-bold select-none',
         className
       )}
       aria-hidden="true"

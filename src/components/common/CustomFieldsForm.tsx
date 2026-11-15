@@ -112,7 +112,7 @@ export const CustomFieldsForm: React.FC<Props> = ({ fields, values, onChange, er
           case 'boolean':
             return (
               <label key={def.id} className="flex items-center gap-2 text-sm text-slate-100 pt-6">
-                <input type="checkbox" className="w-4 h-4 accent-[#086343]" checked={!!v} disabled={disabled} onChange={e => set(def.key, e.target.checked)} />
+                <input type="checkbox" className="w-4 h-4 accent-brand-500" checked={!!v} disabled={disabled} onChange={e => set(def.key, e.target.checked)} />
                 {def.label}{required && <span className="text-rose-500">*</span>}
               </label>
             );
@@ -128,7 +128,7 @@ export const CustomFieldsForm: React.FC<Props> = ({ fields, values, onChange, er
                 </label>
                 {!!v && (
                   <div className="flex gap-3 text-[11px]">
-                    <button type="button" className="text-[#086343] font-semibold hover:underline" onClick={() => void openFileValue(v)}>View</button>
+                    <button type="button" className="text-brand-500 font-semibold hover:underline" onClick={() => void openFileValue(v)}>View</button>
                     {!disabled && !required && <button type="button" className="text-slate-400 hover:underline" onClick={() => set(def.key, '')}>Remove</button>}
                   </div>
                 )}

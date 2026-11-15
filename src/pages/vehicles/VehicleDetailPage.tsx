@@ -239,7 +239,7 @@ export const VehicleDetailPage: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-extrabold text-slate-100 tracking-tight">
                   {vehicle.brand} {vehicle.model}
                 </h1>
-                <span className="px-3 py-1 rounded-full bg-slate-850 border border-slate-700 font-mono font-bold text-xs text-[#086343]">
+                <span className="px-3 py-1 rounded-full bg-slate-850 border border-slate-700 font-mono font-bold text-xs text-brand-500">
                   {vehicle.plateNumber}
                 </span>
                 <StatusBadge status={vehicle.status} />
@@ -260,7 +260,7 @@ export const VehicleDetailPage: React.FC = () => {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="text-slate-400">Book Value:</span>
-                  <strong className="text-[#086343]">{formatCurrency(financialSummary.currentBookValue, currency)}</strong>
+                  <strong className="text-brand-500">{formatCurrency(financialSummary.currentBookValue, currency)}</strong>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="text-slate-400">Driver:</span>
@@ -278,11 +278,11 @@ export const VehicleDetailPage: React.FC = () => {
             </div>
             <div>
               <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Cost per KM</p>
-              <p className="text-sm font-extrabold text-[#D9A441] mt-0.5">{financialSummary.costPerKilometer.toFixed(3)} {currency}/KM</p>
+              <p className="text-sm font-extrabold text-warning mt-0.5">{financialSummary.costPerKilometer.toFixed(3)} {currency}/KM</p>
             </div>
             <div>
               <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Net Profitability</p>
-              <p className={`text-sm font-extrabold mt-0.5 ${financialSummary.netVehicleProfit >= 0 ? 'text-[#086343]' : 'text-rose-600'}`}>
+              <p className={`text-sm font-extrabold mt-0.5 ${financialSummary.netVehicleProfit >= 0 ? 'text-brand-500' : 'text-rose-600'}`}>
                 {formatCurrency(financialSummary.netVehicleProfit, currency)}
               </p>
             </div>

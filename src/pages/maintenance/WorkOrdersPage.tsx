@@ -78,9 +78,9 @@ export const WorkOrdersPage: React.FC = () => {
 
   const priorityColors = {
     Low: 'text-slate-400 bg-slate-800 border-transparent',
-    Medium: 'text-[#1E40AF] bg-[#DBEAFE] border-transparent',
-    High: 'text-[#92400E] bg-[#FEF3C7] border-transparent',
-    Critical: 'text-[#9F1239] bg-[#FFE4E6] border-transparent animate-pulse',
+    Medium: 'text-accent-blue-700 bg-accent-blue-50 border-transparent',
+    High: 'text-warning-700 bg-warning-50 border-transparent',
+    Critical: 'text-danger-700 bg-danger-50 border-transparent animate-pulse',
   };
 
   return (
@@ -161,7 +161,7 @@ export const WorkOrdersPage: React.FC = () => {
                         e.stopPropagation();
                         openVehicleDetail(wo.vehicleId);
                       }}
-                      className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono text-xs font-bold hover:border-[#086343] cursor-pointer"
+                      className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono text-xs font-bold hover:border-brand-500 cursor-pointer"
                     >
                       {wo.vehiclePlate}
                     </button>

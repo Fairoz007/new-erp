@@ -13,7 +13,17 @@ import { ConnectionBanner } from './ConnectionBanner';
 
 export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // desktop sidebar collapsed or not: a per-browser convenience (storage may be unavailable)
+  const [isSidebarCollapsed, setIsSidebarCollapsedState] = useState(() => {
+    try { return localStorage.getItem('erp.sidebarCollapsed') === '1'; } catch { return false; }
+  });
+  const setIsSidebarCollapsed = useCallback((next: boolean | ((v: boolean) => boolean)) => {
+    setIsSidebarCollapsedState(prev => {
+      const value = typeof next === 'function' ? next(prev) : next;
+      try { localStorage.setItem('erp.sidebarCollapsed', value ? '1' : '0'); } catch { /* not stored */ }
+      return value;
+    });
+  }, []);
   const { isRefreshing, loadErrors, reload } = useFleet();
   const failed = Object.keys(loadErrors);
   const onReconnect = useCallback(() => { void reload().catch(() => undefined); }, [reload]);
@@ -22,12 +32,12 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
   return (
-    <div className="min-h-screen w-full bg-white text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-[#DCEFE5] selection:text-[#06452F]">
+    <div className="min-h-screen w-full bg-white text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-brand-100 selection:text-brand-600">
       {/* Keyboard users skip the navigation and header (WCAG 2.4.1) */}
       <a
         href="#main-content"
         onClick={e => { e.preventDefault(); document.getElementById('main-content')?.focus(); }}
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:px-4 focus:py-3 focus:rounded-xl focus:bg-[#086343] focus:text-white focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:px-4 focus:py-3 focus:rounded-xl focus:bg-brand-500 focus:text-white focus:text-sm focus:font-semibold focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
       >
         Skip to main content
       </a>
@@ -51,8 +61,8 @@ export const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
 
         <ConnectionBanner onReconnect={onReconnect} />
         {isRefreshing && (
-          <div className="h-0.5 w-full bg-[#DCEFE5] overflow-hidden" role="progressbar" aria-label="Refreshing data">
-            <div className="h-full w-1/3 bg-[#086343] animate-pulse" />
+          <div className="h-0.5 w-full bg-brand-100 overflow-hidden" role="progressbar" aria-label="Refreshing data">
+            <div className="h-full w-1/3 bg-brand-500 animate-pulse" />
           </div>
         )}
         {failed.length > 0 && !isRefreshing && (

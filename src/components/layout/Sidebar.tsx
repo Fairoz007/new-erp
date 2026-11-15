@@ -44,6 +44,7 @@ import { useOverdueInvoiceCount, useUnreadNotificationCount } from '../../servic
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from './UserAvatar';
 import { PRODUCT_NAME } from '../../lib/branding';
+import { BRAND_MARK_URL } from '../../lib/brandAssets';
 import { useOptionalOrg } from '../../context/OrgContext';
 import { countPendingLeave } from '../../services/hrops';
 import { useDialog } from '../ui/useDialog';
@@ -98,51 +99,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [canSeeLeave, currentPage]);
   const activeWorkOrders = workOrders.filter(w => ['Approved', 'Scheduled', 'In Progress', 'Waiting for Parts'].includes(w.status)).length;
 
+  // Groups: Fleet, Finance, HR, Reports, Settings (after the overview items). Every page the app had is
+  // still here; canAccessPage below hides what the role cannot open.
   const navigationGroups: NavGroup[] = [
     {
-      title: 'MENU',
+      title: '',
       items: [
+        { id: 'offices', label: 'Offices', icon: Building2 },
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'companies', label: 'Offices & Branches', icon: Building2 },
-        { id: 'profitability', label: 'Fleet Profitability', icon: Sparkles },
+        { id: 'approvals', label: 'Approvals', icon: CheckSquare, badge: pendingApprovals > 0 ? pendingApprovals : undefined, badgeColor: 'rose' },
+        { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotifs > 0 ? unreadNotifs : undefined, badgeColor: 'rose' },
       ],
     },
     {
-      title: 'FLEET & WORKSHOP',
+      title: 'Fleet',
       items: [
-        { id: 'vehicles', label: 'Vehicles Fleet', icon: Car },
-        { id: 'maintenance', label: 'Maintenance Records', icon: Wrench },
+        { id: 'vehicles', label: 'Vehicles', icon: Car },
+        { id: 'drivers', label: 'Drivers', icon: IdCard },
         { id: 'work-orders', label: 'Work Orders', icon: ClipboardList, badge: activeWorkOrders > 0 ? activeWorkOrders : undefined, badgeColor: 'amber' },
-        { id: 'oil-management', label: 'Oil Service Tracker', icon: Droplet },
-        { id: 'tyre-management', label: 'Tyre Lifecycle', icon: Disc },
-        { id: 'accidents', label: 'Accident Management', icon: AlertTriangle },
+        { id: 'maintenance', label: 'Maintenance', icon: Wrench },
+        { id: 'oil-management', label: 'Oil Service', icon: Droplet },
+        { id: 'tyre-management', label: 'Tyres', icon: Disc },
+        { id: 'accidents', label: 'Accidents', icon: AlertTriangle },
         { id: 'expenses', label: 'Expenses', icon: Receipt },
-        { id: 'documents', label: 'Document Repository', icon: FolderOpen },
+        { id: 'documents', label: 'Documents', icon: FolderOpen },
       ],
     },
     {
-      title: 'FINANCE & ACCOUNTS',
+      title: 'Finance',
       items: [
         { id: 'invoices', label: 'Invoices & Bills', icon: FileText, badge: overdueInvoices > 0 ? `${overdueInvoices}` : undefined, badgeColor: 'rose' },
+        { id: 'payments', label: 'Payments', icon: CreditCard },
+        { id: 'customers', label: 'Customers', icon: Users },
+        { id: 'suppliers', label: 'Suppliers', icon: Truck },
         { id: 'reconciliation', label: '3-Way Reconciliation', icon: GitCompare },
-        { id: 'payments', label: 'Payments Register', icon: CreditCard },
         { id: 'bank-reconciliation', label: 'Bank Reconciliation', icon: Landmark },
-        { id: 'trial-balance', label: 'Trial Balance', icon: Scale },
-        { id: 'general-ledger', label: 'General Ledger', icon: BookOpen },
         { id: 'accounting', label: 'Finance Control', icon: Layers },
-        { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
-        { id: 'balance-sheet', label: 'Balance Sheet', icon: Scale },
-        { id: 'cash-flow', label: 'Cash Flow', icon: Waves },
         { id: 'budgets', label: 'Budgets', icon: PiggyBank },
+        { id: 'fixed-assets', label: 'Fixed Assets', icon: Sparkles },
         { id: 'period-close', label: 'Period Close', icon: Lock },
-        { id: 'fixed-assets', label: 'Fixed Assets & Depr', icon: Sparkles },
       ],
     },
     {
-      title: 'HUMAN RESOURCES',
+      title: 'HR',
       items: [
         { id: 'employees', label: 'Employees', icon: Users },
-        { id: 'drivers', label: 'Drivers', icon: IdCard },
         { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
         { id: 'leave', label: 'Leave', icon: Plane, badge: pendingLeave > 0 ? pendingLeave : undefined, badgeColor: 'amber' },
         { id: 'payroll', label: 'Payroll', icon: Calculator },
@@ -150,20 +151,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      title: 'DIRECTORIES',
+      title: 'Reports',
       items: [
-        { id: 'suppliers', label: 'Suppliers & Vendors', icon: Truck },
-        { id: 'customers', label: 'Customer Accounts', icon: Users },
+        { id: 'reports', label: 'Reports', icon: BarChart3 },
+        { id: 'profit-loss', label: 'Profit & Loss', icon: TrendingUp },
+        { id: 'balance-sheet', label: 'Balance Sheet', icon: Scale },
+        { id: 'cash-flow', label: 'Cash Flow', icon: Waves },
+        { id: 'trial-balance', label: 'Trial Balance', icon: Scale },
+        { id: 'general-ledger', label: 'General Ledger', icon: BookOpen },
+        { id: 'profitability', label: 'Fleet Profitability', icon: Sparkles },
+        { id: 'audit-logs', label: 'Audit Trail', icon: History },
       ],
     },
     {
-      title: 'GENERAL & SETTINGS',
+      title: 'Settings',
       items: [
-        { id: 'approvals', label: 'Approvals Queue', icon: CheckSquare, badge: pendingApprovals > 0 ? pendingApprovals : undefined, badgeColor: 'rose' },
-        { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotifs > 0 ? unreadNotifs : undefined, badgeColor: 'rose' },
-        { id: 'reports', label: 'Reports Suite', icon: BarChart3 },
-        { id: 'audit-logs', label: 'Audit Trail Logs', icon: History },
-        { id: 'users-roles', label: 'Users & Roles (RBAC)', icon: UserCheck },
+        { id: 'companies', label: 'Offices & Branches', icon: Building2 },
+        { id: 'users-roles', label: 'Users & Roles', icon: UserCheck },
         { id: 'settings', label: 'Settings', icon: Settings },
       ],
     },
@@ -202,19 +206,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Brand Header */}
         <div className={`h-[72px] px-5 border-b border-slate-700/80 flex items-center bg-surface-secondary shrink-0 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
-          <div className="flex items-center gap-3">
-            {orgCtx?.logoUrl ? (
-              <img src={orgCtx.logoUrl} alt="" className="w-9 h-9 rounded-xl object-contain bg-white border border-slate-700 shrink-0" />
-            ) : (
-              <div className="w-9 h-9 rounded-xl bg-[#086343] flex items-center justify-center text-white shrink-0 shadow-sm font-bold">
-                <Shield className="w-5 h-5 text-white stroke-[2.2]" />
-              </div>
-            )}
-            <div className={isCollapsed ? 'lg:hidden' : ''}>
-              <div className="flex items-center gap-1.5">
-                <span className="text-base font-extrabold text-slate-100 tracking-tight leading-none truncate max-w-[150px]">{brandName}</span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate max-w-[150px]">{PRODUCT_NAME}</p>
+          <div className="flex items-center gap-3 min-w-0">
+            <img src={BRAND_MARK_URL} alt="" width={44} height={28} className="w-11 h-7 object-contain shrink-0" />
+            <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
+              <span className="block text-sm font-extrabold text-slate-100 tracking-tight leading-tight truncate max-w-[170px]">{brandName}</span>
+              <p className="text-2xs text-slate-400 font-medium mt-0.5 truncate max-w-[170px]">{PRODUCT_NAME}</p>
             </div>
           </div>
           <button
@@ -231,9 +227,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-thin">
           {visibleGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-1">
-              <h4 className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${isCollapsed ? 'lg:sr-only' : ''}`}>
-                {group.title}
-              </h4>
+              {group.title && (
+                <h2 className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${isCollapsed ? 'lg:sr-only' : ''}`}>
+                  {group.title}
+                </h2>
+              )}
               <div className="space-y-0.5">
                 {group.items.map(item => {
                   const isActive = currentPage === item.id || (currentPage === 'vehicle-detail' && item.id === 'vehicles') || (currentPage === 'customer-detail' && item.id === 'customers') || (currentPage === 'supplier-detail' && item.id === 'suppliers');
@@ -253,13 +251,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       {/* Active green vertical indicator bar on left edge */}
                       {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#086343] rounded-r-full" />
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-brand-500 rounded-r-full" />
                       )}
 
                       <div className="flex items-center gap-3 min-w-0">
                         <Icon
                           className={`w-4 h-4 shrink-0 transition-colors ${
-                            isActive ? 'text-[#086343]' : 'text-slate-400 group-hover:text-slate-100'
+                            isActive ? 'text-brand-500' : 'text-slate-400 group-hover:text-slate-100'
                           }`}
                         />
                         <span className={`truncate ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
@@ -268,7 +266,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className={`flex items-center gap-1.5 ${isCollapsed ? 'lg:hidden' : ''}`}>
                         {item.badge !== undefined ? (
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            isActive ? 'bg-[#086343] text-white' : 'bg-slate-800 text-slate-400'
+                            isActive ? 'bg-brand-500 text-white' : 'bg-slate-800 text-slate-400'
                           }`}>
                             {item.badge}
                             <span className="sr-only"> {item.id === 'invoices' ? 'overdue' : item.id === 'work-orders' ? 'active' : item.id === 'notifications' ? 'unread' : 'pending'}</span>
@@ -294,12 +292,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <p className="text-[10px] text-slate-400 font-medium truncate">{currentUser.role}</p>
               </div>
             </div>
-            <div className={`w-2 h-2 rounded-full bg-[#21865B] shrink-0 ${isCollapsed ? 'lg:hidden' : ''}`} title="Signed in" role="img" aria-label="Signed in" />
-          </div>
-
-          <div className={`mt-2 px-1 text-[10px] text-slate-400 items-center justify-between ${isCollapsed ? 'lg:hidden flex' : 'flex'}`}>
-            <span>Enterprise v2.4</span>
-            <span className="text-[#086343] font-semibold"><span aria-hidden="true">● </span>Active GCC</span>
           </div>
         </div>
       </aside>

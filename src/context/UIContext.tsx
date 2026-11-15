@@ -5,6 +5,7 @@ import { PayslipModalData } from '../types/hr';
 import { useAuth } from './AuthContext';
 
 export type AppPage =
+  | 'offices'
   | 'dashboard'
   | 'companies'
   | 'vehicles'
@@ -139,7 +140,7 @@ interface UIContextType {
 }
 
 export const VALID_PAGES: AppPage[] = [
-  'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'drivers', 'maintenance',
+  'offices', 'dashboard', 'companies', 'vehicles', 'vehicle-detail', 'drivers', 'maintenance',
   'work-orders', 'oil-management', 'tyre-management', 'accidents', 'expenses',
   'suppliers', 'customers', 'customer-detail', 'supplier-detail', 'invoices', 'reconciliation', 'payments',
   'bank-reconciliation', 'cash-flow', 'budgets', 'period-close',
@@ -151,7 +152,8 @@ export const VALID_PAGES: AppPage[] = [
 const parseLocationHash = (): { page: AppPage; vehicleId?: string; tab?: VehicleTab } => {
   if (typeof window === 'undefined') return { page: 'dashboard' };
   const rawHash = window.location.hash.replace(/^#\/?/, '');
-  if (!rawHash) return { page: 'dashboard' };
+  // no page in the address: the Offices home screen (it opens the dashboard itself for a one-office user)
+  if (!rawHash) return { page: 'offices' };
 
   const [pagePart, queryPart] = rawHash.split('?');
   const matchedPage = VALID_PAGES.includes(pagePart as AppPage) ? (pagePart as AppPage) : 'dashboard';

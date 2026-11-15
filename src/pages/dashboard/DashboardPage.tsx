@@ -332,7 +332,7 @@ export const FleetDashboard: React.FC = () => {
                       {upcomingWorkOrder.expectedCompletion ? ` - due ${formatDate(upcomingWorkOrder.expectedCompletion)}` : ''}
                     </p>
                     <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-850 border border-slate-700 text-xs font-semibold text-slate-400">
-                      <Calendar className="w-3.5 h-3.5 text-[#086343]" />
+                      <Calendar className="w-3.5 h-3.5 text-brand-500" />
                       <span>{upcomingWorkOrder.vehiclePlate}{upcomingWoVehicle ? ` - ${upcomingWoVehicle.companyName}` : ''}</span>
                     </div>
                   </div>
@@ -346,7 +346,7 @@ export const FleetDashboard: React.FC = () => {
                       {upcomingOil.nextOilChangeDate ? ` / ${formatDate(upcomingOil.nextOilChangeDate)}` : ''}
                     </p>
                     <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-850 border border-slate-700 text-xs font-semibold text-slate-400">
-                      <Calendar className="w-3.5 h-3.5 text-[#086343]" />
+                      <Calendar className="w-3.5 h-3.5 text-brand-500" />
                       <span>{upcomingOilVehicle.plateNumber} - {upcomingOilVehicle.companyName}</span>
                     </div>
                   </div>
@@ -410,7 +410,7 @@ export const FleetDashboard: React.FC = () => {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-100 group-hover:text-[#086343] transition-colors truncate" title={veh.assignedDriver || undefined}>
+                          <p className="text-xs font-bold text-slate-100 group-hover:text-brand-500 transition-colors truncate" title={veh.assignedDriver || undefined}>
                             {veh.assignedDriver || 'No driver assigned'}
                           </p>
                           <p className="text-[11px] text-slate-400 truncate">
@@ -565,11 +565,11 @@ export const FleetDashboard: React.FC = () => {
                   className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-850/60 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-slate-850 border border-slate-700 flex items-center justify-center text-[#086343] shrink-0 group-hover:bg-[#DCEFE5] transition-colors">
+                    <div className="w-9 h-9 rounded-xl bg-slate-850 border border-slate-700 flex items-center justify-center text-brand-500 shrink-0 group-hover:bg-brand-100 transition-colors">
                       <Wrench className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-100 truncate group-hover:text-[#086343] transition-colors" title={wo.problemDescription || wo.workOrderNumber}>
+                      <p className="text-xs font-bold text-slate-100 truncate group-hover:text-brand-500 transition-colors" title={wo.problemDescription || wo.workOrderNumber}>
                         {wo.problemDescription || wo.workOrderNumber}
                       </p>
                       <p className="text-[11px] text-slate-400">
@@ -617,7 +617,7 @@ export const DashboardPage: React.FC = () => {
         <div role="tablist" aria-label="Dashboard views" className="flex gap-1 overflow-x-auto border-b border-slate-700/80">
           {tabs.map(t => (
             <button key={t.id} role="tab" aria-selected={t.id === tab} onClick={() => setPicked(t.id)}
-              className={`px-4 py-2 text-xs font-bold whitespace-nowrap border-b-2 -mb-px ${t.id === tab ? 'border-[#086343] text-forest-600' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              className={`px-4 py-2 text-xs font-bold whitespace-nowrap border-b-2 -mb-px ${t.id === tab ? 'border-brand-500 text-forest-600' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
               {t.label}
             </button>
           ))}

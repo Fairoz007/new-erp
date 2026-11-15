@@ -131,7 +131,7 @@ export const ReconciliationPage: React.FC = () => {
         <div>
           <span className="font-mono font-bold text-slate-100">{r.invoiceNumber}</span>
           <p className="font-semibold text-slate-300 text-xs">{r.supplierOrCustomerName}</p>
-          <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-bold text-[10px] mt-1 inline-block">
+          <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-bold text-[10px] mt-1 inline-block">
             {r.matchingType} Match
           </span>
           <p className="text-[10px] text-slate-500 font-mono mt-0.5">{r.reconciliationNumber}</p>
@@ -149,7 +149,7 @@ export const ReconciliationPage: React.FC = () => {
           </p>
           {r.workOrderNumber && (
             <p className="text-slate-400">
-              WO: <span className="text-[#086343] font-semibold">{r.workOrderNumber}</span>
+              WO: <span className="text-brand-500 font-semibold">{r.workOrderNumber}</span>
               {r.workOrderAmount != null && <span> ({formatCurrency(r.workOrderAmount, currency)})</span>}
             </p>
           )}
@@ -169,7 +169,7 @@ export const ReconciliationPage: React.FC = () => {
             <p className="text-[10px] text-slate-400">
               {r.matchingType === '3-Way' ? 'Received' : 'PO'}: {formatCurrency(expected ?? 0, currency)}
             </p>
-            <p className={`text-[10px] ${hasVariance ? 'text-amber-700 font-bold' : 'text-[#086343]'}`}>
+            <p className={`text-[10px] ${hasVariance ? 'text-amber-700 font-bold' : 'text-brand-500'}`}>
               {hasVariance ? `Diff: ${formatCurrency(r.differenceAmount, currency)} (${r.variancePercentage}%)` : 'Exact match'}
             </p>
           </div>

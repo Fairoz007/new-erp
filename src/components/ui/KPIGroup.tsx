@@ -88,7 +88,7 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
                   className={clsx(
                     'inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-full text-xs',
                     metric.trend.direction === 'up'
-                      ? 'bg-[#DCEFE5] text-[#06452F]'
+                      ? 'bg-brand-100 text-brand-600'
                       : metric.trend.direction === 'down'
                       ? 'bg-rose-50 text-rose-700'
                       : 'bg-slate-800 text-slate-400'
@@ -112,10 +112,10 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
                 <span
                   className={clsx(
                     'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold',
-                    metric.statusVariant === 'emerald' && 'bg-[#DCEFE5] text-[#06452F]',
+                    metric.statusVariant === 'emerald' && 'bg-brand-100 text-brand-600',
                     metric.statusVariant === 'amber' && 'bg-amber-50 text-amber-700 border border-amber-200',
                     metric.statusVariant === 'rose' && 'bg-rose-50 text-rose-700 border border-rose-200',
-                    metric.statusVariant === 'indigo' && 'bg-[#DCEFE5] text-[#06452F]',
+                    metric.statusVariant === 'indigo' && 'bg-brand-100 text-brand-600',
                     (!metric.statusVariant || metric.statusVariant === 'slate') && 'bg-slate-800 text-slate-400'
                   )}
                 >

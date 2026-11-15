@@ -134,7 +134,7 @@ export const RolesEditor: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
         <div className="flex flex-wrap gap-2">
           {roles.map(r => (
             <button key={r.id} type="button" onClick={() => setSelected(r.id)}
-              className={`px-3 h-8 rounded-full border text-xs font-semibold inline-flex items-center gap-1.5 ${selected === r.id ? 'bg-[#086343] text-white border-[#086343]' : 'border-slate-700 text-slate-200 hover:bg-slate-850'}`}>
+              className={`px-3 h-8 rounded-full border text-xs font-semibold inline-flex items-center gap-1.5 ${selected === r.id ? 'bg-brand-500 text-white border-brand-500' : 'border-slate-700 text-slate-200 hover:bg-slate-850'}`}>
               {r.isSuper && <Shield className="w-3 h-3" />}{r.name}
               <span className={`text-[10px] ${selected === r.id ? 'text-white/80' : 'text-slate-400'}`}>{assigned.get(r.id) ?? 0}</span>
             </button>
@@ -178,13 +178,13 @@ export const RolesEditor: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
               <tbody>
                 {MODULE_GROUPS.map(g => (
                   <React.Fragment key={g.group}>
-                    <tr><td colSpan={ACTIONS.length + 1} className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#086343]">{g.group}</td></tr>
+                    <tr><td colSpan={ACTIONS.length + 1} className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-brand-500">{g.group}</td></tr>
                     {g.modules.map(([id, label]) => (
                       <tr key={id}>
                         <td className={tdCls}>{label}</td>
                         {ACTIONS.map(a => (
                           <td key={a} className={`${tdCls} text-center`}>
-                            <input type="checkbox" aria-label={`${label} ${a}`} className="w-4 h-4 accent-[#086343]"
+                            <input type="checkbox" aria-label={`${label} ${a}`} className="w-4 h-4 accent-brand-500"
                               checked={role.isSuper || grants.has(`${id}:${a}`)} disabled={locked} onChange={e => toggle(id, a, e.target.checked)} />
                           </td>
                         ))}
@@ -207,7 +207,7 @@ export const RolesEditor: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
                       <Input label={label} className="flex-1" value={v === 'unlimited' ? '' : v} placeholder={v === 'unlimited' ? 'Unlimited' : 'No approval'}
                         disabled={locked || v === 'unlimited'} inputMode="decimal" onChange={e => setLimits({ ...limits, [m]: e.target.value.trim() })} />
                       <label className="text-[10px] text-slate-400 pb-3 inline-flex items-center gap-1">
-                        <input type="checkbox" className="accent-[#086343]" disabled={locked} checked={v === 'unlimited'}
+                        <input type="checkbox" className="accent-brand-500" disabled={locked} checked={v === 'unlimited'}
                           onChange={e => setLimits({ ...limits, [m]: e.target.checked ? 'unlimited' : '' })} /> Any amount
                       </label>
                     </div>

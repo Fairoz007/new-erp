@@ -73,7 +73,7 @@ export const PaymentsPage: React.FC = () => {
                 e.stopPropagation();
                 openBillModal(p.attachmentUrl!, p.attachmentName || p.paymentNumber);
               }}
-              className="inline-flex items-center gap-1 text-[10px] text-[#086343] font-bold hover:underline cursor-pointer"
+              className="inline-flex items-center gap-1 text-[10px] text-brand-500 font-bold hover:underline cursor-pointer"
             >
               <Paperclip className="w-3 h-3" /> Receipt
             </button>
@@ -88,7 +88,7 @@ export const PaymentsPage: React.FC = () => {
       render: (p) => (
         <button
           onClick={() => openInvoiceModal(p.invoiceId)}
-          className="font-mono text-[#086343] font-bold hover:underline cursor-pointer text-left"
+          className="font-mono text-brand-500 font-bold hover:underline cursor-pointer text-left"
         >
           {p.invoiceNumber}
         </button>
@@ -241,7 +241,7 @@ export const PaymentsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { setMethodFilter('all'); setBankFilter('all'); setPartyFilter('all'); setFromDate(''); setToDate(''); }}
-                className="text-xs font-bold text-[#086343] hover:underline cursor-pointer px-2"
+                className="text-xs font-bold text-brand-500 hover:underline cursor-pointer px-2"
               >
                 Reset Filters
               </button>

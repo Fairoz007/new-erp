@@ -56,9 +56,9 @@ export const ContractsPanel: React.FC<Props> = ({ partyType, party }) => {
           const st = effectiveContractStatus(c);
           return (
             <button key={c.id} type="button" onClick={() => setEditing(c)}
-              className="text-left rounded-2xl border border-slate-700 bg-white p-4 space-y-1.5 hover:border-[#086343]/50">
+              className="text-left rounded-2xl border border-slate-700 bg-white p-4 space-y-1.5 hover:border-brand-500/50">
               <div className="flex items-center gap-2">
-                <FileSignature className="w-4 h-4 text-[#086343]" />
+                <FileSignature className="w-4 h-4 text-brand-500" />
                 <span className="font-mono text-xs font-semibold text-slate-100">{c.contractNumber}</span>
                 <Badge variant={STATUS_VARIANT[st]}>{st}</Badge>
                 <span className="ml-auto text-[11px] text-slate-400">{companies.find(o => o.id === c.companyId)?.code}</span>
@@ -153,14 +153,14 @@ const ContractModal: React.FC<{
           <Input label="Notice period (days)" type="number" min="0" max="365" disabled={readOnly} value={form.noticeDays}
             onChange={e => set('noticeDays', Number(e.target.value))} />
           <label className="flex items-center gap-2 text-xs text-slate-100 pt-6">
-            <input type="checkbox" className="w-4 h-4 accent-[#086343]" checked={form.autoRenew} disabled={readOnly} onChange={e => set('autoRenew', e.target.checked)} /> Renews automatically
+            <input type="checkbox" className="w-4 h-4 accent-brand-500" checked={form.autoRenew} disabled={readOnly} onChange={e => set('autoRenew', e.target.checked)} /> Renews automatically
           </label>
           <div className="sm:col-span-2 flex flex-col gap-1 text-xs">
             <span className="font-semibold text-slate-100">Signed copy</span>
             <div className="flex items-center gap-3">
               {!readOnly && <input type="file" accept="application/pdf,image/png,image/jpeg" disabled={busy || !form.companyId} onChange={e => { void upload(e.target.files?.[0]); e.target.value = ''; }} />}
               {form.documentPath && (
-                <button type="button" className="text-[#086343] font-semibold hover:underline"
+                <button type="button" className="text-brand-500 font-semibold hover:underline"
                   onClick={() => void createSignedUrl('documents', form.documentPath).then(u => window.open(u, '_blank', 'noopener')).catch(e => setError((e as Error).message))}>
                   View document
                 </button>

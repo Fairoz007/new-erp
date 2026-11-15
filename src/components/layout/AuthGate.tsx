@@ -83,7 +83,7 @@ export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <div className="min-h-screen w-full bg-surface-secondary flex items-center justify-center" role="status" aria-live="polite">
       <div className="flex items-center gap-2.5 text-sm text-slate-400">
-        <Loader2 className="w-5 h-5 animate-spin text-[#086343]" />
+        <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
         <span>Loading your workspace…</span>
       </div>
     </div>

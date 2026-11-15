@@ -134,7 +134,7 @@ export function MasterEditor<T extends Record<string, any>>({
     const base = `w-full h-8 rounded-lg border px-2 text-xs bg-white text-slate-100 ${err ? 'border-rose-500' : 'border-slate-700'} disabled:opacity-60`;
     let input: React.ReactNode;
     if (c.type === 'checkbox') {
-      input = <input type="checkbox" aria-label={c.label} className="w-4 h-4 accent-[#086343]" checked={!!value} disabled={disabled} onChange={e => onChange(e.target.checked)} />;
+      input = <input type="checkbox" aria-label={c.label} className="w-4 h-4 accent-brand-500" checked={!!value} disabled={disabled} onChange={e => onChange(e.target.checked)} />;
     } else if (c.type === 'select') {
       input = (
         <select aria-label={c.label} className={base} value={String(value ?? '')} disabled={disabled} onChange={e => onChange(e.target.value)}>
@@ -186,7 +186,7 @@ export function MasterEditor<T extends Record<string, any>>({
                     {columns.map(c => cell(c, cur[c.key], v => setDrafts(x => ({ ...x, [id]: { ...x[id], [c.key]: v } as Partial<T> })), id, false))}
                     {defaultFlag && (
                       <td className={tdCls}>
-                        {r.isDefault ? <span className="inline-flex items-center gap-1 text-[#086343] font-bold"><Star className="w-3 h-3 fill-current" /> Default</span>
+                        {r.isDefault ? <span className="inline-flex items-center gap-1 text-brand-500 font-bold"><Star className="w-3 h-3 fill-current" /> Default</span>
                           : !readOnly && <Button size="xs" variant="ghost" onClick={() => void makeDefault(r)} disabled={busy === id}>Make default</Button>}
                       </td>
                     )}

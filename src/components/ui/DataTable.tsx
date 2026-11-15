@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
+import { EmptyState } from './EmptyState';
 import { useAuth } from '../../context/AuthContext';
 import { useOptionalFleet } from '../../context/FleetContext';
 import type { CollectionKey } from '../../services/core';
@@ -86,6 +87,8 @@ interface DataTableProps<T> {
   onRetry?: () => void;
   /** Extra searchable text per row (e.g. custom field values). */
   searchText?: (row: T) => string;
+  /** The page's own Add button, offered in the empty state when there are no records yet. */
+  emptyAction?: ReactNode;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -110,6 +113,7 @@ export function DataTable<T extends Record<string, any>>({
   loading: loadingProp,
   error: errorProp,
   onRetry,
+  emptyAction,
 }: DataTableProps<T>) {
   const { hasPermission } = useAuth();
   const isServer = !!server;
@@ -305,6 +309,18 @@ export function DataTable<T extends Record<string, any>>({
     setPreviewOpen(true);
   };
 
+  const emptyBlock = (
+    <EmptyState
+      icon={searchTerm ? <Filter className="w-6 h-6 stroke-[1.5]" /> : undefined}
+      title={emptyMessage}
+      action={searchTerm ? (
+        <button onClick={() => setSearchTerm('')} className="text-xs text-forest-500 hover:underline cursor-pointer font-semibold min-h-[44px] sm:min-h-0">
+          Clear search filter
+        </button>
+      ) : (emptyAction ?? actionButton)}
+    />
+  );
+
   return (
     <div className="bg-white border border-slate-700 rounded-[20px] overflow-hidden shadow-card flex flex-col">
       {/* Top Header & Action Controls */}
@@ -429,10 +445,10 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       </div>
 
-      {/* Table Content */}
-      <div className="overflow-x-auto w-full">
+      {/* Table (from 640 px): the header stays visible while the rows scroll */}
+      <div className="hidden sm:block overflow-auto w-full max-h-[70vh]">
         <table className="w-full text-left text-sm text-slate-300">
-          <thead className="bg-slate-850 text-slate-400 border-b border-slate-700 uppercase tracking-wider text-xs font-bold">
+          <thead className="sticky top-0 z-10 bg-slate-850 text-slate-400 shadow-[inset_0_-1px_0_theme(colors.slate.700)] uppercase tracking-wider text-xs font-bold">
             <tr>
               {activeColumns.map(col => (
                 <th
@@ -531,24 +547,61 @@ export function DataTable<T extends Record<string, any>>({
               ))
             ) : (
               <tr>
-                <td colSpan={activeColumns.length} className="px-5 py-14 text-center text-slate-400 bg-white">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <Filter className="w-8 h-8 text-slate-400 stroke-[1.5]" />
-                    <p className="font-semibold text-slate-200 text-sm">{emptyMessage}</p>
-                    {searchTerm && (
-                      <button
-                        onClick={() => setSearchTerm('')}
-                        className="text-xs text-forest-500 hover:underline mt-1 cursor-pointer font-semibold"
-                      >
-                        Clear search filter
-                      </button>
-                    )}
-                  </div>
-                </td>
+                <td colSpan={activeColumns.length} className="bg-white">{emptyBlock}</td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Phones: one card per row (first column as the title, the others as label and value) */}
+      <div className="sm:hidden divide-y divide-slate-700/80">
+        {error && paginatedData.length === 0 ? (
+          <div role="alert" className="px-5 py-10 text-center space-y-2">
+            <AlertTriangle className="w-8 h-8 text-rose-500 stroke-[1.5] mx-auto" aria-hidden="true" />
+            <p className="font-semibold text-rose-600 text-sm">Could not load records</p>
+            <p className="text-xs text-slate-400">{error}</p>
+            {retry && <button onClick={retry} className="text-xs text-forest-500 hover:underline font-semibold">Try again</button>}
+          </div>
+        ) : loading && paginatedData.length === 0 ? (
+          <div className="p-4 space-y-3" aria-hidden="true">
+            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-slate-800/60 motion-safe:animate-pulse" />)}
+          </div>
+        ) : paginatedData.length === 0 ? emptyBlock : (
+          <ul aria-label={title ?? 'Records'}>
+            {paginatedData.map((row, idx) => {
+              const [first, ...rest] = activeColumns;
+              const cell = (col: Column<T>) => (col.render ? col.render(row, idx) : row[col.key] ?? '-');
+              const actions = rest.filter(c => !c.header);
+              const fields = rest.filter(c => c.header);
+              return (
+                <li
+                  key={keyExtractor(row)}
+                  onClick={() => onRowClick && onRowClick(row)}
+                  {...(onRowClick ? { tabIndex: 0, onKeyDown: clickOnKey } : {})}
+                  className={`px-4 py-3.5 space-y-2 ${onRowClick ? 'cursor-pointer active:bg-slate-850' : ''}`}
+                >
+                  {first && <div className="text-sm font-semibold text-slate-100 min-w-0 break-words">{cell(first)}</div>}
+                  {fields.length > 0 && (
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                      {fields.map(col => (
+                        <div key={col.key} className={`min-w-0 ${col.align === 'right' ? 'text-right' : ''}`}>
+                          <dt className="text-2xs uppercase tracking-wide text-slate-400 truncate">{col.header}</dt>
+                          <dd className={`text-slate-200 min-w-0 break-words ${col.align === 'right' ? 'tabular-nums' : ''}`}>{cell(col)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                  {actions.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      {actions.map(col => <React.Fragment key={col.key}>{cell(col)}</React.Fragment>)}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       {/* Pagination Footer */}

@@ -25,7 +25,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 disabled:opacity-50 disabled:cursor-not-allowed select-none cursor-pointer';
+    'inline-flex items-center justify-center font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none cursor-pointer';
 
   const shapeStyles = pill ? 'rounded-full' : 'rounded-xl';
 
@@ -39,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles = {
     primary:
-      'bg-[#086343] hover:bg-[#06452F] text-white border border-transparent shadow-[0_1px_2px_rgba(8,99,67,0.2)] active:translate-y-px',
+      'bg-brand-500 hover:bg-brand-600 text-white border border-transparent shadow-subtle motion-safe:active:translate-y-px',
     secondary:
       'bg-white hover:bg-slate-800 text-slate-100 border border-slate-700 shadow-subtle active:bg-slate-750',
     navy:
@@ -47,9 +47,9 @@ export const Button: React.FC<ButtonProps> = ({
     outline:
       'bg-white hover:bg-slate-800 text-slate-100 border border-slate-700 active:bg-slate-750',
     danger:
-      'bg-[#D94B4B] hover:bg-[#C53030] text-white border border-transparent shadow-xs',
+      'bg-danger hover:bg-danger-700 text-white border border-transparent shadow-xs',
     success:
-      'bg-[#086343] hover:bg-[#06452F] text-white border border-transparent shadow-xs',
+      'bg-brand-500 hover:bg-brand-600 text-white border border-transparent shadow-xs',
     ghost:
       'bg-transparent hover:bg-slate-800 text-slate-400 hover:text-slate-100 border-transparent',
   };

@@ -16,7 +16,7 @@ interface DetailTitleProps {
 export const DetailTitle: React.FC<DetailTitleProps> = ({ icon, title, badges, meta }) => (
   <span className="flex items-center gap-3 min-w-0">
     {icon && (
-      <span className="w-9 h-9 rounded-xl bg-slate-850 border border-slate-700 text-[#086343] flex items-center justify-center shrink-0">
+      <span className="w-9 h-9 rounded-xl bg-slate-850 border border-slate-700 text-brand-500 flex items-center justify-center shrink-0">
         {icon}
       </span>
     )}

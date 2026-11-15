@@ -60,7 +60,7 @@ export const PartyOfficeFields: React.FC<Props> = ({ module, value, onChange, lo
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
             {others.map(c => (
               <label key={c.id} className="flex items-center gap-2 text-xs text-slate-200">
-                <input type="checkbox" name="sharedOfficeIds" className="w-4 h-4 accent-[#086343]" disabled={disabled}
+                <input type="checkbox" name="sharedOfficeIds" className="w-4 h-4 accent-brand-500" disabled={disabled}
                   aria-invalid={errors?.sharedOfficeIds ? true : undefined} aria-describedby={errors?.sharedOfficeIds ? 'party-share-error' : undefined}
                   checked={value.sharedOfficeIds.includes(c.id)}
                   onChange={e => onChange({ ...value, sharedOfficeIds: e.target.checked ? [...value.sharedOfficeIds, c.id] : value.sharedOfficeIds.filter(id => id !== c.id) })} />

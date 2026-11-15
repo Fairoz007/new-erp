@@ -48,7 +48,7 @@ export const AccidentsPage: React.FC = () => {
         <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
           <span className="font-mono font-bold text-slate-100">{a.accidentNumber}</span>
           <div className="flex items-center gap-1.5 mt-1">
-            <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono font-bold text-[10px]">
               {a.vehiclePlate}
             </span>
             <span className="text-[10px] text-slate-400 font-medium">Driver: {a.driverName}</span>
@@ -93,7 +93,7 @@ export const AccidentsPage: React.FC = () => {
       render: (a) => (
         <div className="text-right">
           <span className="font-bold text-slate-100">{formatCurrency(a.actualRepairCost, currency)}</span>
-          <p className="text-[10px] text-[#086343] font-semibold">Recov: {formatCurrency(a.insuranceContribution, currency)}</p>
+          <p className="text-[10px] text-brand-500 font-semibold">Recov: {formatCurrency(a.insuranceContribution, currency)}</p>
         </div>
       ),
     },

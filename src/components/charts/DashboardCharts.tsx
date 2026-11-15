@@ -15,6 +15,7 @@ import { formatCurrency } from '../../utils/financial';
 import { useFleet } from '../../context/FleetContext';
 import type { MaintenanceRecord } from '../../types/maintenance';
 import type { DaySeries } from '../../services/queries';
+import { brand, accent, neutral, status } from '../../lib/tokens';
 
 // Every chart below is drawn from real ERP figures (daily totals aggregated in the database by
 // dashboard_series(), or records already loaded). With no data they render an explicit empty
@@ -109,21 +110,21 @@ export const RevenueVsExpenseChart: React.FC<{ series: DaySeries[] }> = ({ serie
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#086343" stopOpacity={0.25} />
-              <stop offset="95%" stopColor="#086343" stopOpacity={0.0} />
+              <stop offset="5%" stopColor={brand[500]} stopOpacity={0.25} />
+              <stop offset="95%" stopColor={brand[500]} stopOpacity={0.0} />
             </linearGradient>
             <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#626B67" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#626B67" stopOpacity={0.0} />
+              <stop offset="5%" stopColor={neutral.textMuted} stopOpacity={0.2} />
+              <stop offset="95%" stopColor={neutral.textMuted} stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
-          <XAxis dataKey="month" stroke="#626B67" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#626B67" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
+          <CartesianGrid strokeDasharray="3 3" stroke={neutral.border} vertical={false} />
+          <XAxis dataKey="month" stroke={neutral.textMuted} fontSize={11} tickLine={false} axisLine={{ stroke: neutral.border }} />
+          <YAxis stroke={neutral.textMuted} fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#626B67' }} />
-          <Area type="monotone" dataKey="Revenue" stroke="#086343" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
-          <Area type="monotone" dataKey="Expenses" stroke="#626B67" strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: neutral.textMuted }} />
+          <Area type="monotone" dataKey="Revenue" stroke={brand[500]} strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
+          <Area type="monotone" dataKey="Expenses" stroke={neutral.textMuted} strokeWidth={2} fillOpacity={1} fill="url(#colorExp)" />
         </AreaChart>
       </ResponsiveContainer>
     </ChartFigure>
@@ -164,7 +165,7 @@ export const ReferencePillBarChart: React.FC<{
               <div
                 style={{ height: `${heightPercent}%` }}
                 className={`w-full max-w-[34px] rounded-full transition-all duration-300 transform group-hover:scale-y-105 ${
-                  isPeak ? 'bg-[#086343] shadow-sm' : item.amount > 0 ? 'bg-[#4CAE88]' : 'bg-slate-200'
+                  isPeak ? 'bg-brand-500 shadow-sm' : item.amount > 0 ? 'bg-brand-400' : 'bg-slate-200'
                 }`}
               />
               <span className="mt-3 text-xs font-semibold text-slate-400 group-hover:text-slate-100 transition-colors" title={item.key}>
@@ -200,14 +201,14 @@ export const MaintenanceTrendChart: React.FC<{ maintenanceRecords: MaintenanceRe
     <ChartFigure label={'Maintenance cost by month and type, last 6 months'} columns={['Month', 'Routine', 'Corrective', 'Breakdown']} rows={data.map(d => [d.month, d.Routine, d.Corrective, d.Breakdown])}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
-          <XAxis dataKey="month" stroke="#626B67" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#626B67" fontSize={11} tickLine={false} axisLine={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={neutral.border} vertical={false} />
+          <XAxis dataKey="month" stroke={neutral.textMuted} fontSize={11} tickLine={false} axisLine={{ stroke: neutral.border }} />
+          <YAxis stroke={neutral.textMuted} fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#626B67' }} />
-          <Bar dataKey="Routine" stackId="a" fill="#086343" radius={[0, 0, 0, 0]} barSize={20} />
-          <Bar dataKey="Corrective" stackId="a" fill="#D9A441" radius={[0, 0, 0, 0]} barSize={20} />
-          <Bar dataKey="Breakdown" stackId="a" fill="#D94B4B" radius={[6, 6, 0, 0]} barSize={20} />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: neutral.textMuted }} />
+          <Bar dataKey="Routine" stackId="a" fill={brand[500]} radius={[0, 0, 0, 0]} barSize={20} />
+          <Bar dataKey="Corrective" stackId="a" fill={status.warning.DEFAULT} radius={[0, 0, 0, 0]} barSize={20} />
+          <Bar dataKey="Breakdown" stackId="a" fill={status.danger.DEFAULT} radius={[6, 6, 0, 0]} barSize={20} />
         </BarChart>
       </ResponsiveContainer>
     </ChartFigure>
@@ -235,21 +236,21 @@ export const AssetDepreciationChart: React.FC = () => {
         <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
           <defs>
             <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#626B67" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#626B67" stopOpacity={0.0} />
+              <stop offset="5%" stopColor={neutral.textMuted} stopOpacity={0.15} />
+              <stop offset="95%" stopColor={neutral.textMuted} stopOpacity={0.0} />
             </linearGradient>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#086343" stopOpacity={0.25} />
-              <stop offset="95%" stopColor="#086343" stopOpacity={0.0} />
+              <stop offset="5%" stopColor={brand[500]} stopOpacity={0.25} />
+              <stop offset="95%" stopColor={brand[500]} stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E7EBE8" vertical={false} />
-          <XAxis dataKey="year" stroke="#626B67" fontSize={11} tickLine={false} axisLine={{ stroke: '#E7EBE8' }} />
-          <YAxis stroke="#626B67" fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
+          <CartesianGrid strokeDasharray="3 3" stroke={neutral.border} vertical={false} />
+          <XAxis dataKey="year" stroke={neutral.textMuted} fontSize={11} tickLine={false} axisLine={{ stroke: neutral.border }} />
+          <YAxis stroke={neutral.textMuted} fontSize={11} tickLine={false} axisLine={false} tickFormatter={kFormat} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: '#626B67' }} />
-          <Area type="monotone" dataKey="Cost" name="Historical Cost" stroke="#626B67" strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />
-          <Area type="monotone" dataKey="BookValue" name="Net Book Value" stroke="#086343" strokeWidth={2.5} fillOpacity={1} fill="url(#colorValue)" />
+          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px', color: neutral.textMuted }} />
+          <Area type="monotone" dataKey="Cost" name="Historical Cost" stroke={neutral.textMuted} strokeWidth={2} fillOpacity={1} fill="url(#colorCost)" />
+          <Area type="monotone" dataKey="BookValue" name="Net Book Value" stroke={brand[500]} strokeWidth={2.5} fillOpacity={1} fill="url(#colorValue)" />
         </AreaChart>
       </ResponsiveContainer>
     </ChartFigure>

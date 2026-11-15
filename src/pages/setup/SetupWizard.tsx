@@ -124,8 +124,8 @@ export const SetupWizard: React.FC<{ onDefer?: () => void }> = ({ onDefer }) => 
               return (
                 <li key={s.n} className="shrink-0">
                   <button type="button" disabled={!reachable} onClick={() => void go(s.n)}
-                    className={`w-full text-left flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs transition ${active ? 'bg-white border border-[#086343] shadow-card' : 'border border-transparent hover:bg-white/70'} disabled:opacity-50`}>
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${isDone ? 'bg-[#086343] text-white' : active ? 'bg-[#DCEFE5] text-[#086343]' : 'bg-slate-850 text-slate-400'}`}>
+                    className={`w-full text-left flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs transition ${active ? 'bg-white border border-brand-500 shadow-card' : 'border border-transparent hover:bg-white/70'} disabled:opacity-50`}>
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${isDone ? 'bg-brand-500 text-white' : active ? 'bg-brand-100 text-brand-500' : 'bg-slate-850 text-slate-400'}`}>
                       {isDone ? <Check className="w-3.5 h-3.5" /> : s.n}
                     </span>
                     <span className="min-w-0">

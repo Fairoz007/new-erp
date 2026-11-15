@@ -96,9 +96,9 @@ export const ExpensesPage: React.FC = () => {
       header: 'Expense # / Plate',
       render: (e) => (
         <div {...(e.vehicleId ? buttonLike : {})} className={e.vehicleId ? 'cursor-pointer' : ''} onClick={() => e.vehicleId && openVehicleDetail(e.vehicleId, 'expenses')}>
-          <span className="font-mono font-bold text-slate-100 hover:text-[#086343] transition-colors">{e.expenseNumber}</span>
+          <span className="font-mono font-bold text-slate-100 hover:text-brand-500 transition-colors">{e.expenseNumber}</span>
           <div className="flex items-center gap-1.5 mt-1">
-            <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono font-bold text-[10px]">
               {e.vehiclePlate || 'No vehicle'}
             </span>
             <span className="text-[10px] text-slate-400 font-mono font-medium">{e.costCentre}</span>
@@ -158,10 +158,10 @@ export const ExpensesPage: React.FC = () => {
         e.attachmentUrl ? (
           <button
             onClick={(ev) => { ev.stopPropagation(); openReceipt(e); }}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCEFE5] text-[#06452F] hover:bg-[#bde2d0] text-[10px] font-bold transition-colors cursor-pointer group"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-100 text-brand-600 hover:bg-brand-200 text-[10px] font-bold transition-colors cursor-pointer group"
             title="View attached receipt"
           >
-            <Paperclip className="w-3 h-3 text-[#086343] group-hover:scale-110 transition-transform" />
+            <Paperclip className="w-3 h-3 text-brand-500 group-hover:scale-110 transition-transform" />
             <span>View Receipt</span>
           </button>
         ) : (
@@ -265,7 +265,7 @@ export const ExpensesPage: React.FC = () => {
             {byCategory.slice(0, 8).map(([cat, amt]) => (
               <li key={cat} className="text-xs">
                 <div className="flex justify-between mb-0.5"><span className="font-semibold text-slate-200">{cat}</span><span className="text-slate-300 font-mono">{formatCurrency(amt, currency)}</span></div>
-                <div className="h-1.5 rounded-full bg-slate-850 overflow-hidden"><div className="h-full bg-[#086343]" style={{ width: `${filteredTotal > 0 ? Math.max(2, (amt / filteredTotal) * 100) : 0}%` }} /></div>
+                <div className="h-1.5 rounded-full bg-slate-850 overflow-hidden"><div className="h-full bg-brand-500" style={{ width: `${filteredTotal > 0 ? Math.max(2, (amt / filteredTotal) * 100) : 0}%` }} /></div>
               </li>
             ))}
           </ul>

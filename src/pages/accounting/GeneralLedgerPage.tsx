@@ -47,7 +47,7 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                 <div className="p-5 border-b border-slate-700 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-extrabold text-sm text-[#086343] px-2.5 py-0.5 rounded-full bg-[#DCEFE5]">
+                      <span className="font-mono font-extrabold text-sm text-brand-500 px-2.5 py-0.5 rounded-full bg-brand-100">
                         {acc.accountCode}
                       </span>
                       <h3 className="text-base font-bold text-slate-100">{acc.accountName}</h3>
@@ -62,7 +62,7 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                     </div>
                     <div>
                       <span className="text-slate-400 font-sans">Closing Balance: </span>
-                      <span className="font-extrabold text-[#086343]">{formatCurrency(acc.closingBalance, currency)}</span>
+                      <span className="font-extrabold text-brand-500">{formatCurrency(acc.closingBalance, currency)}</span>
                     </div>
                   </div>
                 </div>
@@ -77,7 +77,7 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                         <th scope="col" className="py-3.5 px-4">Reference</th>
                         <th scope="col" className="py-3.5 px-4">Description</th>
                         <th scope="col" className="py-3.5 px-4">Vehicle</th>
-                        <th scope="col" className="py-3.5 px-4 text-right text-[#086343]">Debit</th>
+                        <th scope="col" className="py-3.5 px-4 text-right text-brand-500">Debit</th>
                         <th scope="col" className="py-3.5 px-4 text-right text-slate-400">Credit</th>
                         <th scope="col" className="py-3.5 px-4 text-right font-mono">Running Balance</th>
                       </tr>
@@ -95,19 +95,19 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                         rows.map(line => (
                           <tr key={line.id} className="hover:bg-slate-850/60 transition-colors">
                             <td className="py-3 px-4 text-slate-300 font-mono font-medium">{formatDate(line.date)}</td>
-                            <td className="py-3 px-4 font-mono font-bold text-[#086343]">{line.entryNumber}</td>
+                            <td className="py-3 px-4 font-mono font-bold text-brand-500">{line.entryNumber}</td>
                             <td className="py-3 px-4 font-mono text-slate-400">{line.reference || '-'}</td>
                             <td className="py-3 px-4 text-slate-200 font-medium">{line.description}</td>
                             <td className="py-3 px-4">
                               {line.vehiclePlate ? (
-                                <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 font-mono text-[10px] text-[#086343] font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 font-mono text-[10px] text-brand-500 font-bold">
                                   {line.vehiclePlate}
                                 </span>
                               ) : (
                                 <span className="text-slate-400">-</span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono font-bold text-[#086343]">
+                            <td className="py-3 px-4 text-right font-mono font-bold text-brand-500">
                               {line.debit > 0 ? formatCurrency(line.debit, currency) : '-'}
                             </td>
                             <td className="py-3 px-4 text-right font-mono font-bold text-slate-400">
@@ -126,7 +126,7 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                         <tr>
                           <td colSpan={8} className="py-3 px-4 text-center">
                             <button
-                              className="text-xs font-bold text-[#086343] underline cursor-pointer disabled:opacity-60"
+                              className="text-xs font-bold text-brand-500 underline cursor-pointer disabled:opacity-60"
                               disabled={lines.fetching}
                               onClick={() => setVisible(v => v + 200)}
                             >
@@ -141,13 +141,13 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                         <td colSpan={5} className="py-3 px-4 text-right uppercase tracking-wider font-mono">
                           Account Activity Totals:
                         </td>
-                        <td className="py-3 px-4 text-right font-mono text-[#086343] font-bold">
+                        <td className="py-3 px-4 text-right font-mono text-brand-500 font-bold">
                           {formatCurrency(acc.totalDebit, currency)}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-slate-400 font-bold">
                           {formatCurrency(acc.totalCredit, currency)}
                         </td>
-                        <td className="py-3 px-4 text-right font-mono font-extrabold text-[#086343]">
+                        <td className="py-3 px-4 text-right font-mono font-extrabold text-brand-500">
                           {formatCurrency(acc.closingBalance, currency)}
                         </td>
                       </tr>
@@ -414,7 +414,7 @@ export const GeneralLedgerPage: React.FC = () => {
 
               <div className="p-3.5 rounded-2xl bg-slate-850 border border-slate-700 text-right">
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Net Outstanding Balance</p>
-                <p className={`text-lg font-extrabold font-mono mt-0.5 ${partyLedger.closingBalance > 0 ? 'text-[#D9A441]' : 'text-[#086343]'}`}>
+                <p className={`text-lg font-extrabold font-mono mt-0.5 ${partyLedger.closingBalance > 0 ? 'text-warning' : 'text-brand-500'}`}>
                   {formatCurrency(partyLedger.closingBalance, currency)}
                 </p>
               </div>
@@ -428,7 +428,7 @@ export const GeneralLedgerPage: React.FC = () => {
                     <th scope="col" className="py-3.5 px-4">Transaction / Voucher</th>
                     <th scope="col" className="py-3.5 px-4">Description</th>
                     <th scope="col" className="py-3.5 px-4 text-right text-rose-600">Invoiced / Billed</th>
-                    <th scope="col" className="py-3.5 px-4 text-right text-[#086343]">Paid / Remitted</th>
+                    <th scope="col" className="py-3.5 px-4 text-right text-brand-500">Paid / Remitted</th>
                     <th scope="col" className="py-3.5 px-4 text-right font-mono">Running Balance</th>
                   </tr>
                 </thead>
@@ -437,12 +437,12 @@ export const GeneralLedgerPage: React.FC = () => {
                   {partyLedger.lines.map(line => (
                     <tr key={line.id} className="hover:bg-slate-850/60 transition-colors">
                       <td className="py-3 px-4 text-slate-300 font-mono font-medium">{formatDate(line.date)}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-[#086343]">{line.referenceNumber}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-brand-500">{line.referenceNumber}</td>
                       <td className="py-3 px-4 text-slate-200 font-medium">{line.description}</td>
                       <td className="py-3 px-4 text-right font-mono font-bold text-rose-600">
                         {line.debit > 0 ? formatCurrency(line.debit, currency) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-[#086343]">
+                      <td className="py-3 px-4 text-right font-mono font-bold text-brand-500">
                         {line.credit > 0 ? formatCurrency(line.credit, currency) : '-'}
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-extrabold text-slate-100">

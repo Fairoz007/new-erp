@@ -123,9 +123,9 @@ export const InvoicesPage: React.FC = () => {
       header: 'Invoice # / Ref',
       render: (inv) => (
         <div {...buttonLike} className="cursor-pointer" onClick={() => openInvoiceModal(inv.id)}>
-          <span className="font-mono font-bold text-slate-100 hover:text-[#086343] transition-colors">{inv.invoiceNumber}</span>
+          <span className="font-mono font-bold text-slate-100 hover:text-brand-500 transition-colors">{inv.invoiceNumber}</span>
           <div className="flex items-center gap-1.5 mt-1">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${inv.invoiceType === 'Sales' ? 'bg-[#DCEFE5] text-[#06452F]' : 'bg-[#DBEAFE] text-[#1E40AF]'}`}>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${inv.invoiceType === 'Sales' ? 'bg-brand-100 text-brand-600' : 'bg-accent-blue-50 text-accent-blue-700'}`}>
               {inv.invoiceType}
             </span>
             {inv.isCreditNote && <span className="text-[10px] text-rose-600 font-bold">Credit Note</span>}
@@ -171,10 +171,10 @@ export const InvoicesPage: React.FC = () => {
               e.stopPropagation();
               openBillModal(inv.attachmentUrl!, inv.attachmentName || inv.invoiceNumber, inv.attachmentType, inv.attachmentSize);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#DCEFE5] text-[#06452F] hover:bg-[#bde2d0] text-[10px] font-bold transition-colors cursor-pointer group"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-100 text-brand-600 hover:bg-brand-200 text-[10px] font-bold transition-colors cursor-pointer group"
             title="View attached bill"
           >
-            <Paperclip className="w-3 h-3 text-[#086343] group-hover:scale-110 transition-transform" />
+            <Paperclip className="w-3 h-3 text-brand-500 group-hover:scale-110 transition-transform" />
             <span>View Bill</span>
           </button>
         ) : (
@@ -201,7 +201,7 @@ export const InvoicesPage: React.FC = () => {
       align: 'right',
       render: (inv) => (
         <div className="text-right">
-          <span className={`font-bold ${inv.outstandingAmount > 0 ? 'text-[#D9A441]' : 'text-[#086343]'}`}>
+          <span className={`font-bold ${inv.outstandingAmount > 0 ? 'text-warning' : 'text-brand-500'}`}>
             {formatCurrency(inv.outstandingAmount, inv.currency)}
           </span>
           {inv.amountPaid > 0 && <p className="text-[10px] text-slate-400">Paid: {formatCurrency(inv.amountPaid, inv.currency)}</p>}
@@ -359,7 +359,7 @@ export const InvoicesPage: React.FC = () => {
                 {pendingByParty.map(p => (
                   <li key={`${p.type}-${p.name}`} className="flex items-center justify-between text-xs">
                     <span className="min-w-0"><span className="font-semibold text-slate-200 truncate block" title={p.name}>{p.name}</span><span className="text-slate-400">{p.type} · {p.count} invoice{p.count === 1 ? '' : 's'}</span></span>
-                    <span className="font-bold text-[#D9A441] shrink-0 ml-3">{formatCurrency(p.total, currency)}</span>
+                    <span className="font-bold text-warning shrink-0 ml-3">{formatCurrency(p.total, currency)}</span>
                   </li>
                 ))}
               </ul>

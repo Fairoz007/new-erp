@@ -38,7 +38,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       className={clsx(
         'min-w-0 rounded-[20px] p-5 sm:p-6 flex flex-col justify-between transition-all relative overflow-hidden',
         isDarkHero
-          ? 'bg-[#086343] text-white shadow-card hover:bg-[#06452F]'
+          ? 'bg-brand-500 text-white shadow-card hover:bg-brand-600'
           : 'bg-white border border-slate-700 text-slate-100 shadow-card hover:border-forest-500/40 hover:shadow-elevated',
         onClick && 'cursor-pointer'
       )}
@@ -88,7 +88,7 @@ export const StatCard: React.FC<StatCardProps> = ({
                 isDarkHero
                   ? 'bg-white/15 text-white/95'
                   : trend.direction === 'up'
-                  ? 'bg-[#DCEFE5] text-[#06452F]'
+                  ? 'bg-brand-100 text-brand-600'
                   : trend.direction === 'down'
                   ? 'bg-rose-50 text-rose-700'
                   : 'bg-slate-800 text-slate-400'

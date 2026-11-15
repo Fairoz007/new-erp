@@ -110,7 +110,7 @@ export const Section: React.FC<{ title: string; description?: ReactNode; action?
 
 export const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }> = ({ checked, onChange, label, disabled }) => (
   <label className={`inline-flex items-center gap-2 text-xs text-slate-200 ${disabled ? 'opacity-60' : 'cursor-pointer'}`}>
-    <input type="checkbox" className="w-4 h-4 accent-[#086343]" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
+    <input type="checkbox" className="w-4 h-4 accent-brand-500" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
     {label}
   </label>
 );

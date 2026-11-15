@@ -14,7 +14,8 @@ import { setReportUser } from '../lib/branding';
 // Keep in sync with the seed in 20261025000200_erp_rls.sql section 5.
 // ---------------------------------------------------------------------------
 export const PAGE_MODULE: Record<AppPage, string | null> = {
-  dashboard: null,              // landing page; its widgets only show rows RLS returns
+  offices: null,                // landing page: one card per office the user can open (RLS decides which)
+  dashboard: null,              // its widgets only show rows RLS returns
   companies: 'companies',
   vehicles: 'vehicles',
   'vehicle-detail': 'vehicles',

@@ -20,7 +20,7 @@ export const Card: React.FC<CardProps> = ({
     glass: 'bg-white/95 backdrop-blur-sm border border-slate-700 shadow-card',
     subtle: 'bg-slate-850 border border-slate-700',
     flat: 'bg-white border border-slate-700',
-    hero: 'bg-[#086343] text-white border border-[#06452F] shadow-elevated',
+    hero: 'bg-brand-500 text-white border border-brand-600 shadow-elevated',
   };
 
   return (

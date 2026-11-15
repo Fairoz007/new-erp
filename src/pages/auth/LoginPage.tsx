@@ -97,7 +97,7 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
             setError(null);
             setResetSent(false);
           }}
-          className="text-xs font-semibold text-[#086343] hover:text-[#06452F] inline-flex items-center gap-1 cursor-pointer"
+          className="text-xs font-semibold text-brand-500 hover:text-brand-600 inline-flex items-center gap-1 cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to sign in
         </button>
@@ -154,7 +154,7 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
             setMode('reset');
             setError(null);
           }}
-          className="font-semibold text-[#086343] hover:text-[#06452F] cursor-pointer min-h-[44px] sm:min-h-0 inline-flex items-center"
+          className="font-semibold text-brand-500 hover:text-brand-600 cursor-pointer min-h-[44px] sm:min-h-0 inline-flex items-center"
         >
           Forgot password?
         </button>

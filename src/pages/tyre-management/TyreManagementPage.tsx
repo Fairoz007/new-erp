@@ -61,7 +61,7 @@ export const TyreManagementPage: React.FC = () => {
           <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
             <span className="font-bold text-slate-100">{v?.brand} {v?.model}</span>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
+              <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono font-bold text-[10px]">
                 {v?.plateNumber}
               </span>
               <span className="text-[10px] text-amber-700 font-bold px-2 py-0.5 rounded-full bg-amber-50">{t.position}</span>
@@ -86,7 +86,7 @@ export const TyreManagementPage: React.FC = () => {
       align: 'right',
       render: (t) => (
         <div className="text-right">
-          <span className={`font-mono font-bold text-sm ${t.treadDepthMm <= 2.0 ? 'text-rose-600' : t.treadDepthMm <= 3.0 ? 'text-amber-700' : 'text-[#086343]'}`}>
+          <span className={`font-mono font-bold text-sm ${t.treadDepthMm <= 2.0 ? 'text-rose-600' : t.treadDepthMm <= 3.0 ? 'text-amber-700' : 'text-brand-500'}`}>
             {t.treadDepthMm} mm
           </span>
           <p className="text-[9px] text-slate-400 font-medium">Min 2.0 mm</p>

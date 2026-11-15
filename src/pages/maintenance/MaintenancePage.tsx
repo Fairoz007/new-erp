@@ -43,7 +43,7 @@ export const MaintenancePage: React.FC = () => {
         <div>
           <span className="font-mono font-bold text-slate-100">{m.recordNumber}</span>
           <div className="flex items-center gap-1.5 mt-1">
-            <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-[10px]">
+            <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono font-bold text-[10px]">
               {m.vehiclePlate}
             </span>
             <span className="text-[10px] text-slate-400 font-mono">{m.odometerReading.toLocaleString()} KM</span>
@@ -78,7 +78,7 @@ export const MaintenancePage: React.FC = () => {
       render: (m) => (
         <div>
           <span className="text-slate-300 font-medium">{formatDate(m.maintenanceDate)}</span>
-          {m.nextServiceMileage && <p className="text-[10px] text-[#086343] font-semibold">Next: {m.nextServiceMileage.toLocaleString()} KM</p>}
+          {m.nextServiceMileage && <p className="text-[10px] text-brand-500 font-semibold">Next: {m.nextServiceMileage.toLocaleString()} KM</p>}
         </div>
       ),
     },

@@ -249,7 +249,7 @@ export const SponsorDashboard: React.FC = () => {
             {trend.map(t => (
               <div key={t.label} className="text-xs">
                 <div className="flex justify-between"><span className="text-slate-300">{t.label}</span><span className="font-mono text-slate-200">{formatCurrency(t.revenue, currency)} · net {formatCurrency(t.net, currency)}</span></div>
-                <div className="h-1.5 rounded-full bg-slate-850 overflow-hidden"><div className="h-full bg-[#086343]" style={{ width: `${Math.max(1, (Math.abs(t.revenue) / max) * 100)}%` }} /></div>
+                <div className="h-1.5 rounded-full bg-slate-850 overflow-hidden"><div className="h-full bg-brand-500" style={{ width: `${Math.max(1, (Math.abs(t.revenue) / max) * 100)}%` }} /></div>
               </div>
             ))}
           </div>

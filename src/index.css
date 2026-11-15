@@ -15,8 +15,8 @@
     line-height: 1.5;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
-    background-color: #FFFFFF;
-    color: #111827;
+    background-color: theme('colors.white');
+    color: theme('colors.slate.100');
   }
 
   html {
@@ -29,17 +29,17 @@
   select:focus-visible,
   textarea:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(8, 99, 67, 0.25);
+    box-shadow: 0 0 0 2px theme('colors.white'), 0 0 0 4px theme('colors.brand.500');
   }
 
   /* Links, clickable rows and cards made focusable with tabindex: a visible focus outline (WCAG 2.4.7) */
   a:focus-visible,
   [tabindex]:not([tabindex='-1']):not(button):not(input):not(select):not(textarea):focus-visible {
-    outline: 2px solid #086343;
+    outline: 2px solid theme('colors.brand.500');
     outline-offset: -2px;
   }
   tr[tabindex]:focus-visible {
-    background-color: #F1F3F2;
+    background-color: theme('colors.canvas');
   }
 
   button,
@@ -72,26 +72,26 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #F1F3F2;
+    background: theme('colors.canvas');
   }
   ::-webkit-scrollbar-thumb {
-    background: #CBD5E1;
+    background: theme('colors.slate.600');
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #94A3B8;
+    background: theme('colors.slate.500');
   }
 
   ::selection {
-    background-color: #DCEFE5;
-    color: #06452F;
+    background-color: theme('colors.brand.100');
+    color: theme('colors.brand.600');
   }
 }
 
 .finance-hero {
   background:
     radial-gradient(circle at 92% 8%, rgba(8, 99, 67, 0.08), transparent 40%),
-    linear-gradient(145deg, #FFFFFF 0%, #FFFFFF 58%, #F7F8F7 100%);
+    linear-gradient(145deg, theme('colors.white') 0%, theme('colors.white') 58%, theme('colors.slate.850') 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -130,42 +130,42 @@
 
 /* Color normalizations for reference design palette */
 .text-indigo-300,
-.text-indigo-400 { color: #086343; }
+.text-indigo-400 { color: theme('colors.brand.500'); }
 .text-emerald-300,
-.text-emerald-400 { color: #086343; }
+.text-emerald-400 { color: theme('colors.brand.500'); }
 .text-amber-300,
-.text-amber-400 { color: #B45309; }
+.text-amber-400 { color: theme('colors.warning.700'); }
 .text-rose-300,
-.text-rose-400 { color: #D94B4B; }
+.text-rose-400 { color: theme('colors.danger.DEFAULT'); }
 .text-blue-300,
-.text-blue-400 { color: #2563EB; }
+.text-blue-400 { color: theme('colors.accent.blue.600'); }
 .text-cyan-300,
-.text-cyan-400 { color: #0891B2; }
+.text-cyan-400 { color: theme('colors.accent.blue.600'); }
 .text-purple-300,
-.text-purple-400 { color: #086343; }
-.hover\:text-white:hover { color: #111827; }
+.text-purple-400 { color: theme('colors.brand.500'); }
+.hover\:text-white:hover { color: theme('colors.slate.100'); }
 
 .border-indigo-800\/60,
-.border-indigo-800\/50 { border-color: #DCEFE5; }
+.border-indigo-800\/50 { border-color: theme('colors.brand.100'); }
 .border-emerald-800\/60,
-.border-emerald-800\/50 { border-color: #DCEFE5; }
+.border-emerald-800\/50 { border-color: theme('colors.brand.100'); }
 .border-amber-800\/60,
-.border-amber-800\/50 { border-color: #FEF3C7; }
+.border-amber-800\/50 { border-color: theme('colors.warning.50'); }
 .border-rose-800\/60,
-.border-rose-800\/50 { border-color: #FFE4E6; }
+.border-rose-800\/50 { border-color: theme('colors.danger.50'); }
 
 /* Soft semantic backgrounds */
 .bg-indigo-950\/70,
-.bg-indigo-950\/80 { background-color: #F0F8F4; }
+.bg-indigo-950\/80 { background-color: theme('colors.brand.50'); }
 .bg-emerald-950\/70,
-.bg-emerald-950\/80 { background-color: #F0F8F4; }
+.bg-emerald-950\/80 { background-color: theme('colors.brand.50'); }
 .bg-amber-950\/70,
-.bg-amber-950\/80 { background-color: #FFFBEB; }
+.bg-amber-950\/80 { background-color: theme('colors.warning.50'); }
 .bg-rose-950\/70,
-.bg-rose-950\/80 { background-color: #FFF1F2; }
-.bg-blue-950\/70 { background-color: #EFF6FF; }
-.bg-purple-950\/70 { background-color: #F0F8F4; }
-.bg-cyan-950\/70 { background-color: #ECFEFF; }
+.bg-rose-950\/80 { background-color: theme('colors.danger.50'); }
+.bg-blue-950\/70 { background-color: theme('colors.accent.blue.50'); }
+.bg-purple-950\/70 { background-color: theme('colors.brand.50'); }
+.bg-cyan-950\/70 { background-color: theme('colors.accent.blue.50'); }
 
 @media (max-width: 640px) {
   body { font-size: 13px; }

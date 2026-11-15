@@ -223,3 +223,39 @@ through Settings → Organization (so the app's own upload path and checks are u
 `20261115000000_org_arabic_name.sql`: `organizations.legal_name_ar` (optional, at most 200
 characters), shown in Settings → Organization as "Legal name in Arabic". Test:
 `upgrade_org_arabic_name.test.mjs` (3 checks).
+
+### Data (Settings → Organization and Offices)
+
+Entered through the app's own screens (not SQL) once a Super Admin is signed in: see "Stage 3 data
+entry" further down for what was set and when.
+
+---
+
+## Stage 4: Design system, layout, sidebar and header
+
+- **Tokens** in one file, `src/lib/tokens.js` (typed by `tokens.d.ts`), read by `tailwind.config.js`
+  and by the chart code: brand green (primary), logo accents `accent.red/blue/green` (50/100/500/600/700),
+  neutrals, `success`/`warning`/`danger`/`info` with 50 and 700 shades, radius (`control`, `card`,
+  `frame`, `pill`), shadows and a `2xs` type size. All 300+ one-off hex values in components
+  (`bg-[#086343]`, `#DCEFE5`, `#06452F`, chart strokes, badge colours) now use the tokens; `index.css`
+  uses `theme()`. No hex colour is left in `src/**/*.ts(x)` outside the token file.
+- **Shared components**: new `SidePanel` (right-hand panel, full screen on a phone, same focus trap and
+  unsaved-changes question as every dialog), `EmptyState`, `Skeleton`/`SkeletonBlock`, `KpiTile` (the
+  one KPI tile, `StatCard`), `OfficeBadge` (office logo or code on an accent colour). `Button`'s focus
+  ring is now a solid 2 px brand ring (the 30 % ring was below 3:1).
+- **DataTable**: the header row stays visible while rows scroll (sticky, list area up to 70 % of the
+  screen height); the empty state offers the page's Add action (`emptyAction`, or the table's own
+  action button); on a phone every row is a card (first column as the title, the others as
+  label/value pairs, action buttons at the bottom) instead of a table that scrolls sideways.
+- **Sidebar**: the real AHN mark and the organization's name; groups Fleet, Finance, HR, Reports and
+  Settings after Offices, Dashboard, Approvals and Notifications. Every page that was in the menu is
+  still there with the same permission check. Removed the invented "Enterprise v2.4" and "● Active
+  GCC" labels and the green "signed in" dot. The collapsed state is remembered per browser.
+- **Header**: the office switcher is shown at every width (it was hidden below 768 px, so phones could
+  not change office). It shows the office logo or code badge, name and code; "All offices" only for
+  users who can see more than one office; and "Offices overview" opens the Offices screen. The
+  "Messages" (mail) button, which only opened the Notifications page that the bell already opens, is
+  removed. On a phone the search is an icon button.
+- **Accessibility**: focus rings are solid brand green (≥ 3:1 against white), menus are `role="menu"`
+  with `menuitemradio` and close with Escape, motion is limited to short transitions and stops under
+  `prefers-reduced-motion` (global rule in `index.css`).

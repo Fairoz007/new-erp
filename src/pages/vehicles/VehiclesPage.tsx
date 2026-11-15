@@ -104,7 +104,7 @@ export const VehiclesPage: React.FC = () => {
       align: 'right',
       render: (v) => (
         <div className="text-right">
-          <span className="font-bold text-[#086343]">{formatCurrency(v.currentMarketValue, currency)}</span>
+          <span className="font-bold text-brand-500">{formatCurrency(v.currentMarketValue, currency)}</span>
           <p className="text-[10px] text-slate-400">Est. Resale</p>
         </div>
       ),

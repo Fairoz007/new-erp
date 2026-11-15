@@ -44,7 +44,7 @@ export const Tabs: React.FC<TabsProps> = ({
               className={clsx(
                 'flex min-h-[36px] items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
                 isActive
-                  ? 'bg-white text-[#086343] shadow-sm border border-slate-700'
+                  ? 'bg-white text-brand-500 shadow-sm border border-slate-700'
                   : 'text-slate-400 hover:text-slate-100 hover:bg-white/60',
                 tab.disabled && 'opacity-40 cursor-not-allowed'
               )}
@@ -55,7 +55,7 @@ export const Tabs: React.FC<TabsProps> = ({
                 <span
                   className={clsx(
                     'px-2 py-0.5 rounded-full text-[10px] font-bold',
-                    isActive ? 'bg-[#DCEFE5] text-[#06452F]' : 'bg-slate-800 text-slate-400'
+                    isActive ? 'bg-brand-100 text-brand-600' : 'bg-slate-800 text-slate-400'
                   )}
                 >
                   {tab.count}
@@ -84,7 +84,7 @@ export const Tabs: React.FC<TabsProps> = ({
               className={clsx(
                 'flex min-h-[38px] items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
                 isActive
-                  ? 'bg-[#086343] text-white shadow-xs'
+                  ? 'bg-brand-500 text-white shadow-xs'
                   : 'bg-white border border-slate-700 text-slate-400 hover:text-slate-100 hover:bg-slate-850',
                 tab.disabled && 'opacity-40 cursor-not-allowed'
               )}
@@ -124,7 +124,7 @@ export const Tabs: React.FC<TabsProps> = ({
             className={clsx(
               'flex items-center gap-2 py-3 border-b-2 text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
               isActive
-                ? 'border-[#086343] text-[#086343]'
+                ? 'border-brand-500 text-brand-500'
                 : 'border-transparent text-slate-400 hover:text-slate-100 hover:border-slate-400',
               tab.disabled && 'opacity-40 cursor-not-allowed'
             )}
@@ -135,7 +135,7 @@ export const Tabs: React.FC<TabsProps> = ({
               <span
                 className={clsx(
                   'px-2 py-0.5 rounded-full text-[10px] font-bold',
-                  isActive ? 'bg-[#DCEFE5] text-[#06452F]' : 'bg-slate-800 text-slate-400'
+                  isActive ? 'bg-brand-100 text-brand-600' : 'bg-slate-800 text-slate-400'
                 )}
               >
                 {tab.count}

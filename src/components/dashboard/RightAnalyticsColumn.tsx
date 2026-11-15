@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { formatCurrency } from '../../utils/financial';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import { pressable } from '../../lib/a11y';
+import { brand, accent, neutral, status } from '../../lib/tokens';
 
 interface FleetAvailabilityProps {
   totalVehicles: number;
@@ -40,7 +41,7 @@ export const FleetAvailabilityGaugeCard: React.FC<FleetAvailabilityProps> = ({
           <svg className="w-52 h-52 transform -rotate-180 absolute top-0" viewBox="0 0 160 160">
             <defs>
               <pattern id="arcHatch" patternUnits="userSpaceOnUse" width="4" height="4">
-                <path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="#CBD5E1" strokeWidth="1" />
+                <path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke={neutral.divider} strokeWidth="1" />
               </pattern>
             </defs>
 
@@ -61,7 +62,7 @@ export const FleetAvailabilityGaugeCard: React.FC<FleetAvailabilityProps> = ({
               cx="80"
               cy="80"
               r={radius}
-              stroke="#4CAE88"
+              stroke={brand[400]}
               strokeWidth={strokeWidth}
               fill="transparent"
               strokeDasharray={`${circumference} ${circumference}`}
@@ -74,7 +75,7 @@ export const FleetAvailabilityGaugeCard: React.FC<FleetAvailabilityProps> = ({
               cx="80"
               cy="80"
               r={radius}
-              stroke="#086343"
+              stroke={brand[500]}
               strokeWidth={strokeWidth}
               fill="transparent"
               strokeDasharray={`${circumference} ${circumference}`}
@@ -97,11 +98,11 @@ export const FleetAvailabilityGaugeCard: React.FC<FleetAvailabilityProps> = ({
         {/* Legend beneath the semi-circle */}
         <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-semibold">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#086343] shrink-0" />
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-500 shrink-0" />
             <span className="text-slate-100">Active ({activeVehicles})</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#4CAE88] shrink-0" />
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-400 shrink-0" />
             <span className="text-slate-400">Workshop ({workshopVehicles})</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -141,11 +142,11 @@ export const OperatingCostBreakdownCard: React.FC<CostBreakdownProps> = ({
   const total = maintenanceCost + oilCost + tyreCost + accidentCost + otherCost || 1;
 
   const segments = [
-    { label: 'Maintenance', value: maintenanceCost, color: '#086343' },
-    { label: 'Oil Service', value: oilCost, color: '#D9A441' },
-    { label: 'Tyres', value: tyreCost, color: '#4CAE88' },
-    { label: 'Accidents', value: accidentCost, color: '#D94B4B' },
-    { label: 'Other expenses', value: otherCost, color: '#7B8581' },
+    { label: 'Maintenance', value: maintenanceCost, color: brand[500] },
+    { label: 'Oil Service', value: oilCost, color: status.warning.DEFAULT },
+    { label: 'Tyres', value: tyreCost, color: brand[400] },
+    { label: 'Accidents', value: accidentCost, color: status.danger.DEFAULT },
+    { label: 'Other expenses', value: otherCost, color: neutral.textMuted },
   ];
 
   return (
@@ -215,7 +216,7 @@ export const AttentionRequiredCard: React.FC<AttentionRequiredProps> = ({ items,
           onViewAll && (
             <button
               onClick={onViewAll}
-              className="text-xs font-bold text-[#086343] hover:underline cursor-pointer"
+              className="text-xs font-bold text-brand-500 hover:underline cursor-pointer"
             >
               View All ({items.length})
             </button>
@@ -223,7 +224,7 @@ export const AttentionRequiredCard: React.FC<AttentionRequiredProps> = ({ items,
         }
       >
         <div className="flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-[#D9A441] shrink-0" />
+          <AlertCircle className="w-4 h-4 text-warning shrink-0" />
           <CardTitle className="text-sm font-bold text-slate-100">Attention Required</CardTitle>
         </div>
       </CardHeader>
@@ -240,7 +241,7 @@ export const AttentionRequiredCard: React.FC<AttentionRequiredProps> = ({ items,
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-bold text-slate-100 truncate group-hover:text-[#086343] transition-colors">
+                    <span className="text-xs font-bold text-slate-100 truncate group-hover:text-brand-500 transition-colors">
                       {item.name}
                     </span>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-slate-400 shrink-0">
@@ -250,8 +251,8 @@ export const AttentionRequiredCard: React.FC<AttentionRequiredProps> = ({ items,
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                       item.severity === 'critical'
-                        ? 'bg-[#FFE4E6] text-[#9F1239]'
-                        : 'bg-[#FEF3C7] text-[#92400E]'
+                        ? 'bg-danger-50 text-danger-700'
+                        : 'bg-warning-50 text-warning-700'
                     }`}
                   >
                     {item.severity === 'critical' ? 'Critical' : 'Due Soon'}
@@ -263,7 +264,7 @@ export const AttentionRequiredCard: React.FC<AttentionRequiredProps> = ({ items,
                 </p>
 
                 <div className="flex items-center justify-between pt-1 border-t border-slate-700/60 text-[11px]">
-                  <span className="text-[#086343] font-bold flex items-center gap-1 group-hover:underline">
+                  <span className="text-brand-500 font-bold flex items-center gap-1 group-hover:underline">
                     {item.actionText}
                     <ArrowRight className="w-3 h-3" />
                   </span>

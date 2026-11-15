@@ -53,11 +53,11 @@ export const OilManagementPage: React.FC = () => {
         const v = vehicles.find(veh => veh.id === o.vehicleId);
         return (
           <div {...buttonLike} className="cursor-pointer group" onClick={() => openVehicleDetail(o.vehicleId, 'oil')}>
-            <span className="font-bold text-slate-100 text-sm group-hover:text-[#086343] transition-colors">
+            <span className="font-bold text-slate-100 text-sm group-hover:text-brand-500 transition-colors">
               {v?.brand} {v?.model}
             </span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-[#086343] font-mono font-bold text-xs">
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono font-bold text-xs">
                 {v?.plateNumber}
               </span>
               <span className="text-xs text-slate-400 font-mono">Cur: {(v?.currentMileage ?? 0).toLocaleString()} KM</span>

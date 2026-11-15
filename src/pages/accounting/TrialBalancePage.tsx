@@ -127,32 +127,32 @@ export const TrialBalancePage: React.FC = () => {
           No opening balances or posted journal entries exist up to {formatDate(asOfDate)}. The trial balance is empty.
         </div>
       ) : tbData.isBalanced ? (
-        <div className="p-4 bg-[#DCEFE5] border border-[#BDE2D0] rounded-2xl flex flex-wrap items-center justify-between gap-3 text-[#06452F]">
+        <div className="p-4 bg-brand-100 border border-brand-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-brand-600">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-[#086343] shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-brand-500 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-[#06452F]">Debits equal credits</p>
-              <p className="text-[11px] text-[#086343] mt-0.5">
+              <p className="text-xs font-bold text-brand-600">Debits equal credits</p>
+              <p className="text-[11px] text-brand-500 mt-0.5">
                 Total closing debits match total closing credits at {formatCurrency(tbData.totalClosingDebit, currency)} with zero discrepancy.
               </p>
             </div>
           </div>
-          <span className="px-3 py-1 rounded-full bg-white border border-[#BDE2D0] text-[#086343] text-xs font-mono font-bold shadow-2xs">
+          <span className="px-3 py-1 rounded-full bg-white border border-brand-200 text-brand-500 text-xs font-mono font-bold shadow-2xs">
             Variance: 0.000 {currency}
           </span>
         </div>
       ) : (
-        <div className="p-4 bg-[#FEECEC] border border-[#FECACA] rounded-2xl flex flex-wrap items-center justify-between gap-3 text-[#991B1B]">
+        <div className="p-4 bg-danger-50 border border-danger-50 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-danger-700">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-[#991B1B]">Audit Discrepancy Detected</p>
+              <p className="text-xs font-bold text-danger-700">Audit Discrepancy Detected</p>
               <p className="text-[11px] text-rose-700 mt-0.5">
                 Closing Debits differ from Closing Credits by {tbData.difference.toFixed(3)} {currency}. Check account opening balances.
               </p>
             </div>
           </div>
-          <span className="px-3 py-1 rounded-full bg-white border border-[#FECACA] text-rose-700 text-xs font-mono font-bold shadow-2xs">
+          <span className="px-3 py-1 rounded-full bg-white border border-danger-50 text-rose-700 text-xs font-mono font-bold shadow-2xs">
             Variance: {tbData.difference.toFixed(3)} {currency}
           </span>
         </div>
@@ -191,7 +191,7 @@ export const TrialBalancePage: React.FC = () => {
             </div>
 
             <label className="flex items-center gap-2 text-xs text-slate-300 font-semibold cursor-pointer">
-              <input type="checkbox" checked={hideZero} onChange={e => setHideZero(e.target.checked)} className="accent-[#086343]" />
+              <input type="checkbox" checked={hideZero} onChange={e => setHideZero(e.target.checked)} className="accent-brand-500" />
               Hide zero-balance accounts
             </label>
           </div>
@@ -228,8 +228,8 @@ export const TrialBalancePage: React.FC = () => {
                 <th scope="col" className="py-3.5 px-4 text-right bg-slate-850/60">Opening Cr</th>
                 <th scope="col" className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-slate-850/80">Period Dr</th>
                 <th scope="col" className="py-3.5 px-4 text-right bg-slate-850/80">Period Cr</th>
-                <th scope="col" className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-[#DCEFE5]/30 text-[#086343] font-bold">Closing Dr</th>
-                <th scope="col" className="py-3.5 px-4 text-right bg-[#DCEFE5]/30 text-[#086343] font-bold">Closing Cr</th>
+                <th scope="col" className="py-3.5 px-4 text-right border-l border-slate-700/80 bg-brand-100/30 text-brand-500 font-bold">Closing Dr</th>
+                <th scope="col" className="py-3.5 px-4 text-right bg-brand-100/30 text-brand-500 font-bold">Closing Cr</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/80 bg-white">
@@ -242,7 +242,7 @@ export const TrialBalancePage: React.FC = () => {
                 <tr key={row.accountCode} className="hover:bg-slate-850/60 transition-colors">
                   <td className="py-3 px-4 font-mono font-bold text-slate-100">
                     <button
-                      className="text-[#086343] hover:underline cursor-pointer"
+                      className="text-brand-500 hover:underline cursor-pointer"
                       title="Open this account in the General Ledger"
                       onClick={() => openLedgerFor(row.accountCode)}
                     >
@@ -257,14 +257,14 @@ export const TrialBalancePage: React.FC = () => {
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                         row.category === 'Asset'
-                          ? 'bg-[#DBEAFE] text-[#1E40AF]'
+                          ? 'bg-accent-blue-50 text-accent-blue-700'
                           : row.category === 'Liability'
-                          ? 'bg-[#FEF3C7] text-[#92400E]'
+                          ? 'bg-warning-50 text-warning-700'
                           : row.category === 'Equity'
-                          ? 'bg-[#F3E8FF] text-[#6B21A8]'
+                          ? 'bg-accent-blue-50 text-accent-blue-700'
                           : row.category === 'Revenue'
-                          ? 'bg-[#DCEFE5] text-[#06452F]'
-                          : 'bg-[#FFE4E6] text-[#9F1239]'
+                          ? 'bg-brand-100 text-brand-600'
+                          : 'bg-danger-50 text-danger-700'
                       }`}
                     >
                       {row.category}
@@ -282,10 +282,10 @@ export const TrialBalancePage: React.FC = () => {
                   <td className="py-3 px-4 text-right font-mono text-slate-300">
                     {row.periodCredit > 0 ? formatCurrency(row.periodCredit, currency) : '-'}
                   </td>
-                  <td className="py-3 px-4 text-right font-mono font-bold border-l border-slate-700/80 text-[#086343]">
+                  <td className="py-3 px-4 text-right font-mono font-bold border-l border-slate-700/80 text-brand-500">
                     {row.closingDebit > 0 ? formatCurrency(row.closingDebit, currency) : '-'}
                   </td>
-                  <td className="py-3 px-4 text-right font-mono font-bold text-[#086343]">
+                  <td className="py-3 px-4 text-right font-mono font-bold text-brand-500">
                     {row.closingCredit > 0 ? formatCurrency(row.closingCredit, currency) : '-'}
                   </td>
                 </tr>
@@ -308,10 +308,10 @@ export const TrialBalancePage: React.FC = () => {
                 <td className="py-3.5 px-4 text-right font-mono text-slate-300">
                   {formatCurrency(shown.totalPeriodCredit, currency)}
                 </td>
-                <td className="py-3.5 px-4 text-right font-mono border-l border-slate-700 text-[#086343] bg-[#DCEFE5]/40 text-sm font-extrabold">
+                <td className="py-3.5 px-4 text-right font-mono border-l border-slate-700 text-brand-500 bg-brand-100/40 text-sm font-extrabold">
                   {formatCurrency(shown.totalClosingDebit, currency)}
                 </td>
-                <td className="py-3.5 px-4 text-right font-mono text-[#086343] bg-[#DCEFE5]/40 text-sm font-extrabold">
+                <td className="py-3.5 px-4 text-right font-mono text-brand-500 bg-brand-100/40 text-sm font-extrabold">
                   {formatCurrency(shown.totalClosingCredit, currency)}
                 </td>
               </tr>

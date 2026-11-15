@@ -204,7 +204,7 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
                     <div key={d.id} className="flex justify-between gap-3">
                       <span className="text-slate-400">{d.label}</span>
                       {d.fieldType === 'file' && v
-                        ? <button type="button" className="text-[#086343] font-semibold hover:underline" onClick={() => void openFileValue(v).catch(e => addToast({ type: 'error', title: 'Could not open file', message: (e as Error).message }))}>{formatCustomValue(d, v)}</button>
+                        ? <button type="button" className="text-brand-500 font-semibold hover:underline" onClick={() => void openFileValue(v).catch(e => addToast({ type: 'error', title: 'Could not open file', message: (e as Error).message }))}>{formatCustomValue(d, v)}</button>
                         : <span className="text-slate-200 text-right">{formatCustomValue(d, v) || '—'}</span>}
                     </div>
                   );

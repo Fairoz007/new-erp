@@ -79,7 +79,7 @@ export const BalanceSheetPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ASSETS COLUMN */}
         <Card className="p-6 sm:p-7 bg-white border border-slate-700 shadow-card rounded-[24px]">
-          <h2 className="text-base font-extrabold text-[#086343] uppercase tracking-wider pb-3.5 border-b border-slate-700">
+          <h2 className="text-base font-extrabold text-brand-500 uppercase tracking-wider pb-3.5 border-b border-slate-700">
             ASSETS
           </h2>
 
@@ -123,7 +123,7 @@ export const BalanceSheetPage: React.FC = () => {
             </div>
 
             {/* TOTAL ASSETS */}
-            <div className="flex justify-between py-3.5 px-5 bg-[#086343] text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
+            <div className="flex justify-between py-3.5 px-5 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
               <span>TOTAL ASSETS</span>
               <span className="font-mono">{formatCurrency(bs.assets.totalAssets, currency)}</span>
             </div>
@@ -132,7 +132,7 @@ export const BalanceSheetPage: React.FC = () => {
 
         {/* LIABILITIES & EQUITY COLUMN */}
         <Card className="p-6 sm:p-7 bg-white border border-slate-700 shadow-card rounded-[24px]">
-          <h2 className="text-base font-extrabold text-[#D9A441] uppercase tracking-wider pb-3.5 border-b border-slate-700">
+          <h2 className="text-base font-extrabold text-warning uppercase tracking-wider pb-3.5 border-b border-slate-700">
             LIABILITIES & EQUITY
           </h2>
 
@@ -192,7 +192,7 @@ export const BalanceSheetPage: React.FC = () => {
             </div>
 
             {/* TOTAL LIABILITIES & EQUITY */}
-            <div className="flex justify-between py-3.5 px-5 bg-[#086343] text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
+            <div className="flex justify-between py-3.5 px-5 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
               <span>TOTAL LIABILITIES & EQUITY</span>
               <span className="font-mono">{formatCurrency(bs.totalLiabilitiesAndEquity, currency)}</span>
             </div>

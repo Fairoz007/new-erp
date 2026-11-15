@@ -27,7 +27,7 @@ const OfficeRoles: React.FC<{ value: Assign[]; onChange: (v: Assign[]) => void; 
         return (
           <div key={o.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
             <label className={`flex items-center gap-2 text-xs min-w-[180px] ${can ? 'cursor-pointer' : 'opacity-60'}`}>
-              <input type="checkbox" className="w-4 h-4 accent-[#086343]" checked={!!a} disabled={!can}
+              <input type="checkbox" className="w-4 h-4 accent-brand-500" checked={!!a} disabled={!can}
                 onChange={e => onChange(e.target.checked ? [...value, { company_id: o.id, role_id: null }] : value.filter(x => x.company_id !== o.id))} />
               {o.name} <span className="font-mono text-slate-400">{o.code}</span>
             </label>
