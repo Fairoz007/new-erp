@@ -3,7 +3,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Textarea } from '../../components/ui/Input';
 import { Vehicle, VehicleStatus } from '../../types/vehicle';
-import { removeFiles, uploadFile } from '../../services/storage';
+import { uploadFile } from '../../services/storage';
+import { ImageUpload, useStoredFileCleanup } from '../../components/common/ImageUpload';
 import { useVehicleTypes } from '../../hooks/useVehicleTypes';
 import { useCustomFieldsEditor } from '../../hooks/useCustomFields';
 import { VehicleOperationsFields, validateOps, type VehicleOps } from '../../components/common/VehicleOperationsFields';
@@ -27,16 +28,24 @@ interface Props {
 /** Edit a vehicle's master data and lifecycle status. Purchase, depreciation and oil settings are merged into their JSON groups. */
 export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, onSubmit }) => {
   const [form, setForm] = useState<Vehicle>(vehicle);
-  const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { types, idOf, error: typesError } = useVehicleTypes(vehicle.vehicleType);
   const cf = useCustomFieldsEditor('vehicle', vehicle.companyId, vehicle.customFields, idOf(form.vehicleType));
   const { vehicles } = useFleet();
   const takenBy = (driverId: string) => vehicles.find(v => v.driverId === driverId)?.id;
+  const files = useStoredFileCleanup('media');
+  // legacy rows may hold a full URL instead of a stored path: never try to delete those
+  const storedPath = (p?: string) => (p && !/^(https?:|data:|blob:)/i.test(p) ? p : '');
+  const uploadPhoto = React.useCallback(async (file: File) => {
+    const stored = await uploadFile(file, vehicle.companyId, 'vehicles', { bucket: 'media' });
+    files.track(stored.path);
+    return stored.path;
+  }, [vehicle.companyId, files]);
+  const close = () => { files.abandon(); onClose(); };
 
   useEffect(() => {
-    if (isOpen) { setForm(vehicle); setPhoto(null); setError(''); }
+    if (isOpen) { setForm(vehicle); setError(''); }
   }, [isOpen, vehicle]);
 
   const set = <K extends keyof Vehicle>(key: K, value: Vehicle[K]) => setForm(f => ({ ...f, [key]: value }));
@@ -57,7 +66,6 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
     if (opsError) { setError(opsError); return; }
     setSaving(true);
     setError('');
-    let uploadedPath: string | null = null;
     try {
       const updates: Partial<Vehicle> = {
         plateNumber: form.plateNumber, registrationNumber: form.registrationNumber, vin: form.vin, engineNumber: form.engineNumber,
@@ -77,20 +85,13 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
         insuranceExpiryDate: form.insuranceExpiryDate, insurancePremiumAnnual: form.insurancePremiumAnnual, notes: form.notes,
         customFields: cf.value(),
       };
-      if (photo) {
-        const stored = await uploadFile(photo, vehicle.companyId, 'vehicles', { bucket: 'media' });
-        uploadedPath = stored.path;
-        updates.photoUrl = stored.path;
-      }
+      if ((form.photoUrl ?? '') !== (vehicle.photoUrl ?? '')) updates.photoUrl = form.photoUrl ?? '';
       await onSubmit(updates);
       if (form.driverId !== vehicle.driverId) invalidateDrivers();
-      // the row now points at the new photo: drop the previous stored file (best effort)
-      if (uploadedPath && vehicle.photoUrl && !/^(https?:|data:|blob:)/i.test(vehicle.photoUrl)) {
-        removeFiles('media', [vehicle.photoUrl]).catch(() => undefined);
-      }
+      // the row now points at form.photoUrl: drop the photo it replaced and any other upload (best effort)
+      files.commit(storedPath(form.photoUrl), storedPath(vehicle.photoUrl));
       onClose();
     } catch (err) {
-      if (uploadedPath) removeFiles('media', [uploadedPath]).catch(() => undefined); // row not saved: do not leave an orphan
       setError((err as Error).message);
     } finally {
       setSaving(false);
@@ -100,13 +101,13 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
   return (
     <Modal
       isOpen={isOpen}
-      onClose={saving ? () => undefined : onClose}
+      onClose={saving ? () => undefined : close}
       title={`Edit Vehicle ${vehicle.vehicleId}`}
       description={`${vehicle.brand} ${vehicle.model} - ${vehicle.plateNumber}`}
       size="2xl"
       footer={
         <>
-          <Button variant="outline" type="button" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="outline" type="button" onClick={close} disabled={saving}>Cancel</Button>
           <Button variant="primary" type="submit" form="vehicle-edit-form" isLoading={saving} disabled={saving}>Save Changes</Button>
         </>
       }
@@ -183,16 +184,16 @@ export const VehicleEditModal: React.FC<Props> = ({ isOpen, onClose, vehicle, on
         </section>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs sm:text-sm font-semibold text-slate-100">Vehicle photo</label>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={e => setPhoto(e.target.files?.[0] ?? null)}
-              className="text-xs text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-slate-850 file:px-3 file:py-1.5 file:text-xs file:font-semibold"
-            />
-            <p className="text-xs text-slate-400">PNG, JPEG or WebP up to 5 MB. Leave empty to keep the current photo.</p>
-          </div>
+          <ImageUpload
+            label="Vehicle photo"
+            kind="photo"
+            shape="wide"
+            value={storedPath(form.photoUrl)}
+            upload={uploadPhoto}
+            onChange={path => set('photoUrl', path)}
+            hint="PNG, JPEG or WebP. Resized to 1600 px on the longest side before upload; the old photo is removed when you save."
+            disabled={saving}
+          />
           <Textarea label="Notes" value={form.notes ?? ''} onChange={e => set('notes', e.target.value)} />
         </section>
         {cf.node}

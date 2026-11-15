@@ -1,23 +1,24 @@
 // Step 1: organization profile (legal identity, contact, logo). Also Settings → Organization.
 import React, { useEffect, useRef, useState } from 'react';
-import { Upload, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input, Textarea } from '../../../components/ui/Input';
 import { useOrg } from '../../../context/OrgContext';
 import * as org from '../../../services/org';
+import { removeFiles } from '../../../services/storage';
+import { ImageUpload } from '../../../components/common/ImageUpload';
 import { NoticeBar, Section, useNotice, errText } from '../shared';
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void; registerSave?: (fn: (() => Promise<boolean>) | null) => void }> = ({ readOnly, onSaved, registerSave }) => {
-  const { organization, setOrganization, logoUrl } = useOrg();
+  const { organization, setOrganization } = useOrg();
   const [form, setForm] = useState({
     legalName: '', legalNameAr: '', tradeName: '', crNumber: '', vatNumber: '', taxNumber: '', address: '', city: '', country: 'Oman',
     phone: '', email: '', website: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useNotice();
   const loaded = useRef('');   // the form as last loaded or saved, to tell unsaved edits apart
 
@@ -75,17 +76,18 @@ export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void
     return () => registerSave?.(null);
   }, [dirty, registerSave]);
 
-  const onLogo = async (file: File | undefined) => {
-    if (!file || !organization) return;
-    setUploading(true);
+  // the logo is saved on the organization as soon as it is uploaded or removed; the file it
+  // replaces is then deleted (a failed save deletes the new upload instead)
+  const onLogo = async (path: string) => {
+    if (!organization) return;
+    const previous = organization.logoPath;
     try {
-      const path = await org.uploadOrgLogo(file);
       setOrganization(await org.saveOrganization(organization.id, { logoPath: path }));
-      setNotice({ tone: 'success', text: 'Logo uploaded.' });
+      if (previous && previous !== path) removeFiles('media', [previous]).catch(() => undefined);
+      setNotice({ tone: 'success', text: path ? 'Logo saved.' : 'Logo removed.' });
     } catch (e) {
+      if (path) removeFiles('media', [path]).catch(() => undefined);
       setNotice({ tone: 'error', text: errText(e) });
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -112,17 +114,17 @@ export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void
           <Input label="Website" value={form.website} onChange={set('website')} error={errors.website} disabled={readOnly} />
         </div>
       </Section>
-      <Section title="Logo" description="PNG, JPG or WebP up to 2 MB. Save the profile first.">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="w-24 h-24 rounded-2xl border border-slate-700 bg-slate-850 flex items-center justify-center overflow-hidden">
-            {logoUrl ? <img src={logoUrl} alt="Organization logo" className="max-w-full max-h-full object-contain" /> : <span className="text-[10px] text-slate-400">No logo</span>}
-          </div>
-          <label className={`inline-flex items-center gap-2 px-3 h-9 rounded-xl border border-slate-700 text-xs font-semibold ${!organization || readOnly ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-850'}`}>
-            <Upload className="w-4 h-4" /> {uploading ? 'Uploading…' : 'Upload logo'}
-            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={!organization || readOnly || uploading}
-              onChange={e => { void onLogo(e.target.files?.[0]); e.target.value = ''; }} />
-          </label>
-        </div>
+      <Section title="Logo" description="Shown in the sidebar and on printed documents. Save the profile first.">
+        <ImageUpload
+          label="Organization logo"
+          kind="brand"
+          shape="wide"
+          value={organization?.logoPath ?? ''}
+          upload={org.uploadOrgLogo}
+          onChange={path => void onLogo(path)}
+          hint="PNG, JPEG or WebP. Kept in proportion, resized to 1200 px wide and saved as PNG (transparency kept)."
+          disabled={!organization || readOnly}
+        />
       </Section>
       {!readOnly && (
         <div className="flex justify-end">

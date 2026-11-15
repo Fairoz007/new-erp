@@ -42,6 +42,8 @@ what is verified and what is not. One section per stage. Parts A, B and C of
 
 | Item | Why it is out of scope |
 |---|---|
+| Editing an office's list of contact people (`companies.contacts`) | The column exists but no screen ever edited it; a contacts editor would be a new control. The panel keeps the office phone and email. |
+| Resizing receipt photos in the expense, invoice and payment forms before upload | Part B names logos and vehicle photos for the upload side and receipts/bills/documents for the viewer only; the `scan` rule in `src/lib/images.ts` is ready if wanted. |
 
 ---
 
@@ -340,3 +342,35 @@ entry" further down for what was set and when.
   none of another office's vehicles); a per-office role applies in that office only; a non-Super
   Admin can neither set All offices on a profile nor invite an All offices user; the memberships a
   Duqm user can read are their own office's only.
+
+---
+
+## Stage 8: Image manager
+
+- **`ImageUpload`** (`src/components/common/ImageUpload.tsx`): choose → prepare in the browser →
+  upload → preview, with status ("Preparing the image…", "Uploading…"; Supabase uploads report no
+  byte progress, so the steps are shown), the error message, and **Retry** for the same file.
+  Used for the **organization logo** (Settings → Organization and Setup Wizard step 1), **office
+  logos** (office panel) and **vehicle photos** (Edit vehicle).
+- **Preparation** (`src/lib/images.ts`): office logos are fitted into a 512 px square on a
+  transparent background (nothing cut off) and saved as PNG; the organization logo is the wide brand
+  mark printed on documents, so it keeps its proportions (1200 px wide, PNG); vehicle photos are
+  resized to 1600 px on the longest side as JPEG (quality stepped down if still over the limit), never
+  cropped (decision 8). EXIF orientation is applied. Input is checked against the bucket before any
+  work and the result against the same limits the server applies (media PNG/JPEG/WebP 5 MB,
+  documents PDF/PNG/JPEG 10 MB; PDFs pass through untouched).
+- **Old files removed on replace**: after the owning record is saved, the replaced file and any
+  other upload made meanwhile are removed; closing without saving removes the new uploads; a failed
+  organization save removes the new logo. The organization logo's own 2 MB rule (gap U12) is now the
+  media bucket's 5 MB, the same as every other image (`orgLogo.test.ts` updated).
+- **`ImageViewer`** (`src/components/common/ImageViewer.tsx`), used by the document viewer that
+  receipts, bills, payment slips and documents open: signed URL (5 minutes), zoom steps, fit,
+  rotate, keyboard (+ − 0 R), PDF in a frame, Download and Open in new tab through fresh signed
+  URLs, "Try again" when a link fails or has expired, phone height 60 % of the screen.
+- Unit tests `images.test.ts` (7): fitting, square layout of a wide logo, logo vs photo plans, type
+  checks per bucket, empty and over-limit files, output limits, output names.
+- PGlite test `upgrade_image_storage.test.mjs` (7 checks): a Duqm user cannot write an office logo,
+  vehicle photo, receipt or bill into Head Office's folders but can into Duqm's; files of one office
+  cannot be read or deleted from another; a replaced office logo can be removed by an office editor;
+  a Viewer cannot store logos; the organization logo needs settings:edit and is readable by every
+  signed-in user; paths outside `<office>/<entity>/` are refused.

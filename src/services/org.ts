@@ -109,8 +109,7 @@ export async function saveOrganization(id: string | null, input: Partial<Organiz
 
 export async function uploadOrgLogo(file: File): Promise<string> {
   if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) throw new ServiceError('Logo must be a PNG, JPG or WebP image.');
-  if (file.size > 2 * 1024 * 1024) throw new ServiceError('Logo must be 2 MB or smaller.');
-  validateFile(file, 'media');
+  validateFile(file, 'media');   // the media bucket's limit (5 MB); ImageUpload resizes before this
   const path = `organization/logo-${Date.now()}-${sanitizeFileName(file.name)}`;
   const { error } = await supabase.storage.from('media').upload(path, file, { contentType: file.type, upsert: false });
   if (error) throw new ServiceError(`Logo upload failed: ${error.message}`);

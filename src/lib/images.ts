@@ -9,7 +9,7 @@
 import { BUCKETS, BucketId, formatFileSize, resolveMimeType } from '../services/storage';
 import { ServiceError } from '../services/core';
 
-export type ImageKind = 'logo' | 'photo' | 'scan';
+export type ImageKind = 'logo' | 'brand' | 'photo' | 'scan';
 
 export interface ImageRule {
   /** Longest side after resizing, in pixels. Smaller images are never enlarged. */
@@ -23,6 +23,8 @@ export interface ImageRule {
 
 export const IMAGE_RULES: Record<ImageKind, ImageRule> = {
   logo: { maxSide: 512, square: true, output: 'image/png', quality: 1 },
+  // the organization's own logo: the wide brand mark printed on documents, kept in proportion
+  brand: { maxSide: 1200, square: false, output: 'image/png', quality: 1 },
   photo: { maxSide: 1600, square: false, output: 'image/jpeg', quality: 0.85 },
   scan: { maxSide: 2400, square: false, output: 'image/jpeg', quality: 0.85 },
 };
