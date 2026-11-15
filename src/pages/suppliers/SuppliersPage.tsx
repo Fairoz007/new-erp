@@ -210,8 +210,8 @@ export const SuppliersPage: React.FC = () => {
         description="Manage authorized vehicle dealers, workshops, tyre suppliers, oil companies, and spare parts vendors with AP balances."
         actions={
           <>
-            <Button variant="outline" size="md" onClick={() => exportPartiesCsv('supplier', cfRows, cfList.defs, officeCode)}
-              leftIcon={<Download className="w-4 h-4" />}>Export all fields</Button>
+            {hasPermission('export', 'suppliers') && <Button variant="outline" size="md" disabled={cfRows.length === 0} title={cfRows.length === 0 ? 'No suppliers in this list to export' : undefined} onClick={() => exportPartiesCsv('supplier', cfRows, cfList.defs, officeCode)}
+              leftIcon={<Download className="w-4 h-4" />}>Export all fields</Button>}
             {canImport && (
               <Button variant="outline" size="md" onClick={() => setImporting(true)} leftIcon={<Upload className="w-4 h-4" />}>
                 Import CSV
@@ -275,6 +275,7 @@ export const SuppliersPage: React.FC = () => {
         searchPlaceholder="Search suppliers by name, ID, contact, phone, VAT number..."
         searchFields={['name', 'supplierId', 'contactPerson', 'phone', 'email', 'vatNumber', 'supplierType']}
         exportFilename="Suppliers"
+        exportModule="suppliers"
       />
 
       <PartySharingModal type="Supplier" party={sharing} onClose={() => setSharing(null)} />

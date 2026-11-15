@@ -220,17 +220,18 @@ const BudgetVsActualReport: React.FC<ReportFilters> = f => {
   const year = Number((f.to || new Date().toISOString()).slice(0, 4));
   const upTo = f.to && f.to.slice(0, 4) === String(year) ? Number(f.to.slice(5, 7)) : 12;
   const offices = f.office === 'all' ? companies : companies.filter(c => c.id === f.office);
-  const [data, setData] = useState<{ office: string; rows: BudgetActual[] }[] | null>(null);
+  const [data, setData] = useState<{ office: string; rows: BudgetActual[]; error?: string }[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const ids = offices.map(o => o.id).join(',');
   useEffect(() => {
     let live = true; setData(null); setErr(null);
-    Promise.all(offices.map(o => fetchBudgetVsActual(o.id, year).then(rows => ({ office: o.name, rows })).catch(() => ({ office: o.name, rows: [] as BudgetActual[] }))))
+    Promise.all(offices.map(o => fetchBudgetVsActual(o.id, year).then(rows => ({ office: o.name, rows })).catch((e: Error) => ({ office: o.name, rows: [] as BudgetActual[], error: e.message }))))
       .then(d => { if (live) setData(d); }).catch(e => { if (live) setErr((e as Error).message); });
     return () => { live = false; };
   }, [ids, year]); // eslint-disable-line react-hooks/exhaustive-deps
   if (err) return <Failed error={err} />;
   if (!data) return <Loading />;
+  const failed = data.filter(d => d.error);
   const rows = data.flatMap(d => {
     const by = new Map<string, Row>();
     for (const r of d.rows.filter(x => x.month <= upTo)) {
@@ -243,6 +244,9 @@ const BudgetVsActualReport: React.FC<ReportFilters> = f => {
   return (
     <div className="space-y-2">
       <Note>Approved budgets for {year}, January to month {upTo} (from the end date), against posted journals. A positive variance is favourable.</Note>
+      {failed.length > 0 && (
+        <p role="alert" className="text-xs text-rose-600">Not included, could not be loaded: {failed.map(d => `${d.office} (${d.error})`).join('; ')}</p>
+      )}
       <ReportTable rows={rows} filename={`Budget_vs_Actual_${year}`} columns={[
         text('office', 'Office'), text('account', 'Account'), text('kind', 'Type'), money('budget', 'Budget', currency), money('actual', 'Actual', currency), money('variance', 'Variance', currency, true), int('used', 'Used', '%'),
       ]} />

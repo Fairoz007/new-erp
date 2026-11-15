@@ -49,7 +49,7 @@ export default function SystemHealthPanel() {
 
   return (
     <div className="space-y-4">
-      <Section title="Database" action={<Button variant="ghost" size="xs" onClick={refresh} leftIcon={<RefreshCw className="w-3.5 h-3.5" />} disabled={health.fetching}>Check again</Button>}>
+      <Section title="Database" action={<Button variant="ghost" size="xs" onClick={refresh} leftIcon={<RefreshCw className="w-3.5 h-3.5" />} isLoading={health.fetching} disabled={health.fetching}>Check again</Button>}>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
           <dt className="text-slate-400">Checked</dt><dd>{when(h.checkedAt)}</dd>
           <dt className="text-slate-400">Migrations applied</dt>

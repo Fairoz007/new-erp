@@ -347,3 +347,19 @@ Not verified: printing on paper or in the print preview of Chrome and Safari (it
 the print dialog), and the buttons in the signed-in app with real data (nobody signed in to the
 browser pane). The live organization still holds the test VAT `OM1100482910` (section T), and it
 prints on every document until the Settings data is entered.
+
+## V. UI inspection: dead controls and responsiveness (2026-11-15)
+
+- `npm run scan:controls` (`scripts/dead-controls.mjs`): a TypeScript AST scan of `src/**/*.tsx`. It
+  lists controls with no action, empty or log-only handlers, `#` and dead links, page ids with no
+  case in `App.tsx`, tabs with no panel, placeholder text, and always-disabled buttons with no title.
+  Before: 4 hits (all deliberate, marked `controls-ok:`). After: none.
+- Five areas were reviewed by reading the code: shell and shared, fleet, money, accounting and
+  reports, people and admin. 93 files changed. Fixes: missing busy states, actions that only failed
+  on click are now hidden or disabled per office and approval limit, made-up fallback text and
+  trend badges replaced with real values, and layout fixed at 375/768/1280 px (wrapping actions and
+  footers, menus that fit the screen, stacked form fields, 40–44 px touch targets on phones).
+- Controls removed: 0. Open: none. No security, office scoping or database changes.
+- Browser: the signed-out screens pass at all three widths. The signed-in browser pass is **not
+  verified**, because the owner did not sign in during the session.
+- Details: `docs/UI_INSPECTION_NOTES.md`.

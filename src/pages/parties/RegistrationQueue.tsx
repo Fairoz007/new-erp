@@ -50,11 +50,11 @@ export const RegistrationQueue: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={row.kind === 'customer' ? 'emerald' : 'blue'}>{row.kind === 'customer' ? 'Client' : 'Supplier'}</Badge>
                   <span className="font-mono text-[11px] text-slate-400">{row.code}</span>
-                  <button type="button" className="font-bold text-slate-100 hover:text-forest-400 inline-flex items-center gap-1" onClick={() => openPartyDetail(row.kind, party.id)}>
+                  <button type="button" className="font-bold text-slate-100 hover:text-forest-400 inline-flex items-center gap-1 text-left break-words min-w-0" onClick={() => openPartyDetail(row.kind, party.id)}>
                     {party.name} <ExternalLink className="w-3 h-3" />
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[11px] text-slate-400 mt-1 break-words">
                   {officeName(party.officeId)} · VAT {party.vatNumber || '—'} · CR {party.crNumber || '—'} · {party.email || 'no email'}
                 </p>
                 <p className="text-[11px] text-slate-400">Submitted by {userName(party.registration.submittedBy)}{party.createdAt ? ` on ${formatDate(party.createdAt)}` : ''}</p>

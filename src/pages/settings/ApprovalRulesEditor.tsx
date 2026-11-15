@@ -36,10 +36,13 @@ export const ApprovalRulesEditor: React.FC<{ readOnly: boolean }> = ({ readOnly 
       setEditing(null);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
+  const [deleting, setDeleting] = useState<string | null>(null);
   const remove = async (r: ApprovalRule) => {
     if (!window.confirm('Delete this approval rule? Requests already raised are not affected.')) return;
+    setDeleting(r.id);
     try { await deleteApprovalRule(r.id); await reload(['approvalRules']); addToast({ type: 'success', title: 'Approval rule deleted', message: r.module }); }
     catch (e) { addToast({ type: 'error', title: 'Not deleted', message: (e as Error).message }); }
+    finally { setDeleting(null); }
   };
   const toggleRole = (id: string) => editing && setEditing({ ...editing, requiredRoleIds: editing.requiredRoleIds.includes(id) ? editing.requiredRoleIds.filter(x => x !== id) : [...editing.requiredRoleIds, id] });
 
@@ -52,12 +55,12 @@ export const ApprovalRulesEditor: React.FC<{ readOnly: boolean }> = ({ readOnly 
       {approvalRules.length === 0 && <p className="text-slate-400">No approval rules. Work orders and invoices within the submitter's limit are approved directly.</p>}
       {approvalRules.map(rule => (
         <div key={rule.id} className="p-3.5 bg-slate-850/60 rounded-xl border border-slate-700/80 space-y-1">
-          <div className="flex justify-between items-center gap-2">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <span className="font-bold text-slate-200 text-[11px]">{rule.module === 'invoice' ? 'Invoices' : rule.module === 'maintenance' ? 'Work orders' : rule.module}{!rule.active ? ' (inactive)' : ''}</span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-700 font-mono font-bold text-[10px]">from {rule.thresholdAmount.toFixed(3)} {currency}</span>
               {!readOnly && (rule.module === 'invoice' || rule.module === 'maintenance') && <Button variant="ghost" size="xs" onClick={() => { setEditing(toDraft(rule)); setErr(null); }}>Edit</Button>}
-              {!readOnly && <Button variant="ghost" size="xs" leftIcon={<Trash2 className="w-3 h-3" />} onClick={() => void remove(rule)}>Delete</Button>}
+              {!readOnly && <Button variant="ghost" size="xs" leftIcon={<Trash2 className="w-3 h-3" />} isLoading={deleting === rule.id} disabled={!!deleting} onClick={() => void remove(rule)}>Delete</Button>}
             </div>
           </div>
           {rule.description && <p className="text-slate-400 text-[11px]">{rule.description}</p>}
@@ -84,7 +87,7 @@ export const ApprovalRulesEditor: React.FC<{ readOnly: boolean }> = ({ readOnly 
                 const i = editing.requiredRoleIds.indexOf(r.id);
                 return (
                   <button key={r.id} type="button" onClick={() => toggleRole(r.id)}
-                    className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold ${i >= 0 ? 'bg-forest-100 border-forest-500 text-forest-700' : 'border-slate-700 text-slate-300'}`}>
+                    className={`px-2.5 py-1 min-h-[40px] sm:min-h-0 rounded-full border text-[11px] font-semibold ${i >= 0 ? 'bg-forest-100 border-forest-500 text-forest-700' : 'border-slate-700 text-slate-300'}`}>
                     {i >= 0 && <Badge variant="emerald">{i + 1}</Badge>} {r.name}
                   </button>
                 );

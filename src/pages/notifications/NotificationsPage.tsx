@@ -17,7 +17,7 @@ export const NotificationsPage: React.FC = () => {
   const { markNotificationAsRead, markAllNotificationsAsRead, refreshExpiryNotifications } = useFleet();
   const { openVehicleDetail, openInvoiceModal, setCurrentPage, addToast } = useUI();
   const { hasPermission, canAccessPage } = useAuth();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'refresh' | 'mark-all' | null>(null);
   const canRefresh = hasPermission('edit', 'settings'); // run_expiry_notifications() re-checks
   const [filter, setFilter] = useState<'all' | 'unread' | 'critical'>('all');
   const [shown, setShown] = useState(40);
@@ -30,12 +30,19 @@ export const NotificationsPage: React.FC = () => {
   const filteredTotal = feed.data?.total ?? 0;
   const c = counts.data ?? { total: 0, unread: 0, critical: 0 };
 
+  // What opening a notification does; null when there is nothing this user can open.
+  const targetOf = (n: NotificationItem): (() => void) | null => {
+    const vehicleId = n.vehicleId, referenceId = n.referenceId;
+    if (n.type === 'approval_required') return canAccessPage('approvals') ? () => setCurrentPage('approvals') : null;
+    if (vehicleId && canAccessPage('vehicles')) return () => openVehicleDetail(vehicleId);
+    if (n.type.includes('invoice') && referenceId) return () => openInvoiceModal(referenceId);
+    if (n.link && VALID_PAGES.includes(n.link as AppPage) && canAccessPage(n.link as AppPage)) return () => setCurrentPage(n.link as AppPage);
+    return null;
+  };
+
   const handleAction = async (n: NotificationItem) => {
     // Navigate first: a failed read-receipt must not block the user from opening the item.
-    if (n.type === 'approval_required') { if (canAccessPage('approvals')) setCurrentPage('approvals'); }
-    else if (n.vehicleId && canAccessPage('vehicles')) openVehicleDetail(n.vehicleId);
-    else if (n.type.includes('invoice') && n.referenceId) openInvoiceModal(n.referenceId);
-    else if (n.link && VALID_PAGES.includes(n.link as AppPage) && canAccessPage(n.link as AppPage)) setCurrentPage(n.link as AppPage);
+    targetOf(n)?.();
     if (n.read) return;
     try {
       await markNotificationAsRead(n.id);
@@ -46,26 +53,26 @@ export const NotificationsPage: React.FC = () => {
 
   const handleMarkAll = async () => {
     if (busy) return;
-    setBusy(true);
+    setBusy('mark-all');
     try {
       await markAllNotificationsAsRead();
     } catch (e) {
       addToast({ type: 'error', title: 'Could not mark all as read', message: (e as Error).message });
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   const handleRefresh = async () => {
     if (busy) return;
-    setBusy(true);
+    setBusy('refresh');
     try {
       const created = await refreshExpiryNotifications();
       addToast({ type: 'success', title: 'Alerts refreshed', message: `${created} new alert${created === 1 ? '' : 's'} generated.` });
     } catch (e) {
       addToast({ type: 'error', title: 'Refresh failed', message: (e as Error).message });
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -78,14 +85,15 @@ export const NotificationsPage: React.FC = () => {
         actions={
           <>
             {canRefresh && (
-              <Button variant="secondary" size="md" onClick={handleRefresh} disabled={busy}>
+              <Button variant="secondary" size="md" onClick={handleRefresh} isLoading={busy === 'refresh'} disabled={!!busy}>
                 Refresh expiry alerts
               </Button>
             )}
             <Button
               variant="outline"
               size="md"
-              disabled={busy || c.unread === 0}
+              isLoading={busy === 'mark-all'}
+              disabled={!!busy || c.unread === 0}
               onClick={handleMarkAll}
               leftIcon={<CheckCheck className="w-4 h-4 text-forest-500" />}
             >
@@ -116,7 +124,7 @@ export const NotificationsPage: React.FC = () => {
             {feed.error ? (
               <p className="text-sm text-rose-600">
                 Could not load notifications: {feed.error.message}{' '}
-                <button className="underline font-bold cursor-pointer" onClick={() => void feed.refetch()}>Retry</button>
+                <button type="button" className="underline font-bold cursor-pointer min-h-[40px] sm:min-h-0" onClick={() => void feed.refetch()}>Retry</button>
               </p>
             ) : <p className="text-sm text-slate-400">Loading…</p>}
           </Card>
@@ -138,8 +146,8 @@ export const NotificationsPage: React.FC = () => {
             }`}
             onClick={() => handleAction(item)}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+              <div className="flex items-start gap-3 min-w-0">
                 {item.severity === 'critical' ? (
                   <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                 ) : item.severity === 'warning' ? (
@@ -148,19 +156,21 @@ export const NotificationsPage: React.FC = () => {
                   <Info className="w-5 h-5 text-forest-500 shrink-0 mt-0.5" />
                 )}
 
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-slate-100">{item.title}</h3>
+                    <h3 className="font-bold text-sm text-slate-100 break-words">{item.title}</h3>
                     {!item.read && <span className="w-2 h-2 rounded-full bg-forest-500" role="img" aria-label="Unread" />}
                   </div>
-                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">{item.message}</p>
+                  <p className="text-xs text-slate-300 mt-1 leading-relaxed break-words">{item.message}</p>
                   <p className="text-[10px] text-slate-400 mt-2 font-mono">{formatDateTime(item.date)}</p>
                 </div>
               </div>
 
-              <Button variant="secondary" size="xs" className="rounded-full" onClick={e => { e.stopPropagation(); handleAction(item); }}>
-                Inspect →
-              </Button>
+              {(targetOf(item) || !item.read) && (
+                <Button variant="secondary" size="xs" className="rounded-full self-start shrink-0" onClick={e => { e.stopPropagation(); void handleAction(item); }}>
+                  {targetOf(item) ? 'Inspect →' : 'Mark as read'}
+                </Button>
+              )}
             </div>
           </Card>
         ))}

@@ -16,7 +16,7 @@ import { profitLossRows, statementColumns, STATEMENT_SIGNATURES } from '../../li
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
     {error
-      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button type="button" className="underline font-bold cursor-pointer min-h-[44px] sm:min-h-0" onClick={onRetry}>Retry</button></span>
       : <span className="text-slate-400">{loading ? 'Loading…' : ''}</span>}
   </Card>
 );
@@ -47,7 +47,7 @@ export const ProfitLossPage: React.FC = () => {
         description="Posted revenue and expense movements for the selected period, grouped by account category."
         actions={
           <>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
               <Calendar className="w-4 h-4" />
               <FilterInput type="date" value={startDate} onChange={e => setStartDate(e.target.value)} aria-label="Start date"
                  />
@@ -93,12 +93,12 @@ export const ProfitLossPage: React.FC = () => {
             <div className="divide-y divide-slate-700/80 text-xs">
               {pnl.revenues.length === 0 && <EmptyRow text="No revenue posted." />}
               {pnl.revenues.map(rev => (
-                <div key={rev.accountCode} className="flex justify-between py-2.5">
-                  <span className="text-slate-300 font-medium">{rev.accountName} ({rev.accountCode})</span>
-                  <span className="font-mono font-bold text-slate-100">{formatCurrency(rev.amount, currency)}</span>
+                <div key={rev.accountCode} className="flex justify-between gap-3 py-2.5">
+                  <span className="text-slate-300 font-medium min-w-0 break-words">{rev.accountName} ({rev.accountCode})</span>
+                  <span className="font-mono font-bold text-slate-100 shrink-0">{formatCurrency(rev.amount, currency)}</span>
                 </div>
               ))}
-              <div className="flex justify-between py-2.5 font-bold text-sm text-brand-500 bg-brand-100/50 px-3 rounded-xl mt-1">
+              <div className="flex justify-between gap-3 py-2.5 font-bold text-sm text-brand-500 bg-brand-100/50 px-3 rounded-xl mt-1">
                 <span>Total Revenue</span>
                 <span>{formatCurrency(pnl.totalRevenue, currency)}</span>
               </div>
@@ -111,12 +111,12 @@ export const ProfitLossPage: React.FC = () => {
             <div className="divide-y divide-slate-700/80 text-xs">
               {pnl.directCosts.length === 0 && <EmptyRow text="No direct costs posted." />}
               {pnl.directCosts.map(cost => (
-                <div key={cost.category} className="flex justify-between py-2.5">
-                  <span className="text-slate-300 font-medium">{cost.category}</span>
+                <div key={cost.category} className="flex justify-between gap-3 py-2.5">
+                  <span className="text-slate-300 font-medium min-w-0 break-words">{cost.category}</span>
                   <span className="font-mono font-semibold text-rose-600">({formatCurrency(cost.amount, currency)})</span>
                 </div>
               ))}
-              <div className="flex justify-between py-2.5 font-bold text-sm text-rose-600 bg-rose-50 px-3 rounded-xl mt-1">
+              <div className="flex justify-between gap-3 py-2.5 font-bold text-sm text-rose-600 bg-rose-50 px-3 rounded-xl mt-1">
                 <span>Total Direct Operating Costs</span>
                 <span>({formatCurrency(pnl.totalDirectCosts, currency)})</span>
               </div>
@@ -124,7 +124,7 @@ export const ProfitLossPage: React.FC = () => {
           </div>
 
           {/* GROSS PROFIT SUB-TOTAL */}
-          <div className="flex justify-between py-3.5 px-5 bg-brand-100 border border-brand-200 rounded-2xl font-bold text-base text-brand-600">
+          <div className="flex justify-between gap-3 py-3.5 px-5 bg-brand-100 border border-brand-200 rounded-2xl font-bold text-base text-brand-600">
             <span>GROSS PROFIT (Revenue - Direct Costs)</span>
             <span className="font-extrabold text-brand-500 font-mono">{formatCurrency(pnl.grossProfit, currency)} ({pnl.grossProfitMarginPercentage}%)</span>
           </div>
@@ -135,16 +135,16 @@ export const ProfitLossPage: React.FC = () => {
             <div className="divide-y divide-slate-700/80 text-xs">
               {pnl.operatingExpenses.length === 0 && <EmptyRow text="No operating expenses posted." />}
               {pnl.operatingExpenses.map(opex => (
-                <div key={opex.accountCode} className="flex justify-between py-2.5">
-                  <span className="text-slate-300 font-medium">{opex.accountName} ({opex.accountCode})</span>
+                <div key={opex.accountCode} className="flex justify-between gap-3 py-2.5">
+                  <span className="text-slate-300 font-medium min-w-0 break-words">{opex.accountName} ({opex.accountCode})</span>
                   <span className="font-mono text-slate-300">({formatCurrency(opex.amount, currency)})</span>
                 </div>
               ))}
-              <div className="flex justify-between py-2.5">
-                <span className="text-slate-300 font-medium">Depreciation (accounts in the Depreciation subcategory)</span>
+              <div className="flex justify-between gap-3 py-2.5">
+                <span className="text-slate-300 font-medium min-w-0 break-words">Depreciation (accounts in the Depreciation subcategory)</span>
                 <span className="font-mono text-brand-500 font-semibold">({formatCurrency(pnl.depreciationExpense, currency)})</span>
               </div>
-              <div className="flex justify-between py-2.5 font-bold text-sm text-warning bg-amber-50 px-3 rounded-xl mt-1">
+              <div className="flex justify-between gap-3 py-2.5 font-bold text-sm text-warning bg-amber-50 px-3 rounded-xl mt-1">
                 <span>Total Operating Expenses & Depreciation</span>
                 <span>({formatCurrency(pnl.totalOperatingExpenses + pnl.depreciationExpense, currency)})</span>
               </div>
@@ -152,7 +152,7 @@ export const ProfitLossPage: React.FC = () => {
           </div>
 
           {/* NET PROFIT GRAND TOTAL */}
-          <div className="flex justify-between py-4 px-6 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-lg">
+          <div className="flex justify-between gap-3 py-4 px-6 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-lg">
             <span>NET PROFIT FOR THE PERIOD</span>
             <span className="font-mono">{formatCurrency(pnl.netProfit, currency)} ({pnl.netProfitMarginPercentage}%)</span>
           </div>

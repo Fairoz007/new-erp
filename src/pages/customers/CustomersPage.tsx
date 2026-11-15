@@ -119,7 +119,7 @@ export const CustomersPage: React.FC = () => {
     },
     {
       key: 'totalSales',
-      header: 'Total Billings YTD',
+      header: 'Total Billed',
       align: 'right',
       render: (c) => (
         <div className="text-right">
@@ -211,8 +211,8 @@ export const CustomersPage: React.FC = () => {
         description="Commercial fleet clients, contract terms, credit limits and accounts receivable (AR)."
         actions={
           <>
-            <Button variant="outline" size="md" onClick={() => exportPartiesCsv('customer', cfRows, cfList.defs, officeCode)}
-              leftIcon={<Download className="w-4 h-4" />}>Export all fields</Button>
+            {hasPermission('export', 'customers') && <Button variant="outline" size="md" disabled={cfRows.length === 0} title={cfRows.length === 0 ? 'No clients in this list to export' : undefined} onClick={() => exportPartiesCsv('customer', cfRows, cfList.defs, officeCode)}
+              leftIcon={<Download className="w-4 h-4" />}>Export all fields</Button>}
             {canImport && (
               <Button variant="outline" size="md" onClick={() => setImporting(true)} leftIcon={<Upload className="w-4 h-4" />}>
                 Import CSV
@@ -278,6 +278,7 @@ export const CustomersPage: React.FC = () => {
         searchPlaceholder="Search customers by name, ID, contact, phone, VAT number..."
         searchFields={['name', 'customerId', 'contactPerson', 'phone', 'email', 'vatNumber', 'customerType']}
         exportFilename="Customers"
+        exportModule="customers"
       />
 
       <PartySharingModal type="Customer" party={sharing} onClose={() => setSharing(null)} />

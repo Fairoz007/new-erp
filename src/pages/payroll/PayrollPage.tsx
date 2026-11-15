@@ -40,7 +40,7 @@ export const PayrollPage: React.FC = () => {
 
   const columns: Column<PayrollRun>[] = [
     { key: 'payrollNumber', header: 'Payroll', render: r => (
-      <button type="button" className="text-left" onClick={() => setOpenId(r.id)}>
+      <button type="button" className="text-left min-w-0" title={r.periodLabel} onClick={() => setOpenId(r.id)}>
         <p className="font-bold text-slate-100 hover:text-forest-400">{r.periodLabel}</p>
         <p className="text-[11px] text-slate-400 font-mono">{r.payrollNumber} · {office(r.companyId)}</p>
       </button>
@@ -162,9 +162,9 @@ const RunModal: React.FC<{ run: PayrollRun; onClose: () => void; onChanged: () =
           exportFilename={`Payroll_${run.payrollNumber}`} exportModule="payroll" pageSizeDefault={25} />
       </div>
       {editing && <ItemModal item={editing} onClose={() => setEditing(null)} onSaved={async () => { await onChanged(); setEditing(null); }} />}
-      {paying && <PayModal run={run} banks={bankAccounts.filter(b => b.companyId === c && b.active !== false)} onClose={() => setPaying(false)}
+      {paying && <PayModal run={run} error={err} banks={bankAccounts.filter(b => b.companyId === c && b.active !== false)} onClose={() => setPaying(false)}
         onPay={(bank, date) => act('pay', () => payPayroll(run.id, bank, date), 'Salaries paid').then(ok => { if (ok) setPaying(false); })} />}
-      {approving && <ApproveModal run={run} onClose={() => setApproving(false)}
+      {approving && <ApproveModal run={run} error={err} onClose={() => setApproving(false)}
         onApprove={note => act('approve', () => approvePayroll(run.id, note), 'Payroll approved and posted').then(ok => { if (ok) setApproving(false); })} />}
     </Modal>
   );
@@ -194,7 +194,7 @@ const ItemModal: React.FC<{ item: PayrollLineItem; onClose: () => void; onSaved:
   );
 };
 
-const ApproveModal: React.FC<{ run: PayrollRun; onClose: () => void; onApprove: (note: string) => Promise<void> }> = ({ run, onClose, onApprove }) => {
+const ApproveModal: React.FC<{ run: PayrollRun; error: string | null; onClose: () => void; onApprove: (note: string) => Promise<void> }> = ({ run, error, onClose, onApprove }) => {
   const { currency } = useFleet();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -203,6 +203,7 @@ const ApproveModal: React.FC<{ run: PayrollRun; onClose: () => void; onApprove: 
       description={`Posts salaries ${formatCurrency(run.totalGrossPay, currency)}, PASI and deductions to the ledger, with net pay ${formatCurrency(run.totalNetPayout, currency)} owed to staff. Approved payroll cannot be edited.`}>
       <div className="space-y-3">
         <Textarea label="Approval note (optional)" value={note} onChange={e => setNote(e.target.value)} />
+        {error && <p role="alert" className="text-xs text-rose-500">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button variant="success" isLoading={busy} disabled={busy} onClick={() => { setBusy(true); void onApprove(note).finally(() => setBusy(false)); }}>Approve and post</Button>
@@ -212,7 +213,7 @@ const ApproveModal: React.FC<{ run: PayrollRun; onClose: () => void; onApprove: 
   );
 };
 
-const PayModal: React.FC<{ run: PayrollRun; banks: ReturnType<typeof useFleet>['bankAccounts']; onClose: () => void; onPay: (bank: string, date: string) => Promise<void> }> = ({ run, banks, onClose, onPay }) => {
+const PayModal: React.FC<{ run: PayrollRun; error: string | null; banks: ReturnType<typeof useFleet>['bankAccounts']; onClose: () => void; onPay: (bank: string, date: string) => Promise<void> }> = ({ run, error, banks, onClose, onPay }) => {
   const { currency } = useFleet();
   const [bank, setBank] = useState(banks[0]?.id ?? '');
   const [date, setDate] = useState(localToday());
@@ -228,6 +229,7 @@ const PayModal: React.FC<{ run: PayrollRun; banks: ReturnType<typeof useFleet>['
         </Select>
         <Input label="Payment date" type="date" value={date} onChange={e => setDate(e.target.value)} />
         {cashOrCheque > 0 && <p className="text-xs text-amber-600">{cashOrCheque} employee(s) are paid by cash or cheque; the full net amount is still recorded against this account.</p>}
+        {error && <p role="alert" className="text-xs text-rose-500">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button variant="success" isLoading={busy} disabled={busy || !bank || !date} onClick={() => { setBusy(true); void onPay(bank, date).finally(() => setBusy(false)); }}>Pay</Button>

@@ -96,7 +96,7 @@ const NewStatementModal: React.FC<{ bankId: string; companyId: string; last?: Ba
   return (
     <Modal isOpen onClose={busy ? () => undefined : onClose} size="sm" title="New bank statement" description="Use the dates and balances printed on the bank statement.">
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="From" type="date" value={v.periodStart} onChange={e => setV({ ...v, periodStart: e.target.value })} />
           <Input label="To" type="date" value={v.periodEnd} onChange={e => setV({ ...v, periodEnd: e.target.value })} />
           <Input label="Opening balance" type="number" step="0.001" value={v.opening} onChange={e => setV({ ...v, opening: Number(e.target.value) })} />
@@ -167,7 +167,7 @@ const StatementModal: React.FC<{ statement: BankStatement; currency: string; onC
         {err && <p role="alert" className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err}</p>}
         <div className="flex flex-wrap gap-2">
           {canEdit && <Button variant="outline" size="sm" leftIcon={<Wand2 className="w-4 h-4" />} isLoading={busy === 'auto'} disabled={!!busy} onClick={() => void run('auto', () => autoMatchStatement(s.id), 'Auto-matched')}>Auto-match</Button>}
-          {canAdd && <Button variant="outline" size="sm" leftIcon={<Upload className="w-4 h-4" />} disabled={!!busy} onClick={() => fileRef.current?.click()}>Import CSV</Button>}
+          {canAdd && <Button variant="outline" size="sm" leftIcon={<Upload className="w-4 h-4" />} isLoading={busy === 'import'} disabled={!!busy} onClick={() => fileRef.current?.click()}>Import CSV</Button>}
           <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
           {canAdd && <Button variant="ghost" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={() => {
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['date,description,reference,amount\n'], { type: 'text/csv' })); a.download = 'bank_statement_template.csv'; a.click(); URL.revokeObjectURL(a.href);
@@ -178,7 +178,7 @@ const StatementModal: React.FC<{ statement: BankStatement; currency: string; onC
               onClick={() => void run('done', () => completeReconciliation(s.id), 'Statement reconciled').then(ok => { if (ok) void onChanged(); })}>Complete reconciliation</Button>
           )}
           {!locked && hasPermission('delete', 'reconciliation', s.companyId) && (
-            <Button variant="danger" size="sm" leftIcon={<Trash2 className="w-4 h-4" />} disabled={!!busy}
+            <Button variant="danger" size="sm" leftIcon={<Trash2 className="w-4 h-4" />} isLoading={busy === 'del'} disabled={!!busy}
               onClick={() => { if (window.confirm('Delete this statement and its lines?')) void run('del', () => deleteBankStatement(s.id)).then(ok => { if (ok) { void onChanged(); onClose(); } }); }}>Delete</Button>
           )}
         </div>
@@ -195,9 +195,9 @@ const StatementModal: React.FC<{ statement: BankStatement; currency: string; onC
                   <td className={tdCls}>{l.journalLineId ? <span className="text-xs">{m ? `${m.entryNumber} · ${formatDate(m.entryDate)}` : 'Matched (outside period)'}</span> : <Badge variant="amber">Not matched</Badge>}</td>
                   <td className={`${tdCls} text-right`}>
                     {canEdit && (l.journalLineId
-                      ? <Button variant="ghost" size="xs" leftIcon={<Unlink className="w-3 h-3" />} onClick={() => void run(l.id, () => matchStatementLine(l.id, null))}>Unmatch</Button>
-                      : <Button variant="ghost" size="xs" leftIcon={<Link2 className="w-3 h-3" />} onClick={() => setPicking(l)}>Match</Button>)}
-                    {canEdit && !l.journalLineId && hasPermission('delete', 'reconciliation', s.companyId) && <Button variant="ghost" size="xs" onClick={() => void run(l.id, () => deleteStatementLine(l.id))}>Delete</Button>}
+                      ? <Button variant="ghost" size="xs" leftIcon={<Unlink className="w-3 h-3" />} isLoading={busy === l.id} disabled={!!busy} onClick={() => void run(l.id, () => matchStatementLine(l.id, null))}>Unmatch</Button>
+                      : <Button variant="ghost" size="xs" leftIcon={<Link2 className="w-3 h-3" />} disabled={!!busy} onClick={() => setPicking(l)}>Match</Button>)}
+                    {canEdit && !l.journalLineId && hasPermission('delete', 'reconciliation', s.companyId) && <Button variant="ghost" size="xs" isLoading={busy === l.id} disabled={!!busy} onClick={() => { if (window.confirm('Delete this statement line?')) void run(l.id, () => deleteStatementLine(l.id)); }}>Delete</Button>}
                   </td>
                 </tr>
               ); })}
@@ -207,7 +207,7 @@ const StatementModal: React.FC<{ statement: BankStatement; currency: string; onC
                   <td className={tdCls}><input aria-label="Line description" placeholder="Description" className="bg-slate-850 border border-slate-700 rounded-lg px-2 py-1 text-xs w-full" value={newLine.description} onChange={e => setNewLine({ ...newLine, description: e.target.value })} /></td>
                   <td className={tdCls}><input type="number" step="0.001" aria-label="Line amount" className="bg-slate-850 border border-slate-700 rounded-lg px-2 py-1 text-xs w-28 text-right" value={newLine.amount} onChange={e => setNewLine({ ...newLine, amount: Number(e.target.value) })} /></td>
                   <td className={tdCls}><span className="text-[11px] text-slate-400">Money out is negative</span></td>
-                  <td className={`${tdCls} text-right`}><Button size="xs" leftIcon={<Plus className="w-3 h-3" />} disabled={!!busy || !!validateStatementLine(newLine)}
+                  <td className={`${tdCls} text-right`}><Button size="xs" leftIcon={<Plus className="w-3 h-3" />} isLoading={busy === 'add'} disabled={!!busy || !!validateStatementLine(newLine)}
                     onClick={() => void run('add', () => addStatementLines(s, [newLine])).then(ok => ok && setNewLine({ ...newLine, description: '', reference: '', amount: 0 }))}>Add</Button></td>
                 </tr>
               )}
@@ -218,17 +218,18 @@ const StatementModal: React.FC<{ statement: BankStatement; currency: string; onC
           <div>
             <p className="text-xs font-bold text-slate-300 mb-1"><Landmark className="w-3 h-3 inline" /> In the ledger but not on any statement (uncleared)</p>
             <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-700 divide-y divide-slate-700/60">
-              {uncleared.map(b => <div key={b.journalLineId} className="px-3 py-1.5 text-xs flex justify-between"><span>{formatDate(b.entryDate)} · {b.entryNumber} · {b.description}</span><span className="font-mono">{b.amount.toFixed(3)}</span></div>)}
+              {uncleared.map(b => <div key={b.journalLineId} className="px-3 py-1.5 text-xs flex justify-between gap-3"><span className="min-w-0 break-words">{formatDate(b.entryDate)} · {b.entryNumber} · {b.description}</span><span className="font-mono shrink-0">{b.amount.toFixed(3)}</span></div>)}
             </div>
           </div>
         )}
       </div>
       {picking && (
-        <Modal isOpen onClose={() => setPicking(null)} size="md" title="Match to a ledger line" description={`${picking.description}: ${picking.amount.toFixed(3)}. Only unmatched ledger lines with the same amount are listed.`}>
+        <Modal isOpen onClose={busy ? () => undefined : () => setPicking(null)} size="md" title="Match to a ledger line" description={`${picking.description}: ${picking.amount.toFixed(3)}. Only unmatched ledger lines with the same amount are listed.`}>
           <div className="space-y-2">
+            {err && <p role="alert" className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err}</p>}
             {uncleared.filter(b => Math.abs(b.amount - picking.amount) < 0.0005).length === 0 && <p className="text-xs text-slate-400">No unmatched ledger line has this amount. Book the item as a journal on this bank account first.</p>}
             {uncleared.filter(b => Math.abs(b.amount - picking.amount) < 0.0005).map(b => (
-              <button key={b.journalLineId} type="button" className="w-full text-left px-3 py-2 rounded-xl border border-slate-700 hover:border-forest-500 text-xs"
+              <button key={b.journalLineId} type="button" disabled={!!busy} className="w-full min-h-[40px] text-left px-3 py-2 rounded-xl border border-slate-700 hover:border-forest-500 text-xs disabled:opacity-50 disabled:cursor-wait"
                 onClick={() => void run('match', () => matchStatementLine(picking.id, b.journalLineId)).then(ok => ok && setPicking(null))}>
                 {formatDate(b.entryDate)} · {b.entryNumber} · {b.description} · <b>{b.amount.toFixed(3)}</b>
               </button>

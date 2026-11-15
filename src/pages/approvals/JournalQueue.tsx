@@ -35,6 +35,7 @@ export const JournalQueue: React.FC<{ onChanged?: () => void }> = ({ onChanged }
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const office = (id: string) => companies.find(c => c.id === id)?.name ?? '—';
+  const start = (r: JournalRequest, decision: 'Approved' | 'Rejected' | 'Cancelled') => { setActing({ r, decision }); setNote(''); setErr(null); };
 
   const go = async () => {
     if (!acting) return;
@@ -69,9 +70,9 @@ export const JournalQueue: React.FC<{ onChanged?: () => void }> = ({ onChanged }
                 <td className={`${tdCls} text-right font-mono font-bold`}>{formatCurrency(r.total, currency)}</td>
                 <td className={`${tdCls} text-right`}>
                   <div className="flex justify-end gap-1 flex-wrap">
-                    {may && <Button variant="ghost" size="xs" leftIcon={<CheckCircle2 className="w-3 h-3" />} onClick={() => setActing({ r, decision: 'Approved' })}>Approve</Button>}
-                    {may && <Button variant="ghost" size="xs" leftIcon={<XCircle className="w-3 h-3" />} onClick={() => setActing({ r, decision: 'Rejected' })}>Reject</Button>}
-                    {mine && <Button variant="ghost" size="xs" leftIcon={<Undo2 className="w-3 h-3" />} onClick={() => setActing({ r, decision: 'Cancelled' })}>Withdraw</Button>}
+                    {may && <Button variant="ghost" size="xs" leftIcon={<CheckCircle2 className="w-3 h-3" />} onClick={() => start(r, 'Approved')}>Approve</Button>}
+                    {may && <Button variant="ghost" size="xs" leftIcon={<XCircle className="w-3 h-3" />} onClick={() => start(r, 'Rejected')}>Reject</Button>}
+                    {mine && <Button variant="ghost" size="xs" leftIcon={<Undo2 className="w-3 h-3" />} onClick={() => start(r, 'Cancelled')}>Withdraw</Button>}
                     {!may && !mine && <Badge variant="slate">Needs a higher limit</Badge>}
                     {mine && !isSuperAdmin && hasPermission('approve', 'accounting', r.companyId) && <span className="text-[10px] text-slate-400 self-center">Another approver must review</span>}
                   </div>

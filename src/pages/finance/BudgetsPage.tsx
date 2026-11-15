@@ -55,7 +55,7 @@ export const BudgetsPage: React.FC = () => {
         }
       />
       <div className="flex flex-wrap gap-3 items-end">
-        <div className="w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
+        <div className="w-full sm:w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
           {offices.length === 0 && <option value="">No office available</option>}
           {offices.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
         </Select></div>
@@ -171,9 +171,9 @@ const BudgetModal: React.FC<{ budget: Budget; onClose: () => void; onChanged: ()
             {!canApprove('budget', expenseTotal, b.companyId) && <span className="text-xs text-slate-400 self-center">Above your budget approval limit</span>}
           </>}
           {b.status === 'Submitted' && mineSubmitted && <span className="text-xs text-slate-400">You submitted this budget; another approver must review it.</span>}
-          {b.status === 'Approved' && canReview && <Button variant="outline" size="sm" leftIcon={<RotateCcw className="w-4 h-4" />} onClick={() => setReview('Reopen')}>Reopen for changes</Button>}
+          {b.status === 'Approved' && canReview && <Button variant="outline" size="sm" leftIcon={<RotateCcw className="w-4 h-4" />} disabled={!!busy} onClick={() => setReview('Reopen')}>Reopen for changes</Button>}
           {(b.status === 'Draft' || b.status === 'Rejected') && hasPermission('delete', 'budgets', b.companyId) && (
-            <Button variant="danger" size="sm" leftIcon={<Trash2 className="w-4 h-4" />} disabled={!!busy}
+            <Button variant="danger" size="sm" leftIcon={<Trash2 className="w-4 h-4" />} isLoading={busy === 'del'} disabled={!!busy}
               onClick={() => { if (window.confirm('Delete this budget?')) void act('del', () => deleteBudget(b.id), 'Budget deleted').then(ok => ok && onClose()); }}>Delete</Button>
           )}
         </div>
@@ -199,11 +199,11 @@ const BudgetModal: React.FC<{ budget: Budget; onClose: () => void; onChanged: ()
         </div>
       </div>
       {review && (
-        <Modal isOpen onClose={() => setReview(null)} size="sm" title={review === 'Reopen' ? 'Reopen budget' : `${review === 'Approved' ? 'Approve' : 'Reject'} budget`}>
+        <Modal isOpen onClose={busy ? () => undefined : () => setReview(null)} size="sm" title={review === 'Reopen' ? 'Reopen budget' : `${review === 'Approved' ? 'Approve' : 'Reject'} budget`}>
           <div className="space-y-3">
             <Textarea label={review === 'Approved' ? 'Note (optional)' : 'Reason (required)'} value={note} onChange={e => setNote(e.target.value)} />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setReview(null)}>Back</Button>
+              <Button variant="outline" onClick={() => setReview(null)} disabled={!!busy}>Back</Button>
               <Button variant={review === 'Approved' ? 'success' : 'danger'} isLoading={busy === 'review'} disabled={!!busy || (review !== 'Approved' && !note.trim())}
                 onClick={() => void act('review', () => reviewBudget(b.id, review, note), review === 'Reopen' ? 'Budget reopened' : `Budget ${review.toLowerCase()}`).then(ok => { if (ok) { setReview(null); setNote(''); } })}>Confirm</Button>
             </div>

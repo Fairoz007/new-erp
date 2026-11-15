@@ -54,10 +54,13 @@ export const LeavePage: React.FC = () => {
   const canRequest = companies.some(c => hasPermission('create', 'leave', c.id));
   const today = localToday();
 
+  const [withdrawing, setWithdrawing] = useState<string | null>(null);
   const withdraw = async (r: LeaveRequest) => {
     if (!window.confirm('Withdraw this pending request?')) return;
+    setWithdrawing(r.id);
     try { await withdrawLeave(r.id); await load(); addToast({ type: 'success', title: 'Request withdrawn', message: empOf(r.employeeId)?.name ?? '' }); }
     catch (e) { addToast({ type: 'error', title: 'Could not withdraw', message: (e as Error).message }); }
+    finally { setWithdrawing(null); }
   };
   const openDoc = async (path: string) => {
     try { window.open(await createSignedUrl('documents', path), '_blank', 'noopener'); }
@@ -79,7 +82,7 @@ export const LeavePage: React.FC = () => {
       <div className="text-xs max-w-xs">
         <p className="text-slate-300 truncate" title={r.reason}>{r.reason || '—'}</p>
         {r.reviewNote && <p className="text-[11px] text-slate-400 truncate" title={r.reviewNote}>Review: {r.reviewNote}</p>}
-        {r.documentPath && <button type="button" className="text-[11px] text-forest-400 inline-flex items-center gap-1" onClick={() => void openDoc(r.documentPath)}><Paperclip className="w-3 h-3" />Document</button>}
+        {r.documentPath && <button type="button" className="text-[11px] text-forest-400 inline-flex items-center gap-1 min-h-[40px] sm:min-h-0" onClick={() => void openDoc(r.documentPath)}><Paperclip className="w-3 h-3" />Document</button>}
       </div>
     ) },
     { key: 'status', header: 'Status', align: 'center', render: r => <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge> },
@@ -93,7 +96,7 @@ export const LeavePage: React.FC = () => {
             <Button variant="ghost" size="xs" leftIcon={<CheckCircle2 className="w-3 h-3" />} onClick={() => setReviewing({ r, decision: 'Approved' })}>Approve</Button>
             <Button variant="ghost" size="xs" leftIcon={<XCircle className="w-3 h-3" />} onClick={() => setReviewing({ r, decision: 'Rejected' })}>Reject</Button>
           </>}
-          {r.status === 'Pending' && mine && <Button variant="ghost" size="xs" leftIcon={<Undo2 className="w-3 h-3" />} onClick={() => void withdraw(r)}>Withdraw</Button>}
+          {r.status === 'Pending' && mine && <Button variant="ghost" size="xs" leftIcon={<Undo2 className="w-3 h-3" />} isLoading={withdrawing === r.id} disabled={!!withdrawing} onClick={() => void withdraw(r)}>Withdraw</Button>}
           {r.status === 'Approved' && (editor || mine) && <Button variant="ghost" size="xs" leftIcon={<Ban className="w-3 h-3" />} onClick={() => setReviewing({ r, decision: 'Cancelled' })}>Cancel</Button>}
           {r.status === 'Pending' && mine && hasPermission('approve', 'leave', r.companyId) && !isSuperAdmin && <span className="text-[10px] text-slate-400 self-center">Another approver must review</span>}
         </div>
@@ -120,6 +123,7 @@ export const LeavePage: React.FC = () => {
         <StatCard title="On leave today" value={inOffice.filter(r => r.status === 'Approved' && r.startDate <= today && r.endDate >= today).length} subValue="Approved leave covering today" icon={<Plane className="w-4 h-4" />} variant="indigo" />
         <StatCard title={`Approved days ${year}`} value={inOffice.filter(r => r.status === 'Approved').reduce((t, r) => t + r.days, 0)} subValue="All leave types" icon={<Scale className="w-4 h-4" />} variant="emerald" />
       </div>
+      {/* controls-ok: "balances" is the else branch of tab === "requests" */}
       <Tabs variant="segmented" tabs={[{ id: 'requests', label: 'Requests', count: inOffice.filter(r => r.status === 'Pending').length || undefined }, { id: 'balances', label: 'Balances' }]} activeTab={tab} onChange={setTab} />
       {tab === 'requests'
         ? <DataTable data={shown} columns={columns} keyExtractor={r => r.id} title={`Leave requests ${year}`} loading={loading} error={err} onRetry={() => void load()}
@@ -206,7 +210,7 @@ const RequestModal: React.FC<{ year: number; types: LeaveType[]; onClose: () => 
         <Select label="Leave type" value={v.leaveTypeId} onChange={e => setV({ ...v, leaveTypeId: e.target.value })}>
           {types.map(t => <option key={t.id} value={t.id}>{t.name}{t.paid ? '' : ' (unpaid)'}{t.daysPerYear != null ? ` · ${t.daysPerYear} days/year` : ''}</option>)}
         </Select>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="From" type="date" value={v.startDate} min={emp?.joiningDate} onChange={e => setV({ ...v, startDate: e.target.value, endDate: v.endDate && v.endDate >= e.target.value ? v.endDate : e.target.value })} />
           <Input label="To" type="date" value={v.endDate} min={v.startDate} onChange={e => setV({ ...v, endDate: e.target.value })} />
         </div>
@@ -214,9 +218,9 @@ const RequestModal: React.FC<{ year: number; types: LeaveType[]; onClose: () => 
         {v.startDate && v.endDate && v.endDate < v.startDate && <p className="text-xs text-rose-500" role="alert">The To date is before the From date.</p>}
         <BalanceLine b={b} loading={loading} />
         <Textarea label="Reason" value={v.reason} onChange={e => setV({ ...v, reason: e.target.value })} />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <Button variant="outline" size="sm" leftIcon={<Paperclip className="w-4 h-4" />} onClick={() => fileRef.current?.click()} disabled={busy || !emp}>{file ? 'Change document' : 'Attach document'}</Button>
-          <span className="text-xs text-slate-400 truncate">{file ? file.name : needsDoc ? 'Required for this request (PDF, PNG or JPEG, up to 10 MB)' : 'Optional'}</span>
+          <span className="text-xs text-slate-400 truncate min-w-0" title={file?.name}>{file ? file.name : needsDoc ? 'Required for this request (PDF, PNG or JPEG, up to 10 MB)' : 'Optional'}</span>
           <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden" onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
         </div>
         {err && <p role="alert" className="text-xs text-rose-500">{err}</p>}

@@ -67,8 +67,8 @@ export const InvoicesPage: React.FC = () => {
     { id: 'pending', label: 'Pending Payment', count: pendingCount },
     { id: 'overdue', label: 'Overdue', count: s?.count_overdue ?? 0 },
     { id: 'approval', label: 'Awaiting Approval', count: awaitingApproval },
-    { id: 'draft', label: 'Drafts', count: s?.count_draft ?? 0 },
-    { id: 'paid', label: 'Paid', count: s?.count_paid ?? 0 },
+    { id: 'draft', label: 'Drafts', count: s?.count_draft ?? 0 }, // controls-ok: view id is the server-side list filter (useInvoiceList view)
+    { id: 'paid', label: 'Paid', count: s?.count_paid ?? 0 }, // controls-ok: view id is the server-side list filter (useInvoiceList view)
   ];
 
   // Every invoice of the "Awaiting approval" list (all pages), for "approve all"
@@ -376,6 +376,7 @@ export const InvoicesPage: React.FC = () => {
         title="Invoices & Purchase Bills Registry"
         searchPlaceholder="Search invoices by invoice number, party name, reference..."
         exportFilename="Invoices_Register"
+        exportModule="invoices"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <FilterSelect

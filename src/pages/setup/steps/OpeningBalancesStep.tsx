@@ -173,8 +173,8 @@ const Importer: React.FC<{ kind: Kind; offices: Company[]; goLive: string; curre
         onClick={() => downloadText(`opening_${kind}_template.csv`, [csvLine(t.headers), csvLine(t.example)].join('\r\n') + '\r\n')}>Template</Button>}>
       <NoticeBar notice={notice} onClose={() => setNotice(null)} />
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <label className={`inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-slate-700 text-xs font-semibold ${readOnly ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-850'}`}>
-          <Upload className="w-4 h-4" /> {fileName || 'Choose CSV file'}
+        <label className={`inline-flex items-center gap-2 h-10 sm:h-9 max-w-full px-3 rounded-xl border border-slate-700 text-xs font-semibold ${readOnly ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-slate-850'}`}>
+          <Upload className="w-4 h-4 shrink-0" /> <span className="truncate" title={fileName || undefined}>{fileName || 'Choose CSV file'}</span>
           <input type="file" accept=".csv,text/csv" className="hidden" disabled={readOnly} onChange={e => { void load(e.target.files?.[0]); e.target.value = ''; }} />
         </label>
         {rows.length > 0 && (

@@ -29,7 +29,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <AlertTriangle className="w-8 h-8 text-rose-600 mx-auto" />
         <h2 className="text-base font-bold text-rose-800">This page hit an unexpected error</h2>
         <p className="text-xs text-rose-700">{this.state.error.message}</p>
-        <button className="px-4 py-1.5 rounded-full bg-brand-500 text-white text-xs font-bold cursor-pointer" onClick={() => this.setState({ error: null })}>
+        <button className="px-4 py-1.5 min-h-[44px] sm:min-h-0 rounded-full bg-brand-500 text-white text-xs font-bold cursor-pointer" onClick={() => this.setState({ error: null })}>
           Try again
         </button>
       </div>

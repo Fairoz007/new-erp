@@ -8,12 +8,14 @@ import { Badge } from '../../components/ui/Badge';
 import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useOptionalOrg } from '../../context/OrgContext';
+import { useAuth } from '../../context/AuthContext';
 import { fetchFleetExpiries, EXPIRY_LABEL, type FleetExpiry } from '../../services/drivers';
 import { addDaysYmd, formatDate, getDaysDifference } from '../../utils/date';
 
 export const FleetExpiryPanel: React.FC = () => {
   const { selectedCompanyId, companies } = useFleet();
   const { openVehicleDetail, setCurrentPage } = useUI();
+  const { canAccessPage } = useAuth();
   const days = useOptionalOrg()?.organization?.expiryAlertDays ?? 30;
   const [rows, setRows] = useState<FleetExpiry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,9 +48,10 @@ export const FleetExpiryPanel: React.FC = () => {
               const d = getDaysDifference(r.dueDate);
               return (
                 <li key={`${r.kind}:${r.driverId ?? r.vehicleId}`} className="py-2 flex items-center justify-between gap-3">
-                  <button type="button" className="text-left min-w-0"
+                  <button type="button" className="text-left min-w-0 flex-1 min-h-[44px] sm:min-h-0 disabled:cursor-default"
+                    disabled={r.kind === 'licence' ? !canAccessPage('drivers') : !r.vehicleId}
                     onClick={() => (r.kind === 'licence' ? setCurrentPage('drivers') : r.vehicleId && openVehicleDetail(r.vehicleId))}>
-                    <p className="text-xs font-semibold text-slate-100 truncate">{r.label} <span className="text-slate-400 font-normal">· {office(r.companyId)}</span></p>
+                    <p className="text-xs font-semibold text-slate-100 truncate" title={r.label}>{r.label} <span className="text-slate-400 font-normal">· {office(r.companyId)}</span></p>
                     <p className="text-[11px] text-slate-400">{EXPIRY_LABEL[r.kind]} · {formatDate(r.dueDate)}</p>
                   </button>
                   <Badge variant={d < 0 ? 'rose' : d <= 7 ? 'amber' : 'slate'}>{d < 0 ? `${-d} day${d === -1 ? '' : 's'} overdue` : d === 0 ? 'Today' : `in ${d} day${d === 1 ? '' : 's'}`}</Badge>

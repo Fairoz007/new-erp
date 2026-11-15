@@ -239,6 +239,7 @@ export const ReconciliationPage: React.FC = () => {
         searchPlaceholder="Search reconciliations by invoice, supplier, PO or work order..."
         searchFields={['invoiceNumber', 'supplierOrCustomerName', 'purchaseOrderNumber', 'workOrderNumber', 'reconciliationNumber']}
         exportFilename="Invoice_Reconciliations"
+        exportModule="reconciliation"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <FilterSelect aria-label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>

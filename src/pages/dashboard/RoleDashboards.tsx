@@ -53,7 +53,7 @@ const LoadState: React.FC<{ loading?: boolean; error?: Error; onRetry?: () => vo
   if (error) return (
     <p role="alert" className="text-xs text-rose-500">
       Some figures could not be loaded: {error.message}{' '}
-      {onRetry && <button type="button" onClick={onRetry} className="font-semibold underline">Retry</button>}
+      {onRetry && <button type="button" onClick={onRetry} className="font-semibold underline min-h-[44px] sm:min-h-0 px-1">Retry</button>}
     </p>
   );
   if (loading) return <p aria-busy="true" className="text-xs text-slate-400">Loading figures…</p>;
@@ -111,6 +111,7 @@ export const ExecutiveDashboard: React.FC = () => {
 export const FinanceDashboard: React.FC = () => {
   const { bankAccounts, currency, selectedCompanyId } = useFleet();
   const { setCurrentPage, openInvoiceModal } = useUI();
+  const { canAccessPage } = useAuth();
   const journals = usePendingJournals();
   const offices = useOffices('accounting');
   const ids = new Set(offices.map(o => o.id));
@@ -139,9 +140,9 @@ export const FinanceDashboard: React.FC = () => {
         onRetry={() => { void summary.refetch(); void overdue.refetch(); void pendExpQ.refetch(); void pnl.refetch(); void alertsQ.refetch(); }} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard title="Cash in bank" value={formatCurrency(banks.reduce((s, b) => s + b.currentBalance, 0), currency)} isHero subValue={`${banks.length} account(s)`} />
-        <StatCard title="Receivables" value={formatCurrency(arTotal, currency)} subValue={`${overdueCount} overdue · ${formatCurrency(overdueSum, currency)}`} onClick={() => setCurrentPage('invoices')} />
-        <StatCard title="Payables" value={formatCurrency(apTotal, currency)} subValue={`${apCount} open bill(s)`} onClick={() => setCurrentPage('invoices')} />
-        <StatCard title="Waiting for approval" value={pendInv + pendExp + pendJr} subValue={`${pendInv} invoices · ${pendExp} expenses · ${pendJr} journals`} onClick={() => setCurrentPage('approvals')} />
+        <StatCard title="Receivables" value={formatCurrency(arTotal, currency)} subValue={`${overdueCount} overdue · ${formatCurrency(overdueSum, currency)}`} onClick={canAccessPage('invoices') ? () => setCurrentPage('invoices') : undefined} />
+        <StatCard title="Payables" value={formatCurrency(apTotal, currency)} subValue={`${apCount} open bill(s)`} onClick={canAccessPage('invoices') ? () => setCurrentPage('invoices') : undefined} />
+        <StatCard title="Waiting for approval" value={pendInv + pendExp + pendJr} subValue={`${pendInv} invoices · ${pendExp} expenses · ${pendJr} journals`} onClick={canAccessPage('approvals') ? () => setCurrentPage('approvals') : undefined} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel title="Bank and cash balances" note={`This month: revenue ${formatCurrency(month.revenue, currency)}, net ${formatCurrency(month.net, currency)}`}>
@@ -181,7 +182,13 @@ export const HrDashboard: React.FC = () => {
   const ids = new Set(offices.map(o => o.id));
   const staff = employees.filter(e => ids.has(e.companyId) && e.status !== 'Terminated');
   const [leave, setLeave] = useState<LeaveRequest[]>([]);
-  useEffect(() => { if (hasPermission('view', 'leave')) fetchLeaveRequests(new Date().getFullYear()).then(setLeave).catch(() => setLeave([])); }, [hasPermission]);
+  const [leaveError, setLeaveError] = useState<Error | undefined>();
+  const [leaveTry, setLeaveTry] = useState(0);
+  useEffect(() => {
+    if (!hasPermission('view', 'leave')) return;
+    setLeaveError(undefined);
+    fetchLeaveRequests(new Date().getFullYear()).then(setLeave).catch(e => { setLeave([]); setLeaveError(e as Error); });
+  }, [hasPermission, leaveTry]);
   const today = localToday();
   const in30 = addDaysYmd(30);
   const onLeave = leave.filter(l => ids.has(l.companyId) && l.status === 'Approved' && l.startDate <= today && l.endDate >= today).length;
@@ -192,6 +199,7 @@ export const HrDashboard: React.FC = () => {
   const latestRuns = offices.map(o => payrollRuns.filter(r => r.companyId === o.id).sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month))[0]).filter(Boolean);
   return (
     <div className="space-y-6">
+      <LoadState error={leaveError} onRetry={() => setLeaveTry(n => n + 1)} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard title="Headcount" value={staff.length} isHero subValue={`${offices.length} office(s)`} />
         <StatCard title="On leave today" value={onLeave} subValue={`${pending} request(s) waiting`} />
@@ -248,7 +256,7 @@ export const SponsorDashboard: React.FC = () => {
           <div className="space-y-2">
             {trend.map(t => (
               <div key={t.label} className="text-xs">
-                <div className="flex justify-between"><span className="text-slate-300">{t.label}</span><span className="font-mono text-slate-200">{formatCurrency(t.revenue, currency)} · net {formatCurrency(t.net, currency)}</span></div>
+                <div className="flex flex-wrap justify-between gap-x-2"><span className="text-slate-300">{t.label}</span><span className="font-mono text-slate-200">{formatCurrency(t.revenue, currency)} · net {formatCurrency(t.net, currency)}</span></div>
                 <div className="h-1.5 rounded-full bg-slate-850 overflow-hidden"><div className="h-full bg-brand-500" style={{ width: `${Math.max(1, (Math.abs(t.revenue) / max) * 100)}%` }} /></div>
               </div>
             ))}

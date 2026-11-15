@@ -73,7 +73,6 @@ export type QuickModalType =
   | 'add-customer'
   | 'add-invoice'
   | 'add-payment'
-  | 'add-journal-entry'
   | 'add-fixed-asset'
   | 'upload-document'
   | 'add-employee'

@@ -230,7 +230,7 @@ export const PrintableInvoiceModal: React.FC = () => {
               </Button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" onClick={closeInvoiceModal} disabled={!!busy}>
               Close
             </Button>
@@ -248,7 +248,7 @@ export const PrintableInvoiceModal: React.FC = () => {
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
         {invoice.vehiclePlate && invoice.vehicleId && (
           <span>Vehicle:{' '}
-            <button type="button" className="font-semibold text-brand-600 underline cursor-pointer"
+            <button type="button" className="min-h-[44px] sm:min-h-0 font-semibold text-brand-600 underline cursor-pointer"
               onClick={() => { closeInvoiceModal(); openVehicleDetail(invoice.vehicleId!, 'invoices'); }}>
               {invoice.vehiclePlate}
             </button>
@@ -287,7 +287,7 @@ export const PrintableInvoiceModal: React.FC = () => {
           error={noteErrors.amount}
         />
         <Textarea label="Reason" rows={3} value={cnReason} onChange={e => setCnReason(e.target.value)} required name="reason" error={noteErrors.reason} />
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
           <Button variant="secondary" type="button" onClick={() => setCnOpen(false)} disabled={busy === 'credit'}>Cancel</Button>
           <Button variant="primary" type="submit" isLoading={busy === 'credit'} disabled={!!busy}>Issue Credit Note</Button>
         </div>
@@ -303,12 +303,12 @@ export const PrintableInvoiceModal: React.FC = () => {
     >
       <form onSubmit={handleCreateDebitNote} onChange={clearNoteError} className="space-y-4" noValidate>
         <Input label="Line description" value={dn.description} onChange={e => setDn({ ...dn, description: e.target.value })} required name="description" error={noteErrors.description} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label={`Amount (${invoice.currency}, excl. VAT)`} type="number" step="0.001" min="0.001" value={dn.amount} onChange={e => setDn({ ...dn, amount: e.target.value })} required name="amount" error={noteErrors.amount} />
           <Input label="VAT %" type="number" step="0.01" min="0" max="100" value={dn.taxRate} onChange={e => setDn({ ...dn, taxRate: e.target.value })} required name="taxRate" error={noteErrors.taxRate} />
         </div>
         <Textarea label="Reason" rows={3} value={dn.reason} onChange={e => setDn({ ...dn, reason: e.target.value })} required name="reason" error={noteErrors.reason} />
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
           <Button variant="secondary" type="button" onClick={() => setDnOpen(false)} disabled={busy === 'debit'}>Cancel</Button>
           <Button variant="primary" type="submit" isLoading={busy === 'debit'} disabled={!!busy}>Issue Debit Note</Button>
         </div>

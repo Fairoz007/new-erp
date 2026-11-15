@@ -156,7 +156,7 @@ export const FleetDashboard: React.FC = () => {
           type: 'oil_overdue',
           severity: o.status === 'Overdue' ? 'critical' : 'warning',
           actionText: 'Schedule Oil Service',
-          onClickAction: () => openQuickModal('add-oil-change'),
+          onClickAction: () => { openVehicleDetail(v.id, 'oil'); openQuickModal('add-oil-change'); },
         });
       }
     }
@@ -171,11 +171,11 @@ export const FleetDashboard: React.FC = () => {
           vehicleId: v.id,
           plate: v.plateNumber,
           name: `${v.brand} ${v.model}`,
-          reason: `Tyre wear critical (${t.position}: ${t.treadDepthMm} mm tread depth remaining)`,
+          reason: `Tyre ${t.status === 'Critical' ? 'wear critical' : 'due soon'} (${t.position}: ${t.treadDepthMm} mm tread depth remaining)`,
           type: 'tyre_critical',
           severity: t.status === 'Critical' ? 'critical' : 'warning',
           actionText: 'Replace Tyres',
-          onClickAction: () => openQuickModal('add-work-order'),
+          onClickAction: () => { openVehicleDetail(v.id, 'tyres'); openQuickModal('add-work-order'); },
         });
       }
     }
@@ -194,7 +194,7 @@ export const FleetDashboard: React.FC = () => {
           type: 'accident_pending',
           severity: 'critical',
           actionText: 'View Bodyshop Claim',
-          onClickAction: () => setCurrentPage('accidents'),
+          onClickAction: () => openVehicleDetail(v.id, 'accidents'),
         });
       }
     }
@@ -212,17 +212,18 @@ export const FleetDashboard: React.FC = () => {
         type: 'registration_expiring',
         severity: 'critical',
         actionText: 'Renew Mulkiya',
-        onClickAction: () => openQuickModal('upload-document'),
+        onClickAction: () => { openVehicleDetail(v.id, 'documents'); openQuickModal('upload-document'); },
       });
     }
   });
 
   // Only offer actions the signed-in role may perform
+  const officeOf = (vehicleId: string) => vehicles.find(v => v.id === vehicleId)?.companyId;
   const allowedAttention = attentionItems.filter(i =>
-    i.type === 'oil_overdue' ? hasPermission('create', 'oil')
-    : i.type === 'tyre_critical' ? hasPermission('create', 'work-orders')
+    i.type === 'oil_overdue' ? hasPermission('create', 'oil', officeOf(i.vehicleId))
+    : i.type === 'tyre_critical' ? hasPermission('create', 'work-orders', officeOf(i.vehicleId))
     : i.type === 'accident_pending' ? canAccessPage('accidents')
-    : i.type === 'registration_expiring' ? hasPermission('create', 'documents')
+    : i.type === 'registration_expiring' ? hasPermission('create', 'documents', officeOf(i.vehicleId))
     : true);
   attentionItems.splice(0, attentionItems.length, ...allowedAttention);
 
@@ -263,7 +264,7 @@ export const FleetDashboard: React.FC = () => {
         <StatCard
           title="Total Fleet Assets"
           value={totalVehicles}
-          trend={{ value: `${activeVehicles} Units`, direction: 'up', label: 'Active on Road' }}
+          subValue={`${activeVehicles} active on the road`}
           isHero={true}
           onClick={() => setCurrentPage('vehicles')}
         />
@@ -382,7 +383,6 @@ export const FleetDashboard: React.FC = () => {
                     variant="outline"
                     size="xs"
                     onClick={() => setCurrentPage('vehicles')}
-                    leftIcon={<Plus className="w-3.5 h-3.5" />}
                   >
                     Manage Vehicles
                   </Button>
@@ -479,7 +479,7 @@ export const FleetDashboard: React.FC = () => {
               }
             >
               <CardTitle className="text-sm font-bold text-slate-100">Fleet Inventory Quick Summary</CardTitle>
-              <p className="text-xs text-slate-400">Active vehicles, odometer, purchase value and status</p>
+              <p className="text-xs text-slate-400">First {Math.min(5, vehicles.length)} vehicles: odometer, purchase value and status</p>
             </CardHeader>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-300">
@@ -559,10 +559,10 @@ export const FleetDashboard: React.FC = () => {
             <div className="p-4 space-y-3">
               {workOrders.length === 0 && <p className="text-xs text-slate-400 py-4 text-center">No work orders yet.</p>}
               {workOrders.slice(0, 5).map((wo) => (
-                <div {...buttonLike}
+                <div {...(canAccessPage('work-orders') ? buttonLike : {})}
                   key={wo.id}
-                  onClick={() => setCurrentPage('work-orders')}
-                  className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-850/60 transition-colors cursor-pointer group"
+                  onClick={canAccessPage('work-orders') ? () => setCurrentPage('work-orders') : undefined}
+                  className={`flex items-center justify-between gap-2 p-2 rounded-xl transition-colors group ${canAccessPage('work-orders') ? 'hover:bg-slate-850/60 cursor-pointer' : ''}`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-slate-850 border border-slate-700 flex items-center justify-center text-brand-500 shrink-0 group-hover:bg-brand-100 transition-colors">
@@ -617,7 +617,7 @@ export const DashboardPage: React.FC = () => {
         <div role="tablist" aria-label="Dashboard views" className="flex gap-1 overflow-x-auto border-b border-slate-700/80">
           {tabs.map(t => (
             <button key={t.id} role="tab" aria-selected={t.id === tab} onClick={() => setPicked(t.id)}
-              className={`px-4 py-2 text-xs font-bold whitespace-nowrap border-b-2 -mb-px ${t.id === tab ? 'border-brand-500 text-forest-600' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              className={`px-4 py-2 min-h-[44px] sm:min-h-0 text-xs font-bold whitespace-nowrap border-b-2 -mb-px ${t.id === tab ? 'border-brand-500 text-forest-600' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
               {t.label}
             </button>
           ))}

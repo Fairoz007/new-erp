@@ -24,6 +24,12 @@ export const SetupGate: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isSuperAdmin, signOut, refresh } = useAuth();
   const { organization, loading, error, reload, setupComplete } = useOrg();
   const [deferred, setDeferred] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [checkErr, setCheckErr] = useState<string | null>(null);
+  const check = (fn: () => Promise<unknown>) => {
+    setChecking(true); setCheckErr(null);
+    fn().catch(e => setCheckErr((e as Error).message)).finally(() => setChecking(false));
+  };
 
   if (loading) return <Spinner text="Loading organization…" />;
   if (error) {
@@ -31,7 +37,7 @@ export const SetupGate: React.FC<{ children: ReactNode }> = ({ children }) => {
       <AuthShell title="Could not load the organization" subtitle="The organization settings failed to load.">
         <AuthNotice tone="error">{error}</AuthNotice>
         <div className="flex gap-2">
-          <Button className="flex-1" onClick={() => void reload()}>Retry</Button>
+          <Button className="flex-1" isLoading={checking} onClick={() => check(reload)}>Retry</Button>
           <Button variant="outline" className="flex-1" onClick={() => void signOut()}>Sign out</Button>
         </div>
       </AuthShell>
@@ -48,9 +54,10 @@ export const SetupGate: React.FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <AuthShell title="Setup in progress" subtitle="Your organization has not been set up yet.">
       <AuthNotice tone="info">A Super Admin must finish the Setup Wizard before the app can be used. Try again later.</AuthNotice>
+      {checkErr && <AuthNotice tone="error">{checkErr}</AuthNotice>}
       <div className="flex gap-2">
         {/* re-read the user's role too: an admin may have just made this user a Super Admin */}
-        <Button className="flex-1" onClick={() => void Promise.all([refresh(), reload()])}>Check again</Button>
+        <Button className="flex-1" isLoading={checking} onClick={() => check(() => Promise.all([refresh(), reload()]))}>Check again</Button>
         <Button variant="outline" className="flex-1" onClick={() => void signOut()}>Sign out</Button>
       </div>
     </AuthShell>

@@ -117,8 +117,8 @@ export const TransferOfficeModal: React.FC<Props> = ({ entity, record, onClose, 
         <Input label="Effective date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
         <Textarea label="Reason" value={reason} onChange={e => setReason(e.target.value)} required placeholder="Why is it moving?" />
         {error && <p role="alert" className="text-xs text-rose-500">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button type="submit" isLoading={busy} disabled={busy || targets.length === 0}>Transfer</Button>
         </div>
         <div>

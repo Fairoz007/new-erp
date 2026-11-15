@@ -46,8 +46,8 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
       }
       size="lg"
       footer={
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+          <div className="flex flex-wrap items-center gap-2">
             {linkedInvoice && (
               <Button
                 variant="outline"
@@ -75,7 +75,7 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
               </Button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PdfActions size="sm" printLabel={payment.partyType === 'Customer' ? 'Print Receipt' : 'Print Voucher'}
               run={print => voucherPdfAction(print, payment, {
                 office: documentOffice(companies.find(c => c.id === payment.companyId)), currency,
@@ -118,12 +118,12 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
             <div>
               <span className="text-slate-400 block text-[11px]">Beneficiary / Customer</span>
-              <span className="font-bold text-slate-100 text-sm">{payment.partyName}</span>
+              <span className="font-bold text-slate-100 text-sm break-words">{payment.partyName}</span>
               <span className="text-[10px] text-slate-500 block">({payment.partyType})</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Bank / Funding Account</span>
-              <span className="font-semibold text-slate-200">{payment.bankAccountName || bank?.bankName || 'General Account'}</span>
+              <span className="font-semibold text-slate-200">{payment.bankAccountName || bank?.bankName || '—'}</span>
               {bank?.accountNumber && <span className="text-[10px] font-mono text-slate-400 block">Acc: {bank.accountNumber}</span>}
             </div>
             <div>

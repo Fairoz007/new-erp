@@ -42,7 +42,7 @@ export const Tabs: React.FC<TabsProps> = ({
               onClick={() => !tab.disabled && onChange(tab.id)}
               disabled={tab.disabled}
               className={clsx(
-                'flex min-h-[36px] items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
+                'flex min-h-[40px] sm:min-h-[36px] items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
                 isActive
                   ? 'bg-white text-brand-500 shadow-sm border border-slate-700'
                   : 'text-slate-400 hover:text-slate-100 hover:bg-white/60',
@@ -82,7 +82,7 @@ export const Tabs: React.FC<TabsProps> = ({
               onClick={() => !tab.disabled && onChange(tab.id)}
               disabled={tab.disabled}
               className={clsx(
-                'flex min-h-[38px] items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
+                'flex min-h-[40px] sm:min-h-[38px] items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
                 isActive
                   ? 'bg-brand-500 text-white shadow-xs'
                   : 'bg-white border border-slate-700 text-slate-400 hover:text-slate-100 hover:bg-slate-850',
@@ -122,7 +122,7 @@ export const Tabs: React.FC<TabsProps> = ({
             onClick={() => !tab.disabled && onChange(tab.id)}
             disabled={tab.disabled}
             className={clsx(
-              'flex items-center gap-2 py-3 border-b-2 text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
+              'flex min-h-[44px] items-center gap-2 py-3 border-b-2 text-xs font-semibold transition-all whitespace-nowrap cursor-pointer select-none',
               isActive
                 ? 'border-brand-500 text-brand-500'
                 : 'border-transparent text-slate-400 hover:text-slate-100 hover:border-slate-400',

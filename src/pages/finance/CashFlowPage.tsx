@@ -54,7 +54,7 @@ export const CashFlowPage: React.FC = () => {
         description="Money in and out of the office's bank and cash accounts, from posted journals."
         actions={
           <>
-            <Button variant="outline" size="md" leftIcon={<Download className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length || !hasPermission('export', 'financial-statements', officeId)}>CSV</Button>
+            <Button variant="outline" size="md" leftIcon={<Download className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length || !hasPermission('export', 'financial-statements', officeId)} title={!hasPermission('export', 'financial-statements', officeId) ? 'You do not have permission to export statements' : undefined}>CSV</Button>
             <PdfActions disabled={!rows.length || loading || !office} canDownload={hasPermission('export', 'financial-statements', officeId)}
               run={print => tablePdfAction(print, 'Cash_Flow_Statement', 'Cash Flow Statement', statementColumns(currency), cashFlowRows(rows, currency), {
                 rightAlign: [1], period: { from, to }, signatures: STATEMENT_SIGNATURES,
@@ -64,7 +64,7 @@ export const CashFlowPage: React.FC = () => {
         }
       />
       <div className="flex flex-wrap gap-3 items-end print:hidden">
-        <div className="w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
+        <div className="w-full sm:w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
           {offices.length === 0 && <option value="">No office available</option>}
           {offices.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
         </Select></div>
@@ -80,7 +80,7 @@ export const CashFlowPage: React.FC = () => {
         {SECTIONS.map(([key, label]) => (
           <div key={key} className="space-y-1">
             <p className="text-xs uppercase tracking-wider text-slate-400 font-bold">{label}</p>
-            {rows.filter(r => r.section === key).map(r => <div key={r.line} className="flex justify-between text-sm pl-3"><span className="text-slate-300">{r.line}</span>{amt(r.amount)}</div>)}
+            {rows.filter(r => r.section === key).map(r => <div key={r.line} className="flex justify-between gap-3 text-sm pl-3"><span className="text-slate-300">{r.line}</span>{amt(r.amount)}</div>)}
             {rows.filter(r => r.section === key).length === 0 && <p className="text-xs text-slate-500 pl-3">No movements</p>}
             <div className="flex justify-between text-sm font-bold border-t border-slate-700 pt-1"><span>Net cash from {label.toLowerCase()}</span>{amt(net(key))}</div>
           </div>

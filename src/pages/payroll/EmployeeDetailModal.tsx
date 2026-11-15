@@ -61,7 +61,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
       size="xl"
       footer={
         <div className="flex items-center justify-between w-full gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
           {canEdit && <Button
             variant="outline"
             size="sm"
@@ -80,7 +80,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
           )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {latestPayslip && (
               <Button
                 variant="secondary"
@@ -246,6 +246,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                         <td className="px-3 py-2 text-right font-bold text-emerald-400">{formatCurrency(item.netPay, currency)}</td>
                         <td className="px-3 py-2 text-right">
                           <button
+                            type="button"
                             onClick={() => {
                               onClose();
                               openPayslipModal({
@@ -276,7 +277,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
                                 status: item.status,
                               });
                             }}
-                            className="text-forest-400 hover:underline font-semibold cursor-pointer"
+                            className="text-forest-400 hover:underline font-semibold cursor-pointer min-h-[40px] sm:min-h-0"
                           >
                             Payslip
                           </button>
@@ -299,6 +300,7 @@ const EmployeePapers: React.FC<{ employee: Employee }> = ({ employee }) => {
   const { hasPermission } = useAuth();
   const [gratuity, setGratuity] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [calculating, setCalculating] = useState(false);
   const canSeePay = hasPermission('view', 'payroll', employee.companyId) || hasPermission('view', 'hr', employee.companyId);
   const manager = employees.find(e => e.id === employee.managerId);
   const papers: [string, string | undefined, string | undefined][] = [
@@ -325,7 +327,8 @@ const EmployeePapers: React.FC<{ employee: Employee }> = ({ employee }) => {
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
           <span className="text-slate-400">End-of-service gratuity{employee.gratuityPaidOn ? ` (paid ${formatDate(employee.gratuityPaidOn)})` : ' to date'}:</span>
           {gratuity === null
-            ? <Button variant="outline" size="xs" onClick={() => employeeGratuity(employee.id, employee.terminationDate || undefined).then(setGratuity).catch(e => setErr((e as Error).message))}>Calculate</Button>
+            ? <Button variant="outline" size="xs" isLoading={calculating} disabled={calculating}
+                onClick={() => { setCalculating(true); setErr(null); employeeGratuity(employee.id, employee.terminationDate || undefined).then(setGratuity).catch(e => setErr((e as Error).message)).finally(() => setCalculating(false)); }}>Calculate</Button>
             : <span className="font-bold text-slate-100">{formatCurrency(gratuity, currency)}</span>}
           {err && <span className="text-rose-500">{err}</span>}
         </div>

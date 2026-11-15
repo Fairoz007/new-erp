@@ -61,7 +61,7 @@ export const EmployeesPage: React.FC = () => {
 
   const columns: Column<Employee>[] = [
     { key: 'name', header: 'Employee', truncate: true, render: e => (
-      <button type="button" className="text-left" onClick={() => setViewing(e)}>
+      <button type="button" className="text-left min-w-0 max-w-full min-h-[40px] sm:min-h-0" title={e.name} onClick={() => setViewing(e)}>
         <p className="font-bold text-slate-100 hover:text-forest-400">{e.name}</p>
         <p className="text-[11px] text-slate-400 font-mono">{e.employeeCode} · {officeName(e.companyId)}</p>
       </button>

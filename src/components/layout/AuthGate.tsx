@@ -14,6 +14,9 @@ import { SetupGate } from '../../pages/setup/SetupGate';
 export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { status, error, session, passwordRecovery, signOut, refresh, sessionEnded } = useAuth();
   const [notice, setNotice] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   // No profile / inactive profile: sign out and explain on the login screen.
   useEffect(() => {
@@ -65,11 +68,12 @@ export const AuthGate: React.FC<{ children: ReactNode }> = ({ children }) => {
     return (
       <AuthShell title="Could not load your account" subtitle="Your session is valid but your profile or permissions failed to load.">
         <AuthNotice tone="error">{error ?? 'Unknown error'}</AuthNotice>
+        {signOutError && <AuthNotice tone="error">{signOutError}</AuthNotice>}
         <div className="flex gap-2">
-          <Button className="flex-1" onClick={() => void refresh()}>
+          <Button className="flex-1" isLoading={retrying} onClick={() => { setRetrying(true); void refresh().finally(() => setRetrying(false)); }}>
             Retry
           </Button>
-          <Button variant="outline" className="flex-1" onClick={() => void signOut()}>
+          <Button variant="outline" className="flex-1" isLoading={signingOut} onClick={() => { setSigningOut(true); setSignOutError(null); signOut().catch(e => { setSignOutError((e as Error).message); setSigningOut(false); }); }}>
             Sign out
           </Button>
         </div>

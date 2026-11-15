@@ -48,14 +48,14 @@ export const CardHeader: React.FC<HTMLAttributes<HTMLDivElement> & { action?: Re
   <div
     className={twMerge(
       clsx(
-        'px-5 py-4 sm:px-6 sm:py-4.5 border-b border-slate-700 flex items-center justify-between gap-3 bg-white',
+        'px-5 py-4 sm:px-6 sm:py-4.5 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 bg-white',
         className
       )
     )}
     {...props}
   >
     <div className="min-w-0">{children}</div>
-    {action && <div className="shrink-0">{action}</div>}
+    {action && <div className="max-w-full">{action}</div>}
   </div>
 );
 

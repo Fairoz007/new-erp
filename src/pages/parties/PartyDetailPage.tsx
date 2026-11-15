@@ -156,7 +156,7 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
         ].map(([label, value]) => (
           <div key={label} className="rounded-2xl border border-slate-700 bg-white p-3">
             <p className="text-[11px] text-slate-400 uppercase tracking-wider">{label}</p>
-            <p className="text-lg font-bold text-slate-100">{value}</p>
+            <p className="text-base sm:text-lg font-bold text-slate-100 break-words">{value}</p>
           </div>
         ))}
       </div>
@@ -188,7 +188,7 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
           <div className="space-y-4">
             <section className="rounded-2xl border border-slate-700 bg-white p-4 space-y-2">
               <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px]">Office & sharing</h3>
-              <div className="flex justify-between"><span className="text-slate-400">Home office</span><span className="text-slate-200">{office?.name ?? '—'}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Home office</span><span className="text-slate-200 text-right">{office?.name ?? '—'}</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Visible to</span>
                 <span className="text-slate-200 text-right">{party.sharing === 'selected'
                   ? party.sharedOfficeIds.map(id => companies.find(c => c.id === id)?.name ?? 'Other office').join(', ')
@@ -246,7 +246,7 @@ export const PartyDetailPage: React.FC<{ kind: Kind }> = ({ kind }) => {
         <div className="rounded-2xl border border-slate-700 bg-white p-4 space-y-2 text-xs">
           {historyQuery.loading && <p className="text-slate-400">Loading history…</p>}
           {historyQuery.error && (
-            <div role="alert" className="flex items-center gap-2 text-rose-600">
+            <div role="alert" className="flex flex-wrap items-center gap-2 text-rose-600">
               <span>Could not load the history: {historyQuery.error.message}</span>
               <Button variant="secondary" size="xs" onClick={() => { void historyQuery.refetch(); }}>Retry</Button>
             </div>
@@ -298,12 +298,12 @@ export const ReviewModal: React.FC<{ decision: 'Approved' | 'Rejected'; name: st
     try { await onSubmit(note.trim()); onClose(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
   return (
-    <Modal isOpen onClose={onClose} size="sm" title={`${decision === 'Approved' ? 'Approve' : 'Reject'} ${name}`}>
+    <Modal isOpen onClose={busy ? () => undefined : onClose} size="sm" title={`${decision === 'Approved' ? 'Approve' : 'Reject'} ${name}`}>
       <div className="space-y-3">
         <Textarea label={decision === 'Rejected' ? 'Reason' : 'Note (optional)'} value={note} onChange={e => setNote(e.target.value)} required={decision === 'Rejected'} />
         {error && <p role="alert" className="text-xs text-rose-500">{error}</p>}
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button variant={decision === 'Approved' ? 'primary' : 'danger'} isLoading={busy} onClick={() => void go()}>{decision === 'Approved' ? 'Approve' : 'Reject'}</Button>
         </div>
       </div>
@@ -325,7 +325,7 @@ const OpeningBalanceModal: React.FC<{ name: string; kind: Kind; onClose: () => v
     try { await onSubmit(n, date, ref.trim()); onClose(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
   return (
-    <Modal isOpen onClose={onClose} size="sm" title={`Opening balance for ${name}`}
+    <Modal isOpen onClose={busy ? () => undefined : onClose} size="sm" title={`Opening balance for ${name}`}
       description={`Posts an opening ${kind === 'customer' ? 'receivable' : 'payable'} invoice against 3900 Opening Balance Equity.`}>
       <div className="space-y-3">
         <Input label="Amount" type="number" step="0.001" min="0" value={amount} onChange={e => setAmount(e.target.value)} required />
@@ -333,7 +333,7 @@ const OpeningBalanceModal: React.FC<{ name: string; kind: Kind; onClose: () => v
         <Input label="Reference" value={ref} onChange={e => setRef(e.target.value)} placeholder="Old system reference (optional)" />
         {error && <p role="alert" className="text-xs text-rose-500">{error}</p>}
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button isLoading={busy} onClick={() => void go()}>Post</Button>
         </div>
       </div>

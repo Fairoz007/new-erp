@@ -131,7 +131,7 @@ export function MasterEditor<T extends Record<string, any>>({
   const cell = (c: Column<T>, value: unknown, onChange: (v: unknown) => void, id: string, isNew: boolean) => {
     const disabled = readOnly || (!isNew && c.editableOnCreateOnly);
     const err = fieldErr[`${id}:${c.key}`];
-    const base = `w-full h-8 rounded-lg border px-2 text-xs bg-white text-slate-100 ${err ? 'border-rose-500' : 'border-slate-700'} disabled:opacity-60`;
+    const base = `w-full h-10 sm:h-8 rounded-lg border px-2 text-xs bg-white text-slate-100 ${err ? 'border-rose-500' : 'border-slate-700'} disabled:opacity-60`;
     let input: React.ReactNode;
     if (c.type === 'checkbox') {
       input = <input type="checkbox" aria-label={c.label} className="w-4 h-4 accent-brand-500" checked={!!value} disabled={disabled} onChange={e => onChange(e.target.checked)} />;
@@ -187,7 +187,7 @@ export function MasterEditor<T extends Record<string, any>>({
                     {defaultFlag && (
                       <td className={tdCls}>
                         {r.isDefault ? <span className="inline-flex items-center gap-1 text-brand-500 font-bold"><Star className="w-3 h-3 fill-current" /> Default</span>
-                          : !readOnly && <Button size="xs" variant="ghost" onClick={() => void makeDefault(r)} disabled={busy === id}>Make default</Button>}
+                          : !readOnly && <Button size="xs" variant="ghost" onClick={() => void makeDefault(r)} isLoading={busy === id} disabled={busy === id}>Make default</Button>}
                       </td>
                     )}
                     {!readOnly && (

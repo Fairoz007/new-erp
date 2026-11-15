@@ -11,6 +11,7 @@
     "test:e2e": "node e2e/remote.e2e.mjs",
     "test:unit": "vitest run",
     "scan:secrets": "node scripts/secret-scan.mjs --dist",
+    "scan:controls": "node scripts/dead-controls.mjs",
     "bundle:check": "node scripts/bundle-report.mjs --budget 250",
     "test:browser": "playwright test",
     "lint": "tsc --noEmit -p . && node scripts/secret-scan.mjs"

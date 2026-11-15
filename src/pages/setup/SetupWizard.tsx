@@ -105,9 +105,9 @@ export const SetupWizard: React.FC<{ onDefer?: () => void }> = ({ onDefer }) => 
   return (
     <div className="min-h-screen bg-surface-secondary">
       <header className="bg-white border-b border-slate-700 px-4 sm:px-6 h-14 flex items-center gap-3">
-        <span className="font-extrabold text-slate-100 truncate">{organization?.tradeName || organization?.legalName || PRODUCT_NAME}</span>
+        <span className="font-extrabold text-slate-100 truncate min-w-0" title={organization?.tradeName || organization?.legalName || PRODUCT_NAME}>{organization?.tradeName || organization?.legalName || PRODUCT_NAME}</span>
         <span className="text-xs text-slate-400 hidden sm:inline">Setup</span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           {onDefer && offices.length > 0 && <Button size="xs" variant="ghost" onClick={onDefer}>Continue to app</Button>}
           <span className="text-xs text-slate-400 hidden sm:inline">{currentUser.name}</span>
           <Button size="xs" variant="outline" onClick={() => void signOut()} leftIcon={<LogOut className="w-3 h-3" />}>Sign out</Button>
@@ -147,9 +147,9 @@ export const SetupWizard: React.FC<{ onDefer?: () => void }> = ({ onDefer }) => 
           <NoticeBar notice={notice} onClose={() => setNotice(null)} />
           {body}
           {step < 9 && (
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-700">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-700">
               <Button variant="outline" disabled={step === 1} onClick={() => void go(step - 1)} leftIcon={<ArrowLeft className="w-4 h-4" />}>Back</Button>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-end gap-2 ml-auto">
                 {[5, 7, 8].includes(step) && <Button variant="ghost" onClick={() => void go(step + 1)}>Skip for now</Button>}
                 <Button onClick={() => void next()} isLoading={advancing} rightIcon={<ArrowRight className="w-4 h-4" />}>Save & continue</Button>
               </div>

@@ -42,13 +42,13 @@ export const ContractsPanel: React.FC<Props> = ({ partyType, party }) => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-400">Agreed rates apply to new invoice lines for this {partyType === 'Customer' ? 'client' : 'supplier'} while the contract is active.</p>
         {createOffices.length > 0 && party.registration.status === 'Approved' && (
           <Button size="xs" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => setEditing('new')}>New contract</Button>
         )}
       </div>
-      {error && <p className="text-xs text-rose-500">Could not load contracts: {error} <button className="underline" onClick={() => void load()}>Retry</button></p>}
+      {error && <p className="text-xs text-rose-500">Could not load contracts: {error} <button type="button" className="underline" onClick={() => void load()}>Retry</button></p>}
       {!rows && !error && <p className="text-xs text-slate-400">Loading contracts…</p>}
       {rows && visible.length === 0 && <p className="text-xs text-slate-400">No contracts{selectedCompanyId !== 'all' ? ' in this office' : ''}.</p>}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -100,6 +100,7 @@ const ContractModal: React.FC<{
   });
   const [rates, setRates] = useState<ContractRate[]>(contract ? contract.rates.map(r => ({ ...r })) : [blankRate()]);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const readOnly = contract ? !hasPermission('edit', 'contracts', contract.companyId) : false;
   const set = <K extends keyof ContractDraft>(k: K, v: ContractDraft[K]) => setForm(f => ({ ...f, [k]: v }));
@@ -124,13 +125,13 @@ const ContractModal: React.FC<{
   };
   const remove = async () => {
     if (!contract || !window.confirm('Delete this draft contract? This cannot be undone.')) return;
-    setBusy(true);
-    try { await deleteContract(contract.id); onSaved(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    setBusy(true); setDeleting(true);
+    try { await deleteContract(contract.id); onSaved(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); setDeleting(false); }
   };
   const cell = 'h-8 w-full rounded-lg border border-slate-700 bg-white px-2 text-xs disabled:opacity-60';
 
   return (
-    <Modal isOpen onClose={onClose} size="2xl" title={contract ? `${contract.contractNumber}: ${contract.title}` : `New contract for ${party.name}`}
+    <Modal isOpen onClose={busy ? () => undefined : onClose} size="2xl" title={contract ? `${contract.contractNumber}: ${contract.title}` : `New contract for ${party.name}`}
       description={contract ? `Currency ${contract.currency}` : 'The number and currency are assigned when you save.'}>
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -152,13 +153,13 @@ const ContractModal: React.FC<{
             onChange={e => set('paymentTermsDays', Number(e.target.value))} />
           <Input label="Notice period (days)" type="number" min="0" max="365" disabled={readOnly} value={form.noticeDays}
             onChange={e => set('noticeDays', Number(e.target.value))} />
-          <label className="flex items-center gap-2 text-xs text-slate-100 pt-6">
+          <label className="flex items-center gap-2 text-xs text-slate-100 min-h-[40px] sm:pt-6">
             <input type="checkbox" className="w-4 h-4 accent-brand-500" checked={form.autoRenew} disabled={readOnly} onChange={e => set('autoRenew', e.target.checked)} /> Renews automatically
           </label>
           <div className="sm:col-span-2 flex flex-col gap-1 text-xs">
             <span className="font-semibold text-slate-100">Signed copy</span>
-            <div className="flex items-center gap-3">
-              {!readOnly && <input type="file" accept="application/pdf,image/png,image/jpeg" disabled={busy || !form.companyId} onChange={e => { void upload(e.target.files?.[0]); e.target.value = ''; }} />}
+            <div className="flex flex-wrap items-center gap-3">
+              {!readOnly && <input type="file" className="max-w-full" accept="application/pdf,image/png,image/jpeg" disabled={busy || !form.companyId} onChange={e => { void upload(e.target.files?.[0]); e.target.value = ''; }} />}
               {form.documentPath && (
                 <button type="button" className="text-brand-500 font-semibold hover:underline"
                   onClick={() => void createSignedUrl('documents', form.documentPath).then(u => window.open(u, '_blank', 'noopener')).catch(e => setError((e as Error).message))}>
@@ -189,7 +190,7 @@ const ContractModal: React.FC<{
                     <td className="pr-1"><select aria-label="Tax" className={cell} value={r.taxRateId} disabled={readOnly} onChange={e => setRate(i, { taxRateId: e.target.value })}>
                       <option value="">None</option>{taxes.filter(t => t.active || t.id === r.taxRateId).map(t => <option key={t.id} value={t.id}>{t.name} ({t.rate}%)</option>)}</select></td>
                     <td className="pr-1"><input aria-label="Minimum quantity" className={cell} type="number" step="0.001" min="0" value={r.minQuantity} disabled={readOnly} onChange={e => setRate(i, { minQuantity: Number(e.target.value) })} /></td>
-                    <td>{!readOnly && <button type="button" aria-label="Remove rate" className="p-1 inline-flex items-center justify-center text-slate-400 hover:text-rose-500" onClick={() => setRates(rs => rs.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5" /></button>}</td>
+                    <td>{!readOnly && <button type="button" aria-label="Remove rate" className="p-1 min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center text-slate-400 hover:text-rose-500" onClick={() => setRates(rs => rs.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5" /></button>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -201,10 +202,10 @@ const ContractModal: React.FC<{
         <Textarea label="Notes" value={form.notes} disabled={readOnly} onChange={e => set('notes', e.target.value)} />
         {error && <p role="alert" className="text-xs text-rose-500">{error}</p>}
         <div className="flex flex-wrap justify-between gap-2">
-          <div>{contract?.status === 'Draft' && hasPermission('delete', 'contracts', contract.companyId) && <Button variant="danger" size="sm" onClick={() => void remove()} disabled={busy}>Delete draft</Button>}</div>
+          <div>{contract?.status === 'Draft' && hasPermission('delete', 'contracts', contract.companyId) && <Button variant="danger" size="sm" isLoading={deleting} onClick={() => void remove()} disabled={busy}>Delete draft</Button>}</div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>{readOnly ? 'Close' : 'Cancel'}</Button>
-            {!readOnly && <Button isLoading={busy} onClick={() => void submit()}>Save</Button>}
+            <Button variant="outline" onClick={onClose} disabled={busy}>{readOnly ? 'Close' : 'Cancel'}</Button>
+            {!readOnly && <Button isLoading={busy && !deleting} disabled={busy} onClick={() => void submit()}>Save</Button>}
           </div>
         </div>
       </div>

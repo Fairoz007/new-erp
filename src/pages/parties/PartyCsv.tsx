@@ -158,7 +158,7 @@ export const PartyImportModal: React.FC<{ kind: Kind; onClose: () => void }> = (
             {offices.map(o => <option key={o.id} value={o.id}>{o.name} ({o.code})</option>)}
           </Select>
           <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={template}>Download template</Button>
-          <label className="inline-flex items-center gap-2 h-9 px-3 rounded-full border border-slate-700 cursor-pointer hover:bg-slate-850">
+          <label className={`inline-flex items-center gap-2 min-h-[44px] sm:min-h-0 sm:h-9 px-3 rounded-full border border-slate-700 ${busy || !officeId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-850'}`}>
             <Upload className="w-4 h-4" /> Choose CSV file
             <input type="file" accept=".csv,text/csv" className="hidden" disabled={busy || !officeId} onChange={e => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
           </label>
@@ -194,7 +194,7 @@ export const PartyImportModal: React.FC<{ kind: Kind; onClose: () => void }> = (
         )}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>{results ? 'Close' : 'Cancel'}</Button>
-          {!results && <Button onClick={() => void run()} isLoading={busy} disabled={busy || good.length === 0}>Import {good.length} row(s)</Button>}
+          {(!results || busy) && <Button onClick={() => void run()} isLoading={busy} disabled={busy || good.length === 0}>Import {good.length} row(s)</Button>}
         </div>
       </div>
     </Modal>

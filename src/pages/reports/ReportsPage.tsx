@@ -218,6 +218,13 @@ export const ReportsPage: React.FC = () => {
   const { companies } = useFleet();
   const { hasPermission } = useAuth();
   const [selectedReport, setSelectedReport] = useState<string>('');
+  // On a phone the report sits below every category card: bring it into view when one is picked
+  const reportRef = useRef<HTMLDivElement>(null);
+  const pickReport = (id: string) => {
+    setSelectedReport(id);
+    const el = reportRef.current;
+    if (el && el.getBoundingClientRect().top > window.innerHeight) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const [office, setOffice] = useState<string>(selectedCompanyId || 'all');
   useEffect(() => { setOffice(selectedCompanyId || 'all'); }, [selectedCompanyId]);
   const [from, setFrom] = useState(`${new Date().getFullYear()}-01-01`);
@@ -417,7 +424,7 @@ export const ReportsPage: React.FC = () => {
       />
 
       <div className="flex flex-wrap gap-3 items-end print:hidden">
-        <div className="w-56"><Select label="Office" value={office} onChange={e => setOffice(e.target.value)}>
+        <div className="w-full sm:w-56"><Select label="Office" value={office} onChange={e => setOffice(e.target.value)}>
           <option value="all">All offices</option>
           {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select></div>
@@ -438,7 +445,7 @@ export const ReportsPage: React.FC = () => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setSelectedReport(item.id)}
+                    onClick={() => pickReport(item.id)}
                     className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors cursor-pointer ${
                       isSelected
                         ? 'bg-forest-100 text-forest-700 font-semibold border border-forest-500/30 shadow-xs'
@@ -455,9 +462,9 @@ export const ReportsPage: React.FC = () => {
         ))}
       </div>
 
-      <div className="space-y-3">
-        <h2 className="text-sm font-bold text-slate-200">
-          <span className="text-forest-600">{allItems.find(i => i.id === current)?.name}</span> <span className="text-slate-400 font-normal">· {officeName} · {from || '…'} to {to || '…'}</span>
+      <div ref={reportRef} className="space-y-3 scroll-mt-4">
+        <h2 className="text-sm font-bold text-slate-200 break-words">
+          <span className="text-forest-600">{allItems.find(i => i.id === current)?.name}</span> <span className="text-slate-400 font-normal">· {officeName} · {UNDATED_REPORTS.has(current) ? `as of ${formatDate(localToday())}` : `${from || '…'} to ${to || '…'}`}</span>
         </h2>
         <ReportExportContext.Provider value={exportInfo}>
           {renderReport()}

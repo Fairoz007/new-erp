@@ -207,19 +207,19 @@ export const PrintablePayslipModal: React.FC = () => {
         {/* Footer Signatures */}
         <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-800 text-center text-xs text-slate-400">
           <div>
-            <div className="h-10 border-b border-dashed border-slate-700 mx-auto w-40 mb-1"></div>
+            <div className="h-10 border-b border-dashed border-slate-700 mx-auto w-full max-w-[10rem] mb-1"></div>
             <p className="font-semibold text-slate-300">Prepared by: HR & Payroll Officer</p>
             <p className="text-[10px] text-slate-500">{companyName}</p>
           </div>
           <div>
-            <div className="h-10 border-b border-dashed border-slate-700 mx-auto w-40 mb-1"></div>
+            <div className="h-10 border-b border-dashed border-slate-700 mx-auto w-full max-w-[10rem] mb-1"></div>
             <p className="font-semibold text-slate-300">Employee Signature & Date</p>
             <p className="text-[10px] text-slate-500">I acknowledge receipt of the net pay above</p>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-slate-800 print:hidden">
+        <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800 print:hidden">
           <Button variant="secondary" size="sm" onClick={closePayslipModal}>
             Close
           </Button>

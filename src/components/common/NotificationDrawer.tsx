@@ -82,12 +82,13 @@ export const NotificationDrawer: React.FC = () => {
       }
       description="Approval, expiry and payment alerts for the offices you can access"
       footer={
-        <div className="flex items-center justify-between w-full">
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
           <Button
             variant="outline"
             size="sm"
             onClick={handleMarkAll}
             disabled={unreadCount === 0 || busy}
+            isLoading={busy}
             leftIcon={<CheckCheck className="w-4 h-4" />}
           >
             Mark All as Read
@@ -101,24 +102,30 @@ export const NotificationDrawer: React.FC = () => {
       {/* Filter Tabs */}
       <div className="flex items-center gap-1.5 p-1 bg-slate-950/70 border border-slate-800 rounded-lg mb-4">
         <button
+          type="button"
+          aria-pressed={filter === 'all'}
           onClick={() => setFilter('all')}
-          className={`flex-1 py-1 text-xs font-medium rounded transition-all cursor-pointer ${
+          className={`flex-1 min-h-[40px] sm:min-h-0 py-1 text-xs font-medium rounded transition-all cursor-pointer ${
             filter === 'all' ? 'bg-slate-800 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           All ({c.total})
         </button>
         <button
+          type="button"
+          aria-pressed={filter === 'unread'}
           onClick={() => setFilter('unread')}
-          className={`flex-1 py-1 text-xs font-medium rounded transition-all cursor-pointer ${
+          className={`flex-1 min-h-[40px] sm:min-h-0 py-1 text-xs font-medium rounded transition-all cursor-pointer ${
             filter === 'unread' ? 'bg-slate-800 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           Unread ({unreadCount})
         </button>
         <button
+          type="button"
+          aria-pressed={filter === 'critical'}
           onClick={() => setFilter('critical')}
-          className={`flex-1 py-1 text-xs font-medium rounded transition-all cursor-pointer ${
+          className={`flex-1 min-h-[40px] sm:min-h-0 py-1 text-xs font-medium rounded transition-all cursor-pointer ${
             filter === 'critical' ? 'bg-slate-800 text-white font-semibold shadow-xs' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -131,7 +138,7 @@ export const NotificationDrawer: React.FC = () => {
         {feed.error ? (
           <div className="py-12 text-center text-xs text-rose-400">
             Could not load notifications: {feed.error.message}{' '}
-            <button className="underline font-semibold cursor-pointer" onClick={() => void feed.refetch()}>Retry</button>
+            <button type="button" className="underline font-semibold cursor-pointer min-h-[44px] sm:min-h-0" onClick={() => void feed.refetch()}>Retry</button>
           </div>
         ) : feed.loading && !feed.data ? (
           <div className="py-12 text-center text-xs text-slate-400">Loading…</div>
@@ -147,9 +154,9 @@ export const NotificationDrawer: React.FC = () => {
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2.5">
+                <div className="flex items-start gap-2.5 min-w-0">
                   {getSeverityIcon(item.severity)}
-                  <div>
+                  <div className="min-w-0 break-words">
                     <h4 className={`text-xs font-semibold ${item.read ? 'text-slate-300' : 'text-white'}`}>
                       {item.title}
                     </h4>

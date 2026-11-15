@@ -47,8 +47,8 @@ export const PartySharingModal: React.FC<Props> = ({ type, party, onClose }) => 
       <div className="space-y-4">
         <PartyOfficeFields module={type === 'Customer' ? 'customers' : 'suppliers'} value={value} onChange={setValue} lockOffice />
         {error && <p role="alert" className="text-xs text-rose-500">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
           <Button onClick={() => void save()} isLoading={busy}>Save</Button>
         </div>
       </div>

@@ -134,7 +134,7 @@ export const RolesEditor: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
         <div className="flex flex-wrap gap-2">
           {roles.map(r => (
             <button key={r.id} type="button" onClick={() => setSelected(r.id)}
-              className={`px-3 h-8 rounded-full border text-xs font-semibold inline-flex items-center gap-1.5 ${selected === r.id ? 'bg-brand-500 text-white border-brand-500' : 'border-slate-700 text-slate-200 hover:bg-slate-850'}`}>
+              className={`px-3 h-10 sm:h-8 rounded-full border text-xs font-semibold inline-flex items-center gap-1.5 ${selected === r.id ? 'bg-brand-500 text-white border-brand-500' : 'border-slate-700 text-slate-200 hover:bg-slate-850'}`}>
               {r.isSuper && <Shield className="w-3 h-3" />}{r.name}
               <span className={`text-[10px] ${selected === r.id ? 'text-white/80' : 'text-slate-400'}`}>{assigned.get(r.id) ?? 0}</span>
             </button>
@@ -159,7 +159,7 @@ export const RolesEditor: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
           description={role.isSuper ? 'Super Admin always has every permission in every office and can approve any amount.'
             : 'A user can hold a different role in each office; these permissions apply in the offices where they hold this role.'}
           action={canEdit && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {!role.isSystem && <Button size="sm" variant="outline" onClick={remove} disabled={busy || (assigned.get(role.id) ?? 0) > 0}
                 title={(assigned.get(role.id) ?? 0) > 0 ? 'Reassign its users first' : 'Delete role'} leftIcon={<Trash2 className="w-4 h-4" />}>Delete</Button>}
               <Button size="sm" onClick={save} isLoading={busy} leftIcon={<Save className="w-4 h-4" />}>Save role</Button>

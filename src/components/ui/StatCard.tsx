@@ -45,7 +45,7 @@ export const StatCard: React.FC<StatCardProps> = ({
     >
       {/* Top Header: Title + Arrow Action Button */}
       <div className="flex items-center justify-between gap-3">
-        <span
+        <span title={title}
           className={clsx(
             'text-xs sm:text-sm font-semibold truncate',
             isDarkHero ? 'text-white/90' : 'text-slate-100'
@@ -54,7 +54,7 @@ export const StatCard: React.FC<StatCardProps> = ({
           {title}
         </span>
 
-        <div
+        {(actionIcon || onClick) && <div
           className={clsx(
             'w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105',
             isDarkHero
@@ -63,7 +63,7 @@ export const StatCard: React.FC<StatCardProps> = ({
           )}
         >
           {actionIcon || <ArrowUpRight className="w-4 h-4 stroke-[2.2]" />}
-        </div>
+        </div>}
       </div>
 
       {/* Main Metric Value */}

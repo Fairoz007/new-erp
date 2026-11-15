@@ -54,7 +54,7 @@ export const PeriodClosePage: React.FC = () => {
     <div className="space-y-6">
       <PageHeader title="Period close" description="Close a month once its books are final. Nothing can be posted into a closed month until it is reopened." />
       <div className="flex flex-wrap gap-3 items-end">
-        <div className="w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
+        <div className="w-full sm:w-56"><Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
           {offices.length === 0 && <option value="">No office available</option>}
           {offices.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
         </Select></div>

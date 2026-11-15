@@ -31,7 +31,7 @@ export const ChartState: React.FC<{ loading?: boolean; error?: Error; onRetry?: 
   if (error) return (
     <div role="alert" style={{ height }} className="w-full flex flex-col items-center justify-center gap-2 text-xs text-rose-500 text-center px-6">
       <span>Could not load the figures: {error.message}</span>
-      {onRetry && <button type="button" onClick={onRetry} className="font-semibold underline text-slate-300 hover:text-slate-100">Retry</button>}
+      {onRetry && <button type="button" onClick={onRetry} className="min-h-[44px] sm:min-h-0 cursor-pointer font-semibold underline text-slate-300 hover:text-slate-100">Retry</button>}
     </div>
   );
   if (loading) return <div style={{ height }} aria-busy="true" className="w-full flex items-center justify-center text-xs text-slate-400">Loading…</div>;

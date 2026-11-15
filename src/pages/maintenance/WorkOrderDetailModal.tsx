@@ -17,6 +17,8 @@ interface WorkOrderDetailModalProps {
   onClose: () => void;
   onStatusChange: (orderId: string, status: WorkOrderStatus) => void;
   busy: boolean;
+  /** the status being saved, so its button shows the spinner */
+  busyStatus?: WorkOrderStatus | null;
 }
 
 export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
@@ -25,13 +27,16 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
   onClose,
   onStatusChange,
   busy,
+  busyStatus = null,
 }) => {
-  const { vehicles, currency } = useFleet();
+  const { vehicles, companies, currency } = useFleet();
   const { openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
-  const canEdit = hasPermission('edit', 'work-orders');
 
   if (!order) return null;
+  const canEdit = hasPermission('edit', 'work-orders', order.companyId);
+  const loading = (s: WorkOrderStatus) => busy && busyStatus === s;
+  const canApproveThis = canApprove('maintenance', order.finalCost || order.estimatedCost || 0, order.companyId);
 
   const vehicle = vehicles.find(v => v.id === order.vehicleId);
 
@@ -63,8 +68,8 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
       }
       size="xl"
       footer={
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+          <div className="flex flex-wrap items-center gap-2">
             {vehicle && (
               <Button
                 variant="outline"
@@ -80,7 +85,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {canEdit && order.status !== 'Completed' && order.status !== 'Cancelled' && (
               order.approvalStatus === 'Pending' ? (
                 <span className="text-xs font-bold text-amber-400">Awaiting approval in Approvals queue</span>
@@ -90,7 +95,9 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={busy}
+                      isLoading={loading('Approved')}
+                      disabled={busy || !canApproveThis}
+                      title={canApproveThis ? undefined : 'This work order is above your approval limit.'}
                       onClick={() => onStatusChange(order.id, 'Approved')}
                     >
                       Approve Order
@@ -100,6 +107,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
                     <Button
                       variant="secondary"
                       size="sm"
+                      isLoading={loading('In Progress')}
                       disabled={busy}
                       onClick={() => onStatusChange(order.id, 'In Progress')}
                     >
@@ -110,6 +118,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
+                      isLoading={loading('Waiting for Parts')}
                       disabled={busy}
                       onClick={() => onStatusChange(order.id, 'Waiting for Parts')}
                     >
@@ -120,6 +129,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
                     <Button
                       variant="secondary"
                       size="sm"
+                      isLoading={loading('In Progress')}
                       disabled={busy}
                       onClick={() => onStatusChange(order.id, 'In Progress')}
                     >
@@ -130,6 +140,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
                     <Button
                       variant="primary"
                       size="sm"
+                      isLoading={loading('Completed')}
                       disabled={busy}
                       onClick={() => onStatusChange(order.id, 'Completed')}
                       leftIcon={<CheckCircle2 className="w-4 h-4" />}
@@ -158,9 +169,9 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
           </div>
 
           <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl">
-            <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Final Approved Cost</span>
+            <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Final Cost</span>
             <span className="text-xl font-bold text-emerald-400 mt-1 block">
-              {formatCurrency(order.finalCost || order.estimatedCost, currency)}
+              {order.finalCost ? formatCurrency(order.finalCost, currency) : 'Not set yet'}
             </span>
           </div>
 
@@ -192,7 +203,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Requested By</span>
-              <span className="text-slate-200">{order.requestedByName || 'Fleet Supervisor'}</span>
+              <span className="text-slate-200">{order.requestedByName || '—'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Creation Date</span>
@@ -200,7 +211,7 @@ export const WorkOrderDetailModal: React.FC<WorkOrderDetailModalProps> = ({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Office / Company</span>
-              <span className="text-slate-200">{order.companyId || 'Corporate'}</span>
+              <span className="text-slate-200">{companies.find(c => c.id === order.companyId)?.name ?? '—'}</span>
             </div>
           </div>
         </div>

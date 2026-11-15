@@ -20,7 +20,6 @@ export const VehiclesPage: React.FC = () => {
   const { vehicles, selectedCompanyId, currency, updateVehicle } = useFleet();
   const { openVehicleDetail, openQuickModal, addToast } = useUI();
   const { hasPermission } = useAuth();
-  const canEdit = hasPermission('edit', 'vehicles');
   const canCreate = hasPermission('create', 'vehicles');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editing, setEditing] = useState<Vehicle | null>(null);
@@ -122,7 +121,7 @@ export const VehiclesPage: React.FC = () => {
       sortable: false,
       render: (v) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          {canEdit && (
+          {hasPermission('edit', 'vehicles', v.companyId) && (
             <Button variant="ghost" size="xs" onClick={() => setEditing(v)} leftIcon={<Pencil className="w-3.5 h-3.5" />}>
               Edit
             </Button>

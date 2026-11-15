@@ -17,7 +17,6 @@ export const CompaniesPage: React.FC = () => {
   const { companies, selectedCompanyId, setSelectedCompanyId, addCompany, updateCompany } = useFleet();
   const { addToast } = useUI();
   const { hasPermission } = useAuth();
-  const canEdit = hasPermission('edit', 'companies');
   const canCreate = hasPermission('create', 'companies');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Company | undefined>(undefined);
@@ -56,6 +55,7 @@ export const CompaniesPage: React.FC = () => {
               variant={selectedCompanyId === 'all' ? 'primary' : 'outline'}
               size="md"
               onClick={() => setSelectedCompanyId('all')}
+              aria-pressed={selectedCompanyId === 'all'}
               leftIcon={<Layers className="w-4 h-4" />}
             >
               {selectedCompanyId === 'all' ? 'Viewing Consolidated (All Offices)' : 'Switch to Consolidated View'}
@@ -88,7 +88,7 @@ export const CompaniesPage: React.FC = () => {
       {counts.error && (
         <div className="bg-white border border-slate-700 rounded-[20px] p-4 text-xs text-rose-600">
           Could not load the record counts: {counts.error.message}{' '}
-          <button className="underline font-bold cursor-pointer" onClick={() => void counts.refetch()}>Retry</button>
+          <button type="button" className="underline font-bold cursor-pointer min-h-[40px] sm:min-h-0" onClick={() => void counts.refetch()}>Retry</button>
         </div>
       )}
 
@@ -115,8 +115,8 @@ export const CompaniesPage: React.FC = () => {
             >
               <CardHeader
                 action={
-                  <div className="flex items-center gap-2">
-                    {canEdit && (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {hasPermission('edit', 'companies', comp.id) && (
                       <Button variant="ghost" size="xs" onClick={() => openEdit(comp)} leftIcon={<Pencil className="w-3.5 h-3.5" />}>
                         Edit
                       </Button>
@@ -132,11 +132,11 @@ export const CompaniesPage: React.FC = () => {
                   </div>
                 }
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <OfficeBadge office={comp} allCodes={allCodes} logoUrl={logoUrl(comp.logo)} size="lg" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-base text-slate-100">{comp.name}</h3>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-bold text-base text-slate-100 break-words">{comp.name}</h3>
                       {!comp.active && (
                         <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-850 text-slate-400 font-semibold border border-slate-700">
                           Inactive
@@ -211,7 +211,7 @@ export const CompaniesPage: React.FC = () => {
                     <p className="font-semibold text-forest-700 flex items-center gap-1.5 text-[11px]">
                       <CreditCard className="w-3.5 h-3.5 text-forest-500" /> {comp.bankDetails.bankName}
                     </p>
-                    <p className="text-[10px] text-slate-300 font-mono">IBAN: {comp.bankDetails.iban}</p>
+                    <p className="text-[10px] text-slate-300 font-mono break-all">IBAN: {comp.bankDetails.iban}</p>
                     <p className="text-[10px] text-slate-400">Operating Branch: {comp.bankDetails.branch}</p>
                   </div>
                 )}
@@ -219,9 +219,9 @@ export const CompaniesPage: React.FC = () => {
                 {/* Contact info */}
                 <div className="pt-2 border-t border-slate-700/80 text-[11px] text-slate-400 space-y-1.5">
                   {[comp.address, comp.city].some(Boolean) && (
-                    <p className="flex items-center gap-2">
+                    <p className="flex items-center gap-2 min-w-0">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{[comp.address, comp.city].filter(Boolean).join(', ')}</span>
+                      <span className="truncate" title={[comp.address, comp.city].filter(Boolean).join(', ')}>{[comp.address, comp.city].filter(Boolean).join(', ')}</span>
                     </p>
                   )}
                   {comp.phone && (
@@ -233,7 +233,7 @@ export const CompaniesPage: React.FC = () => {
                   {comp.email && (
                     <p className="flex items-center gap-2">
                       <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>{comp.email}</span>
+                      <span className="break-all">{comp.email}</span>
                     </p>
                   )}
                   {![comp.address, comp.city, comp.phone, comp.email].some(Boolean) && <p>No contact details recorded.</p>}

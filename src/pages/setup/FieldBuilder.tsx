@@ -232,7 +232,7 @@ export const FieldBuilder: React.FC<{ readOnly?: boolean; entities?: FieldEntity
                       const s = settings.find(x => x.fieldId === f.id && x.officeId === o.id);
                       return (
                         <td key={o.id} className={tdCls}>
-                          <select aria-label={`${f.label} in ${o.name}`} className="h-8 rounded-lg border border-slate-700 px-1 text-xs bg-white" disabled={readOnly}
+                          <select aria-label={`${f.label} in ${o.name}`} className="h-10 sm:h-8 rounded-lg border border-slate-700 px-1 text-xs bg-white" disabled={readOnly}
                             value={s?.visibility ?? ''} onChange={e => void setVisibility(f.id, o.id, e.target.value)}>
                             <option value="">Default ({f.required ? 'required' : 'shown'})</option>
                             <option value="shown">Shown</option>

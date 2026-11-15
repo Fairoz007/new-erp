@@ -63,7 +63,7 @@ export const Modal: React.FC<ModalProps> = ({
         tabIndex={-1}
         className={twMerge(
           clsx(
-            'relative w-full bg-white border-0 sm:border border-slate-700 rounded-none sm:rounded-[24px] shadow-floating overflow-hidden z-10 flex flex-col min-h-full sm:min-h-0 max-h-none sm:max-h-[90vh] focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 duration-150',
+            'relative w-full bg-white border-0 sm:border border-slate-700 rounded-none sm:rounded-[24px] shadow-floating overflow-hidden z-10 flex flex-col h-full sm:h-auto max-h-full sm:max-h-[90vh] focus:outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 duration-150',
             sizeStyles[size],
             className
           )
@@ -71,8 +71,8 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {/* Header */}
         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-700 flex items-center justify-between gap-4 bg-white shrink-0">
-          <div>
-            <h2 id={titleId} className="text-lg font-bold text-slate-100 flex items-center gap-2">{title}</h2>
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-lg font-bold text-slate-100 flex flex-wrap items-center gap-2 break-words">{title}</h2>
             {description && <p id={descriptionId} className="text-xs text-slate-400 mt-0.5">{description}</p>}
           </div>
           <button

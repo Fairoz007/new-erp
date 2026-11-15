@@ -237,7 +237,7 @@ export const AssetModulePage: React.FC = () => {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Gross Fixed Assets (At Cost)" value={formatCurrency(totalCost, currency)} subValue={`${scopedAssets.length} Registered Assets`}
           icon={<Layers className="w-4 h-4" />} variant="indigo" isHero={true} />
         <StatCard title="Accumulated Depreciation" value={formatCurrency(totalAccDepr, currency)} subValue="Per asset register"
@@ -266,6 +266,7 @@ export const AssetModulePage: React.FC = () => {
           collection={'fixedAssets'}
           columns={assetColumns}
           keyExtractor={a => a.id}
+          onRowClick={a => setViewingAsset(a)}
           title="Fixed Assets Master Registry"
           searchPlaceholder="Search fixed assets by asset code, name, category, serial number..."
           searchFields={['assetCode', 'name', 'category', 'serialNumber', 'assignedVehiclePlate']}
@@ -411,13 +412,13 @@ export const AssetModulePage: React.FC = () => {
             <Input label="Department" value={editForm.department ?? ''} onChange={e => setEditForm({ ...editForm, department: e.target.value })} />
             <Input label="Serial Number" value={editForm.serialNumber ?? ''} onChange={e => setEditForm({ ...editForm, serialNumber: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <Input label="Purchase Date" type="date" value={editForm.purchaseDate ?? ''} onChange={e => setEditForm({ ...editForm, purchaseDate: e.target.value })} required />
             <Input label={`Cost (${currency})`} type="number" step="0.001" min="0" value={editForm.purchaseCost ?? 0} onChange={e => setEditForm({ ...editForm, purchaseCost: Number(e.target.value) })} required />
             <Input label={`Salvage (${currency})`} type="number" step="0.001" min="0" value={editForm.salvageValue ?? 0} onChange={e => setEditForm({ ...editForm, salvageValue: Number(e.target.value) })} />
             <Input label="Useful Life (Years)" type="number" step="0.01" min="0.01" value={editForm.usefulLifeYears ?? 0} onChange={e => setEditForm({ ...editForm, usefulLifeYears: Number(e.target.value) })} required />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <Select label="Method" value={editForm.depreciationMethod} onChange={e => setEditForm({ ...editForm, depreciationMethod: e.target.value as AssetDepreciationMethod })}>
               <option value="Straight-Line">Straight-Line</option>
               <option value="Reducing Balance">Reducing Balance</option>
@@ -439,7 +440,7 @@ export const AssetModulePage: React.FC = () => {
           <Textarea label="Notes" value={editForm.notes ?? ''} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} />
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={() => setEditing(null)} disabled={pending}>Cancel</Button>
-            <Button variant="primary" type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save Changes'}</Button>
+            <Button variant="primary" type="submit" isLoading={pending}>Save Changes</Button>
           </div>
         </form>
       </Modal>
@@ -463,7 +464,7 @@ export const AssetModulePage: React.FC = () => {
           <p>{deleting?.name} will be removed from the fixed asset register.</p>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setDeleting(null)} disabled={pending}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete} disabled={pending}>{pending ? 'Deleting…' : 'Delete Asset'}</Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={pending}>Delete Asset</Button>
           </div>
         </div>
       </Modal>

@@ -165,7 +165,7 @@ export const SettingsPage: React.FC = () => {
               {clientErrors.length > 0 && (
                 <p className="text-[11px] text-rose-600 mt-1">
                   Some records could not be loaded ({clientErrors.join(', ')}), so the export is unavailable.{' '}
-                  <button className="underline font-bold cursor-pointer" onClick={() => void fleet.reload(clientErrors as unknown as CollectionKey[])}>Retry</button>
+                  <button type="button" className="underline font-bold cursor-pointer min-h-[40px] sm:min-h-0" onClick={() => void fleet.reload(clientErrors as unknown as CollectionKey[])}>Retry</button>
                 </p>
               )}
             </div>

@@ -17,7 +17,6 @@ export const DocumentsPage: React.FC = () => {
   const { documents, deleteDocument, selectedCompanyId } = useFleet();
   const { openQuickModal, addToast, openVehicleDetail, openBillModal } = useUI();
   const { hasPermission } = useAuth();
-  const canDelete = hasPermission('delete', 'documents');
   const canUpload = hasPermission('create', 'documents');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [pending, setPending] = useState<Record<string, 'download' | 'delete'>>({});
@@ -72,8 +71,8 @@ export const DocumentsPage: React.FC = () => {
           <div className="p-2 rounded-lg bg-indigo-950/70 text-indigo-400 border border-indigo-800/60 shrink-0">
             <FileText className="w-5 h-5" />
           </div>
-          <div>
-            <p className="font-bold text-slate-100">{d.documentName}</p>
+          <div className="min-w-0">
+            <p className="font-bold text-slate-100 break-words">{d.documentName}</p>
             {d.documentNumber && <p className="text-[10px] text-slate-400 font-mono">Doc #{d.documentNumber}</p>}
           </div>
         </div>
@@ -97,8 +96,9 @@ export const DocumentsPage: React.FC = () => {
           <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-slate-200 text-xs font-semibold">{d.employeeName}</span>
         ) : d.vehiclePlate ? (
           <button
+            type="button"
             onClick={() => d.vehicleId && openVehicleDetail(d.vehicleId, 'documents')}
-            className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-xs font-bold hover:underline cursor-pointer"
+            className="min-h-[40px] sm:min-h-0 inline-flex items-center px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-forest-700 font-mono text-xs font-bold hover:underline cursor-pointer"
           >
             {d.vehiclePlate}
           </button>
@@ -147,6 +147,7 @@ export const DocumentsPage: React.FC = () => {
             variant="ghost"
             size="xs"
             disabled={!d.documentUrl}
+            title={d.documentUrl ? undefined : 'No file is attached to this record.'}
             onClick={() => openBillModal(d.documentUrl!, d.documentName, d.fileType, d.fileSize)}
             leftIcon={<Eye className="w-3.5 h-3.5" />}
           >
@@ -156,12 +157,15 @@ export const DocumentsPage: React.FC = () => {
             variant="ghost"
             size="xs"
             disabled={!d.documentUrl || !!pending[d.id]}
+            isLoading={pending[d.id] === 'download'}
+            title={d.documentUrl ? undefined : 'No file is attached to this record.'}
             onClick={() => handleDownload(d)}
           >
-            {pending[d.id] === 'download' ? 'Preparing...' : 'Download'}
+            Download
           </Button>
-          {canDelete && (
+          {hasPermission('delete', 'documents', d.companyId) && (
             <button
+              type="button"
               onClick={() => handleDelete(d)}
               disabled={!!pending[d.id]}
               className="text-slate-500 hover:text-rose-400 p-1 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center cursor-pointer disabled:opacity-50"
@@ -219,7 +223,8 @@ export const DocumentsPage: React.FC = () => {
             <option value="Warranty">Warranty Agreements</option>
             <option value="Inspection Report">Inspection Certificates</option>
             <option value="Accident Report">Accident Reports</option>
-            <option value="Purchase Invoice">Purchase Agreements</option>
+            <option value="Purchase Invoice">Purchase Invoices</option>
+            {['Vehicle Invoice', 'Maintenance Invoice', 'Service Report', 'Oil Invoice', 'Tyre Invoice', 'Police Report', 'Insurance Claim', 'Loan Agreement', 'Vehicle Photos'].map(c => <option key={c} value={c}>{c}</option>)}
             <option value="hr">HR documents (any employee)</option>
             {HR_DOCUMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             <option value="Other">Other</option>

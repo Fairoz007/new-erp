@@ -66,7 +66,7 @@ export const SetPasswordPage: React.FC = () => {
       <button
         type="button"
         onClick={() => void signOut()}
-        className="text-xs font-semibold text-slate-400 hover:text-slate-100 cursor-pointer"
+        className="text-xs font-semibold text-slate-400 hover:text-slate-100 cursor-pointer min-h-[44px] sm:min-h-0"
       >
         Cancel and sign out
       </button>

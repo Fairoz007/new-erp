@@ -89,7 +89,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ source, title, type, s
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-850 rounded-card border border-slate-700 text-xs">
         <div className="flex items-center gap-2 text-slate-300 min-w-0">
-          <span className="font-semibold truncate max-w-[16rem]">{title}</span>
+          <span className="font-semibold truncate max-w-[16rem]" title={title}>{title}</span>
           {size && <span className="px-2 py-0.5 rounded bg-white border border-slate-700 text-slate-400 text-2xs">{size}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">

@@ -313,9 +313,9 @@ export const UploadDocumentForm: React.FC<{ defaultVehicleId?: string; defaultEm
 
       {formError && <p role="alert" className="text-xs text-rose-400 font-medium">{formError}</p>}
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+      <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
         <Button variant="secondary" type="button" onClick={onDone} disabled={submitting}>Cancel</Button>
-        <Button variant="primary" type="submit" disabled={submitting} leftIcon={<Upload className="w-4 h-4" />}>
+        <Button variant="primary" type="submit" isLoading={submitting} disabled={submitting} leftIcon={<Upload className="w-4 h-4" />}>
           {submitting ? 'Uploading...' : 'Save to Repository'}
         </Button>
       </div>

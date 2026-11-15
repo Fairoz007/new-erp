@@ -21,7 +21,7 @@ export const NoticeBar: React.FC<{ notice: Notice; onClose?: () => void }> = ({ 
     <div role={notice.tone === 'error' ? 'alert' : 'status'} className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-xs ${styles}`}>
       {notice.tone === 'error' ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />}
       <span className="flex-1 break-words">{notice.text}</span>
-      {onClose && <button type="button" className="font-bold opacity-60 hover:opacity-100" onClick={onClose} aria-label="Dismiss">×</button>}
+      {onClose && <button type="button" className="font-bold opacity-60 hover:opacity-100 min-w-[40px] min-h-[40px] -m-2.5 sm:min-w-0 sm:min-h-0 sm:m-0" onClick={onClose} aria-label="Dismiss">×</button>}
     </div>
   );
 };

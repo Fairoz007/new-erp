@@ -75,6 +75,9 @@ export const VehicleProfitabilityPage: React.FC = () => {
     };
   });
 
+  // KPI figures wait for the totals; partial data would show invented zeros
+  const kpiLoading = collectionsLoading || totals.loading || !!loadError;
+
   const columns: Column<VehicleProfitabilityRow>[] = [
     {
       key: 'vehicleName',
@@ -160,7 +163,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
         description={<>Identify high-cost underperforming units, cost-per-kilometer metrics, and rule-based replacement vs maintenance flags (maintenance cost per KM above 0.015 / 0.025 {currency}, or operating cost above 70% of purchase value).</>}
         actions={
           <>
-            <div className="shrink-0">{vt.ui}</div>
+            <div className="max-w-full">{vt.ui}</div>
           </>
         }
       />
@@ -169,7 +172,7 @@ export const VehicleProfitabilityPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           title="Fleet Total Net ROI"
-          value={formatCurrency(profitabilityRows.reduce((s, r) => s + r.netProfit, 0), currency)}
+          value={kpiLoading ? '…' : formatCurrency(profitabilityRows.reduce((s, r) => s + r.netProfit, 0), currency)}
           subValue="Revenue minus all operating costs"
           icon={<TrendingUp className="w-4 h-4" />}
           variant="emerald"
@@ -177,14 +180,14 @@ export const VehicleProfitabilityPage: React.FC = () => {
         />
         <StatCard
           title="Average Cost per KM"
-          value={`${(profitabilityRows.reduce((s, r) => s + r.costPerKm, 0) / (profitabilityRows.length || 1)).toFixed(3)} ${currency}`}
+          value={kpiLoading ? '…' : `${(profitabilityRows.reduce((s, r) => s + r.costPerKm, 0) / (profitabilityRows.length || 1)).toFixed(3)} ${currency}`}
           subValue="Across listed vehicles"
           icon={<Car className="w-4 h-4" />}
           variant="indigo"
         />
         <StatCard
           title="Replacement Candidates"
-          value={profitabilityRows.filter(r => r.recommendation === 'Flagged for Replacement').length}
+          value={kpiLoading ? '…' : profitabilityRows.filter(r => r.recommendation === 'Flagged for Replacement').length}
           subValue="High maintenance intensity"
           icon={<AlertTriangle className="w-4 h-4" />}
           variant="rose"

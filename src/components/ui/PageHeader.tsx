@@ -17,7 +17,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, acti
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div className="min-w-0 space-y-1">
       {back && (
-        <button type="button" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 cursor-pointer" onClick={back.onClick}>
+        <button type="button" className="inline-flex items-center gap-1 min-h-[44px] sm:min-h-0 text-xs text-slate-400 hover:text-slate-200 cursor-pointer" onClick={back.onClick}>
           <ArrowLeft className="w-3.5 h-3.5" /> {back.label}
         </button>
       )}
@@ -25,6 +25,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, acti
       {meta && <div className="flex flex-wrap items-center gap-2 text-xs">{meta}</div>}
       {description && <p className="text-xs sm:text-sm text-slate-400 font-medium">{description}</p>}
     </div>
-    {actions && <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0 print:hidden">{actions}</div>}
+    {actions && <div className="flex flex-wrap items-center gap-2 sm:justify-end min-w-0 print:hidden">{actions}</div>}
   </div>
 );

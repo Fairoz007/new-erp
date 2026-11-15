@@ -66,12 +66,13 @@ export const KPIGroup: React.FC<KPIGroupProps> = ({
           >
             {/* Top row: Label + action arrow */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs sm:text-sm font-semibold text-slate-400 group-hover:text-slate-100 transition-colors truncate">
+              <span title={metric.title} className="text-xs sm:text-sm font-semibold text-slate-400 group-hover:text-slate-100 transition-colors truncate">
                 {metric.title}
               </span>
-              <div className="w-6 h-6 rounded-full border border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-forest-500 group-hover:border-forest-500/40 transition-colors shrink-0">
+              {/* the arrow means "opens something": shown only when the tile is clickable */}
+              {(metric.icon || metric.onClick) && <div className="w-6 h-6 rounded-full border border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-forest-500 group-hover:border-forest-500/40 transition-colors shrink-0">
                 {metric.icon || <ArrowUpRight className="w-3.5 h-3.5" />}
-              </div>
+              </div>}
             </div>
 
             {/* Middle: Big Metric Value */}

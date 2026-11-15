@@ -137,7 +137,7 @@ export const OfficesHomePage: React.FC = () => {
       {loadError && (
         <p role="alert" className="text-xs text-danger-700">
           Some figures could not be loaded: {loadError.message}{' '}
-          <button type="button" className="font-semibold underline" onClick={() => { void summary.refetch(); void expenses.refetch(); }}>Retry</button>
+          <button type="button" className="font-semibold underline min-h-[40px] sm:min-h-0" onClick={() => { void summary.refetch(); void expenses.refetch(); }}>Retry</button>
         </p>
       )}
 
@@ -194,7 +194,7 @@ export const OfficesHomePage: React.FC = () => {
                   <p className="flex items-start gap-2"><MapPin className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" aria-hidden="true" /><span>{lines.join(', ')}</span></p>
                 )}
                 {c.phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" /><span>{c.phone}</span></p>}
-                {c.email && <p className="flex items-center gap-2 min-w-0"><Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" /><span className="truncate">{c.email}</span></p>}
+                {c.email && <p className="flex items-center gap-2 min-w-0"><Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" /><span className="truncate" title={c.email}>{c.email}</span></p>}
                 {!lines.length && !c.phone && !c.email && (
                   <p className="flex items-center gap-2 text-slate-400"><CircleAlert className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />No address or contact details recorded.</p>
                 )}

@@ -71,6 +71,7 @@ export const VehicleDetailPage: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const vehicle = vehicles.find(v => v.id === selectedVehicleId) || (selectedVehicleId ? undefined : vehicles[0]);
   const photoUrl = useVehiclePhotoUrls([vehicle?.photoUrl]);
@@ -182,22 +183,22 @@ export const VehicleDetailPage: React.FC = () => {
           <span className="text-slate-400 font-mono">Dossier #{vehicle.vehicleId}</span>
         </>}
         actions={<>
-          {hasPermission('create', 'maintenance') && (
+          {hasPermission('create', 'maintenance', vehicle.companyId) && (
 <Button variant="secondary" size="xs" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Wrench className="w-3.5 h-3.5" />}>
             + Service
           </Button>
 )}
-          {hasPermission('create', 'oil') && (
+          {hasPermission('create', 'oil', vehicle.companyId) && (
 <Button variant="secondary" size="xs" onClick={() => openQuickModal('add-oil-change')} leftIcon={<Droplet className="w-3.5 h-3.5" />}>
             + Oil
           </Button>
 )}
-          {hasPermission('create', 'expenses') && (
+          {hasPermission('create', 'expenses', vehicle.companyId) && (
 <Button variant="secondary" size="xs" onClick={() => openQuickModal('add-expense')} leftIcon={<Receipt className="w-3.5 h-3.5" />}>
             + Expense
           </Button>
 )}
-          {hasPermission('create', 'documents') && (
+          {hasPermission('create', 'documents', vehicle.companyId) && (
 <Button variant="secondary" size="xs" onClick={() => openQuickModal('upload-document')} leftIcon={<Upload className="w-3.5 h-3.5" />}>
             Upload Doc
           </Button>
@@ -228,7 +229,7 @@ export const VehicleDetailPage: React.FC = () => {
               <VehiclePhoto src={photoUrl(vehicle.photoUrl)} alt={vehicle.model} />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-slate-400 font-medium">
                 {vehicle.variant} • {vehicle.manufacturingYear} • {vehicle.companyName}
               </p>
@@ -471,11 +472,11 @@ export const VehicleDetailPage: React.FC = () => {
         <div className="space-y-6">
           {/* Active / Scheduled Work Orders for this vehicle */}
           <div className="space-y-3">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap justify-between items-center gap-2">
               <h3 className="text-sm font-bold text-slate-200">
                 Active & Scheduled Work Orders ({vehicleWorkOrders.length})
               </h3>
-              {hasPermission('create', 'work-orders') && (
+              {hasPermission('create', 'work-orders', vehicle.companyId) && (
                 <Button variant="outline" size="sm" onClick={() => openQuickModal('add-work-order')} leftIcon={<Plus className="w-4 h-4" />}>
                   Create Work Order
                 </Button>
@@ -498,7 +499,7 @@ export const VehicleDetailPage: React.FC = () => {
                         </div>
                       }
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Wrench className="w-4 h-4 text-amber-500" />
                         <span className="font-bold text-sm text-slate-100">{wo.workOrderNumber}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -517,7 +518,7 @@ export const VehicleDetailPage: React.FC = () => {
                       <p className="text-slate-200 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800">
                         {wo.problemDescription}
                       </p>
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-slate-400 pt-1">
                         <span>Approval: <strong className={wo.approvalStatus === 'Approved' ? 'text-emerald-400' : 'text-amber-400'}>{wo.approvalStatus}</strong></span>
                         {wo.expectedCompletion && <span>Target completion: <strong>{formatDate(wo.expectedCompletion)}</strong></span>}
                       </div>
@@ -532,9 +533,9 @@ export const VehicleDetailPage: React.FC = () => {
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center">
+          <div className="pt-2 border-t border-slate-800/80 flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-sm font-bold text-slate-200">Historical Maintenance Records ({vehicleMaintenance.length})</h3>
-            {hasPermission('create', 'maintenance') && (
+            {hasPermission('create', 'maintenance', vehicle.companyId) && (
               <Button variant="primary" size="sm" onClick={() => openQuickModal('add-maintenance')} leftIcon={<Plus className="w-4 h-4" />}>
                 Record Maintenance
               </Button>
@@ -655,7 +656,7 @@ export const VehicleDetailPage: React.FC = () => {
                 <CardTitle>Oil Management Action</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col justify-end">
-                {hasPermission('create', 'oil') && (
+                {hasPermission('create', 'oil', vehicle.companyId) && (
 <Button variant="primary" size="md" onClick={() => openQuickModal('add-oil-change')} leftIcon={<Droplet className="w-4 h-4" />}>
                   Record Oil Service
                 </Button>
@@ -703,15 +704,15 @@ export const VehicleDetailPage: React.FC = () => {
       {/* TAB 4: TYRES */}
       {selectedVehicleTab === 'tyres' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-sm font-bold text-slate-200">Tyre Lifecycle & Position Health</h3>
-            <div className="flex items-center gap-2">
-              {hasPermission('create', 'tyres') && (
+            <div className="flex flex-wrap items-center gap-2">
+              {hasPermission('create', 'tyres', vehicle.companyId) && (
 <Button variant="outline" size="sm" onClick={() => openQuickModal('add-tyre')} leftIcon={<Plus className="w-4 h-4" />}>
                 Add Tyre
               </Button>
 )}
-              {hasPermission('create', 'work-orders') && (
+              {hasPermission('create', 'work-orders', vehicle.companyId) && (
 <Button variant="primary" size="sm" onClick={() => openQuickModal('add-work-order')} leftIcon={<Disc className="w-4 h-4" />}>
                 Replace / Service Tyres
               </Button>
@@ -720,10 +721,10 @@ export const VehicleDetailPage: React.FC = () => {
           </div>
 
           {/* Interactive Visual Tyre Placement Diagram */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col items-center">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col items-center">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6">Wheel Position Tread Health Diagram</h4>
 
-            <div className="grid grid-cols-2 gap-x-20 gap-y-10 max-w-md w-full relative py-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-20 sm:gap-y-10 max-w-md w-full relative py-4">
               {/* Front Axle */}
               {['Front Left', 'Front Right', 'Rear Left', 'Rear Right'].map(pos => {
                 const tyre = vehicleTyres.find(t => t.position === pos);
@@ -749,7 +750,7 @@ export const VehicleDetailPage: React.FC = () => {
             </div>
 
             {/* Spare Tyre */}
-            <div className="mt-6 pt-4 border-t border-slate-800 flex items-center gap-4 text-xs">
+            <div className="mt-6 pt-4 border-t border-slate-800 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               <span className="text-slate-400">Spare Tyre in Trunk:</span>
               <strong className="text-slate-200">
                 {(() => {
@@ -798,9 +799,9 @@ export const VehicleDetailPage: React.FC = () => {
       {/* TAB 5: ACCIDENTS */}
       {selectedVehicleTab === 'accidents' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-sm font-bold text-slate-200">Accident Claims & Downtime History</h3>
-            {hasPermission('create', 'accidents') && (
+            {hasPermission('create', 'accidents', vehicle.companyId) && (
 <Button variant="danger" size="sm" onClick={() => openQuickModal('add-accident')} leftIcon={<AlertTriangle className="w-4 h-4" />}>
               Report Accident
             </Button>
@@ -821,7 +822,7 @@ export const VehicleDetailPage: React.FC = () => {
                       </div>
                     }
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-rose-400" />
                       <span className="font-bold text-sm text-slate-100">{a.accidentType}</span>
                       <span className="text-xs text-slate-400 font-mono">({a.accidentNumber})</span>
@@ -871,9 +872,9 @@ export const VehicleDetailPage: React.FC = () => {
       {/* TAB 6: EXPENSES */}
       {selectedVehicleTab === 'expenses' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-sm font-bold text-slate-200">Vehicle Operational Expenses ({expenseCount.data ?? 0})</h3>
-            {hasPermission('create', 'expenses') && (
+            {hasPermission('create', 'expenses', vehicle.companyId) && (
 <Button variant="primary" size="sm" onClick={() => openQuickModal('add-expense')} leftIcon={<Plus className="w-4 h-4" />}>
               Add Expense
             </Button>
@@ -895,9 +896,9 @@ export const VehicleDetailPage: React.FC = () => {
       {/* TAB 7: INVOICES */}
       {selectedVehicleTab === 'invoices' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-sm font-bold text-slate-200">Linked Invoices (AP & AR)</h3>
-            {hasPermission('create', 'invoices') && (
+            {hasPermission('create', 'invoices', vehicle.companyId) && (
 <Button variant="primary" size="sm" onClick={() => openQuickModal('add-invoice')} leftIcon={<Plus className="w-4 h-4" />}>
               Create Invoice
             </Button>
@@ -1002,9 +1003,9 @@ export const VehicleDetailPage: React.FC = () => {
       {/* TAB 9: DOCUMENTS */}
       {selectedVehicleTab === 'documents' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-sm font-bold text-slate-200">Vehicle Document Repository ({vehicleDocuments.length})</h3>
-            {hasPermission('create', 'documents') && (
+            {hasPermission('create', 'documents', vehicle.companyId) && (
 <Button variant="primary" size="sm" onClick={() => openQuickModal('upload-document')} leftIcon={<Upload className="w-4 h-4" />}>
               Upload Document
             </Button>
@@ -1037,15 +1038,21 @@ export const VehicleDetailPage: React.FC = () => {
                         addToast({ type: 'warning', title: 'No File Attached', message: `${doc.documentName} has no downloadable file on record.` });
                         return;
                       }
+                      setDownloadingId(doc.id);
                       try {
                         await downloadDocument(doc);
                       } catch (e) {
                         addToast({ type: 'error', title: 'Download failed', message: (e as Error).message });
+                      } finally {
+                        setDownloadingId(null);
                       }
                     }}
-                    className="text-indigo-400 hover:underline font-semibold cursor-pointer"
+                    type="button"
+                    disabled={downloadingId === doc.id}
+                    aria-busy={downloadingId === doc.id}
+                    className="text-indigo-400 hover:underline font-semibold cursor-pointer min-h-[44px] sm:min-h-0 px-1 disabled:opacity-50 disabled:cursor-wait"
                   >
-                    Download
+                    {downloadingId === doc.id ? 'Downloading…' : 'Download'}
                   </button>
                 </div>
               </Card>

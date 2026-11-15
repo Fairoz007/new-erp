@@ -18,7 +18,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
     {error
-      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button type="button" className="underline font-bold cursor-pointer min-h-[44px] sm:min-h-0" onClick={onRetry}>Retry</button></span>
       : <span className="text-slate-400">{loading ? 'Loading…' : ''}</span>}
   </Card>
 );
@@ -80,7 +80,7 @@ export const TrialBalancePage: React.FC = () => {
         description="Opening = account opening balances; movements = posted journal lines dated on or before the as-of date; closing = opening + movements."
         actions={
           <>
-            <Button variant="secondary" size="md" onClick={exportCSV} leftIcon={<Download className="w-4 h-4" />}>
+            <Button variant="secondary" size="md" onClick={exportCSV} disabled={!ready} leftIcon={<Download className="w-4 h-4" />}>
               Export CSV
             </Button>
             <PdfActions disabled={!ready} printLabel="Print Statement" run={pdf} />
@@ -104,8 +104,8 @@ export const TrialBalancePage: React.FC = () => {
         />
         <StatCard
           title="Equilibrium Status"
-          value={tbData.isBalanced ? 'Balanced' : 'Discrepancy'}
-          subValue={tbData.isBalanced ? '∑(Debits) === ∑(Credits)' : `Variance: ${tbData.difference.toFixed(3)} ${currency}`}
+          value={!hasLedger ? 'No activity' : tbData.isBalanced ? 'Balanced' : 'Discrepancy'}
+          subValue={!hasLedger ? 'Nothing posted yet' : tbData.isBalanced ? '∑(Debits) === ∑(Credits)' : `Variance: ${tbData.difference.toFixed(3)} ${currency}`}
         />
         <StatCard
           title="Accounts Listed"
@@ -183,7 +183,7 @@ export const TrialBalancePage: React.FC = () => {
               </FilterSelect>
             </div>
 
-            <label className="flex items-center gap-2 text-xs text-slate-300 font-semibold cursor-pointer">
+            <label className="flex items-center gap-2 min-h-[44px] sm:min-h-0 text-xs text-slate-300 font-semibold cursor-pointer">
               <input type="checkbox" checked={hideZero} onChange={e => setHideZero(e.target.checked)} className="accent-brand-500" />
               Hide zero-balance accounts
             </label>

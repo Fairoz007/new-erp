@@ -215,8 +215,9 @@ export const AttentionRequiredCard: React.FC<AttentionRequiredProps> = ({ items,
         action={
           onViewAll && (
             <button
+              type="button"
               onClick={onViewAll}
-              className="text-xs font-bold text-brand-500 hover:underline cursor-pointer"
+              className="text-xs font-bold text-brand-500 hover:underline cursor-pointer min-h-[44px] sm:min-h-0"
             >
               View All ({items.length})
             </button>

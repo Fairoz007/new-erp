@@ -120,6 +120,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
   const canQuickAdd = (page: AppPage, module: string) =>
     canAccessPage(page) && hasPermission('create', module);
 
+  const anyQuickAdd = QUICK_ADD_GROUPS.some(g => g.items.some(item => canQuickAdd(item.page, item.module)));
+
   const handleQuickAddSelect = (type: QuickModalType) => {
     setIsQuickAddOpen(false);
     openQuickModal(type);
@@ -200,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           </button>
 
           {isCompanyDropdownOpen && (
-            <div role="menu" aria-label="Offices" className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
+            <div role="menu" aria-label="Offices" className="fixed left-4 right-4 top-[76px] max-h-[calc(100dvh-6rem)] overflow-y-auto sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:max-h-[70vh] mt-0 sm:mt-2 sm:w-80 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
               {canSeeAll && (
                 <button
                   role="menuitemradio"
@@ -239,14 +241,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                   {selectedCompanyId === comp.id && <Check className="w-4 h-4 text-brand-500 shrink-0" aria-hidden="true" />}
                 </button>
               ))}
-              <div className="my-1 border-t border-slate-700" />
-              <button
+              {canAccessPage('offices') && <div className="my-1 border-t border-slate-700" />}
+              {canAccessPage('offices') && <button
                 role="menuitem"
                 onClick={() => { setIsCompanyDropdownOpen(false); setCurrentPage('offices'); }}
                 className="w-full min-h-[44px] flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-brand-600 font-semibold hover:bg-slate-850 cursor-pointer"
               >
                 <LayoutGrid className="w-4 h-4" aria-hidden="true" /> Offices overview
-              </button>
+              </button>}
             </div>
           )}
         </div>
@@ -260,8 +262,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           <span>{currency}</span>
         </div>
 
-        {/* Primary Green Quick Action Button */}
-        <div className="relative">
+        {/* Primary Green Quick Action Button (hidden when the role cannot create any of its entries) */}
+        {anyQuickAdd && <div className="relative">
           <Button
             variant="primary"
             size="sm"
@@ -279,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           </Button>
 
           {isQuickAddOpen && (
-            <div className="absolute right-0 mt-2 w-60 max-w-[calc(100vw-2rem)] bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs space-y-0.5">
+            <div className="fixed left-4 right-4 top-[76px] max-h-[calc(100dvh-6rem)] overflow-y-auto sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:max-h-[70vh] mt-0 sm:mt-2 sm:w-60 bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs space-y-0.5">
               {QUICK_ADD_GROUPS.map((group, gi) => {
                 const items = group.items.filter(item => canQuickAdd(item.page, item.module));
                 if (items.length === 0) return null;
@@ -303,12 +305,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
                   </React.Fragment>
                 );
               })}
-              {QUICK_ADD_GROUPS.every(g => g.items.every(item => !canQuickAdd(item.page, item.module))) && (
-                <p className="px-3 py-2 text-[11px] text-slate-400">Your role cannot create records.</p>
-              )}
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Notifications */}
         <button
@@ -345,7 +344,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, onToggleSideba
           </button>
 
           {isUserDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
+            <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto bg-white border border-slate-700 rounded-2xl shadow-elevated z-40 p-2 text-xs">
               <div className="px-3 py-2 border-b border-slate-700 mb-1 flex items-center gap-2.5">
                 <UserAvatar name={currentUser.name} src={currentUser.avatar} />
                 <div className="min-w-0">

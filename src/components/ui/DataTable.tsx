@@ -355,11 +355,11 @@ export function DataTable<T extends Record<string, any>>({
       {/* Top Header & Action Controls */}
       {(title || actionButton || description) && (
         <div className="px-5 sm:px-6 py-4.5 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
-          <div>
-            {title && <h3 className="text-base sm:text-lg font-bold text-slate-100 tracking-tight">{title}</h3>}
+          <div className="min-w-0">
+            {title && <h3 className="text-base sm:text-lg font-bold text-slate-100 tracking-tight break-words">{title}</h3>}
             {description && <p className="text-xs text-slate-400 mt-0.5">{description}</p>}
           </div>
-          {actionButton && <div className="flex items-center gap-2 shrink-0">{actionButton}</div>}
+          {actionButton && <div className="flex flex-wrap items-center gap-2">{actionButton}</div>}
         </div>
       )}
 
@@ -397,7 +397,9 @@ export function DataTable<T extends Record<string, any>>({
             </Button>
 
             {isColumnDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-700 rounded-2xl shadow-elevated z-30 p-2 text-xs">
+              <>
+              <div className="fixed inset-0 z-20" aria-hidden="true" onClick={() => setIsColumnDropdownOpen(false)} />
+              <div onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setIsColumnDropdownOpen(false); } }} className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white border border-slate-700 rounded-2xl shadow-elevated z-30 p-2 text-xs">
                 <p className="px-2.5 py-1.5 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Toggle Columns</p>
                 <div className="max-h-48 overflow-y-auto space-y-0.5 mt-1">
                   {columns.map(col => (
@@ -415,6 +417,7 @@ export function DataTable<T extends Record<string, any>>({
                   ))}
                 </div>
               </div>
+              </>
             )}
           </div>
 
@@ -435,11 +438,11 @@ export function DataTable<T extends Record<string, any>>({
               {exportMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setExportMenuOpen(false)} />
-                  <div role="menu" onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setExportMenuOpen(false); } }} className="absolute right-0 mt-1.5 w-52 z-20 bg-white border border-slate-700 rounded-xl shadow-lg py-1 text-xs font-semibold text-slate-200">
+                  <div role="menu" onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setExportMenuOpen(false); } }} className="absolute right-0 mt-1.5 w-52 max-w-[calc(100vw-2rem)] z-20 bg-white border border-slate-700 rounded-xl shadow-lg py-1 text-xs font-semibold text-slate-200">
                     <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
                       <FileText className="w-3.5 h-3.5" /> View as document
                     </button>
-                    <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void openPreview(); }}>
+                    <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void runPdf(true); }}>
                       <Printer className="w-3.5 h-3.5" /> Print
                     </button>
                     <button role="menuitem" className="w-full min-h-[44px] sm:min-h-0 text-left px-3.5 py-2 hover:bg-slate-850 flex items-center gap-2 cursor-pointer" onClick={() => { void handleExportPdf(); }}>
@@ -594,7 +597,7 @@ export function DataTable<T extends Record<string, any>>({
             <AlertTriangle className="w-8 h-8 text-rose-500 stroke-[1.5] mx-auto" aria-hidden="true" />
             <p className="font-semibold text-rose-600 text-sm">Could not load records</p>
             <p className="text-xs text-slate-400">{error}</p>
-            {retry && <button onClick={retry} className="text-xs text-forest-500 hover:underline font-semibold">Try again</button>}
+            {retry && <button type="button" onClick={retry} className="text-xs text-forest-500 hover:underline font-semibold min-h-[44px]">Try again</button>}
           </div>
         ) : loading && paginatedData.length === 0 ? (
           <div className="p-4 space-y-3" aria-hidden="true">

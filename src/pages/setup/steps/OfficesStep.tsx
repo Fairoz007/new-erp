@@ -101,7 +101,7 @@ export const OfficesStep: React.FC<{ readOnly?: boolean; onChanged?: (count: num
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-brand-100 text-brand-500 flex items-center justify-center shrink-0"><Building2 className="w-4 h-4" /></div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-100 truncate">{o.name} <span className="font-mono text-xs text-slate-400">{o.code}</span></p>
+                    <p className="text-sm font-semibold text-slate-100 truncate" title={`${o.name} ${o.code}`}>{o.name} <span className="font-mono text-xs text-slate-400">{o.code}</span></p>
                     <p className="text-xs text-slate-400 truncate">
                       {[o.city, o.country].filter(Boolean).join(', ') || 'No address'} · {o.currency}
                       {managerName(o.managerUserId) ? ` · Manager: ${managerName(o.managerUserId)}` : ''}
@@ -155,7 +155,7 @@ export const OfficesStep: React.FC<{ readOnly?: boolean; onChanged?: (count: num
               onClick={() => upd({ contacts: [...editing.form.contacts, { name: '', role: '', phone: '', email: '' }] })}>Add contact</Button>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
             <Button onClick={save} isLoading={saving} leftIcon={<Save className="w-4 h-4" />}>{editing.id ? 'Save office' : 'Create office'}</Button>
           </div>
         </Section>

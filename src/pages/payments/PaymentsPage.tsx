@@ -217,6 +217,7 @@ export const PaymentsPage: React.FC = () => {
         title="Transaction Records"
         searchPlaceholder="Search payments by reference, invoice #, party, cheque #..."
         exportFilename="Payments_Register"
+        exportModule="payments"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <FilterSelect aria-label="Payment method" value={methodFilter} onChange={e => setMethodFilter(e.target.value)}>

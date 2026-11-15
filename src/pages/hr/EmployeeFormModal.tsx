@@ -191,28 +191,33 @@ export const RecurringComponents: React.FC<{ employee: Employee }> = ({ employee
   const [rows, setRows] = useState<EmployeePayComponent[]>([]);
   const [draft, setDraft] = useState({ componentId: '', amount: 0, startDate: localToday(), endDate: '' });
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const load = () => { if (canView) fetchEmployeePayComponents(employee.id).then(setRows).catch(e => setErr((e as Error).message)); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [employee.id, canView]);
   if (!canView) return null;
   const name = (id: string) => components.find(c => c.id === id);
   const add = async () => {
-    setErr(null);
+    setErr(null); setBusy('add');
     try {
       await saveEmployeePayComponent({ employeeId: employee.id, componentId: draft.componentId, amount: draft.amount, startDate: draft.startDate, endDate: draft.endDate, notes: '' }, employee.companyId);
       setDraft({ componentId: '', amount: 0, startDate: localToday(), endDate: '' }); load();
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
+  };
+  const remove = (id: string) => {
+    setErr(null); setBusy(id);
+    deleteEmployeePayComponent(id).then(load).catch(e => setErr((e as Error).message)).finally(() => setBusy(null));
   };
   return (
     <section className="space-y-2">
       <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Recurring allowances and deductions</h4>
       {rows.length === 0 && <p className="text-xs text-slate-400">None. Add fuel, phone or shift allowances, or recoveries such as accommodation.</p>}
       {rows.map(r => (
-        <div key={r.id} className="flex items-center justify-between text-xs border-b border-slate-700/60 py-1.5">
+        <div key={r.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs border-b border-slate-700/60 py-1.5">
           <span className="text-slate-200">{name(r.componentId)?.name ?? 'Component'} <span className="text-slate-400">({name(r.componentId)?.kind})</span></span>
           <span className="text-slate-300">{formatCurrency(r.amount, currency)} / month · from {r.startDate}{r.endDate ? ` to ${r.endDate}` : ''}</span>
-          {canEdit && <Button variant="ghost" size="xs" type="button" leftIcon={<Trash2 className="w-3 h-3" />}
-            onClick={() => void deleteEmployeePayComponent(r.id).then(load).catch(e => setErr((e as Error).message))}>Remove</Button>}
+          {canEdit && <Button variant="ghost" size="xs" type="button" leftIcon={<Trash2 className="w-3 h-3" />} isLoading={busy === r.id} disabled={!!busy}
+            onClick={() => remove(r.id)}>Remove</Button>}
         </div>
       ))}
       {canEdit && (
@@ -224,7 +229,7 @@ export const RecurringComponents: React.FC<{ employee: Employee }> = ({ employee
           <Input label="Monthly amount" type="number" min={0} step="0.001" value={draft.amount || ''} onChange={e => setDraft({ ...draft, amount: Number(e.target.value) })} />
           <Input label="From" type="date" value={draft.startDate} onChange={e => setDraft({ ...draft, startDate: e.target.value })} />
           <Input label="Until (optional)" type="date" value={draft.endDate} onChange={e => setDraft({ ...draft, endDate: e.target.value })} />
-          <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => void add()}>Add</Button>
+          <Button type="button" variant="outline" size="sm" leftIcon={<Plus className="w-4 h-4" />} isLoading={busy === 'add'} disabled={!!busy || !draft.componentId} onClick={() => void add()}>Add</Button>
         </div>
       )}
       {err && <p role="alert" className="text-xs text-rose-500">{err}</p>}

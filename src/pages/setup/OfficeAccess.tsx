@@ -75,13 +75,13 @@ export const OfficeAccessPicker: React.FC<PickerProps> = ({
                     <input type="checkbox" className="w-4 h-4 accent-brand-500" checked={!!a} disabled={!can} onChange={toggle} />
                     <OfficeBadge office={o} allCodes={codes} logoUrl={logoUrl(o.logo)} size="sm" />
                     <span className="min-w-0">
-                      <span className="block font-semibold text-slate-100 truncate">{o.name}</span>
+                      <span className="block font-semibold text-slate-100 truncate" title={o.name}>{o.name}</span>
                       <span className="block text-slate-400 font-mono">{o.code}{o.city ? ` · ${o.city}` : ''}</span>
                     </span>
                   </label>
                   {a && (
                     <select aria-label={`Role in ${o.name}`} disabled={!can}
-                      className="w-full h-9 rounded-control border border-slate-700 px-2 text-xs bg-white"
+                      className="w-full h-10 sm:h-9 rounded-control border border-slate-700 px-2 text-xs bg-white"
                       value={a.role_id ?? ''}
                       onChange={e => onOffices(value.map(x => (x.company_id === o.id ? { ...x, role_id: e.target.value || null } : x)))}>
                       <option value="">Same as organization role</option>
@@ -179,11 +179,11 @@ export const AccessOverview: React.FC = () => {
         {active.map(u => (
           <li key={u.id} className="border border-slate-700 rounded-card p-3 text-xs bg-white">
             <p className="font-semibold text-slate-100">{u.name}</p>
-            <p className="text-slate-400 mb-2">{u.email}{u.status !== 'active' ? ' · inactive' : ''}</p>
+            <p className="text-slate-400 mb-2 break-all">{u.email}{u.status !== 'active' ? ' · inactive' : ''}</p>
             <dl className="space-y-1">
               {offices.map(o => (
                 <div key={o.id} className="flex items-center justify-between gap-2">
-                  <dt className="text-slate-300 truncate">{o.name}</dt>
+                  <dt className="text-slate-300 truncate min-w-0" title={o.name}>{o.name}</dt>
                   <dd>{cell(u, o.id)}</dd>
                 </div>
               ))}

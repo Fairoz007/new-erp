@@ -1,6 +1,6 @@
 // Step 5: users, invitations and office access (also the Users tab of Users & Roles).
 // An invitation stores role + offices; they are applied when the person first signs up.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Mail, Pencil, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input, Select } from '../../../components/ui/Input';
@@ -29,6 +29,10 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useNotice();
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const editRef = useRef<HTMLDivElement>(null);
+  // the access panel opens below the user list; bring it into view so the Edit click is visible
+  useEffect(() => { if (edit) editRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [edit?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadInvites = useCallback(async () => {
     setInvLoading(true);
@@ -69,8 +73,10 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
 
   const revoke = async (i: Invitation) => {
     if (!window.confirm(`Revoke the invitation for ${i.email}?`)) return;
+    setRevoking(i.id);
     try { await auth.revokeInvitation(i.id); await loadInvites(); setNotice({ tone: 'success', text: 'Invitation revoked.' }); }
     catch (e) { setNotice({ tone: 'error', text: errText(e) }); }
+    finally { setRevoking(null); }
   };
 
   const saveUser = async () => {
@@ -134,7 +140,7 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
               </>
             )}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setForm(null)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setForm(null)} disabled={busy}>Cancel</Button>
               <Button onClick={invite} isLoading={busy} leftIcon={<Mail className="w-4 h-4" />}>Send invitation</Button>
             </div>
           </div>
@@ -143,10 +149,10 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
           <ul className="divide-y divide-slate-700/60">
             {pending.map(i => (
               <li key={i.id} className="py-2 flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
-                <span className="flex-1 min-w-0 truncate"><span className="font-semibold text-slate-100">{i.name || i.email}</span> {i.name && <span className="text-slate-400">{i.email}</span>}</span>
+                <span className="flex-1 min-w-0 truncate" title={i.email}><span className="font-semibold text-slate-100">{i.name || i.email}</span> {i.name && <span className="text-slate-400">{i.email}</span>}</span>
                 <Badge variant="amber">Pending</Badge>
                 <span className="text-slate-400">{roleById(i.roleId)?.name ?? 'Unknown role'} · {i.allOffices ? 'All offices' : `${i.officeRoles.length} office(s)`}</span>
-                {canEdit && <Button size="xs" variant="ghost" onClick={() => void revoke(i)} leftIcon={<Trash2 className="w-3 h-3" />}>Revoke</Button>}
+                {canEdit && <Button size="xs" variant="ghost" isLoading={revoking === i.id} disabled={!!revoking} onClick={() => void revoke(i)} leftIcon={<Trash2 className="w-3 h-3" />}>Revoke</Button>}
               </li>
             ))}
           </ul>
@@ -165,7 +171,7 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
                 const block = editBlock(u);
                 return (
                   <tr key={u.id}>
-                    <td className={tdCls}><p className="font-semibold text-slate-100">{u.name}</p><p className="text-slate-400">{u.email}</p></td>
+                    <td className={tdCls}><p className="font-semibold text-slate-100 break-words">{u.name}</p><p className="text-slate-400 break-all">{u.email}</p></td>
                     <td className={tdCls}>{u.role}</td>
                     <td className={tdCls}>
                       {roleById(u.roleId)?.isSuper || u.allOffices ? <Badge variant="emerald">All offices</Badge> : offs.length === 0 ? <span className="text-slate-400">None</span> : (
@@ -186,6 +192,7 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
       </Section>
 
       {edit && (
+        <div ref={editRef} className="scroll-mt-4">
         <Section title={`Access: ${edit.user.name}`} action={<Button size="xs" variant="ghost" aria-label="Close" onClick={() => setEdit(null)}><X className="w-4 h-4" /></Button>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select label="Organization role" value={edit.roleId} onChange={e => setEdit({ ...edit, roleId: e.target.value })}
@@ -202,10 +209,11 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
             </>
           )}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEdit(null)} disabled={busy}>Cancel</Button>
             <Button onClick={saveUser} isLoading={busy} leftIcon={<Save className="w-4 h-4" />}>Save access</Button>
           </div>
         </Section>
+        </div>
       )}
     </div>
   );

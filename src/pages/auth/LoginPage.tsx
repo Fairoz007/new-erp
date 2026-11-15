@@ -97,7 +97,7 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
             setError(null);
             setResetSent(false);
           }}
-          className="text-xs font-semibold text-brand-500 hover:text-brand-600 inline-flex items-center gap-1 cursor-pointer"
+          className="text-xs font-semibold text-brand-500 hover:text-brand-600 inline-flex items-center gap-1 cursor-pointer min-h-[44px] sm:min-h-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to sign in
         </button>
@@ -147,7 +147,7 @@ export const LoginPage: React.FC<{ notice?: string | null }> = ({ notice }) => {
           Sign in
         </Button>
       </form>
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 text-xs">
         <button
           type="button"
           onClick={() => {

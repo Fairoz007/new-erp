@@ -16,7 +16,7 @@ import { balanceSheetRows, statementColumns, STATEMENT_SIGNATURES } from '../../
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
     {error
-      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+      ? <span className="text-rose-600">Could not load the ledger totals: {error.message} <button type="button" className="underline font-bold cursor-pointer min-h-[44px] sm:min-h-0" onClick={onRetry}>Retry</button></span>
       : <span className="text-slate-400">{loading ? 'Loading…' : ''}</span>}
   </Card>
 );
@@ -92,12 +92,12 @@ export const BalanceSheetPage: React.FC = () => {
               <div className="divide-y divide-slate-700/80">
                 {bs.assets.currentAssets.length === 0 && <Empty text="None" />}
                 {bs.assets.currentAssets.map((a, idx) => (
-                  <div key={idx} className="flex justify-between py-2.5">
-                    <span className="text-slate-300 font-medium">{a.name}</span>
-                    <span className="font-mono font-bold text-slate-100">{formatCurrency(a.amount, currency)}</span>
+                  <div key={idx} className="flex justify-between gap-3 py-2.5">
+                    <span className="text-slate-300 font-medium min-w-0 break-words">{a.name}</span>
+                    <span className="font-mono font-bold text-slate-100 shrink-0">{formatCurrency(a.amount, currency)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
+                <div className="flex justify-between gap-3 py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
                   <span>Total Current Assets</span>
                   <span>{formatCurrency(bs.assets.totalCurrentAssets, currency)}</span>
                 </div>
@@ -110,14 +110,14 @@ export const BalanceSheetPage: React.FC = () => {
               <div className="divide-y divide-slate-700/80">
                 {bs.assets.fixedAssets.length === 0 && <Empty text="None" />}
                 {bs.assets.fixedAssets.map((a, idx) => (
-                  <div key={idx} className="flex justify-between py-2.5">
-                    <span className="text-slate-300 font-medium">{a.name}</span>
+                  <div key={idx} className="flex justify-between gap-3 py-2.5">
+                    <span className="text-slate-300 font-medium min-w-0 break-words">{a.name}</span>
                     <span className={`font-mono font-bold ${a.amount < 0 ? 'text-rose-600' : 'text-slate-100'}`}>
                       {a.amount < 0 ? `(${formatCurrency(-a.amount, currency)})` : formatCurrency(a.amount, currency)}
                     </span>
                   </div>
                 ))}
-                <div className="flex justify-between py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
+                <div className="flex justify-between gap-3 py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
                   <span>Total Fixed Assets</span>
                   <span>{formatCurrency(bs.assets.totalFixedAssets, currency)}</span>
                 </div>
@@ -125,7 +125,7 @@ export const BalanceSheetPage: React.FC = () => {
             </div>
 
             {/* TOTAL ASSETS */}
-            <div className="flex justify-between py-3.5 px-5 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
+            <div className="flex justify-between gap-3 py-3.5 px-5 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
               <span>TOTAL ASSETS</span>
               <span className="font-mono">{formatCurrency(bs.assets.totalAssets, currency)}</span>
             </div>
@@ -145,12 +145,12 @@ export const BalanceSheetPage: React.FC = () => {
               <div className="divide-y divide-slate-700/80">
                 {bs.liabilities.currentLiabilities.length === 0 && <Empty text="None" />}
                 {bs.liabilities.currentLiabilities.map((l, idx) => (
-                  <div key={idx} className="flex justify-between py-2.5">
-                    <span className="text-slate-300 font-medium">{l.name}</span>
-                    <span className="font-mono font-bold text-slate-100">{formatCurrency(l.amount, currency)}</span>
+                  <div key={idx} className="flex justify-between gap-3 py-2.5">
+                    <span className="text-slate-300 font-medium min-w-0 break-words">{l.name}</span>
+                    <span className="font-mono font-bold text-slate-100 shrink-0">{formatCurrency(l.amount, currency)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
+                <div className="flex justify-between gap-3 py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
                   <span>Total Current Liabilities</span>
                   <span>{formatCurrency(bs.liabilities.totalCurrentLiabilities, currency)}</span>
                 </div>
@@ -163,12 +163,12 @@ export const BalanceSheetPage: React.FC = () => {
               <div className="divide-y divide-slate-700/80">
                 {bs.liabilities.longTermLiabilities.length === 0 && <Empty text="None" />}
                 {bs.liabilities.longTermLiabilities.map((l, idx) => (
-                  <div key={idx} className="flex justify-between py-2.5">
-                    <span className="text-slate-300 font-medium">{l.name}</span>
-                    <span className="font-mono font-bold text-slate-100">{formatCurrency(l.amount, currency)}</span>
+                  <div key={idx} className="flex justify-between gap-3 py-2.5">
+                    <span className="text-slate-300 font-medium min-w-0 break-words">{l.name}</span>
+                    <span className="font-mono font-bold text-slate-100 shrink-0">{formatCurrency(l.amount, currency)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
+                <div className="flex justify-between gap-3 py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
                   <span>Total Long-Term Liabilities</span>
                   <span>{formatCurrency(bs.liabilities.totalLongTermLiabilities, currency)}</span>
                 </div>
@@ -181,12 +181,12 @@ export const BalanceSheetPage: React.FC = () => {
               <div className="divide-y divide-slate-700/80">
                 {bs.equity.items.length === 0 && <Empty text="None" />}
                 {bs.equity.items.map((eq, idx) => (
-                  <div key={idx} className="flex justify-between py-2.5">
-                    <span className="text-slate-300 font-medium">{eq.name}</span>
-                    <span className="font-mono font-bold text-slate-100">{formatCurrency(eq.amount, currency)}</span>
+                  <div key={idx} className="flex justify-between gap-3 py-2.5">
+                    <span className="text-slate-300 font-medium min-w-0 break-words">{eq.name}</span>
+                    <span className="font-mono font-bold text-slate-100 shrink-0">{formatCurrency(eq.amount, currency)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
+                <div className="flex justify-between gap-3 py-2.5 font-bold text-slate-100 bg-slate-850 px-3 rounded-xl mt-1">
                   <span>Total Shareholders&apos; Equity</span>
                   <span>{formatCurrency(bs.equity.totalEquity, currency)}</span>
                 </div>
@@ -194,7 +194,7 @@ export const BalanceSheetPage: React.FC = () => {
             </div>
 
             {/* TOTAL LIABILITIES & EQUITY */}
-            <div className="flex justify-between py-3.5 px-5 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
+            <div className="flex justify-between gap-3 py-3.5 px-5 bg-brand-500 text-white rounded-2xl shadow-card font-extrabold text-sm sm:text-base">
               <span>TOTAL LIABILITIES & EQUITY</span>
               <span className="font-mono">{formatCurrency(bs.totalLiabilitiesAndEquity, currency)}</span>
             </div>

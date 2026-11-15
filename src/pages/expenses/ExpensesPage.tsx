@@ -257,14 +257,14 @@ export const ExpensesPage: React.FC = () => {
       {/* Spend breakdown for the current filters */}
       {byCategory.length > 0 && (
         <div className="bg-white border border-slate-700 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
             <h3 className="text-sm font-bold text-slate-100">Spend by category</h3>
             <span className="text-xs font-bold text-slate-300">{filteredCount} voucher(s) · {formatCurrency(filteredTotal, currency)}</span>
           </div>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
             {byCategory.slice(0, 8).map(([cat, amt]) => (
               <li key={cat} className="text-xs">
-                <div className="flex justify-between mb-0.5"><span className="font-semibold text-slate-200">{cat}</span><span className="text-slate-300 font-mono">{formatCurrency(amt, currency)}</span></div>
+                <div className="flex justify-between gap-3 mb-0.5"><span className="font-semibold text-slate-200 truncate min-w-0" title={cat}>{cat}</span><span className="text-slate-300 font-mono shrink-0">{formatCurrency(amt, currency)}</span></div>
                 <div className="h-1.5 rounded-full bg-slate-850 overflow-hidden"><div className="h-full bg-brand-500" style={{ width: `${filteredTotal > 0 ? Math.max(2, (amt / filteredTotal) * 100) : 0}%` }} /></div>
               </li>
             ))}
@@ -281,6 +281,7 @@ export const ExpensesPage: React.FC = () => {
         title="Expense register"
         searchPlaceholder="Search expenses by expense number, plate, category, vendor or cost centre..."
         exportFilename="Expenses_Register"
+        exportModule="expenses"
         filterComponent={
           <div className="flex flex-wrap items-center gap-2">
             <FilterSelect

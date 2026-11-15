@@ -69,7 +69,7 @@ export const AttendancePage: React.FC = () => {
         }
       />
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-56">
+        <div className="w-full sm:w-56">
           <Select label="Office" value={officeId} onChange={e => setOfficeId(e.target.value)}>
             {offices.length === 0 && <option value="">No office available</option>}
             {offices.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -81,9 +81,10 @@ export const AttendancePage: React.FC = () => {
           <Button variant="ghost" size="sm" aria-label="Next day" onClick={() => setDay(shiftDay(day, 1))}><ChevronRight className="w-4 h-4" /></Button>
           <Button variant="ghost" size="sm" onClick={() => setDay(localToday())}>Today</Button>
         </div>
+        {/* controls-ok: "month" is the else branch of tab === "day" */}
         <Tabs variant="segmented" tabs={[{ id: 'day', label: 'Day sheet' }, { id: 'month', label: 'Month summary' }]} activeTab={tab} onChange={setTab} />
       </div>
-      {err && <p role="alert" className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err} <button className="underline" onClick={() => void load()}>Retry</button></p>}
+      {err && <p role="alert" className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{err} <button type="button" className="underline min-h-[40px] sm:min-h-0" onClick={() => void load()}>Retry</button></p>}
       {tab === 'day'
         ? <DaySheet day={day} staff={staff.filter(e => onRoll(e, day))} rows={rows.filter(r => r.workDate === day && r.companyId === officeId)} officeId={officeId} canEdit={canEdit}
             canDelete={!!officeId && hasPermission('delete', 'attendance', officeId)} loading={loading} onSaved={load} />
@@ -135,9 +136,12 @@ const DaySheet: React.FC<{ day: string; staff: Employee[]; rows: Attendance[]; o
     addToast({ type: Object.keys(errs).length ? 'warning' : 'success', title: `Saved ${ok} record(s)`, message: Object.keys(errs).length ? `${Object.keys(errs).length} row(s) need fixing` : formatDate(day) });
   };
 
+  const [clearing, setClearing] = useState<string | null>(null);
   const remove = async (r: Attendance) => {
     if (!window.confirm('Clear this attendance record?')) return;
+    setClearing(r.id);
     try { await deleteAttendance(r.id); await onSaved(); } catch (e) { addToast({ type: 'error', title: 'Could not clear', message: (e as Error).message }); }
+    finally { setClearing(null); }
   };
 
   const counts = ATTENDANCE_STATUSES.map(s => [s, staff.filter(e => valueOf(e).status === s).length] as const).filter(([, n]) => n > 0);
@@ -184,7 +188,7 @@ const DaySheet: React.FC<{ day: string; staff: Employee[]; rows: Attendance[]; o
                   <td className={tdCls}><input type="time" aria-label={`Check-out for ${e.name}`} className={inputCls} disabled={locked} value={v.checkOut} onChange={x => set(e, { checkOut: x.target.value })} /></td>
                   <td className={tdCls}><input type="number" min={0} max={16} step={0.25} aria-label={`Overtime for ${e.name}`} className={`${inputCls} w-20`} disabled={locked} value={v.overtimeHours} onChange={x => set(e, { overtimeHours: Number(x.target.value) })} /></td>
                   <td className={tdCls}><input aria-label={`Notes for ${e.name}`} className={inputCls} disabled={locked} value={v.notes} onChange={x => set(e, { notes: x.target.value })} /></td>
-                  <td className={tdCls}>{saved && !fromLeave && canDelete && <Button variant="ghost" size="xs" onClick={() => void remove(saved)}>Clear</Button>}</td>
+                  <td className={tdCls}>{saved && !fromLeave && canDelete && <Button variant="ghost" size="xs" isLoading={clearing === saved.id} disabled={!!clearing} onClick={() => void remove(saved)}>Clear</Button>}</td>
                 </tr>
               );
             })}
@@ -213,7 +217,7 @@ const MonthSummary: React.FC<{ staff: Employee[]; rows: Attendance[]; label: str
     staff.map(e => { const s = sum(e.id); return [e.employeeCode, e.name, ...cols.map(c => s.by[c]), s.ot]; }), { dated: false });
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/40">
-      <div className="flex items-center justify-between p-3 border-b border-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-slate-700">
         <p className="text-xs text-slate-400 font-semibold">{label}</p>
         <Button variant="outline" size="xs" leftIcon={<Download className="w-3 h-3" />} onClick={exportCsv} disabled={staff.length === 0}>Export CSV</Button>
       </div>

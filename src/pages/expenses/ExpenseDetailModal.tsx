@@ -104,7 +104,7 @@ export const ExpenseDetailModal: React.FC<{ expense: VehicleExpense; onClose: ()
           <div className="flex flex-wrap gap-2 justify-end">
             {e.attachmentUrl && onOpenReceipt && <Button variant="ghost" size="sm" leftIcon={<Paperclip className="w-4 h-4" />} onClick={() => onOpenReceipt(e)}>Receipt</Button>}
             {editable && hasPermission('delete', 'expenses', e.companyId) && (
-              <Button variant="danger" size="sm" leftIcon={<Trash2 className="w-4 h-4" />} disabled={!!busy}
+              <Button variant="danger" size="sm" leftIcon={<Trash2 className="w-4 h-4" />} isLoading={busy === 'del'} disabled={!!busy}
                 onClick={() => { if (window.confirm(`Delete ${e.expenseNumber}?`)) void act('del', () => deleteExpense(e.id), () => 'Expense deleted', true); }}>Delete</Button>
             )}
             {editable && hasPermission('create', 'expenses', e.companyId) && (
@@ -124,7 +124,7 @@ export const ExpenseDetailModal: React.FC<{ expense: VehicleExpense; onClose: ()
             {e.status === 'Pending Approval' && !mayApprove && !mine && <span className="text-xs text-slate-400 self-center">Waiting for an approver with a high enough limit</span>}
             {e.status === 'Pending Approval' && mine && !isSuperAdmin && <span className="text-xs text-slate-400 self-center">Another approver must review it</span>}
             {e.status === 'Approved' && e.paymentStatus === 'Unpaid' && e.journalEntryId && hasPermission('create', 'payments', e.companyId) && (
-              <Button size="sm" leftIcon={<Wallet className="w-4 h-4" />} disabled={!!busy || banks.length === 0} onClick={() => setMode('pay')}>Pay</Button>
+              <Button size="sm" leftIcon={<Wallet className="w-4 h-4" />} disabled={!!busy || banks.length === 0} title={banks.length === 0 ? 'No active bank account in this office' : undefined} onClick={() => setMode('pay')}>Pay</Button>
             )}
           </div>
         )}

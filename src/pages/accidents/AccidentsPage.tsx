@@ -47,7 +47,7 @@ export const AccidentsPage: React.FC = () => {
       render: (a) => (
         <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(a.vehicleId, 'accidents')}>
           <span className="font-mono font-bold text-slate-100">{a.accidentNumber}</span>
-          <div className="flex items-center gap-1.5 mt-1">
+          <div className="flex flex-wrap items-center gap-1.5 mt-1">
             <span className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono font-bold text-[10px]">
               {a.vehiclePlate}
             </span>
@@ -121,7 +121,7 @@ export const AccidentsPage: React.FC = () => {
       sortable: false,
       render: (a) => (
         <div className="flex items-center justify-end gap-1.5">
-          {hasPermission('edit', 'accidents') && (
+          {hasPermission('edit', 'accidents', a.companyId) && (
             <Button variant="ghost" size="xs" onClick={() => setEditing(a)}>
               Update
             </Button>
@@ -167,13 +167,12 @@ export const AccidentsPage: React.FC = () => {
         <StatCard
           title="Gross Repair Cost"
           value={formatCurrency(totalRepairCost, currency)}
-          subValue="Bodyshop estimates"
+          subValue="Actual repair cost recorded"
         />
         <StatCard
           title="Insurance Recovery"
           value={formatCurrency(totalInsuranceRecovered, currency)}
-          subValue="Settled by underwriters"
-          trend={{ value: `${recoveryPct}% Covered`, direction: 'up' }}
+          subValue={`${recoveryPct}% of repair cost recovered from insurers`}
         />
         <StatCard
           title="Net Cost to Company"

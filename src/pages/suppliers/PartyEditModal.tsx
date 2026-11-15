@@ -108,7 +108,7 @@ export const PartyEditModal: React.FC<Props> = (props) => {
         )}
         <Textarea label="Notes" rows={2} value={form.notes ?? ''} onChange={e => set('notes', e.target.value)} />
         {cf.node}
-        {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
+        {error && <p role="alert" className="text-xs font-semibold text-rose-600">{error}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button variant="primary" type="submit" isLoading={saving} disabled={saving}>Save Changes</Button>

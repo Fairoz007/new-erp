@@ -198,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ref={asideRef}
         tabIndex={-1}
         {...(isMobileOpen ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Navigation menu' } : {})}
-        className={`fixed lg:sticky top-0 left-0 h-screen z-40 focus:outline-none ${
+        className={`fixed lg:sticky top-0 left-0 h-screen h-dvh z-40 focus:outline-none ${
           isCollapsed ? 'lg:w-[76px]' : 'lg:w-64 xl:w-72'
         } w-72 max-w-[85vw] lg:max-w-none bg-surface-secondary border-r border-slate-700 flex flex-col shrink-0 transition-[width,transform,visibility] duration-200 lg:translate-x-0 lg:visible ${
           isMobileOpen ? 'translate-x-0 shadow-2xl visible' : '-translate-x-full invisible'
@@ -288,7 +288,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center gap-2.5 min-w-0">
               <UserAvatar name={currentUser.name} src={currentUser.avatar} />
               <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
+                <p className="text-xs font-bold text-slate-100 truncate" title={currentUser.name}>{currentUser.name}</p>
                 <p className="text-[10px] text-slate-400 font-medium truncate">{currentUser.role}</p>
               </div>
             </div>

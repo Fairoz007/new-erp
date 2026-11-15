@@ -113,7 +113,7 @@ export const DepreciationPage: React.FC = () => {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Acquisition Cost"
           value={formatCurrency(totalCost, currency)}
@@ -148,7 +148,7 @@ export const DepreciationPage: React.FC = () => {
       {/* Depreciation Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Fleet Amortization Schedule Projection (estimate)</CardTitle>
+          <CardTitle>Fixed Assets by Purchase Year: Cost and Net Book Value</CardTitle>
         </CardHeader>
         <CardContent>
           <AssetDepreciationChart />

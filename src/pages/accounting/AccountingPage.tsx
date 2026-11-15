@@ -488,11 +488,11 @@ export const AccountingPage: React.FC = () => {
             {jErrors.lines && <p role="alert" className="text-xs text-rose-600 font-medium">{jErrors.lines}</p>}
 
             {/* Balancing Indicator */}
-            <div className="flex justify-between items-center pt-3 border-t border-slate-800 text-xs font-bold">
+            <div className="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-slate-800 text-xs font-bold">
               <span className={isBalanced ? 'text-emerald-400' : 'text-rose-400'}>
                 {isBalanced ? '✓ Journal is Balanced' : `✗ Out of Balance: Diff ${Math.abs(totalDebit - totalCredit).toFixed(3)} ${currency}`}
               </span>
-              <div className="flex gap-6">
+              <div className="flex flex-wrap gap-x-6 gap-y-1">
                 <span>Total Debit: {totalDebit.toFixed(3)}</span>
                 <span>Total Credit: {totalCredit.toFixed(3)}</span>
               </div>
@@ -501,13 +501,13 @@ export const AccountingPage: React.FC = () => {
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
             <Button variant="secondary" type="button" onClick={() => setIsJournalModalOpen(false)} disabled={isPosting}>Cancel</Button>
-            <Button variant="primary" type="submit" disabled={isPosting} leftIcon={<Scale className="w-4 h-4" />}>
-              {isPosting ? 'Posting…' : 'Post to Ledger'}
+            <Button variant="primary" type="submit" isLoading={isPosting} leftIcon={<Scale className="w-4 h-4" />}>
+              Post to Ledger
             </Button>
           </div>
         </form>
       </Modal>
-      <Modal isOpen={!!reversing} onClose={() => setReversing(null)} title={`Reverse ${reversing?.entryNumber ?? ''}`} size="md"
+      <Modal isOpen={!!reversing} onClose={() => !isReversing && setReversing(null)} title={`Reverse ${reversing?.entryNumber ?? ''}`} size="md"
         description="Posts a mirror entry that cancels this journal. The original entry stays in the ledger.">
         <form onSubmit={submitReversal} className="space-y-4" noValidate>
           <Input label="Reversal date" type="date" required value={reverseForm.date}
@@ -516,7 +516,7 @@ export const AccountingPage: React.FC = () => {
             onChange={e => { setReverseForm(f => ({ ...f, reason: e.target.value })); setReverseErrors(x => ({ ...x, reason: undefined })); }} error={reverseErrors.reason} />
           {reverseError && <p className="text-xs text-rose-500 font-medium" role="alert">{reverseError}</p>}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setReversing(null)}>Cancel</Button>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setReversing(null)} disabled={isReversing}>Cancel</Button>
             <Button type="submit" variant="danger" size="sm" isLoading={isReversing}>Post reversal</Button>
           </div>
         </form>

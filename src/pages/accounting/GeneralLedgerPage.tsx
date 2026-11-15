@@ -22,7 +22,7 @@ const PAGE_LINES = 50;
 /** Inline loading / error line for the server-backed sections. */
 const LoadState: React.FC<{ loading: boolean; error?: Error; onRetry: () => void; colSpan?: number }> = ({ loading, error, onRetry, colSpan }) => {
   const body = error ? (
-    <span className="text-rose-600">Could not load: {error.message} <button className="underline font-bold cursor-pointer" onClick={onRetry}>Retry</button></span>
+    <span className="text-rose-600">Could not load: {error.message} <button type="button" className="underline font-bold cursor-pointer min-h-[44px] sm:min-h-0" onClick={onRetry}>Retry</button></span>
   ) : loading ? <span className="text-slate-400">Loading…</span> : null;
   if (!body) return null;
   return colSpan ? <tr><td colSpan={colSpan} className="py-6 text-center text-xs">{body}</td></tr> : <div className="py-6 text-center text-xs">{body}</div>;
@@ -48,17 +48,17 @@ const AccountLedgerCard: React.FC<{ acc: GlAccountSummary; companyId: string | n
                 <div ref={ref} />
                 {/* Account Ledger Header */}
                 <div className="p-5 border-b border-slate-700 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono font-extrabold text-sm text-brand-500 px-2.5 py-0.5 rounded-full bg-brand-100">
                         {acc.accountCode}
                       </span>
-                      <h3 className="text-base font-bold text-slate-100">{acc.accountName}</h3>
+                      <h3 className="text-base font-bold text-slate-100 break-words min-w-0">{acc.accountName}</h3>
                       <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">({acc.category})</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6 text-xs font-mono">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs font-mono">
                     <div>
                       <span className="text-slate-400 font-sans">Opening Balance: </span>
                       <span className="font-bold text-slate-100">{formatCurrency(acc.openingBalance, currency)}</span>
@@ -325,7 +325,7 @@ export const GeneralLedgerPage: React.FC = () => {
           <Card className="p-5 bg-white border border-slate-700 shadow-card rounded-[20px]">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-4">
-                <div>
+                <div className="w-full sm:w-auto min-w-0">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Target Account</label>
                   <FilterInput
                     type="search"
@@ -417,7 +417,7 @@ export const GeneralLedgerPage: React.FC = () => {
                   </FilterSelect>
                 </div>
 
-                <div>
+                <div className="w-full sm:w-auto min-w-0">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Select Account Name</label>
                   <FilterSelect
                     aria-label="Account name"
@@ -426,7 +426,7 @@ export const GeneralLedgerPage: React.FC = () => {
                     className="w-full sm:w-auto sm:min-w-[280px]"
                   >
                     {partyType === 'Supplier'
-                      ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.vatNumber || s.taxNumber || 'Tax Reg OK'})</option>)
+                      ? suppliers.map(s => <option key={s.id} value={s.id}>{s.name}{s.vatNumber || s.taxNumber ? ` (${s.vatNumber || s.taxNumber})` : ''}</option>)
                       : customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.customerType})</option>)
                     }
                   </FilterSelect>
@@ -442,8 +442,8 @@ export const GeneralLedgerPage: React.FC = () => {
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   {partyType === 'Supplier' ? 'Accounts Payable (AP) Statement' : 'Accounts Receivable (AR) Statement'}
                 </span>
-                <h3 className="text-lg font-extrabold text-slate-100 mt-0.5">{selectedParty?.name}</h3>
-                <p className="text-xs text-slate-400 font-medium">Payment Terms: {selectedParty?.paymentTermsDays || 30} Days • Currency: {currency}</p>
+                <h3 className="text-lg font-extrabold text-slate-100 mt-0.5 break-words">{selectedParty?.name ?? `No ${partyType === 'Supplier' ? 'supplier' : 'customer'} to show`}</h3>
+                <p className="text-xs text-slate-400 font-medium">Payment Terms: {selectedParty?.paymentTermsDays ? `${selectedParty.paymentTermsDays} Days` : 'not set'} • Currency: {currency}</p>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-slate-850 border border-slate-700 text-right">
@@ -468,6 +468,9 @@ export const GeneralLedgerPage: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-700/80 bg-white">
                   {!party.data && <LoadState loading={party.loading} error={party.error} onRetry={() => void party.refetch()} colSpan={6} />}
+                  {party.data && partyLedger.lines.length === 0 && (
+                    <tr><td colSpan={6} className="py-8 text-center text-slate-400 italic">No transactions recorded for this account.</td></tr>
+                  )}
                   {partyLedger.lines.map(line => (
                     <tr key={line.id} className="hover:bg-slate-850/60 transition-colors">
                       <td className="py-3 px-4 text-slate-300 font-mono font-medium">{formatDate(line.date)}</td>

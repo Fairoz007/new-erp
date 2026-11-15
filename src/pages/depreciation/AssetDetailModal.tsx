@@ -79,8 +79,8 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
       }
       size="xl"
       footer={
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+          <div className="flex flex-wrap items-center gap-2">
             {canEdit && (
               <Button
                 variant="outline"
@@ -122,7 +122,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
     >
       <div className="space-y-6 text-xs text-slate-300">
         {/* Three-Way Valuation Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl">
             <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Purchase Cost</span>
             <span className="text-lg font-bold text-slate-100 mt-1 block">
@@ -176,15 +176,15 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">GL Asset Account</span>
-              <span className="font-mono text-slate-200">{asset.glAssetAccount || '1530 Equipment'}</span>
+              <span className="font-mono text-slate-200">{asset.glAssetAccount || 'Not set'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">GL Depreciation Expense</span>
-              <span className="font-mono text-slate-200">{asset.glDepreciationExpenseAccount || '5080 Depreciation'}</span>
+              <span className="font-mono text-slate-200">{asset.glDepreciationExpenseAccount || 'Not set'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">GL Accumulated Depreciation</span>
-              <span className="font-mono text-slate-200">{asset.glAccumulatedDepreciationAccount || '1520 Accum Depr'}</span>
+              <span className="font-mono text-slate-200">{asset.glAccumulatedDepreciationAccount || 'Not set'}</span>
             </div>
           </div>
         </div>
@@ -199,11 +199,11 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Assigned Yard / Location</span>
-              <span className="text-slate-200">{asset.location || 'Head Office'}</span>
+              <span className="text-slate-200">{asset.location || 'Not recorded'}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Assigned Department</span>
-              <span className="text-slate-200">{asset.department || 'Workshop'}</span>
+              <span className="text-slate-200">{asset.department || 'Not recorded'}</span>
             </div>
           </div>
           {asset.notes && (

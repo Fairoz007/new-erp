@@ -91,7 +91,7 @@ export const ApprovalsPage: React.FC = () => {
           { id: 'Pending', label: 'Pending', count: pendingCount },
           { id: 'all', label: 'History', count: approvalRequests.length },
           { id: 'registrations', label: 'Registrations', count: pendingRegistrations },
-          { id: 'journals', label: 'Journals', count: pendingJournals.rows.length },
+          { id: 'journals', label: 'Journals', count: pendingJournals.rows.filter(r => selectedCompanyId === 'all' || r.companyId === selectedCompanyId).length },
           { id: 'expenses', label: 'Expenses', count: pendingExpenses.length },
         ]}
       />
@@ -137,7 +137,7 @@ export const ApprovalsPage: React.FC = () => {
                     <div className="p-3 bg-slate-850/80 rounded-xl border border-slate-700/80 space-y-1.5 mt-2">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Audit Signoff History</p>
                       {req.history.map((h, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-[11px]">
+                        <div key={idx} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[11px]">
                           <span className="text-slate-300">
                             <strong>{h.approverName}</strong> ({h.approverRole}): <em>&ldquo;{h.comment}&rdquo;</em>
                           </span>
@@ -149,14 +149,14 @@ export const ApprovalsPage: React.FC = () => {
                 </div>
 
                 {/* Amount & Actions */}
-                <div className="flex flex-row lg:flex-col items-end justify-between lg:justify-center gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-700/80">
+                <div className="flex flex-row flex-wrap lg:flex-col items-end justify-between lg:justify-center gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-700/80">
                   <div className="text-left lg:text-right">
                     <p className="text-[10px] text-slate-400 uppercase font-semibold">Expenditure Amount</p>
                     <p className="text-lg font-bold text-slate-100">{formatCurrency(req.amount, currency)}</p>
                   </div>
 
                   {req.status === 'Pending' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {userCanSign ? (
                         <>
                           <Button
@@ -197,7 +197,7 @@ export const ApprovalsPage: React.FC = () => {
       {/* Confirmation Modal */}
       <Modal
         isOpen={!!selectedRequest}
-        onClose={() => setSelectedRequest(null)}
+        onClose={() => { if (!submitting) setSelectedRequest(null); }}
         title={`${actionType} Authorization Request: ${selectedRequest?.referenceNumber}`}
         description={`Sign as ${currentUser.name} (${currentUser.role})`}
         size="md"
@@ -219,9 +219,11 @@ export const ApprovalsPage: React.FC = () => {
               variant={actionType === 'Approved' ? 'success' : 'danger'}
               size="sm"
               onClick={handleConfirmAction}
-              disabled={submitting}
+              isLoading={submitting}
+              disabled={submitting || !comment.trim()}
+              title={comment.trim() ? undefined : "Enter a sign-off comment first."}
             >
-              {submitting ? 'Saving...' : `Confirm ${actionType}`}
+              {`Confirm ${actionType}`}
             </Button>
           </div>
         </div>

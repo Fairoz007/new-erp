@@ -66,14 +66,14 @@ export const Drawer: React.FC<DrawerProps> = ({
         >
           {/* Header */}
           <div className="px-5 sm:px-6 py-4 border-b border-slate-700 flex items-center justify-between gap-4 bg-white shrink-0">
-            <div>
-              <h2 id={titleId} className="text-base font-semibold text-slate-100 flex items-center gap-2">{title}</h2>
+            <div className="min-w-0">
+              <h2 id={titleId} className="text-base font-semibold text-slate-100 flex flex-wrap items-center gap-2 break-words">{title}</h2>
               {description && <p className="text-sm text-slate-400 mt-1">{description}</p>}
             </div>
             <button
               type="button"
               onClick={requestClose}
-              className="p-3 sm:p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              className="shrink-0 p-3 sm:p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X className="w-5 h-5" />

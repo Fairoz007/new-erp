@@ -60,7 +60,7 @@ export const TyreManagementPage: React.FC = () => {
         return (
           <div {...buttonLike} className="cursor-pointer" onClick={() => openVehicleDetail(t.vehicleId, 'tyres')}>
             <span className="font-bold text-slate-100">{v?.brand} {v?.model}</span>
-            <div className="flex items-center gap-1.5 mt-1">
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <span className="px-2 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono font-bold text-[10px]">
                 {v?.plateNumber}
               </span>
@@ -117,7 +117,7 @@ export const TyreManagementPage: React.FC = () => {
       sortable: false,
       render: (t) => (
         <div className="flex items-center justify-end gap-1.5">
-          {hasPermission('edit', 'tyres') && (
+          {hasPermission('edit', 'tyres', vehicles.find(v => v.id === t.vehicleId)?.companyId) && (
             <Button variant="ghost" size="xs" onClick={() => setEditing(t)}>
               Update
             </Button>
@@ -169,13 +169,11 @@ export const TyreManagementPage: React.FC = () => {
           title="Critical Wear (< 2.0 mm)"
           value={criticalTyres}
           subValue="High blowout hazard"
-          trend={{ value: `${criticalTyres} Hazards`, direction: 'down' }}
         />
         <StatCard
           title="Due Soon (< 3.0 mm)"
           value={dueSoonTyres}
           subValue="Scheduled for renewal"
-          trend={{ value: `${dueSoonTyres} Tyres`, direction: 'neutral' }}
         />
         <StatCard
           title="Cumulative Tyre Spend"

@@ -83,8 +83,8 @@ export const FinanceOverview: React.FC = () => {
   const draftCount = useJournalCount(selectedCompanyId, 'Draft');
   const outstanding = useDashboardOpenInvoices('outstanding', selectedCompanyId === 'all' ? undefined : [selectedCompanyId], 5);
   const recent = useRecentJournals(selectedCompanyId, 5);
-  const loadError = pnlQ.error ?? bsQ.error ?? summary.error ?? draftCount.error ?? outstanding.error ?? recent.error;
-  const retryAll = () => { void pnlQ.refetch(); void bsQ.refetch(); void summary.refetch(); void draftCount.refetch(); void outstanding.refetch(); void recent.refetch(); };
+  const loadError = pnlQ.error ?? bsQ.error ?? tbQ.error ?? summary.error ?? draftCount.error ?? outstanding.error ?? recent.error;
+  const retryAll = () => { void pnlQ.refetch(); void bsQ.refetch(); void tbQ.refetch(); void summary.refetch(); void draftCount.refetch(); void outstanding.refetch(); void recent.refetch(); };
   const ready = !!(pnl && balanceSheet && trialBalance && summary.data && draftCount.data !== undefined);
   // An empty ledger is trivially "balanced"; say so instead of claiming the books were checked.
   const hasLedger = !!trialBalance?.rows.some(r => r.closingDebit !== 0 || r.closingCredit !== 0);
@@ -124,7 +124,7 @@ export const FinanceOverview: React.FC = () => {
       {loadError && (
         <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Some figures could not be loaded: {loadError.message}{' '}
-          <button type="button" onClick={retryAll} className="font-semibold underline">Retry</button>
+          <button type="button" onClick={retryAll} className="font-semibold underline min-h-[44px] sm:min-h-0">Retry</button>
         </p>
       )}
       <section className="finance-hero overflow-hidden rounded-xl border border-slate-700 bg-white shadow-sm">
@@ -165,8 +165,8 @@ export const FinanceOverview: React.FC = () => {
               </div>
               <span className="text-2xl font-bold text-slate-100 tabular-nums">{ready ? `${passedChecks}/${closeChecks.length}` : '…'}</span>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800" aria-label={`${passedChecks} of ${closeChecks.length} close checks passed`}>
-              <div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: `${(passedChecks / closeChecks.length) * 100}%` }} />
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800" aria-label={ready ? `${passedChecks} of ${closeChecks.length} close checks passed` : 'Close checks loading'}>
+              <div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: ready ? `${(passedChecks / closeChecks.length) * 100}%` : '0%' }} />
             </div>
             <Button variant="outline" size="sm" className="mt-5 w-full bg-white" onClick={() => setCurrentPage('trial-balance')} rightIcon={<ArrowUpRight className="h-4 w-4" />}>
               Review close controls

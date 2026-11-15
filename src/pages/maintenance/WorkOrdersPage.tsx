@@ -20,10 +20,11 @@ export const WorkOrdersPage: React.FC = () => {
   const { openQuickModal, addToast, openVehicleDetail } = useUI();
   const { hasPermission, canApprove } = useAuth();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
-  const [busyId, setBusyId] = useState<string | null>(null); // work order with a status change in flight
+  const [busy, setBusy] = useState<{ id: string; status: WorkOrderStatus } | null>(null); // status change in flight
+  const busyId = busy?.id ?? null;
+  const isBusy = (id: string, status: WorkOrderStatus) => busy?.id === id && busy.status === status;
   const [viewingOrder, setViewingOrder] = useState<WorkOrder | null>(null);
   const canCreate = hasPermission('create', 'work-orders');
-  const canEdit = hasPermission('edit', 'work-orders');
 
   const [statusFilter, setStatusFilter] = useState('open');
   const [shown, setShown] = useState(40);
@@ -41,7 +42,7 @@ export const WorkOrdersPage: React.FC = () => {
     if (busyId) return;
     const order = workOrders.find(w => w.id === orderId);
     if (!order) return;
-    if (!hasPermission('edit', 'work-orders')) {
+    if (!hasPermission('edit', 'work-orders', order.companyId)) {
       addToast({ type: 'error', title: 'Permission denied', message: 'Your role cannot update work orders.' });
       return;
     }
@@ -49,7 +50,7 @@ export const WorkOrdersPage: React.FC = () => {
       addToast({ type: 'warning', title: 'Approval pending', message: 'This work order must be approved in the Approvals module before work can start.' });
       return;
     }
-    if (newStatus === 'Approved' && !canApprove('maintenance', order.finalCost || order.estimatedCost || 0)) {
+    if (newStatus === 'Approved' && !canApprove('maintenance', order.finalCost || order.estimatedCost || 0, order.companyId)) {
       addToast({ type: 'error', title: 'Approval limit exceeded', message: 'Your role cannot approve a work order of this value.' });
       return;
     }
@@ -58,7 +59,7 @@ export const WorkOrdersPage: React.FC = () => {
       return;
     }
     if (newStatus === 'Cancelled' && !window.confirm(`Cancel work order ${order.workOrderNumber}?`)) return;
-    setBusyId(orderId);
+    setBusy({ id: orderId, status: newStatus });
     try {
       await updateWorkOrderStatus(orderId, newStatus);
       addToast({
@@ -72,7 +73,7 @@ export const WorkOrdersPage: React.FC = () => {
     } catch (e) {
       addToast({ type: 'error', title: 'Could not update work order', message: (e as Error).message });
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   };
 
@@ -113,6 +114,7 @@ export const WorkOrdersPage: React.FC = () => {
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-700 rounded-2xl shadow-card text-xs">
+        {viewMode === 'list' && <>
         <span className="text-slate-400 font-semibold px-1">Filter View:</span>
         <Tabs
           variant="pills"
@@ -131,11 +133,12 @@ export const WorkOrdersPage: React.FC = () => {
             { id: 'Cancelled', label: 'Cancelled' },
           ]}
         />
+        </>}
         <span className="ml-auto">{vt.ui}</span>
       </div>
 
       {/* Empty State */}
-      {filteredOrders.length === 0 && (
+      {viewMode === 'list' && filteredOrders.length === 0 && (
         <Card className="p-8 rounded-[20px] bg-white border border-slate-700 shadow-card text-center">
           <p className="text-sm font-semibold text-slate-200">No work orders match the selected filter</p>
           <p className="text-xs text-slate-400 mt-1">Change the filter above or create a new work order.</p>
@@ -157,11 +160,12 @@ export const WorkOrdersPage: React.FC = () => {
                       {wo.workOrderNumber}
                     </span>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         openVehicleDetail(wo.vehicleId);
                       }}
-                      className="px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono text-xs font-bold hover:border-brand-500 cursor-pointer"
+                      className="min-h-[40px] sm:min-h-0 inline-flex items-center px-2.5 py-0.5 rounded-full bg-slate-850 border border-slate-700 text-brand-500 font-mono text-xs font-bold hover:border-brand-500 cursor-pointer"
                     >
                       {wo.vehiclePlate}
                     </button>
@@ -187,38 +191,38 @@ export const WorkOrdersPage: React.FC = () => {
                 </div>
 
                 {/* Right Cost & Status Action Buttons */}
-                <div className="flex flex-row lg:flex-col items-end justify-between lg:justify-center gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-700">
+                <div className="flex flex-row flex-wrap lg:flex-col items-end justify-between lg:justify-center gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-700">
                   <div className="text-left lg:text-right">
                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Estimated / Final</p>
                     <p className="text-sm font-extrabold text-slate-100">{formatCurrency(wo.finalCost || wo.estimatedCost, currency)}</p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button variant="ghost" size="xs" onClick={() => setViewingOrder(wo)} leftIcon={<Eye className="w-3.5 h-3.5" />}>
                       Details
                     </Button>
-                    {canEdit && wo.status !== 'Completed' && wo.status !== 'Cancelled' && (
+                    {hasPermission('edit', 'work-orders', wo.companyId) && wo.status !== 'Completed' && wo.status !== 'Cancelled' && (
                       wo.approvalStatus === 'Pending' ? (
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Awaiting approval (Approvals module)</span>
                       ) : (
                         <>
                           {wo.approvalStatus !== 'Rejected' && wo.status === 'Requested' && (
-                            <Button variant="secondary" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Approved')}>Approve</Button>
+                            <Button variant="secondary" size="xs" isLoading={isBusy(wo.id, 'Approved')} disabled={busyId === wo.id || !canApprove('maintenance', wo.finalCost || wo.estimatedCost || 0, wo.companyId)} title={canApprove('maintenance', wo.finalCost || wo.estimatedCost || 0, wo.companyId) ? undefined : 'This work order is above your approval limit.'} onClick={() => handleStatusChange(wo.id, 'Approved')}>Approve</Button>
                           )}
                           {wo.approvalStatus !== 'Rejected' && wo.status === 'Approved' && (
-                            <Button variant="secondary" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'In Progress')}>Start Work</Button>
+                            <Button variant="secondary" size="xs" isLoading={isBusy(wo.id, 'In Progress')} disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'In Progress')}>Start Work</Button>
                           )}
                           {wo.approvalStatus !== 'Rejected' && wo.status === 'In Progress' && (
-                            <Button variant="outline" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Waiting for Parts')}>Wait Parts</Button>
+                            <Button variant="outline" size="xs" isLoading={isBusy(wo.id, 'Waiting for Parts')} disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Waiting for Parts')}>Wait Parts</Button>
                           )}
                           {wo.approvalStatus !== 'Rejected' && wo.status === 'Waiting for Parts' && (
-                            <Button variant="secondary" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'In Progress')}>Resume Work</Button>
+                            <Button variant="secondary" size="xs" isLoading={isBusy(wo.id, 'In Progress')} disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'In Progress')}>Resume Work</Button>
                           )}
                           {wo.approvalStatus !== 'Rejected' && wo.status !== 'Requested' && wo.status !== 'Draft' && (
                             <Button
                               variant="success"
                               size="xs"
-                              isLoading={busyId === wo.id}
+                              isLoading={isBusy(wo.id, 'Completed')}
                               disabled={busyId === wo.id}
                               onClick={() => handleStatusChange(wo.id, 'Completed')}
                               leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
@@ -226,7 +230,7 @@ export const WorkOrdersPage: React.FC = () => {
                               Mark Completed
                             </Button>
                           )}
-                          <Button variant="ghost" size="xs" disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Cancelled')}>Cancel</Button>
+                          <Button variant="ghost" size="xs" isLoading={isBusy(wo.id, 'Cancelled')} disabled={busyId === wo.id} onClick={() => handleStatusChange(wo.id, 'Cancelled')}>Cancel job</Button>
                         </>
                       )
                     )}
@@ -247,12 +251,12 @@ export const WorkOrdersPage: React.FC = () => {
 
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-[repeat(5,minmax(270px,1fr))] gap-4 overflow-x-auto pb-4">
           {(['Requested', 'Approved', 'In Progress', 'Waiting for Parts', 'Completed'] as const).map(stage => {
             const stageOrders = workOrders.filter(w => w.status === stage && vt.matches(w.vehicleId) && (!selectedCompanyId || selectedCompanyId === 'all' || w.companyId === selectedCompanyId));
 
             return (
-              <div key={stage} className="bg-slate-850 border border-slate-700 rounded-[20px] p-4 flex flex-col gap-3 min-w-[270px]">
+              <div key={stage} className="bg-slate-850 border border-slate-700 rounded-[20px] p-4 flex flex-col gap-3 min-w-0">
                 <div className="flex items-center justify-between px-1 py-1 border-b border-slate-700">
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">{stage}</span>
                   <span className="px-2 py-0.5 rounded-full bg-white border border-slate-700 text-slate-300 text-[10px] font-bold">
@@ -284,6 +288,9 @@ export const WorkOrdersPage: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                  {stageOrders.length > 25 && (
+                    <p className="text-center text-[11px] text-slate-500">{stageOrders.length - 25} more: use List View to see them.</p>
+                  )}
                   {stageOrders.length === 0 && (
                     <div className="py-8 text-center text-[11px] text-slate-500">
                       No jobs in this stage.
@@ -302,6 +309,7 @@ export const WorkOrdersPage: React.FC = () => {
         onClose={() => setViewingOrder(null)}
         onStatusChange={handleStatusChange}
         busy={!!busyId}
+        busyStatus={busy?.status ?? null}
       />
     </div>
   );
