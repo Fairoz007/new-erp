@@ -9,6 +9,8 @@ const db = supabase as any; // tables added after the generated types
 export interface Organization {
   id: string;
   legalName: string;
+  /** Legal name in Arabic (optional), printed next to the English name on documents. */
+  legalNameAr: string;
   tradeName: string;
   crNumber: string;
   vatNumber: string;
@@ -43,6 +45,7 @@ export interface Organization {
 const toOrg = (r: any): Organization => ({
   id: r.id,
   legalName: r.legal_name ?? '',
+  legalNameAr: r.legal_name_ar ?? '',
   tradeName: r.trade_name ?? '',
   crNumber: r.cr_number ?? '',
   vatNumber: r.vat_number ?? '',
@@ -79,7 +82,7 @@ export type OrganizationInput = Omit<Organization, 'id' | 'setupStatus' | 'setup
 const fromOrg = (o: Partial<OrganizationInput>) => {
   const t = (v?: string) => (v == null ? undefined : v.trim() || null);
   const row: Record<string, unknown> = {
-    legal_name: o.legalName?.trim(), trade_name: t(o.tradeName), cr_number: t(o.crNumber), vat_number: t(o.vatNumber),
+    legal_name: o.legalName?.trim(), legal_name_ar: t(o.legalNameAr), trade_name: t(o.tradeName), cr_number: t(o.crNumber), vat_number: t(o.vatNumber),
     tax_number: t(o.taxNumber), address: t(o.address), city: t(o.city), country: t(o.country), phone: t(o.phone),
     email: t(o.email), website: t(o.website), logo_path: o.logoPath === undefined ? undefined : o.logoPath || null,
     base_currency: o.baseCurrency?.trim().toUpperCase(), currency_decimals: o.currencyDecimals, fy_start_month: o.fyStartMonth,

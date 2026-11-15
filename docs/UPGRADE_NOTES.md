@@ -201,3 +201,25 @@ Each gap is marked **data**, **UI**, **function** or **numbering**, with the sta
 | Duqm, Nisfa | Address, phone, email | empty | unknown; left empty (open point) | — |
 | `docs/ADVANCE_NOTES.md` | VAT shown in a "seen live" cell | OM1100482910 | marked as a test value | 2 (done) |
 | `sales_invoice` format | prefix | INV-HO-2026-0001 | 447-FT-2026 | 9 |
+
+---
+
+## Stage 3: Company data and brand assets
+
+### Brand assets
+
+| File | From | What |
+|---|---|---|
+| `src/assets/brand/ahn-logo.png` | `Al Hakim PDF.pdf` rendered at 200 dpi with a transparent background, cropped to the artwork, 640 × 321 px, 96 kB | Sign-in page |
+| `src/assets/brand/ahn-mark.png` | same, top part only (AHN mark and tagline), 256 × 162 px, 33 kB | Sidebar, header, office cards |
+| `public/favicon.png`, `public/apple-touch-icon.png` | the mark without the tagline, square, 64 and 192 px | Browser tab and home-screen icon |
+| `src/assets/brand/letterhead-a4.jpg` | `al hakim national letter head.pdf` at 250 dpi (2067 × 2923 px), JPEG quality 0.9, 274 kB | Background of printed and downloaded invoices, notes and statements; loaded only when printing or downloading (`loadLetterheadUrl`), never in the initial bundle |
+
+The organization logo in the `media` bucket is the same artwork at 1200 × 603 px (208 kB), uploaded
+through Settings → Organization (so the app's own upload path and checks are used).
+
+### Schema
+
+`20261115000000_org_arabic_name.sql`: `organizations.legal_name_ar` (optional, at most 200
+characters), shown in Settings → Organization as "Legal name in Arabic". Test:
+`upgrade_org_arabic_name.test.mjs` (3 checks).

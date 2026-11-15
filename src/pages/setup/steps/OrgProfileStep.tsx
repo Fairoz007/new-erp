@@ -12,7 +12,7 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void; registerSave?: (fn: (() => Promise<boolean>) | null) => void }> = ({ readOnly, onSaved, registerSave }) => {
   const { organization, setOrganization, logoUrl } = useOrg();
   const [form, setForm] = useState({
-    legalName: '', tradeName: '', crNumber: '', vatNumber: '', taxNumber: '', address: '', city: '', country: 'Oman',
+    legalName: '', legalNameAr: '', tradeName: '', crNumber: '', vatNumber: '', taxNumber: '', address: '', city: '', country: 'Oman',
     phone: '', email: '', website: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -24,7 +24,7 @@ export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void
   useEffect(() => {
     if (!organization) return;
     const next = {
-      legalName: organization.legalName, tradeName: organization.tradeName, crNumber: organization.crNumber,
+      legalName: organization.legalName, legalNameAr: organization.legalNameAr, tradeName: organization.tradeName, crNumber: organization.crNumber,
       vatNumber: organization.vatNumber, taxNumber: organization.taxNumber, address: organization.address,
       city: organization.city, country: organization.country || 'Oman', phone: organization.phone,
       email: organization.email, website: organization.website,
@@ -95,6 +95,7 @@ export const OrgProfileStep: React.FC<{ readOnly?: boolean; onSaved?: () => void
       <Section title="Legal identity" description="Shown on invoices, payslips, statements and reports.">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Legal name" required value={form.legalName} onChange={set('legalName')} error={errors.legalName} disabled={readOnly} maxLength={200} />
+          <Input label="Legal name in Arabic" dir="rtl" lang="ar" value={form.legalNameAr} onChange={set('legalNameAr')} hint="Printed with the English name on invoices and statements" disabled={readOnly} maxLength={200} />
           <Input label="Trade name" value={form.tradeName} onChange={set('tradeName')} hint="Used in the app header if set" disabled={readOnly} maxLength={200} />
           <Input label="Commercial registration (CR) no." value={form.crNumber} onChange={set('crNumber')} disabled={readOnly} maxLength={50} />
           <Input label="VAT number" value={form.vatNumber} onChange={set('vatNumber')} disabled={readOnly} maxLength={50} />
