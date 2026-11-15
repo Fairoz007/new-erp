@@ -7,7 +7,7 @@ import { supabase, toServiceError, num } from './core';
 import { accountBalancesFrom, rowToJournalEntry, type AnyAccount, type Movements } from './accounting';
 import { getPartyLedger, rowToInvoice, type FinanceInvoice } from './finance';
 import { rowToNotification, rowToAuditLog } from './system';
-import { fetchGeneralLedgerPage, paymentFromListRow } from './queries';
+import { fetchGeneralLedgerPage, paymentFromListRow, withJournalLines } from './queries';
 import { useQuery } from '../lib/queryCache';
 import { PAGE_MAX, fetchAllPages, runPage, type FetchAllProgress, type ListPage, type ServerSource } from '../lib/serverList';
 import type { GeneralLedgerLine, JournalEntry, Payment } from '../types/finance';
@@ -218,9 +218,10 @@ export const fetchAllInvoicesForExport = (onProgress?: (p: FetchAllProgress) => 
   { search: '' }, onProgress, signal, WITH_LINES_PAGE);
 
 export const fetchAllJournalsForExport = (onProgress?: (p: FetchAllProgress) => void, signal?: AbortSignal) =>
-  fetchAllPages<JournalEntry>((lq, s) => runPage<Row, JournalEntry>(
-    () => db.from('v_journal_list').select('*, lines:journal_lines(*, vehicle:vehicles(plate_number))', { count: 'exact' }),
-    lq, r => ({ ...rowToJournalEntry(r), postedBy: r.posted_by_name ?? '' }),
-    { defaultSort: { column: 'date', ascending: false }, tieBreaker: 'entry_number', signal: s }),
+  fetchAllPages<JournalEntry>((lq, s) => runPage<Row, Row>(
+    () => db.from('v_journal_list').select('*', { count: 'exact' }),
+    lq, r => r, { defaultSort: { column: 'date', ascending: false }, tieBreaker: 'entry_number', signal: s })
+    .then(page => withJournalLines(page, s))
+    .then(page => ({ ...page, rows: page.rows.map(r => ({ ...rowToJournalEntry(r), postedBy: r.posted_by_name ?? '' })) })),
   { search: '' }, onProgress, signal, WITH_LINES_PAGE);
 

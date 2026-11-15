@@ -1,8 +1,12 @@
-import React, { ReactNode, useRef } from 'react';
+import React, { ReactNode, createContext, useContext, useRef } from 'react';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useDialog } from './useDialog';
+
+/** The modal's guarded close (asks before discarding typed input), for Cancel buttons inside it. */
+const ModalCloseContext = createContext<(() => void) | null>(null);
+export const useModalRequestClose = () => useContext(ModalCloseContext);
 
 interface ModalProps {
   isOpen: boolean;
@@ -44,7 +48,8 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    // Full screen below 640 px; centred card from sm up.
+    <ModalCloseContext.Provider value={requestClose}>
+    {/* Full screen below 640 px; centred card from sm up. */}
     <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
@@ -96,5 +101,6 @@ export const Modal: React.FC<ModalProps> = ({
         )}
       </div>
     </div>
+    </ModalCloseContext.Provider>
   );
 };

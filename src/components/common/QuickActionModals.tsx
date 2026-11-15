@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Car, Wrench, Fuel, AlertTriangle, FileText, DollarSign, Upload, Disc, Droplet, Building2, BookOpen, Users, Calculator, Sparkles, Percent, Tag, Truck } from 'lucide-react';
-import { Modal } from '../ui/Modal';
+import { Modal, useModalRequestClose } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, Select, Textarea } from '../ui/Input';
 import { partyAvailableIn, type FinanceInvoice } from '../../services/finance';
@@ -42,6 +42,12 @@ const LINKED: Record<string, string[]> = {
   quantity: ['total'], unitPrice: ['total'], tax: ['total'], itemQuantity: ['total'], itemUnitPrice: ['total'],
   categoryId: ['vehicleId'], vehicleId: ['companyId'], invoiceType: ['partyId'], invoiceDate: ['dueDate'],
   invoiceId: ['amount', 'bankAccountId'], sharing: ['sharedOfficeIds'],
+};
+
+// Cancel closes the way X and Escape do: it asks first when something was typed.
+const CancelButton: React.FC<{ fallback: () => void; disabled?: boolean }> = ({ fallback, disabled }) => {
+  const requestClose = useModalRequestClose();
+  return <Button variant="secondary" type="button" onClick={requestClose ?? fallback} disabled={disabled}>Cancel</Button>;
 };
 
 export const QuickActionModals: React.FC = () => {
@@ -1199,7 +1205,7 @@ export const QuickActionModals: React.FC = () => {
           {cfVehicle.node}
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" leftIcon={<Car className="w-4 h-4" />} isLoading={busy} disabled={busy}>Save Vehicle</Button>
           </div>
         </form>
@@ -1254,7 +1260,7 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Wrench className="w-4 h-4" />}>Save Maintenance Record</Button>
           </div>
         </form>
@@ -1293,7 +1299,7 @@ export const QuickActionModals: React.FC = () => {
           <Input label="Parts Required" placeholder="e.g. Front Brake Pads, Brake Fluid DOT 4" value={woForm.partsRequired} onChange={e => setWoForm({ ...woForm, partsRequired: e.target.value })} />
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Wrench className="w-4 h-4" />}>Dispatch Work Order</Button>
           </div>
         </form>
@@ -1328,7 +1334,7 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Droplet className="w-4 h-4" />}>Save Oil Service</Button>
           </div>
         </form>
@@ -1403,7 +1409,7 @@ export const QuickActionModals: React.FC = () => {
           {cfExpense.node}
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<DollarSign className="w-4 h-4" />}>Save Expense</Button>
           </div>
         </form>
@@ -1446,7 +1452,7 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="danger" type="submit" isLoading={busy} disabled={busy} leftIcon={<AlertTriangle className="w-4 h-4" />}>Submit Accident Report</Button>
           </div>
         </form>
@@ -1551,7 +1557,7 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<FileText className="w-4 h-4" />}>Save Invoice</Button>
           </div>
         </form>
@@ -1605,7 +1611,7 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Sparkles className="w-4 h-4" />}>Execute Depreciation</Button>
           </div>
         </form>
@@ -1734,7 +1740,7 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<DollarSign className="w-4 h-4" />}>Post Payment</Button>
           </div>
         </form>
@@ -1828,7 +1834,7 @@ export const QuickActionModals: React.FC = () => {
           {cfSupplier.node}
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Building2 className="w-4 h-4" />}>Save Supplier</Button>
           </div>
         </form>
@@ -1924,7 +1930,7 @@ export const QuickActionModals: React.FC = () => {
           {cfCustomer.node}
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Users className="w-4 h-4" />}>Save Customer</Button>
           </div>
         </form>
@@ -2014,7 +2020,7 @@ export const QuickActionModals: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Disc className="w-4 h-4" />}>Save Tyre</Button>
           </div>
         </form>
@@ -2122,7 +2128,7 @@ export const QuickActionModals: React.FC = () => {
           />
 
           <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-800">
-            <Button variant="secondary" type="button" onClick={closeQuickModal} disabled={busy}>Cancel</Button>
+            <CancelButton fallback={closeQuickModal} disabled={busy} />
             <Button variant="primary" type="submit" isLoading={busy} disabled={busy} leftIcon={<Sparkles className="w-4 h-4" />}>Register Asset</Button>
           </div>
         </form>

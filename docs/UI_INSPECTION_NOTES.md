@@ -78,17 +78,44 @@ was removed: nothing used it, so no screen lost a control.
 
 None. No control needed a missing feature, so nothing was removed or disabled for that reason.
 
-Left as they are, by choice:
-- Quick-add forms: Cancel closes at once, while X and Escape ask first if something was typed. Cancel still works.
-- Report preview: "Download PDF" is greyed out while a PDF is being made, but only "Print" shows the spinner.
+The two inconsistencies left open earlier are now fixed:
+- Quick-add forms: Cancel now asks before discarding typed input, like X and Escape. `Modal`
+  shares its guarded close through `useModalRequestClose()`, and the 13 quick-add Cancel buttons use it.
+- Report preview: the spinner now shows on the button that was clicked, "Download PDF" or "Print".
+
+## Follow-up pass: exports, row actions, pagination, a Sample record
+
+Exports and printing were clicked on every page. The page caught each file before it was saved, so
+nothing was written to disk, and the print frame was stubbed so no print dialog opened. Every
+register's Export menu works: "View as document" opens the document view, Print goes to the print
+frame, Download PDF gives a real PDF (about 280 KB on the letterhead), and Download CSV gives a CSV.
+The statements (trial balance, GL, P&L, balance sheet, cash flow), Reports and "Export all fields"
+on customers and suppliers also produce their files.
+
+**Found and fixed: Settings → Data export → Export JSON always failed** with "more than one
+relationship was found for 'v_journal_list' and 'journal_lines'". The view exposes `id` and
+`reversed_by_id`, and both match `journal_lines.entry_id` through the same foreign key, so PostgREST
+cannot embed the lines and a hint cannot pick one. The journal export and the journal register
+(`journalSource`) now read the view without the embed. A new `withJournalLines()` helper then loads
+the lines by `entry_id`, paged. The export now gives 15 entries with 34 lines, matching the database,
+all balanced. No database change.
+
+Row actions: the first row's View / Open / Edit / Details / Sharing / Update / Profile / Dossier /
+Voucher buttons were clicked on every page. Each opens its dialog, side panel or detail page.
+Users & Roles "Edit" opens the Access panel under the table. Pagination: the audit log has more than
+one page and Next moves to it. Every other list fits on one page, so its Next is disabled. Attendance's
+day arrows move the date.
+
+Sample record: a Draft budget, "Sample UI check budget", was created, given one account line and
+saved, then deleted with the Delete button after the "Delete this budget?" prompt. The database has
+no budget or lines left.
 
 ## Not verified, and why
 
-- **Exports and printing (CSV, PDF, Print)**: not clicked, because each one downloads a file or
-  opens the print dialog. Checked in code only.
-- **Delete, Approve, Reject, Post, Reverse, Pay and Close period**: not clicked; they change real
-  records. Checked in code only (busy state, error handling, permission and confirmation).
-- **Row menus, pagination, and saving a "Sample…" record**: not clicked or done.
+- **Approve, Reject, Post, Reverse, Pay and Close period** on real records: not clicked, because they
+  change posted or real data and can't simply be undone. Checked in code only (busy state, error
+  handling, permission, confirmation). The Sample budget covered the delete path.
+- **The printed page itself**: the print frame was stubbed, so the browser print dialog was not opened.
 - **Set password screen**: only reachable from an emailed invite or recovery link.
 
 ### Writes made by the browser pass, and how they were undone

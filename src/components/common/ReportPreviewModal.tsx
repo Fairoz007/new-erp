@@ -26,7 +26,10 @@ const PREVIEW_LIMIT = 500;
 /** Document-style view of a register: read it on screen, print it, or download it as PDF / CSV. */
 export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
   isOpen, onClose, title, subtitle, columns, rows, onDownloadPdf, onDownloadCsv, onPrint, pdfBusy = false, message,
-}) => (
+}) => {
+  // which button started the PDF, so only that one shows the spinner
+  const [pending, setPending] = React.useState<'pdf' | 'print'>('print');
+  return (
   <Modal
     isOpen={isOpen}
     onClose={onClose}
@@ -37,8 +40,8 @@ export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
       <div className="flex flex-wrap items-center justify-end gap-2 no-print">
         {message && <span role="alert" className="text-xs text-rose-600 mr-auto">{message}</span>}
         <Button variant="outline" size="sm" onClick={onDownloadCsv} leftIcon={<FileSpreadsheet className="w-4 h-4" />}>Download CSV</Button>
-        <Button variant="outline" size="sm" onClick={onDownloadPdf} disabled={pdfBusy} leftIcon={<FileDown className="w-4 h-4" />}>Download PDF</Button>
-        <Button variant="primary" size="sm" onClick={onPrint} isLoading={pdfBusy} disabled={pdfBusy} leftIcon={<Printer className="w-4 h-4" />}>Print</Button>
+        <Button variant="outline" size="sm" onClick={() => { setPending('pdf'); onDownloadPdf(); }} isLoading={pdfBusy && pending === 'pdf'} disabled={pdfBusy} leftIcon={<FileDown className="w-4 h-4" />}>Download PDF</Button>
+        <Button variant="primary" size="sm" onClick={() => { setPending('print'); onPrint(); }} isLoading={pdfBusy && pending === 'print'} disabled={pdfBusy} leftIcon={<Printer className="w-4 h-4" />}>Print</Button>
       </div>
     }
   >
@@ -74,4 +77,5 @@ export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
       </div>
     </div>
   </Modal>
-);
+  );
+};

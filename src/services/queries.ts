@@ -215,6 +215,31 @@ export function useExpenseTotals(f: ExpenseFilter, group: 'category' | 'office' 
 // ---------------------------------------------------------------------------------------------
 // Journals
 // ---------------------------------------------------------------------------------------------
+const JOURNAL_LINE_SELECT = '*, vehicle:vehicles(plate_number)';
+const LINES_PAGE = 1000;
+
+/**
+ * Adds `lines` to v_journal_list rows. The view's `id` and `reversed_by_id` both match
+ * journal_lines.entry_id through the same foreign key, so PostgREST cannot embed the lines
+ * (PGRST201); they are read in a second query by entry id.
+ */
+export async function withJournalLines<P extends { rows: Row[] }>(page: P, signal?: AbortSignal): Promise<P> {
+  const ids = page.rows.map(r => r.id as string);
+  if (!ids.length) return page;
+  const lines: Row[] = [];
+  for (let from = 0; ; from += LINES_PAGE) {
+    let b: any = db.from('journal_lines').select(JOURNAL_LINE_SELECT).in('entry_id', ids).order('id').range(from, from + LINES_PAGE - 1);
+    if (signal) b = b.abortSignal(signal);
+    const { data, error } = await b;
+    if (error) throw toServiceError(error);
+    lines.push(...(data ?? []));
+    if (!data || data.length < LINES_PAGE) break;
+  }
+  const byEntry = new Map<string, Row[]>();
+  for (const l of lines) { const list = byEntry.get(l.entry_id) ?? []; list.push(l); byEntry.set(l.entry_id, list); }
+  return { ...page, rows: page.rows.map(r => ({ ...r, lines: byEntry.get(r.id) ?? [] })) };
+}
+
 const JOURNAL_TAGS = ['journal_entries', 'journal_lines', 'chart_of_accounts'];
 export interface JournalFilter { companyId?: string | null; status?: string; source?: string; from?: string; to?: string; sourceId?: string }
 export const journalSource = (f: JournalFilter): ServerSource<JournalEntry & { totalDebit: number; totalCredit: number }> => ({
@@ -222,8 +247,8 @@ export const journalSource = (f: JournalFilter): ServerSource<JournalEntry & { t
   tags: JOURNAL_TAGS,
   defaultSort: { column: 'date', ascending: false },
   fetch: (q, signal) => {
-    return runPage<Row, JournalEntry & { totalDebit: number; totalCredit: number }>(() => {
-      let b: any = db.from('v_journal_list').select('*, lines:journal_lines(*, vehicle:vehicles(plate_number))', { count: 'exact' });
+    return runPage<Row, Row>(() => {
+      let b: any = db.from('v_journal_list').select('*', { count: 'exact' });
       if (officeArg(f.companyId)) b = b.eq('company_id', f.companyId);
       if (f.status) b = b.eq('status', f.status);
       if (f.source) b = b.eq('source_module', f.source);
@@ -231,8 +256,9 @@ export const journalSource = (f: JournalFilter): ServerSource<JournalEntry & { t
       if (f.from) b = b.gte('date', f.from);
       if (f.to) b = b.lte('date', f.to);
       return b;
-    }, q, r => ({ ...rowToJournalEntry({ ...r, poster: { name: r.posted_by_name } }), totalDebit: num(r.total_debit), totalCredit: num(r.total_credit) }),
-    { searchColumn: 'search_text', defaultSort: { column: 'date', ascending: false }, tieBreaker: 'entry_number', signal });
+    }, q, r => r, { searchColumn: 'search_text', defaultSort: { column: 'date', ascending: false }, tieBreaker: 'entry_number', signal })
+      .then(page => withJournalLines(page, signal))
+      .then(page => ({ ...page, rows: page.rows.map(r => ({ ...rowToJournalEntry({ ...r, poster: { name: r.posted_by_name } }), totalDebit: num(r.total_debit), totalCredit: num(r.total_credit) })) }));
   },
 });
 

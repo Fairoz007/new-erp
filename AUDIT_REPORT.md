@@ -368,3 +368,9 @@ prints on every document until the Settings data is entered.
 - The pass accidentally saved three office records with their own values and created one draft
   budget on the development database. Both were reverted (see the notes).
 - Details: `docs/UI_INSPECTION_NOTES.md`.
+- Follow-up: every export (CSV, PDF, Print, document view) was clicked on every page, with files
+  caught in the page instead of saved. Row actions and pagination were checked, and a Sample budget
+  went through create, edit and delete. Fixed: Settings → Export JSON always failed (PGRST201),
+  because `v_journal_list` has two paths to `journal_lines`. Journal lines are now loaded in a second
+  query; no database change. Quick-add Cancel now asks before discarding typed input, and the report
+  preview spinner shows on the button that was clicked.
