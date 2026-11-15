@@ -12,6 +12,12 @@ import { fetchBudgetVsActual, type BudgetActual } from '../../services/ledger';
 import { fetchFleetExpiries, EXPIRY_LABEL, type FleetExpiry } from '../../services/drivers';
 import { Row, text, mono, date, money, int, EmptyReport, ReportTable } from './reportKit';
 import { todayYmd } from '../../utils/date';
+import { Button } from '../../components/ui/Button';
+import { Download } from 'lucide-react';
+import { useOptionalOrg } from '../../context/OrgContext';
+import { useUI } from '../../context/UIContext';
+import { fetchPendingBills } from '../../services/finance';
+import { statementPrintData } from '../../lib/invoicePrint';
 
 export interface ReportFilters { office: string; from: string; to: string }
 export interface ExtraReport { id: string; name: string; desc: string; group: string; render: React.FC<ReportFilters> }
@@ -106,12 +112,48 @@ const PartyStatement: React.FC<ReportFilters & { kind: 'Customer' | 'Supplier' }
   const closing = q.data.closing_balance;
   return (
     <div className="space-y-3">
-      {picker}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        {picker}
+        {kind === 'Customer' && partyId && <PendingBillsButton partyId={partyId} office={f.office} />}
+      </div>
       <Note>Approved invoices, credit and debit notes, and payments. Opening balance before {f.from || 'the start'}: <strong className="text-slate-200">{formatCurrency(opening, currency)}</strong>. Closing balance: <strong className="text-slate-200">{formatCurrency(closing, currency)}</strong> ({kind === 'Customer' ? 'owed by the client' : 'owed to the supplier'}).</Note>
       <ReportTable rows={rows} filename={`${kind === 'Customer' ? 'Client' : 'Supplier'}_Statement`} title={`${kind === 'Customer' ? 'Client' : 'Supplier'} statement: ${parties.find(p => p.id === partyId)?.name ?? ''}`} columns={[
         date('date', 'Date'), mono('ref', 'Reference'), text('detail', 'Detail'), money('charge', kind === 'Customer' ? 'Charged' : 'Billed', currency), money('credit', kind === 'Customer' ? 'Received / credited' : 'Paid / credited', currency), money('balance', 'Balance', currency, true),
       ]} />
     </div>
+  );
+};
+
+// Client statement on the letterhead in the "Bill-wise Details / Pending Bills" layout: the client's
+// open invoices today (opening and pending amount, due date, days overdue), as a PDF.
+const PendingBillsButton: React.FC<{ partyId: string; office: string }> = ({ partyId, office }) => {
+  const { customers, companies, currency } = useFleet();
+  const org = useOptionalOrg()?.organization ?? null;
+  const { addToast } = useUI();
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    const c = customers.find(x => x.id === partyId);
+    if (!c || busy) return;
+    setBusy(true);
+    try {
+      const officeRow = office !== 'all' ? companies.find(x => x.id === office) : undefined;
+      const asOf = todayYmd();
+      const data = statementPrintData(await fetchPendingBills(partyId, office),
+        { name: c.name, address: c.address ?? '', vat: c.vatNumber ?? '' },
+        { name: org?.legalName || org?.tradeName || '', vat: officeRow?.vatNumber || org?.vatNumber || '', cr: officeRow?.registrationNumber || org?.crNumber || '' },
+        asOf, currency);
+      const pdf = await import('../../lib/letterheadPdf');
+      pdf.savePdf(pdf.buildStatementPdf(data, await pdf.loadLetterheadBytes()), `${c.name} pending bills ${asOf}`);
+    } catch (e) {
+      addToast({ type: 'error', title: 'Statement not created', message: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={() => void run()} isLoading={busy} disabled={busy} leftIcon={<Download className="w-4 h-4" />}>
+      Pending bills (PDF)
+    </Button>
   );
 };
 

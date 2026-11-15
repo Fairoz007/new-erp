@@ -213,3 +213,64 @@
   #printable-report thead { display: table-header-group; }
   #printable-report tr { page-break-inside: avoid; }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Documents on the letterhead (LetterheadDocument): A4 pages, geometry from src/lib/invoicePrint.ts
+   (LAYOUT): body x 14-196 mm, y 36-266 mm; corner block right edge 196 mm; footer baseline 271.5 mm.
+   --------------------------------------------------------------------------------------------- */
+.lh-page {
+  --lh-ink: theme('colors.slate.100'); --lh-muted: theme('colors.slate.400'); --lh-rule: theme('colors.slate.600');
+  position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #fff; color: var(--lh-ink);
+  font-family: Helvetica, Arial, sans-serif; font-size: 8.5pt; line-height: 1.35; text-align: left;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.lh-page p, .lh-page dl, .lh-page dd { margin: 0; }
+.lh-bg { position: absolute; inset: 0; width: 210mm; height: 297mm; pointer-events: none; user-select: none; }
+.lh-corner { position: absolute; right: 14mm; top: 11mm; width: 40mm; text-align: right; }
+.lh-title { font-size: 13pt; font-weight: 700; color: theme('colors.brand.500'); line-height: 1.2; }
+.lh-number { font-size: 10pt; font-weight: 700; margin-top: 1.6mm !important; }
+.lh-body { position: absolute; left: 14mm; top: 36mm; width: 182mm; height: 230mm; }
+.lh-foot { position: absolute; right: 14mm; top: 268.6mm; font-size: 7.5pt; color: var(--lh-muted); }
+.lh-first { padding-top: 1mm; padding-bottom: 3mm; }
+.lh-seller { font-size: 7.5pt; font-weight: 700; color: var(--lh-muted); }
+.lh-draft { margin-top: 1mm !important; font-weight: 700; color: theme('colors.danger.700'); }
+.lh-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; margin-top: 2mm; }
+.lh-label { font-size: 7.5pt; font-weight: 700; color: var(--lh-muted); }
+.lh-party { font-size: 9.5pt; font-weight: 700; }
+.lh-facts { display: grid; grid-template-columns: 30mm 1fr; }
+.lh-facts dt { font-weight: 700; color: var(--lh-muted); }
+.lh-bank { grid-template-columns: 26mm 1fr; max-width: 91mm; }
+.lh-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.lh-cell { border: 0.15mm solid var(--lh-rule); padding: 1.6mm; vertical-align: top; overflow-wrap: anywhere; }
+.lh-th { background: theme('colors.brand.500'); color: #fff; font-size: 8pt; font-weight: 700; }
+.lh-detail { display: block; }
+.lh-row { break-inside: avoid; }
+.lh-totals-wrap { display: grid; grid-template-columns: 1fr 70mm; gap: 8mm; padding-top: 5mm; }
+.lh-strong { font-weight: 700; }
+.lh-muted { font-size: 7.5pt; color: var(--lh-muted); margin-top: 1mm !important; }
+.lh-totals { font-size: 9pt; }
+.lh-totals > div { display: flex; justify-content: space-between; }
+.lh-total { font-size: 10pt; font-weight: 700; border-top: 0.3mm solid var(--lh-ink); margin-top: 1.5mm; padding-top: 0.5mm; }
+.lh-close { padding-top: 4mm; }
+.lh-sign { display: flex; justify-content: space-between; margin-top: 14mm; font-size: 7.5pt; font-weight: 700; }
+.lh-sign span { width: 60mm; border-top: 0.2mm solid var(--lh-ink); padding-top: 1.2mm; }
+.lh-sign span:last-child { text-align: right; }
+/* screen preview: pages scaled to the dialog width */
+.lh-preview { width: 100%; overflow: hidden; }
+.lh-stack { transform-origin: top left; width: 210mm; }
+.lh-stack .lh-page { margin-bottom: 6mm; box-shadow: 0 1px 4px rgb(0 0 0 / 0.18); }
+/* print root: off screen until printing; also where rows are measured */
+#letterhead-print { position: fixed; left: -100000px; top: 0; }
+.lh-measure { width: 182mm; position: absolute; visibility: hidden; font-family: Helvetica, Arial, sans-serif; font-size: 8.5pt; line-height: 1.35; }
+.lh-measure p, .lh-measure dl, .lh-measure dd { margin: 0; }
+.lh-ruler { width: 100mm; height: 1px; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  body:has(#letterhead-print) > *:not(#letterhead-print) { display: none !important; }
+  body:has(#letterhead-print) { background: #fff !important; }
+  #letterhead-print { position: static; left: auto; }
+  #letterhead-print .lh-measure { display: none; }
+  #letterhead-print .lh-page { break-after: page; page-break-after: always; }
+  #letterhead-print .lh-page:last-child { break-after: auto; page-break-after: auto; }
+}

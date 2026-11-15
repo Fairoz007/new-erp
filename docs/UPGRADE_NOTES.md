@@ -415,3 +415,42 @@ entry" further down for what was set and when.
 - Older tests that pinned the `INV-…` sales format were updated to the new rule (platform, finance,
   org setup, security audit, office numbers). Concurrency is shown with two rows in one statement
   through the same locked row; PGlite has one connection, so two separate sessions were not run.
+
+## Stage 10: Letterhead print and Download PDF
+
+- One geometry for screen, print and PDF (`src/lib/invoicePrint.ts` `LAYOUT`): A4 210 × 297 mm on the
+  fixed letterhead image (`src/assets/brand/letterhead-a4.jpg`, loaded only when a document opens);
+  everything is drawn inside the safe area between the printed header and the bottom band
+  (x 14–196 mm, y 36–266 mm), so nothing overlaps the artwork.
+- Every page: the title (TAX INVOICE / CREDIT NOTE / DEBIT NOTE; purchase bills print PURCHASE BILL)
+  and the number in the top-right corner; `<number> · Page x of y` in the bottom corner above the band.
+- Page 1: seller name, VATIN and CR (from the office, falling back to the organization); bill-to name,
+  address and VATIN; invoice date, due date, office, reference and LPO when they exist; a DRAFT line
+  when the document is not posted. The lines table repeats its header on every page and never splits a
+  row. Last page: subtotal, discount (only when there is one), VAT 5 %, other charges and total; paid, credited and
+  balance stay on screen only (they change after printing); amount in words in Rials and Baisa (`src/lib/amountInWords.ts`), bank details (only
+  the fields that exist on the office), "Prepared by" and "Authorised signature & stamp".
+- Printing: the invoice dialog renders the pages into a print root on `<body>`; `@page { size: A4;
+  margin: 0 }` and a print block that hides everything else (`src/index.css`, `.lh-*`). Browser
+  headers/footers must be switched off in the print dialog on some browsers (a browser setting, not
+  something a page can force).
+- Download PDF: jsPDF + jspdf-autotable with vector text (selectable, searchable), loaded on demand
+  (lazy chunk; initial JS unchanged at 225 kB gzip). The file is named `<number>.pdf`, e.g.
+  `447-FT-2026.pdf`.
+- Client statement: Reports → Client Statement → a customer → **Pending bills (PDF)** produces the
+  "Bill-wise Details / Pending Bills" layout on the same letterhead frame: date, bill number, due date,
+  days overdue, opening and pending amount (Dr/Cr), and the total, from the customer's posted, open,
+  not cancelled sales invoices in the chosen office (`fetchPendingBills`). Credit notes are left out
+  of the list because they are already applied to the invoice's outstanding amount.
+- Tests (vitest): amount in words (2,677.500 → "Two Thousand Six Hundred Seventy-Seven Rials and Five
+  Hundred Baisa", zero baisa, baisa only, millions); file name; titles; print data; page planning; a
+  3-line invoice is one page; a 60-line invoice is 3 pages with the number and "Page x of y" on every
+  page and the table header on every page that has rows; the statement PDF.
+- Checked by rendering the generated PDFs to images (3-line and 60-line samples built from test data):
+  nothing crosses the letterhead header or band, the header repeats, totals land on the last page.
+- Known limit: the screen/print pages are planned by measuring the rows in the browser, the PDF by
+  jsPDF's own font metrics, so a long invoice can break one row earlier or later on paper than in the
+  PDF. Both keep the header, the numbering and the totals rules.
+- The Arabic company name appears only in the letterhead artwork; it is not typed again on the page.
+- Not verified in the signed-in app (no sign-in in the browser pane during this run): the dialog with
+  a real invoice, the print dialog itself, and the statement button with a real customer.

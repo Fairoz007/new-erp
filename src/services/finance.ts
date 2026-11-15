@@ -718,3 +718,22 @@ export const affects: Record<string, CollectionKey[]> = {
   addPayment: ['payments', 'invoices', 'bankAccounts', 'suppliers', 'customers', 'journalEntries', 'chartOfAccounts', 'notifications'],
   addReconciliation: ['reconciliations'],
 };
+
+// ---------------------------------------------------------------------------------------------
+// Pending bills of one client ("Bill-wise Details" statement on the letterhead): posted sales
+// invoices and debit notes with an amount still open, optionally for one office. RLS applies.
+// ---------------------------------------------------------------------------------------------
+export interface PendingBillRow { date: string; number: string; dueDate: string; original: number; pending: number; isCredit: boolean }
+export async function fetchPendingBills(customerId: string, companyId?: string | null): Promise<PendingBillRow[]> {
+  let q = table('invoices')
+    .select('invoice_number, invoice_date, due_date, grand_total, outstanding_amount, is_credit_note')
+    .eq('customer_id', customerId).eq('invoice_type', 'Sales').eq('approval_status', 'Approved')
+    .eq('is_credit_note', false).neq('payment_status', 'Cancelled').gt('outstanding_amount', 0)
+    .order('invoice_date').order('invoice_number');
+  if (companyId && companyId !== 'all') q = q.eq('company_id', companyId);
+  const rows = await unwrap<Row[]>(q);
+  return rows.map(r => ({
+    date: ymd(r.invoice_date), number: r.invoice_number, dueDate: ymd(r.due_date),
+    original: num(r.grand_total), pending: num(r.outstanding_amount), isCredit: !!r.is_credit_note,
+  }));
+}
