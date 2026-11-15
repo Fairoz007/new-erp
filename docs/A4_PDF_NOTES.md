@@ -216,3 +216,41 @@ what is not. One section per stage.
 - **Checks:** lint, `test:unit` (19 files, 100 tests), build, `test:db` pass. Initial JS unchanged.
 - **Not verified in the signed-in app:** the buttons on the Reports page.
 
+## Stage 6: Every output checked
+
+Each output was produced from live data in a rolled-back transaction or from "Sample" figures,
+every page rendered to an image and checked for: letterhead exact and nothing drawn over its header
+or band; title and number/period top right; `<label> · Page x of y`; table header on every page;
+no row split across pages; figures equal to what the screen shows (same formatter); file name.
+
+| Output | Where | Data used | Pages | Result |
+|---|---|---|---|---|
+| Tax invoice | Invoice dialog → Download PDF / Print | live invoices 447 and 448-FT-2026 (3 and 60 lines), rolled back | 1 and 3 | Pass; pixel-identical to before the frame |
+| Credit / debit note | Invoice dialog | the same two as unposted notes with discount, notes, terms, bank | 1 and 3 | Pass; pixel-identical |
+| Pending bills statement | Reports → Client statement → Pending bills (PDF) | 45 and 0 sample bills | 3 and 1 | Pass; pixel-identical |
+| List PDF | every list → Export → PDF / Document view → Print | 120 sample vehicles, search filter | 4 | Pass |
+| Report PDF, wide | Reports → a report with 11 columns | 40 sample assets | 2, landscape | Pass |
+| Report PDF, empty | Reports → Expense report | no rows | 1 | Pass ("No rows") |
+| Trial balance | Trial Balance → Download PDF / Print Statement | 70 sample accounts with totals | 4 | Pass |
+| Profit & loss | Profit & Loss → Download PDF / Print Statement | sample figures | 1 | Pass |
+| Balance sheet | Balance Sheet → Download PDF / Print | sample figures | 1 | Pass |
+| Cash flow | Cash flow → Download PDF / Print | sample figures, empty financing section | 1 | Pass |
+| General ledger | General Ledger → Download PDF / Print Statement | 3 sample accounts, 50 lines, one empty account | 2 | Pass |
+| Statement of account | Reports → Client / Supplier statement; GL sub-ledger tab | live statement (2 invoices, 1 payment), rolled back | 1 | Pass; totals equal the database's |
+| Receipt voucher | Payment → Download PDF / Print Receipt | live payment PAY-HO-2026-0003, rolled back | 1 | Pass |
+| Payment voucher | Payment → Download PDF / Print Voucher | sample cheque payment, no readable invoice | 1 | Pass |
+| Payslip | Payslip → Download PDF / Print Payslip | sample payslip with itemised lines | 1 | Pass; account shows `**** 4821` only |
+
+- **Invoice dialog → Print** now prints the PDF too (it printed the HTML print view before), so
+  every Print button in the app prints the same pages as its Download PDF. The HTML print view
+  stays only for the browser's own print (Ctrl+P) in the invoice dialog.
+- **Print path in the running app (Chromium, the in-app browser):** a receipt PDF was built with
+  the real letterhead (274 kB image, 278 kB PDF), loaded into the hidden print frame in 8 ms, and
+  the frame's `print()` was available; no console errors. `print()` itself was not called: it opens
+  the system print dialog.
+- **Not verified:**
+  - Printing on paper or in a print preview from Chrome and Safari (6.2). It needs a person at the
+    print dialog; the code path up to the dialog is checked above. Safari has no automated check
+    here; where it cannot print from the frame, `printPdf` downloads the file and the app says so.
+  - Every button in the signed-in app with real data: nobody signs in to the in-app browser. The
+    builders behind the buttons are the ones checked above and in the unit tests.

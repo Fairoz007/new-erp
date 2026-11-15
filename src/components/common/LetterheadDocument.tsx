@@ -160,7 +160,7 @@ interface Props {
   data: InvoicePrintData;
 }
 
-/** Screen preview (scaled to the dialog width) plus the print root used by window.print(). */
+/** Screen preview (scaled to the dialog width) plus a print root for the browser's own print (Ctrl+P); the Print button prints the PDF. */
 export const LetterheadDocument: React.FC<Props> = ({ data }) => {
   const [letterhead, setLetterhead] = useState<string | null>(null);
   useEffect(() => { let live = true; loadLetterheadUrl().then(u => { if (live) setLetterhead(u); }).catch(() => undefined); return () => { live = false; }; }, []);

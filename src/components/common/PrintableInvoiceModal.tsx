@@ -15,7 +15,7 @@ import { invoicePrintData } from '../../lib/invoicePrint';
 import { LetterheadDocument } from './LetterheadDocument';
 import { RULES, atMost, fieldForDbMessage, focusFirstInvalid, hasErrors, positive, required, validate, type Errors } from '../../lib/validation';
 
-type Busy = null | 'duplicate' | 'credit' | 'debit' | 'submit' | 'cancel' | 'pdf';
+type Busy = null | 'duplicate' | 'credit' | 'debit' | 'submit' | 'cancel' | 'pdf' | 'print';
 
 export const PrintableInvoiceModal: React.FC = () => {
   const { companies, duplicateInvoice, createCreditNote, updateInvoice, submitInvoice, reload } = useFleet();
@@ -127,6 +127,14 @@ export const PrintableInvoiceModal: React.FC = () => {
     const doc = pdf.buildInvoicePdf(printData, await pdf.loadLetterheadBytes());
     pdf.savePdf(doc, invoice.invoiceNumber);
   });
+  // Print: the same PDF pages, printed from a hidden frame (downloaded when the browser cannot)
+  const handlePrint = () => run('print', async () => {
+    const pdf = await import('../../lib/letterheadPdf');
+    const doc = pdf.buildInvoicePdf(printData, await pdf.loadLetterheadBytes());
+    if (await pdf.printPdf(doc, invoice.invoiceNumber) === 'downloaded') {
+      addToast({ type: 'info', title: 'PDF downloaded', message: 'This browser cannot print a PDF directly; open the downloaded file to print it.' });
+    }
+  });
 
   const handleCancel = () => run('cancel', async () => {
     if (!window.confirm(`Cancel ${invoice.invoiceNumber}? Cancelled invoices cannot be submitted or paid.`)) return;
@@ -226,7 +234,7 @@ export const PrintableInvoiceModal: React.FC = () => {
             <Button variant="secondary" size="sm" onClick={closeInvoiceModal} disabled={!!busy}>
               Close
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
+            <Button variant="outline" size="sm" onClick={handlePrint} disabled={!!busy} isLoading={busy === 'print'} leftIcon={<Printer className="w-4 h-4" />}>
               Print
             </Button>
             <Button variant="primary" size="sm" onClick={handleDownload} disabled={busy === 'pdf'} isLoading={busy === 'pdf'} leftIcon={<Download className="w-4 h-4" />}>
