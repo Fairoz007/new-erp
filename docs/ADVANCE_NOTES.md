@@ -590,7 +590,7 @@ details and were not filled in by the assistant.
 
 The owner asked to set up Al Hakim with a head office and two sub-offices. Details come from the
 company website (alhakimnational.com): legal name Al Hakim National LLC, P.O. Box 659, P.C. 117,
-Muscat, +968 2450 5595, info@alhakimnational.com; VAT number from the previous project; CR number
+Muscat, +968 2450 5595, info@alhakimnational.com; VAT number from the previous project (a sample value entered during testing, not the real one; corrected to OM1100058123 on 2026-11-15); CR number
 left empty (not known). Offices: Head Office (HO, Muscat), Duqm Office (DQM), Nisfa Office (NSF).
 VAT 5% (Oman's standard rate) and Net 30 are the defaults. Roles, vehicle types and expense
 categories kept as installed; opening balances skipped. All 10 users were given all offices (the
@@ -644,7 +644,7 @@ Defects found and fixed:
 | Add Supplier offered types the rest of the app does not know ("Fuel Station", "Spare Parts"…); Edit then showed the first type in the list instead | One list (`SUPPLIER_TYPES`) for add, edit and CSV import; Edit shows a stored type outside the list as it is | Seen live; SUP-002 corrected to Fuel Supplier |
 | Work order list and vehicle page showed an empty "Workshop:" when a supplier was chosen | Show the supplier's name; "Not assigned" when none ("Internal Workshop" was not a recorded fact) | Seen live |
 | A bank account added in Settings → Opening balances was not offered in the payment form until reload | The importer refreshes the loaded lists after posting | Seen live |
-| Printed invoices showed only the office ("HO Head Office"), without the company's legal name or VAT number | The letterhead shows the organization's legal name with the office as branch; CR, VAT, phone and email fall back to the organization's when the office has none; logo shown when uploaded | Seen live: Al Hakim National LLC, VAT No OM1100482910 |
+| Printed invoices showed only the office ("HO Head Office"), without the company's legal name or VAT number | The letterhead shows the organization's legal name with the office as branch; CR, VAT, phone and email fall back to the organization's when the office has none; logo shown when uploaded | Seen live: Al Hakim National LLC with the VAT number then on file (a sample value entered during testing, not the real number; the real VATIN OM1100058123 was set on 2026-11-15, see docs/UPGRADE_NOTES.md) |
 | Invoice upload box promised to "auto-extract reference, items, and tax totals" (there is no such feature) | Text says the file is attached only | — |
 | Oil service saved with odometer 0 (next service due at 10,000 km) because picking a vehicle did not fill its reading | Picking a vehicle fills its current reading (oil and maintenance forms); oil odometer must be above zero | Seen live: 45,250 → next 55,250 |
 | "Tax 5%" labels on oil and maintenance forms (the rate is whatever the supplier charged) | "Tax (OMR)" | — |

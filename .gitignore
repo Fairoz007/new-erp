@@ -10,3 +10,6 @@ dist
 test-results
 playwright-report
 backups
+
+# Company files supplied by the owner (letterhead, logo, real customer statements): never committed
+logs example pdf etc /
