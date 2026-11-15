@@ -8,6 +8,8 @@
 //      Print gives the same pages (printTablePdf).
 import { currentDocumentCompany, currentReportOffice, currentReportUser, orgName, type DocumentOffice } from '../lib/branding';
 import type { ReportPeriod, ReportRow } from '../lib/a4/tableReport';
+import type { Invoice, Payment } from '../types/finance';
+import type { PayslipModalData } from '../types/hr';
 import { todayYmd } from './date';
 
 /**
@@ -101,14 +103,14 @@ export interface PdfOptions {
 async function tablePdf(filename: string, title: string, columns: string[], rows: ReportRow[], opts: PdfOptions) {
   const m = await import('../lib/a4/tableReport');
   const assets = await m.loadReportAssets(m.needsLandscape(columns.length));
-  const company = currentDocumentCompany();
+  const company = documentCompany();
   return m.buildTableReportPdf({
     name: filename, title, columns, rows,
     rightAlign: opts.rightAlign, totals: opts.totals, subtitle: opts.subtitle, filters: opts.filters,
     office: opts.office === undefined ? currentReportOffice() : opts.office,
     period: opts.period,
     facts: opts.facts, signatures: opts.signatures, fileName: opts.fileName, officeLabel: opts.officeLabel,
-    company: { ...company, legalName: company.legalName || orgName() },
+    company,
     generatedBy: currentReportUser(),
   }, assets);
 }
@@ -134,3 +136,30 @@ export async function printTablePdf(filename: string, title: string, columns: st
 export function tablePdfAction(print: boolean, filename: string, title: string, columns: string[], rows: ReportRow[], opts: PdfOptions = {}): Promise<'printed' | 'downloaded' | 'saved'> {
   return print ? printTablePdf(filename, title, columns, rows, opts) : exportToPDF(filename, title, columns, rows, opts).then(() => 'saved' as const);
 }
+
+/** The organization from Settings, with its display name when the legal name is not set yet. */
+const documentCompany = () => { const c = currentDocumentCompany(); return { ...c, legalName: c.legalName || orgName() }; };
+
+/** Payment receipt (money in) or payment voucher (money out) on the letterhead: print or download. */
+export async function voucherPdfAction(print: boolean, payment: Payment, o: { office: DocumentOffice | null; currency: string; bankAccountNumber?: string; invoice?: Invoice | null }): Promise<'printed' | 'downloaded' | 'saved'> {
+  const [v, f] = await Promise.all([import('../lib/a4/vouchers'), import('../lib/a4/frame')]);
+  const d = v.voucherData(payment, { ...o, company: documentCompany() });
+  const doc = v.buildVoucherPdf(d, await f.loadLetterheadBytes());
+  if (print) return f.printPdf(doc, d.fileName);
+  f.savePdf(doc, d.fileName);
+  return 'saved';
+}
+
+/** Payslip on the letterhead (bank account masked to its last 4 characters): print or download. */
+export async function payslipPdfAction(print: boolean, payslip: PayslipModalData, o: { office: DocumentOffice | null; currency: string }): Promise<'printed' | 'downloaded' | 'saved'> {
+  const [v, f] = await Promise.all([import('../lib/a4/vouchers'), import('../lib/a4/frame')]);
+  const d = v.payslipData(payslip, { ...o, company: documentCompany() });
+  const doc = v.buildPayslipPdf(d, [payslip.designation, payslip.department].filter(Boolean), await f.loadLetterheadBytes());
+  if (print) return f.printPdf(doc, d.fileName);
+  f.savePdf(doc, d.fileName);
+  return 'saved';
+}
+
+/** An office as printed on documents (code, name and its own VAT/CR when it has them). */
+export const documentOffice = (c?: Pick<DocumentOffice, 'code' | 'name' | 'vatNumber' | 'registrationNumber'> | null): DocumentOffice | null =>
+  c ? { code: c.code, name: c.name, vatNumber: c.vatNumber, registrationNumber: c.registrationNumber } : null;

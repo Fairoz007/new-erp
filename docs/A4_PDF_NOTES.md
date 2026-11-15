@@ -11,7 +11,7 @@ what is not. One section per stage.
 | 2 | Portrait always; wide tables shrink (not below 6.5 pt) and wrap; landscape only above 10 columns | Applied in stage 2 |
 | 3 | Print gives the same pages as Download PDF | Requested by the owner; lists (stage 2) and statements (stage 3) done |
 | 4 | CSV exports unchanged | Suggested |
-| 5 | Payslip bank account shows the last 4 digits only | Suggested, stage 4 |
+| 5 | Payslip bank account shows the last 4 digits only | Applied in stage 4 |
 | 6 | Corner shows the document number; reports show the period | Suggested |
 
 ## Open points
@@ -158,3 +158,36 @@ what is not. One section per stage.
   gzip; the statement builders load with the PDF code.
 - **Not verified in the signed-in app:** the buttons with real ledger data (no sign-in in the
   browser pane).
+
+## Stage 4: Receipts, vouchers and payslips
+
+- **New `src/lib/a4/vouchers.ts`** (pure data functions plus builders on the frame):
+  - **Receipt voucher** (a client's payment) and **payment voucher** (a payment to a supplier),
+    numbered with the payment number: seller line (office VAT/CR, else the organization's),
+    "Received from" / "Paid to" with the party, and Date, Office, Method, the bank account it went
+    to or came from, Reference and Cheque no. (empty ones left out). One line "Received against
+    invoice …" / "Paid against bill …" with the invoice date and total when the linked invoice
+    could be read; the amount; the invoice balance due; amount in words; notes; "Received by" and
+    "Authorised signature & stamp" (receipt) or "Prepared by" and "Receiver signature & date"
+    (voucher). File `<payment number>.pdf`.
+  - **Payslip**: title PAYSLIP with the period top right; the employee (ID, designation,
+    department) and Period, Payment date (or scheduled), Status, Bank, Account, Days worked;
+    earnings and deductions side by side with exactly the dialog's lines, order and totals; Net pay
+    with the amount in words; "This is a computer-generated payslip."; "Prepared by (HR & Payroll)"
+    and "Employee signature & date". **The bank account shows its last 4 characters only
+    (`**** 4821`, decision 5).** File `Payslip_<employee code>_<yyyy-mm>.pdf`.
+  - Amount in words only for OMR (the wording is Rials and Baisa); other currencies print the
+    figure alone rather than wrong words.
+- **Dialogs:** Payment detail → Download PDF and Print Receipt / Print Voucher. Payslip → Download
+  PDF and Print Payslip. Both print the PDF. The payslip dialog no longer shows the invented
+  initials badge.
+- **Tests:** `src/lib/__tests__/vouchers.test.ts` (4): receipt facts, line, totals, words, file
+  name and the drawn text; supplier voucher without a readable invoice and in USD (no words);
+  payslip lines and totals equal the dialog's, the account masked and the full number nowhere in
+  the PDF; masking of short and empty accounts.
+- **Rendered and checked** with the real letterhead: receipt with a linked invoice, payment voucher
+  by cheque without one, payslip with itemised allowances and deductions.
+- **Checks:** lint, `test:unit` (19 files, 100 tests), build, `test:db` pass. Initial JS 226.7 kB
+  gzip (+1.3 kB: the two dialogs are part of the app shell, so their Download/Print buttons are
+  too); jsPDF and the builders stay in lazy chunks.
+- **Not verified in the signed-in app:** both dialogs with real payments and payroll.

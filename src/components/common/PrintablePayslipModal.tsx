@@ -1,11 +1,12 @@
 import React from 'react';
-import { Printer } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useUI } from '../../context/UIContext';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
+import { PdfActions } from './PdfActions';
+import { documentOffice, payslipPdfAction } from '../../utils/export';
 
 export const PrintablePayslipModal: React.FC = () => {
   const { viewingPayslip, closePayslipModal } = useUI();
@@ -17,12 +18,7 @@ export const PrintablePayslipModal: React.FC = () => {
   const employee = employees.find(e => e.id === viewingPayslip.employeeId);
   const company = companies.find(c => c.id === employee?.companyId);
   const companyName = company?.name ?? '';
-  const initials = companyName.split(/\s+/).filter(Boolean).slice(0, 3).map(w => w[0]).join('').toUpperCase();
   const isPaid = viewingPayslip.status === 'Paid';
-
-  const handlePrint = () => {
-    window.print();
-  };
 
 
   return (
@@ -37,9 +33,6 @@ export const PrintablePayslipModal: React.FC = () => {
         {/* Company Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-lg">
-              {initials || '—'}
-            </div>
             <div>
               <h2 className="text-base font-bold text-slate-100">
                 {companyName || 'Company not available'}
@@ -230,9 +223,8 @@ export const PrintablePayslipModal: React.FC = () => {
           <Button variant="secondary" size="sm" onClick={closePayslipModal}>
             Close
           </Button>
-          <Button variant="primary" size="sm" onClick={handlePrint} leftIcon={<Printer className="w-4 h-4" />}>
-            Print Payslip
-          </Button>
+          <PdfActions size="sm" printLabel="Print Payslip"
+            run={print => payslipPdfAction(print, viewingPayslip, { office: documentOffice(company), currency })} />
         </div>
       </div>
     </Modal>

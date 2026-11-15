@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, Calendar, Building2, FileText, Paperclip, Printer, ExternalLink, ArrowRight, ShieldCheck } from 'lucide-react';
+import { CreditCard, FileText, Paperclip, ShieldCheck } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Payment } from '../../types/finance';
@@ -9,6 +9,8 @@ import { formatCurrency } from '../../utils/financial';
 import { formatDate } from '../../utils/date';
 import { useInvoiceById } from '../../services/queries-expenses';
 import { DetailTitle } from '../../components/ui/DetailTitle';
+import { PdfActions } from '../../components/common/PdfActions';
+import { documentOffice, voucherPdfAction } from '../../utils/export';
 
 interface PaymentDetailModalProps {
   payment: Payment | null;
@@ -21,7 +23,7 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { bankAccounts, currency } = useFleet();
+  const { bankAccounts, companies, currency } = useFleet();
   const { openInvoiceModal, openBillModal } = useUI();
   // the linked invoice, read by id (its balance and status as of now)
   const invoiceQ = useInvoiceById(isOpen ? payment?.invoiceId : null);
@@ -74,9 +76,11 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-              Print Voucher
-            </Button>
+            <PdfActions size="sm" printLabel={payment.partyType === 'Customer' ? 'Print Receipt' : 'Print Voucher'}
+              run={print => voucherPdfAction(print, payment, {
+                office: documentOffice(companies.find(c => c.id === payment.companyId)), currency,
+                bankAccountNumber: bank?.accountNumber, invoice: linkedInvoice,
+              })} />
             <Button variant="primary" size="sm" onClick={onClose}>
               Done
             </Button>
