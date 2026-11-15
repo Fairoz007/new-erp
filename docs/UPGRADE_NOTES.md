@@ -525,3 +525,63 @@ What could be done without a signed-in user, and what could not.
 | `users-roles/UsersRolesPage.tsx` | yes | cards / panels | not run |
 | `vehicles/VehicleDetailPage.tsx` | yes | DataTable ×2, statement table ×3 | not run |
 | `vehicles/VehiclesPage.tsx` | yes | DataTable ×1 | not run |
+
+## Stage 12: End to end
+
+### 12.1 Sample invoices (run on the development project, then rolled back)
+
+The brief asks for a 3-line and a 60-line sample invoice for "Sample Customer", later cancelled or
+credited. A cancelled or credited invoice keeps its number, so doing that would have used up
+447-FT-2026 and 448-FT-2026, and the first real invoice would have been 449 instead of the confirmed
+447. The samples were therefore made inside one transaction that was rolled back at the end:
+
+1. `insert` "Sample Customer" (Head Office, "Sample address, Muscat");
+2. as the Super Admin (`role authenticated` with that user's JWT claims, so RLS, permissions,
+   approval rules and numbering all ran as they do for the app), `create_invoice(header, lines,
+   submit => true)` twice: 3 lines and 60 lines, 5 % VAT, reference and LPO on the first;
+3. read back the stored invoices with their lines, the office and the organization;
+4. roll back (the read-back was passed out in the error that ends the transaction).
+
+Result on the live database: **447-FT-2026** (3 lines: subtotal 2,551.250, VAT 127.563, total
+2,678.813) and **448-FT-2026** (60 lines: subtotal 7,550.000, VAT 377.510, total 7,927.510), both
+approved and posted at once (the Super Admin may approve the amount). After the rollback the FT
+series is still at 446, and there are still 3 invoices and 1 customer, as before.
+
+The PDFs were then built from those stored rows with the app's own code (`rowToInvoice`,
+`invoicePrintData`, `buildInvoicePdf`, with the real letterhead) and rendered to images:
+
+| Check | 447-FT-2026 (3 lines) | 448-FT-2026 (60 lines) |
+|---|---|---|
+| Pages | 1 | 3 (rows 1–28, 29–60, totals) |
+| Letterhead exact, logo sharp (vector text over the 250 dpi artwork) | yes | yes |
+| Nothing overlaps the header or the bottom band | yes | yes |
+| Title and number top right on every page | yes | yes |
+| `<number> · Page x of y` bottom corner, right count | 1 of 1 | 1, 2, 3 of 3 |
+| Table header repeated, no row split | n/a | yes |
+| Totals and VAT equal the stored invoice | yes | yes |
+| Amount in words | "Two Thousand Six Hundred Seventy-Eight Rials and Eight Hundred Thirteen Baisa" | "Seven Thousand Nine Hundred Twenty-Seven Rials and Five Hundred Ten Baisa" |
+| File name | `447-FT-2026.pdf` | `448-FT-2026.pdf` |
+| Seller CR and VAT | **wrong until stage 3 data is entered** | same |
+
+- **Seller VAT and CR:** the page prints the organization's stored VATIN, which on the live project
+  is still the test value `OM1100482910`, and no CR, because the stage 3 data entry (CR 1090254,
+  VAT OM1100058123) waits for a signed-in Super Admin. The letterhead artwork itself carries the
+  real CR. Enter the stage 3 data before issuing any real invoice.
+- **VAT rounding:** VAT is rounded to 3 decimals per line by the database (unchanged behaviour), so
+  60 lines give 377.510 where 5 % of the subtotal would be 377.500. The PDF prints the stored figures,
+  which are the ones in the ledger. Recorded for the accountant; not changed.
+- Not done: printing from the browser's print dialog and checking the on-screen letterhead preview
+  (needs the signed-in invoice dialog), and Safari.
+
+### 12.2 Sign-in flow: not run
+
+The Offices screen with the three offices and their figures, opening an office from its card, and
+renaming an office and setting it back need a signed-in user. The office figures and the office
+edit rules are covered by `upgrade_office_figures.test.mjs` and `upgrade_office_edit.test.mjs`.
+
+### 12.3 Sample records
+
+Nothing was left behind: the samples above were rolled back, and no files were uploaded. The older
+sample records that were on the project before this run ("Sample Client - Oman Oil Services",
+`INV-HO-2026-0001`, `CN-HO-2026-0001`, `PINV-2026-0001`) were not made by this run and are left as
+they are for the owner to decide.
