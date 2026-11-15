@@ -13,3 +13,6 @@ backups
 
 # Company files supplied by the owner (letterhead, logo, real customer statements): never committed
 logs example pdf etc /
+
+# local preview config (never committed)
+.claude/launch.json

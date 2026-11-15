@@ -603,3 +603,7 @@ the Arabic legal name, the Head Office address "Al Jami Al Akbar Street, Ghala",
 - `supabase migration list --linked`: 45 migrations, local and remote equal.
 - README (Offices screen, office access, invoice numbers, printing) and `AUDIT_REPORT.md` section T
   updated.
+- `.claude/launch.json` had been tracked since an early commit (`7157318`, before this run; it holds
+  only the local dev-server entry, no secrets). The brief says it is never committed, so it is now
+  untracked (`git rm --cached`) and listed in `.gitignore`; the local file stays.
+- `git ls-files` lists nothing from `logs example pdf etc /`, `backups/` or `.env`.
