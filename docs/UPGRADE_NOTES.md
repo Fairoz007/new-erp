@@ -286,3 +286,32 @@ entry" further down for what was set and when.
 - PGlite test `upgrade_office_figures.test.mjs` (5 checks): a Finance Manager of Duqm gets none of
   Head Office's receivables, expenses, expiring documents, vehicles, work orders or bank balances.
 - Phones: one column; the card's buttons stay ≥ 40 px high.
+
+---
+
+## Stage 6: Office edit panel
+
+- `OfficeEditPanel` (a `SidePanel`) replaces `CompanyFormModal` for adding and editing an office, on
+  the Offices screen (Edit on a card) and on Settings → Offices & Branches. The same fields in five
+  sections: **Identity** (name, code, status, logo, description), **Location** (address, city,
+  state/governorate, postal code, country, with a live preview of the address lines and of the
+  Open in Maps link), **Contact**, **Registration & tax** (CR, VAT, tax card, fiscal period,
+  currency) and **Bank**; the office's additional fields follow.
+- Cancel, Escape, the backdrop and the close button ask before discarding typed changes (the
+  panel's footer now receives the dialog's guarded close).
+- Unchanged rules: name and code required; the code is unique (database constraint, message shown);
+  a save from a stale copy is refused (`updatedAt`, `a0_version_check`); saving needs companies:edit
+  for that office (RLS `companies_update`, and the Edit button is shown only with that permission).
+- **Logo**: chosen with the shared `ImageUpload` (Stage 8 image manager), prepared in the browser
+  (fitted into a 512 px square on a transparent background, nothing cut off), uploaded to
+  `media/<office id>/logos/…` and saved in `companies.logo`. After the office is saved, the logo it
+  replaced and any other upload made while the panel was open are removed; closing without saving
+  removes the uploads. A new office gets its logo after it is created (the folder needs its id).
+- A saved name shows everywhere at once: offices are held in `FleetContext`, which every screen and
+  the invoice print read (`PrintableInvoiceModal` takes the office from it, not from the invoice).
+- Audit: offices already had the `companies_audit` trigger (old and new row). PGlite test
+  `upgrade_office_edit.test.mjs` (6 checks): a rename leaves an audit row with the old and the new
+  name and the user; duplicate codes refused; stale save refused; a Viewer cannot change an office;
+  an Admin of Duqm can edit Duqm but not Head Office; logo files can be written only into the
+  user's own office folder.
+- Note: Fleet Manager and Finance Manager roles have companies:edit in the shipped roles (unchanged).

@@ -10,7 +10,8 @@ interface DrawerProps {
   title: ReactNode;
   description?: string;
   children: ReactNode;
-  footer?: ReactNode;
+  /** Content, or a function given `requestClose` so a Cancel button asks before discarding edits. */
+  footer?: ReactNode | ((requestClose: () => void) => ReactNode);
   width?: 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
   guardUnsaved?: boolean;
@@ -85,7 +86,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           {/* Footer */}
           {footer && (
             <div className="px-5 sm:px-6 py-4 border-t border-slate-700 bg-slate-850 flex flex-wrap items-center justify-end gap-3 shrink-0">
-              {footer}
+              {typeof footer === 'function' ? footer(requestClose) : footer}
             </div>
           )}
         </div>

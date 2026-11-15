@@ -7,7 +7,8 @@ interface SidePanelProps {
   title: ReactNode;
   description?: string;
   children: ReactNode;
-  footer?: ReactNode;
+  /** Content, or a function given `requestClose` so a Cancel button asks before discarding edits. */
+  footer?: ReactNode | ((requestClose: () => void) => ReactNode);
   width?: 'md' | 'lg' | 'xl' | '2xl';
   /** Ask before discarding typed input (Escape, backdrop, close button). Default true. */
   guardUnsaved?: boolean;

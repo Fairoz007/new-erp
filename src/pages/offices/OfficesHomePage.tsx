@@ -21,7 +21,7 @@ import { formatCurrency } from '../../utils/financial';
 import { addDaysYmd, localToday } from '../../utils/date';
 import { officeFigures, officeLocationLines, officeMapsUrl, type OfficeFigures } from '../../lib/offices';
 import type { Company } from '../../types/system';
-import { CompanyFormModal } from '../companies/CompanyFormModal';
+import { OfficeEditPanel, OfficeDraft } from '../companies/OfficeEditPanel';
 
 // A one-office user skips this screen once per visit; the header link still brings them here.
 let landingDone = false;
@@ -121,7 +121,7 @@ export const OfficesHomePage: React.FC = () => {
 
   // Edit (companies: edit permission per office)
   const [editing, setEditing] = useState<Company | null>(null);
-  const saveOffice = async (data: Omit<Company, 'id'>) => {
+  const saveOffice = async (data: OfficeDraft) => {
     if (!editing) return;
     await updateCompany(editing.id, { ...data, updatedAt: editing.updatedAt });
     addToast({ type: 'success', title: 'Office saved', message: `${data.name} was saved.` });
@@ -223,7 +223,7 @@ export const OfficesHomePage: React.FC = () => {
         })}
       </div>
 
-      <CompanyFormModal isOpen={!!editing} onClose={() => setEditing(null)} company={editing ?? undefined} onSubmit={saveOffice} />
+      <OfficeEditPanel isOpen={!!editing} onClose={() => setEditing(null)} office={editing ?? undefined} onSubmit={saveOffice} />
     </div>
   );
 };

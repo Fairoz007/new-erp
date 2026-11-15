@@ -6,11 +6,12 @@ import { useFleet } from '../../context/FleetContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { Company } from '../../types/system';
-import { CompanyFormModal } from './CompanyFormModal';
+import { OfficeEditPanel, OfficeDraft } from './OfficeEditPanel';
 import { useCustomFields } from '../../hooks/useCustomFields';
 import { formatCustomValue } from '../../components/common/CustomFieldsForm';
 import { useOfficeRecordCounts } from '../../services/queries-system';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { OfficeBadge, useOfficeLogoUrls } from '../../components/common/OfficeBadge';
 
 export const CompaniesPage: React.FC = () => {
   const { companies, selectedCompanyId, setSelectedCompanyId, addCompany, updateCompany } = useFleet();
@@ -24,7 +25,7 @@ export const CompaniesPage: React.FC = () => {
   const openCreate = () => { setEditing(undefined); setFormOpen(true); };
   const openEdit = (c: Company) => { setEditing(c); setFormOpen(true); };
 
-  const saveCompany = async (data: Omit<Company, 'id'>) => {
+  const saveCompany = async (data: OfficeDraft) => {
     if (editing) {
       await updateCompany(editing.id, { ...data, updatedAt: editing.updatedAt });
       addToast({ type: 'success', title: 'Office Updated', message: `${data.name} was saved.` });
@@ -39,6 +40,8 @@ export const CompaniesPage: React.FC = () => {
   const counts = useOfficeRecordCounts();
   const countOf = (id: string) => counts.data?.get(id) ?? { vehicles: 0, employees: 0, invoices: 0 };
   const showCount = (n: number) => (counts.data ? n.toLocaleString() : counts.error ? '—' : '…');
+  const logoUrl = useOfficeLogoUrls(companies.map(c => c.logo));
+  const allCodes = companies.map(c => c.code);
   const totalOf = (k: 'vehicles' | 'employees') => companies.reduce((t, c) => t + countOf(c.id)[k], 0);
 
   return (
@@ -130,9 +133,7 @@ export const CompaniesPage: React.FC = () => {
                 }
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-forest-100 text-forest-700 border border-forest-500/20 flex items-center justify-center font-bold text-base shrink-0">
-                    {comp.code.slice(0, 3)}
-                  </div>
+                  <OfficeBadge office={comp} allCodes={allCodes} logoUrl={logoUrl(comp.logo)} size="lg" />
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-base text-slate-100">{comp.name}</h3>
@@ -243,7 +244,7 @@ export const CompaniesPage: React.FC = () => {
         })}
       </div>
 
-      <CompanyFormModal isOpen={formOpen} onClose={() => setFormOpen(false)} company={editing} onSubmit={saveCompany} />
+      <OfficeEditPanel isOpen={formOpen} onClose={() => setFormOpen(false)} office={editing} onSubmit={saveCompany} />
     </div>
   );
 };
