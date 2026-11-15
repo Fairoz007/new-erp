@@ -324,3 +324,26 @@ Not verified (nobody was signed in to the browser pane during this run): the sta
 every signed-in screen at desktop and 375 px, the click-through of every button (11.2), printing
 from the browser and the on-screen letterhead preview, Safari, the sign-in flow to the Offices
 screen (12.2), other roles' sign-ins, and invitations (never sent).
+
+## U. One A4 letterhead format for every printed and downloaded document (2026-11-15)
+
+Brief: `docs/A4_PDF_PROMPT.md`. Stage-by-stage log, decisions and the check table:
+`docs/A4_PDF_NOTES.md`. Front end only: no migration, no policy or office-scoping change.
+
+| Stage | Change | Proof |
+|---|---|---|
+| 1 | One frame (`src/lib/a4/frame.ts`): letterhead, title and number, page x of y, tables with repeated header and unsplit rows, closing blocks, `savePdf`, `printPdf` (prints the PDF from a hidden frame, downloads when it cannot) | `a4Frame.test.ts`; invoices, notes and statements pixel-identical (12 pages) |
+| 2 | Every list and report PDF on the letterhead with office, period, filters and generated-by; wide tables shrink, landscape above 10 columns; Document view Print prints the PDF | `tableReport.test.ts`; rendered lists, trial balance, wide and empty reports |
+| 3 | P&L, balance sheet, cash flow, trial balance and general ledger print and download the PDF; Reports → Print Report prints the report's table | `statements.test.ts`; rendered statements and a 2-page ledger |
+| 4 | Receipt and payment vouchers, payslips (bank account last 4 only); initials badge removed | `vouchers.test.ts`; rendered receipt, voucher, payslip |
+| 5 | Client and supplier statement of account | live statement in a rolled-back transaction; totals equal the database's |
+| 6 | Every output rendered and checked; invoice dialog Print prints the PDF; no `window.print()` left on a button | check table in the notes; print frame loads the PDF in the running app |
+
+Checks: `npm run lint`, `npm run test:unit` (19 files, 100 tests), `npm run test:db`,
+`npm run build`, `npm run bundle:check` (initial JS 226.7 kB gzip against a 250 kB budget; jsPDF
+and the builders in lazy chunks) and `npm run scan:secrets` pass.
+
+Not verified: printing on paper or in the print preview of Chrome and Safari (it needs a person at
+the print dialog), and the buttons in the signed-in app with real data (nobody signed in to the
+browser pane). The live organization still holds the test VAT `OM1100482910` (section T), and it
+prints on every document until the Settings data is entered.

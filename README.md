@@ -133,17 +133,33 @@ browser checks before upload. Details and the deploy steps: `docs/OPERATIONS.md`
   the invoice date and a new year starts at 1 (open point in `docs/UPGRADE_NOTES.md`). Credit notes,
   purchase bills and other documents keep their own `PREFIX-OFFICE-YEAR-NNNN` formats; opening
   balances use `OB-…`. Formats are in Settings → Universal settings → Document numbering.
-- **Printing:** invoices, credit notes and debit notes print as A4 pages on the company letterhead
-  (title and number top right, `<number> · Page x of y` on every page, header repeated, totals,
-  amount in words in Rials and Baisa, bank details, signature and stamp). **Download PDF** builds the
-  same pages with jsPDF (vector text) as `<number>.pdf`. Reports → Client Statement → **Pending bills
-  (PDF)** gives the Bill-wise Details / Pending Bills statement on the same letterhead.
+- **Printing:** every printed and downloaded document is one formal A4 document on the company
+  letterhead (full letterhead image; logo and a Settings footer line on landscape pages), built with
+  jsPDF and loaded only when needed. **Print prints the same pages as Download PDF** (the PDF is
+  printed from a hidden frame; where the browser cannot, it is downloaded and the app says so).
+  - Every document: title and number (or report period, `As of <date>`) top right,
+    `<number or report> · Page x of y` on every page, the table header repeated, rows never split.
+  - Invoices, credit and debit notes, purchase bills: party and facts, lines, totals, amount in words
+    in Rials and Baisa, bank details, signature and stamp. File `<number>.pdf`.
+  - Lists and reports (every table's Export → PDF and Document view, Reports → Print Report): page 1
+    names the office, period, filters and who generated it; portrait, smaller type for wide tables
+    (not below 6.5 pt), landscape above 10 columns. File `<Report>_<office>_<from>_<to>.pdf`.
+  - Profit & loss, balance sheet, cash flow, trial balance, general ledger: section rows, totals,
+    "Prepared by" and "Approved by". The general ledger PDF fetches every line first.
+  - Statement of account (Reports → Client / Supplier statement, General Ledger sub-ledgers):
+    opening, movements with the running balance, closing. File `Statement_<party>_<date>.pdf`.
+    Pending bills (PDF) gives the bill-wise open invoices.
+  - Receipt / payment voucher from a payment (`<payment number>.pdf`) and payslip
+    (`Payslip_<code>_<yyyy-mm>.pdf`, bank account shown as its last 4 characters only).
+  - Company details come from Settings; nothing is typed into the code. CSV exports are unchanged.
+  - Details and checks: `docs/A4_PDF_NOTES.md`.
 
 ## Documents
 
 - `AUDIT_REPORT.md`: audit findings, what was fixed, what was verified and what is still open.
 - `docs/PHASE_NOTES.md`: the defaults chosen in each phase and the items not verified.
 - `docs/FIX_AND_COMPLETE_PROMPT.md`: the brief.
+- `docs/A4_PDF_PROMPT.md` and `docs/A4_PDF_NOTES.md`: the A4 letterhead format brief for every printed and downloaded document, and per stage what changed and what was checked.
 - `docs/UPGRADE_PROMPT.md` and `docs/UPGRADE_NOTES.md`: the UI, offices and invoice upgrade brief, and per stage what changed, what was decided and what is not verified.
 - `docs/ADVANCE_PROMPT.md` and `docs/ADVANCE_NOTES.md`: the production-hardening brief, and per phase what changed, how it was tested, the defaults chosen and what is not verified.
 - `docs/OPERATIONS.md`: deploy, migrations, backup and restore, key rotation, adding an office, closing a period, rollback, errors and health.

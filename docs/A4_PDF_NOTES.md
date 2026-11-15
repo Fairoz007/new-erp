@@ -254,3 +254,16 @@ no row split across pages; figures equal to what the screen shows (same formatte
     here; where it cannot print from the frame, `printPdf` downloads the file and the app says so.
   - Every button in the signed-in app with real data: nobody signs in to the in-app browser. The
     builders behind the buttons are the ones checked above and in the unit tests.
+
+## Stage 7: Final checks
+
+- `npm run lint`, `npm run test:unit` (19 files, 100 tests), `npm run test:db` (1178 checks, none
+  failed), `npm run build`, `npm run bundle:check` (initial JS 226.7 kB gzip, budget 250 kB; jsPDF,
+  autotable and the A4 builders only in lazy chunks) and `npm run scan:secrets` (nothing found)
+  pass on the final tree.
+- README "Printing" rewritten for the one A4 format; `AUDIT_REPORT.md` section U.
+- No database migration in this work; security rules and office scoping unchanged. Rolled-back
+  checks left nothing behind (no Sample customer, no number used up).
+- **Still to do by the owner:** enter the company data in Settings (the live organization still
+  holds the test VAT `OM1100482910`, and it prints on every document); print one invoice, one
+  report and one payslip from Chrome and Safari to confirm paper matches the PDF.
