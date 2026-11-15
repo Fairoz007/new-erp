@@ -289,3 +289,38 @@ Checks: `npm run lint` (types and secret scan), `npm run test:unit`, `npm run te
 Not verified: Users & Roles changes and invitations (they email real people), Arabic layout,
 attendance entry, bank and 3-way reconciliation matching, printed statements, every report export
 (all 26 open without errors), and at 375 px only the sideways-scroll check.
+
+## T. UI, offices and invoice upgrade (2026-11-15)
+
+Brief: `docs/UPGRADE_PROMPT.md`. Stage-by-stage log, decisions and open points:
+`docs/UPGRADE_NOTES.md`. Project `fpeniljpqigpeqtsgizr` (development).
+
+| Stage | Change | Proof |
+|---|---|---|
+| 3 | `organizations.legal_name_ar`; brand assets (logo, mark, favicon, A4 letterhead) from the owner's artwork | `upgrade_org_arabic_name.test.mjs` |
+| 4 | Design tokens in one file; SidePanel, EmptyState, Skeleton, KpiTile, OfficeBadge; DataTable sticky header, skeleton rows, empty state with Add, phone cards; sidebar and header (office switcher on phones, fake labels and the duplicate Messages button removed) | build, browser at sign-in |
+| 5 | Offices home screen; one-office users skip it; figures only for roles that see them | `offices.test.ts`, `upgrade_office_figures.test.mjs` |
+| 6 | Office edit side panel with sections, unsaved-changes question, square logo upload | `images.test.ts`, `upgrade_office_edit.test.mjs` |
+| 7 | Office access as All offices / Chosen offices with a role per office; access overview | `upgrade_office_access.test.mjs` |
+| 8 | Shared image upload (resize, logos squared, bucket limits, replaced files removed) and viewer (zoom, fit, rotate) | `images.test.ts`, `upgrade_image_storage.test.mjs` |
+| 9 | Sales invoices `{n}-FT-{yyyy}`, one gap-free company-wide series, next 447-FT-2026; opening balances on `OB-…` | `20261115000100_invoice_number_pattern.sql`, `upgrade_invoice_numbers.test.mjs` (13 checks), live preview 447-FT-2026 |
+| 10 | Letterhead print and Download PDF for invoices, credit and debit notes; pending-bills statement PDF | `amountInWords.test.ts`, `letterheadPdf.test.ts` (60 lines → 3 pages, number and page x of y on every page) |
+| 11 | Vehicle detail on the shared page header; no dead buttons (AST scan) | signed-out Playwright at desktop and 375 px |
+| 12 | 3- and 60-line invoices made as the Super Admin on the live database in a rolled-back transaction (447/448-FT-2026, posted); PDFs from the stored rows checked page by page | `docs/UPGRADE_NOTES.md` stage 12 |
+
+Migrations added: `20261115000000_org_arabic_name.sql`, `20261115000100_invoice_number_pattern.sql`
+(both pushed; `supabase migration list --linked` shows local and remote equal, 45 migrations).
+Security: no policy loosened; office scoping unchanged; `preview_doc_number` keeps its office check;
+storage write rules re-tested.
+
+Checks: `npm run lint`, `npm run test:unit` (73), `npm run test:db`, `npm run build`,
+`npm run bundle:check` (initial JS 225 kB gzip; jsPDF lazy) and `npm run scan:secrets` pass.
+
+**Must do before the first real invoice:** enter the stage 3 company data in Settings (CR 1090254,
+VAT OM1100058123, Arabic name, Ghala address, phones, organization logo). The live organization
+still holds the test VAT `OM1100482910`, and it prints on the page 1 block.
+
+Not verified (nobody was signed in to the browser pane during this run): the stage 3 data entry,
+every signed-in screen at desktop and 375 px, the click-through of every button (11.2), printing
+from the browser and the on-screen letterhead preview, Safari, the sign-in flow to the Offices
+screen (12.2), other roles' sign-ins, and invitations (never sent).

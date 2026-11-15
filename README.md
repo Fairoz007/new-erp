@@ -121,11 +121,29 @@ browser checks before upload. Details and the deploy steps: `docs/OPERATIONS.md`
 - **Roles:** roles are data. They hold a module × action matrix, approval limits, and approval rules for work orders and invoices. Roles can be created, cloned and edited in Users & Roles.
 - **Ledger:** invoices, payments, expenses, payroll, depreciation and asset disposal post balanced journals in the database. Closed periods cannot be posted to.
 - **Sponsors** (owners) see statement totals only, never journal detail.
+- **Offices screen:** after sign-in, a user who can open more than one office lands on Offices: one
+  card per office (logo or code badge, address with an Open in Maps link when an address exists, and
+  the office figures their role already sees on the dashboard) plus an "All offices" card for users
+  with all-office access. A card opens that office. A user with one office goes straight to it.
+  Editors open an office in a side panel (Identity, Location, Contact, Registration & tax, Bank).
+- **Office access:** each user has either **All offices** (only a Super Admin can give it) or
+  **Chosen offices**, with a role per office. Users & Roles → Access overview shows users × offices.
+- **Invoice numbers:** sales invoices are `{n}-FT-{yyyy}` (e.g. `447-FT-2026`) in one company-wide
+  series with no gaps (a locked series row; a failed save gives its number back). The year comes from
+  the invoice date and a new year starts at 1 (open point in `docs/UPGRADE_NOTES.md`). Credit notes,
+  purchase bills and other documents keep their own `PREFIX-OFFICE-YEAR-NNNN` formats; opening
+  balances use `OB-…`. Formats are in Settings → Universal settings → Document numbering.
+- **Printing:** invoices, credit notes and debit notes print as A4 pages on the company letterhead
+  (title and number top right, `<number> · Page x of y` on every page, header repeated, totals,
+  amount in words in Rials and Baisa, bank details, signature and stamp). **Download PDF** builds the
+  same pages with jsPDF (vector text) as `<number>.pdf`. Reports → Client Statement → **Pending bills
+  (PDF)** gives the Bill-wise Details / Pending Bills statement on the same letterhead.
 
 ## Documents
 
 - `AUDIT_REPORT.md`: audit findings, what was fixed, what was verified and what is still open.
 - `docs/PHASE_NOTES.md`: the defaults chosen in each phase and the items not verified.
 - `docs/FIX_AND_COMPLETE_PROMPT.md`: the brief.
+- `docs/UPGRADE_PROMPT.md` and `docs/UPGRADE_NOTES.md`: the UI, offices and invoice upgrade brief, and per stage what changed, what was decided and what is not verified.
 - `docs/ADVANCE_PROMPT.md` and `docs/ADVANCE_NOTES.md`: the production-hardening brief, and per phase what changed, how it was tested, the defaults chosen and what is not verified.
 - `docs/OPERATIONS.md`: deploy, migrations, backup and restore, key rotation, adding an office, closing a period, rollback, errors and health.

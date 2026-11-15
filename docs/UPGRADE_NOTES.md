@@ -585,3 +585,21 @@ Nothing was left behind: the samples above were rolled back, and no files were u
 sample records that were on the project before this run ("Sample Client - Oman Oil Services",
 `INV-HO-2026-0001`, `CN-HO-2026-0001`, `PINV-2026-0001`) were not made by this run and are left as
 they are for the owner to decide.
+
+## Stage 3 data entry
+
+**Not done.** It is to go through Settings → Organization and Settings → Offices (not SQL) so the
+app's own checks and the audit log apply, and that needs a signed-in Super Admin, which this run
+never had. Still to enter: CR 1090254, VAT OM1100058123 (replacing the test value OM1100482910),
+the Arabic legal name, the Head Office address "Al Jami Al Akbar Street, Ghala", phones 9226 2277 /
+9693 6065 / 2450 5595, email info@alhakimnational.com (already set), and the organization logo
+(the prepared 1200 × 603 px artwork). Duqm and Nisfa stay empty (decision 9).
+
+## Stage 13: Final checks
+
+- `npm run lint`, `npm run test:unit` (15 files, 73 tests), `npm run test:db` (all suites, exit 0),
+  `npm run build`, `npm run bundle:check` (initial JS 225.2 kB gzip, under the 250 kB budget; jsPDF
+  and autotable only in lazy chunks) and `npm run scan:secrets` (469 files, nothing found) pass.
+- `supabase migration list --linked`: 45 migrations, local and remote equal.
+- README (Offices screen, office access, invoice numbers, printing) and `AUDIT_REPORT.md` section T
+  updated.
