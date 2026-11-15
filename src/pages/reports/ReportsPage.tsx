@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ReportExportContext, type ReportExportInfo } from '../../components/ui/ReportExportContext';
 import { Printer } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
@@ -373,10 +373,26 @@ export const ReportsPage: React.FC = () => {
   const current = allItems.some(i => i.id === selectedReport) ? selectedReport : allItems[0]?.id ?? '';
   const officeName = office === 'all' ? 'All offices' : companies.find(c => c.id === office)?.name ?? '';
   const officeRow = office === 'all' ? undefined : companies.find(c => c.id === office);
+  // Print Report prints the shown report's table as its letterhead PDF (the table registers itself)
+  const printers = useRef<Array<() => Promise<void>>>([]);
+  const [printerCount, setPrinterCount] = useState(0);
+  const [printing, setPrinting] = useState(false);
+  const registerPrint = useCallback((fn: () => Promise<void>) => {
+    printers.current.push(fn);
+    setPrinterCount(printers.current.length);
+    return () => { printers.current = printers.current.filter(f => f !== fn); setPrinterCount(printers.current.length); };
+  }, []);
+  const printReport = async () => {
+    const print = printers.current[0];
+    if (!print) return;
+    setPrinting(true);
+    try { await print(); } finally { setPrinting(false); }
+  };
   const exportInfo = useMemo<ReportExportInfo>(() => ({
+    registerPrint,
     office: officeRow ? { code: officeRow.code, name: officeRow.name, vatNumber: officeRow.vatNumber, registrationNumber: officeRow.registrationNumber } : null,
     period: UNDATED_REPORTS.has(current) ? undefined : { from: from || undefined, to: to || undefined },
-  }), [officeRow, current, from, to]);
+  }), [officeRow, current, from, to, registerPrint]);
 
   return (
     <div className="space-y-6">
@@ -388,7 +404,10 @@ export const ReportsPage: React.FC = () => {
             <Button
               variant="outline"
               size="md"
-              onClick={() => window.print()}
+              onClick={() => void printReport()}
+              disabled={printerCount === 0}
+              isLoading={printing}
+              title={printerCount === 0 ? 'This report has no table to print' : 'Print this report on the letterhead (same pages as Download PDF)'}
               leftIcon={<Printer className="w-4 h-4 text-forest-500" />}
             >
               Print Report

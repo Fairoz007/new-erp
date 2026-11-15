@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BookOpen, Calendar, Download, Printer, Filter, Building2, Search, ArrowRight, UserCheck, Truck, Layers, ChevronRight } from 'lucide-react';
+import { BookOpen, Calendar, Download, Filter, Building2, Search, ArrowRight, UserCheck, Truck, Layers, ChevronRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
@@ -10,7 +10,10 @@ import { formatDate, localToday } from '../../utils/date';
 import { consolidateAccounts } from '../../services/accounting';
 import { useGeneralLedgerSummary, useLedgerLines, fetchLedgerLines, usePartyStatement, type GlAccountSummary } from '../../services/queries-system';
 import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
-import { downloadCsv } from '../../utils/export';
+import { downloadCsv, tablePdfAction } from '../../utils/export';
+import { PdfActions } from '../../components/common/PdfActions';
+import { GL_COLUMNS, GL_NUMERIC, STATEMENT_NUMERIC, generalLedgerRows, statementOfAccountRows, statementFileName } from '../../lib/a4/statements';
+import type { GeneralLedgerLine } from '../../types/finance';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Tabs } from '../../components/ui/Tabs';
 
@@ -199,34 +202,66 @@ export const GeneralLedgerPage: React.FC = () => {
   // Export fetches every line of every account in range, ≤1000 per request, with progress.
   const [exportProgress, setExportProgress] = useState<{ loaded: number; total: number } | null>(null);
   const exportAbort = useRef<AbortController | null>(null);
-  const exportGLCSV = async () => {
-    if (exportProgress) { exportAbort.current?.abort(); return; }
-    const ctrl = new AbortController();
-    exportAbort.current = ctrl;
+  /** Every line of every account in the range (cancel with the export button). */
+  const fetchAllLines = async (signal: AbortSignal) => {
     const total = totalTransactions;
     setExportProgress({ loaded: 0, total });
+    const out: Array<{ account: GlAccountSummary; lines: GeneralLedgerLine[] }> = [];
+    let done = 0;
+    for (const acc of glData) {
+      const lines = acc.lineCount === 0 ? [] : await fetchLedgerLines(selectedCompanyId, acc.accountCode, startDate || undefined, endDate || undefined, acc.lineCount,
+        p => setExportProgress({ loaded: done + p.loaded, total }), signal);
+      done += lines.length;
+      out.push({ account: acc, lines });
+    }
+    return out;
+  };
+  const withAllLines = async <T,>(use: (accounts: Array<{ account: GlAccountSummary; lines: GeneralLedgerLine[] }>) => T): Promise<T | undefined> => {
+    if (exportProgress) { exportAbort.current?.abort(); return undefined; }
+    const ctrl = new AbortController();
+    exportAbort.current = ctrl;
     try {
-      const headers = ['Account Code', 'Account Name', 'Date', 'JE #', 'Reference', 'Description', 'Vehicle Plate', 'Debit', 'Credit', 'Running Balance'];
-      const rows: unknown[][] = [];
-      let done = 0;
-      for (const acc of glData) {
-        if (acc.lineCount === 0) continue;
-        const lines = await fetchLedgerLines(selectedCompanyId, acc.accountCode, startDate || undefined, endDate || undefined, acc.lineCount,
-          p => setExportProgress({ loaded: done + p.loaded, total }), ctrl.signal);
-        done += lines.length;
-        lines.forEach(line => {
-          rows.push([acc.accountCode, acc.accountName, line.date, line.entryNumber, line.reference || '', line.description,
-            line.vehiclePlate || '', line.debit, line.credit, line.runningBalance]);
-        });
-      }
-
-      downloadCsv(`General_Ledger_${startDate}_to_${endDate}`, headers, rows, { dated: false });
+      return use(await fetchAllLines(ctrl.signal));
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') addToast({ type: 'error', title: 'Export failed', message: (e as Error).message });
+      if ((e as Error).name === 'AbortError') return undefined;
+      throw e;
     } finally {
       setExportProgress(null);
       exportAbort.current = null;
     }
+  };
+  const exportGLCSV = async () => {
+    try {
+      await withAllLines(accounts => {
+        const headers = ['Account Code', 'Account Name', 'Date', 'JE #', 'Reference', 'Description', 'Vehicle Plate', 'Debit', 'Credit', 'Running Balance'];
+        const rows: unknown[][] = [];
+        accounts.forEach(({ account: acc, lines }) => lines.forEach(line => {
+          rows.push([acc.accountCode, acc.accountName, line.date, line.entryNumber, line.reference || '', line.description,
+            line.vehiclePlate || '', line.debit, line.credit, line.runningBalance]);
+        }));
+        downloadCsv(`General_Ledger_${startDate}_to_${endDate}`, headers, rows, { dated: false });
+      });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Export failed', message: (e as Error).message });
+    }
+  };
+
+  // Print / Download PDF: the general ledger on the GL tab, the statement of account on the party tab.
+  const ledgerPdf = async (print: boolean) => {
+    if (activeTab === 'party') {
+      const name = selectedParty?.name ?? '';
+      return tablePdfAction(print, 'Statement_of_Account', 'Statement of Account',
+        ['Date', 'Transaction / Voucher', 'Description', `Invoiced / Billed (${currency})`, `Paid / Remitted (${currency})`, `Running Balance (${currency})`],
+        statementOfAccountRows(partyLedger.openingBalance,
+          partyLedger.lines.map(l => ({ date: l.date, ref: l.referenceNumber, detail: l.description, charge: l.debit, credit: l.credit, balance: l.runningBalance })),
+          partyLedger.closingBalance, currency),
+        { rightAlign: STATEMENT_NUMERIC, facts: [[partyType, name], ['Statement', partyType === 'Supplier' ? 'Accounts payable (AP)' : 'Accounts receivable (AR)']],
+          fileName: statementFileName(name, localToday()) });
+    }
+    const r = await withAllLines(accounts => tablePdfAction(print, 'General_Ledger', 'General Ledger', GL_COLUMNS(currency), generalLedgerRows(accounts, currency),
+      { rightAlign: GL_NUMERIC, period: { from: startDate || undefined, to: endDate || undefined },
+        filters: [['Account', selectedAccountCode === 'all' ? '' : selectedAccountCode]] }));
+    return (await r) ?? 'saved';
   };
 
   return (
@@ -241,9 +276,8 @@ export const GeneralLedgerPage: React.FC = () => {
               leftIcon={<Download className="w-4 h-4" />}>
               {exportProgress ? `Cancel export (${exportProgress.loaded.toLocaleString()} / ${exportProgress.total.toLocaleString()})` : 'Export Ledger'}
             </Button>
-            <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-              Print Statement
-            </Button>
+            <PdfActions printLabel="Print Statement" run={ledgerPdf}
+              disabled={!!exportProgress || (activeTab === 'gl' ? summary.loading || !!summary.error || accountsLoading : !party.data || !selectedParty)} />
           </>
         }
       />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Scale, Download, Printer, CheckCircle2, AlertTriangle, Calendar, Filter, Building2, RefreshCw } from 'lucide-react';
+import { Scale, Download, CheckCircle2, AlertTriangle, Calendar, Filter, Building2, RefreshCw } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
@@ -9,7 +9,9 @@ import { formatDate, localToday } from '../../utils/date';
 import { useUI } from '../../context/UIContext';
 import { trialBalanceFrom } from '../../services/accounting';
 import { useTrialBalance } from '../../services/queries';
-import { downloadCsv, exportToPDF } from '../../utils/export';
+import { downloadCsv, tablePdfAction } from '../../utils/export';
+import { PdfActions } from '../../components/common/PdfActions';
+import { figure, STATEMENT_SIGNATURES } from '../../lib/a4/statements';
 import { FilterInput, FilterSelect } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
 
@@ -60,18 +62,14 @@ export const TrialBalancePage: React.FC = () => {
     downloadCsv(`Trial_Balance_${asOfDate}`, headers, rows, { dated: false });
   };
 
-  const exportPDF = () => {
-    if (!ready) return;
-    const f = (n: number) => (n > 0 ? n.toFixed(3) : '-');
+  const pdf = (print: boolean) => {
+    const f = (n: number) => (n > 0 ? figure(n, currency) : '-');
+    const t = (n: number) => figure(n, currency);
     const rows = filteredRows.map(r => [r.accountCode, r.accountName, r.category, f(r.openingDebit), f(r.openingCredit), f(r.periodDebit), f(r.periodCredit), f(r.closingDebit), f(r.closingCredit)]);
-    const totals = ['', 'TOTAL', '', shown.totalOpeningDebit.toFixed(3), shown.totalOpeningCredit.toFixed(3), shown.totalPeriodDebit.toFixed(3), shown.totalPeriodCredit.toFixed(3), shown.totalClosingDebit.toFixed(3), shown.totalClosingCredit.toFixed(3)];
-    void exportToPDF('Trial_Balance', 'Trial Balance Statement', ['Code', 'Account', 'Category', 'Opening Dr', 'Opening Cr', 'Period Dr', 'Period Cr', 'Closing Dr', 'Closing Cr'], rows,
-      { subtitle: `Amounts in ${currency}`, period: { asOf: asOfDate }, rightAlign: [3, 4, 5, 6, 7, 8], totals,
+    const totals = ['', 'TOTAL', '', t(shown.totalOpeningDebit), t(shown.totalOpeningCredit), t(shown.totalPeriodDebit), t(shown.totalPeriodCredit), t(shown.totalClosingDebit), t(shown.totalClosingCredit)];
+    return tablePdfAction(print, 'Trial_Balance', 'Trial Balance Statement', ['Code', 'Account', 'Category', 'Opening Dr', 'Opening Cr', 'Period Dr', 'Period Cr', 'Closing Dr', 'Closing Cr'], rows,
+      { subtitle: `Amounts in ${currency}`, period: { asOf: asOfDate }, rightAlign: [3, 4, 5, 6, 7, 8], totals, signatures: STATEMENT_SIGNATURES,
         filters: [['Category', filterCategory === 'all' ? '' : filterCategory], ['Zero balances', hideZero ? 'hidden' : '']] });
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   return (
@@ -85,12 +83,7 @@ export const TrialBalancePage: React.FC = () => {
             <Button variant="secondary" size="md" onClick={exportCSV} leftIcon={<Download className="w-4 h-4" />}>
               Export CSV
             </Button>
-            <Button variant="secondary" size="md" onClick={exportPDF} leftIcon={<Download className="w-4 h-4" />}>
-              Download PDF
-            </Button>
-            <Button variant="primary" size="md" onClick={handlePrint} leftIcon={<Printer className="w-4 h-4" />}>
-              Print Statement
-            </Button>
+            <PdfActions disabled={!ready} printLabel="Print Statement" run={pdf} />
           </>
         }
       />

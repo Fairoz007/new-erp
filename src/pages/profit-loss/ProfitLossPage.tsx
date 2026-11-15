@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Printer, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
@@ -10,6 +9,9 @@ import { profitLossFrom } from '../../services/accounting';
 import { useProfitLoss } from '../../services/queries';
 import { FilterInput } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PdfActions } from '../../components/common/PdfActions';
+import { tablePdfAction } from '../../utils/export';
+import { profitLossRows, statementColumns, STATEMENT_SIGNATURES } from '../../lib/a4/statements';
 
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
@@ -53,9 +55,9 @@ export const ProfitLossPage: React.FC = () => {
               <FilterInput type="date" value={endDate} onChange={e => setEndDate(e.target.value)} aria-label="End date"
                  />
             </div>
-            <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-              Print Statement
-            </Button>
+            <PdfActions disabled={!ready} printLabel="Print Statement"
+              run={print => tablePdfAction(print, 'Profit_and_Loss', 'Statement of Profit or Loss', statementColumns(currency), profitLossRows(pnl, currency),
+                { rightAlign: [1], period: { from: startDate || undefined, to: endDate || undefined }, signatures: STATEMENT_SIGNATURES })} />
           </>
         }
       />

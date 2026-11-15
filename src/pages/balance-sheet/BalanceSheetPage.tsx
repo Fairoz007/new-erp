@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Scale, Printer, CheckCircle2, ShieldCheck, DollarSign } from 'lucide-react';
+import { Scale, CheckCircle2, ShieldCheck, DollarSign } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { useFleet } from '../../context/FleetContext';
 import { formatCurrency } from '../../utils/financial';
@@ -10,6 +9,9 @@ import { useBalanceSheet } from '../../services/queries';
 import { todayYmd } from '../../utils/date';
 import { FilterInput } from '../../components/ui/FilterControls';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PdfActions } from '../../components/common/PdfActions';
+import { tablePdfAction } from '../../utils/export';
+import { balanceSheetRows, statementColumns, STATEMENT_SIGNATURES } from '../../lib/a4/statements';
 
 const StatementLoad: React.FC<{ loading: boolean; error?: Error; onRetry: () => void }> = ({ loading, error, onRetry }) => (
   <Card className="p-8 text-center text-xs bg-white border border-slate-700 rounded-[20px]">
@@ -42,9 +44,9 @@ export const BalanceSheetPage: React.FC = () => {
           <>
             <FilterInput type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} aria-label="As of date"
                />
-            <Button variant="primary" size="md" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-              Print Balance Sheet
-            </Button>
+            <PdfActions disabled={!ready} printLabel="Print Balance Sheet"
+              run={print => tablePdfAction(print, 'Balance_Sheet', 'Balance Sheet', statementColumns(currency), balanceSheetRows(bs, currency),
+                { rightAlign: [1], period: { asOf }, signatures: STATEMENT_SIGNATURES })} />
           </>
         }
       />

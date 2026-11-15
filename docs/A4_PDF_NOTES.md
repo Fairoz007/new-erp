@@ -9,7 +9,7 @@ what is not. One section per stage.
 |---|---|---|
 | 1 | Every printed and downloaded document on the full letterhead, reports and lists included | Requested by the owner |
 | 2 | Portrait always; wide tables shrink (not below 6.5 pt) and wrap; landscape only above 10 columns | Applied in stage 2 |
-| 3 | Print gives the same pages as Download PDF | Requested by the owner |
+| 3 | Print gives the same pages as Download PDF | Requested by the owner; lists (stage 2) and statements (stage 3) done |
 | 4 | CSV exports unchanged | Suggested |
 | 5 | Payslip bank account shows the last 4 digits only | Suggested, stage 4 |
 | 6 | Corner shows the document number; reports show the period | Suggested |
@@ -110,3 +110,51 @@ what is not. One section per stage.
   app loads with no console errors.
 - **Not verified in the signed-in app:** the export menu, Document view and Trial Balance buttons
   with real data (no sign-in in the browser pane).
+
+## Stage 3: Financial statements
+
+- **New `src/lib/a4/statements.ts`**: pure functions that turn what each page already computed into
+  letterhead table rows, so the paper shows the screen's figures. Figures use the screen's own
+  formatter (`formatCurrency` without the currency prefix, which is in the column heading): same
+  rounding, decimals and minus sign; costs and accumulated depreciation in brackets as on screen.
+  - Profit & loss: Revenue, Direct operating costs, Gross profit (with margin), Operating expenses &
+    depreciation, Net profit (with margin), the EBITDA note. Empty sections say so.
+  - Balance sheet: the five sections with their totals, Total assets, Total liabilities & equity,
+    and "OUT OF BALANCE by …" only when it is.
+  - Cash flow: cash at start, the three activities with their net, cash at end, the note on what
+    cash means.
+  - General ledger: per account a heading row, opening balance, every line, and the account's
+    activity totals with the closing balance.
+  - Statement of account (also used in stage 5): opening, every movement with the running balance,
+    closing with the period totals.
+- **Group and total rows** in `tableReport.ts`: section headings span the table on a light brand
+  tint; total rows are bold with a heavier rule above. Optional page-1 facts, signature lines
+  ("Prepared by", "Approved by"), a fixed file name and office label.
+- **Buttons.** New `PdfActions` (Download PDF and Print, busy while the PDF is made, a notice when
+  the browser downloaded instead of printing, an error toast when it fails):
+  - Profit & Loss: Download PDF and Print Statement (period from the page's dates).
+  - Balance Sheet: Download PDF and Print Balance Sheet (as of the page's date).
+  - Cash flow: Download PDF (needs the same export permission as CSV) and Print, for the office
+    and dates chosen on the page.
+  - Trial Balance: Print Statement now prints the PDF; figures use the screen formatter
+    (thousands separators) and the PDF has signature lines.
+  - General Ledger: on the ledger tab, Download PDF and Print fetch every line of every account in
+    the range first (the export button shows the progress and can cancel); on the sub-ledger tab
+    they make the party's statement of account (`Statement_<party>_<date>.pdf`).
+  - Reports → Print Report prints the shown report's table PDF (the table registers itself with the
+    page); it is disabled while a report has no table.
+- **No `window.print()` is left** for these pages; `printElement` (unused) was removed. Still
+  printing the screen: payment voucher and payslip (stage 4) and the invoice dialog's own Print.
+- **Column widths:** figures columns keep their heading on one line when the table fits.
+- **Tests:** `src/lib/__tests__/statements.test.ts` (9): screen-equal figures (OMR and USD, minus
+  sign, no -0.000); P&L lines and totals on paper equal those passed in, with period and signatures;
+  empty sections; balance sheet sections, brackets and out-of-balance line; cash flow nets; a
+  3-account, 180-line ledger over several pages with the header and page x of y on each; statement
+  of account rows and file names.
+- **Rendered and checked** with the real letterhead and sample figures: P&L, balance sheet, cash
+  flow, a 2-page general ledger (header repeated, empty account shown), statement of account.
+  Invoices, notes and statements from stage 1 are still pixel-identical (12 pages).
+- **Checks:** lint, `test:unit` (18 files, 96 tests), build, `test:db` pass. Initial JS 225.4 kB
+  gzip; the statement builders load with the PDF code.
+- **Not verified in the signed-in app:** the buttons with real ledger data (no sign-in in the
+  browser pane).

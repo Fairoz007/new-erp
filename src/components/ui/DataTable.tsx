@@ -325,6 +325,11 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
   const handleExportPdf = () => runPdf(false);
+  // Reports → Print Report prints this table's PDF (the latest runPdf, through a ref)
+  const runPdfRef = useRef(runPdf);
+  runPdfRef.current = runPdf;
+  const registerPrint = reportInfo?.registerPrint;
+  useEffect(() => registerPrint?.(() => runPdfRef.current(true)), [registerPrint]);
   const openPreview = async () => {
     setExportMenuOpen(false);
     const rows = await allRows();

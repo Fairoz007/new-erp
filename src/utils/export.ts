@@ -7,7 +7,7 @@
 //      its header repeated on every page, an optional totals row, "<report> · Page x of y".
 //      Print gives the same pages (printTablePdf).
 import { currentDocumentCompany, currentReportOffice, currentReportUser, orgName, type DocumentOffice } from '../lib/branding';
-import type { ReportPeriod } from '../lib/a4/tableReport';
+import type { ReportPeriod, ReportRow } from '../lib/a4/tableReport';
 import { todayYmd } from './date';
 
 /**
@@ -66,11 +66,6 @@ export function exportToJSON(filename: string, data: any): void {
   downloadBlob(`${filename}_${todayYmd()}.json`, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
 }
 
-/** Print window / trigger browser print for invoices & reports. */
-export function printElement(_elementId?: string): void {
-  window.print();
-}
-
 /** One cell as plain text for PDF / preview output. */
 export function cellToText(val: unknown): string {
   if (val === null || val === undefined) return '';
@@ -93,9 +88,17 @@ export interface PdfOptions {
   office?: DocumentOffice | null;
   /** Dated reports: { from, to }; statements as of a date: { asOf }. Lists default to "As of today". */
   period?: ReportPeriod;
+  /** Facts printed first on page 1 (a statement's party, for example). */
+  facts?: [string, string][];
+  /** Signature lines after the table, e.g. ['Prepared by', 'Approved by']. */
+  signatures?: [string, string];
+  /** A fixed file name instead of <name>_<office>_<period>.pdf. */
+  fileName?: string;
+  /** Text for the "Office" fact instead of the office name. */
+  officeLabel?: string;
 }
 
-async function tablePdf(filename: string, title: string, columns: string[], rows: string[][], opts: PdfOptions) {
+async function tablePdf(filename: string, title: string, columns: string[], rows: ReportRow[], opts: PdfOptions) {
   const m = await import('../lib/a4/tableReport');
   const assets = await m.loadReportAssets(m.needsLandscape(columns.length));
   const company = currentDocumentCompany();
@@ -104,6 +107,7 @@ async function tablePdf(filename: string, title: string, columns: string[], rows
     rightAlign: opts.rightAlign, totals: opts.totals, subtitle: opts.subtitle, filters: opts.filters,
     office: opts.office === undefined ? currentReportOffice() : opts.office,
     period: opts.period,
+    facts: opts.facts, signatures: opts.signatures, fileName: opts.fileName, officeLabel: opts.officeLabel,
     company: { ...company, legalName: company.legalName || orgName() },
     generatedBy: currentReportUser(),
   }, assets);
@@ -113,15 +117,20 @@ async function tablePdf(filename: string, title: string, columns: string[], rows
  * Download a table as a formal A4 PDF on the letterhead (no print dialog). jsPDF is loaded on
  * demand. An empty table still produces the document ("No rows"), so the file says what was asked.
  */
-export async function exportToPDF(filename: string, title: string, columns: string[], rows: string[][], opts: PdfOptions = {}): Promise<void> {
+export async function exportToPDF(filename: string, title: string, columns: string[], rows: ReportRow[], opts: PdfOptions = {}): Promise<void> {
   const { doc, fileName } = await tablePdf(filename, title, columns, rows, opts);
   const { savePdf } = await import('../lib/a4/frame');
   savePdf(doc, fileName);
 }
 
 /** Print the same pages exportToPDF would download (downloads them when the browser cannot print a PDF). */
-export async function printTablePdf(filename: string, title: string, columns: string[], rows: string[][], opts: PdfOptions = {}): Promise<'printed' | 'downloaded'> {
+export async function printTablePdf(filename: string, title: string, columns: string[], rows: ReportRow[], opts: PdfOptions = {}): Promise<'printed' | 'downloaded'> {
   const { doc, fileName } = await tablePdf(filename, title, columns, rows, opts);
   const { printPdf } = await import('../lib/a4/frame');
   return printPdf(doc, fileName);
+}
+
+/** Download or print a table PDF: one entry point for pages with a Download PDF and a Print button. */
+export function tablePdfAction(print: boolean, filename: string, title: string, columns: string[], rows: ReportRow[], opts: PdfOptions = {}): Promise<'printed' | 'downloaded' | 'saved'> {
+  return print ? printTablePdf(filename, title, columns, rows, opts) : exportToPDF(filename, title, columns, rows, opts).then(() => 'saved' as const);
 }

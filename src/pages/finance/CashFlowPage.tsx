@@ -2,7 +2,7 @@
 // the office's bank accounts. Movements are classed by the other side of each entry: fixed assets →
 // investing; equity and long-term loans → financing; everything else → operating.
 import React, { useCallback, useEffect, useState } from 'react';
-import { Download, Printer } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { useFleet } from '../../context/FleetContext';
@@ -10,7 +10,9 @@ import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/financial';
 import { formatDate, localToday } from '../../utils/date';
 import { CashFlowRow, fetchCashFlow } from '../../services/ledger';
-import { downloadCsv } from '../../utils/export';
+import { downloadCsv, tablePdfAction } from '../../utils/export';
+import { PdfActions } from '../../components/common/PdfActions';
+import { cashFlowRows, statementColumns, STATEMENT_SIGNATURES } from '../../lib/a4/statements';
 import { PageHeader } from '../../components/ui/PageHeader';
 
 const SECTIONS = [['Operating', 'Operating activities'], ['Investing', 'Investing activities'], ['Financing', 'Financing activities']] as const;
@@ -53,7 +55,11 @@ export const CashFlowPage: React.FC = () => {
         actions={
           <>
             <Button variant="outline" size="md" leftIcon={<Download className="w-4 h-4" />} onClick={exportCsv} disabled={!rows.length || !hasPermission('export', 'financial-statements', officeId)}>CSV</Button>
-            <Button variant="outline" size="md" leftIcon={<Printer className="w-4 h-4" />} onClick={() => window.print()} disabled={!rows.length}>Print / PDF</Button>
+            <PdfActions disabled={!rows.length || loading || !office} canDownload={hasPermission('export', 'financial-statements', officeId)}
+              run={print => tablePdfAction(print, 'Cash_Flow_Statement', 'Cash Flow Statement', statementColumns(currency), cashFlowRows(rows, currency), {
+                rightAlign: [1], period: { from, to }, signatures: STATEMENT_SIGNATURES,
+                office: office ? { code: office.code, name: office.name, vatNumber: office.vatNumber, registrationNumber: office.registrationNumber } : null,
+              })} />
           </>
         }
       />

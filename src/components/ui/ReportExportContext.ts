@@ -9,6 +9,8 @@ export interface ReportExportInfo {
   office?: DocumentOffice | null;
   period?: ReportPeriod;
   filters?: [string, string][];
+  /** Reports → Print Report: a table registers its "print my PDF" here; returns the unregister. */
+  registerPrint?: (print: () => Promise<void>) => () => void;
 }
 
 export const ReportExportContext = createContext<ReportExportInfo | null>(null);

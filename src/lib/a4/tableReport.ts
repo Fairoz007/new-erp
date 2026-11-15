@@ -10,11 +10,20 @@
 import { printDate } from '../invoicePrint';
 import type { DocumentCompany, DocumentOffice } from '../branding';
 import {
-  INK, LAYOUT, MUTED, RULE, a4Table, bodyWidth, factsBlock, loadLetterheadBytes, sellerBlock, startA4, stampPages,
+  BRAND, INK, LAYOUT, MUTED, RULE, a4Table, bankAndSignatures, bodyWidth, factsBlock, loadLetterheadBytes, sellerBlock, startA4, stampPages,
   textBlock, LANDSCAPE, PORTRAIT, type A4, type Doc, type Rgb,
 } from './frame';
 
 export type ReportPeriod = { from?: string; to?: string } | { asOf: string };
+
+/**
+ * A table row: plain cells; a group heading across the table (an account, a statement section);
+ * or a strong row (opening/closing balance, subtotal), bold with a rule above.
+ */
+export type ReportRow = string[] | { group: string } | { strong: string[] };
+export const isGroup = (r: ReportRow): r is { group: string } => !Array.isArray(r) && 'group' in r;
+export const isStrong = (r: ReportRow): r is { strong: string[] } => !Array.isArray(r) && 'strong' in r;
+export const cellsOf = (r: ReportRow): string[] => (Array.isArray(r) ? r : isStrong(r) ? r.strong : []);
 
 export interface TableReport {
   /** File stem, e.g. "Vehicle_Master_Report". */
@@ -22,7 +31,7 @@ export interface TableReport {
   /** Shown top right and in the page label, e.g. "Vehicle Master Report". */
   title: string;
   columns: string[];
-  rows: string[][];
+  rows: ReportRow[];
   /** Column indexes holding figures (right-aligned, never wrapped). */
   rightAlign?: number[];
   /** A totals row printed once after the last row. */
@@ -38,10 +47,20 @@ export interface TableReport {
   company: DocumentCompany;
   generatedBy?: string;
   now?: Date;
+  /** Facts printed first on page 1, e.g. [['Client', 'Sample Customer'], ['VATIN', '…']]. */
+  facts?: [string, string][];
+  /** Signature lines after the table, e.g. ['Prepared by', 'Approved by']. */
+  signatures?: [string, string];
+  /** File name to use instead of <name>_<office>_<period>.pdf. */
+  fileName?: string;
+  /** Override the "Office" fact (e.g. a statement's office and party). Default: the office or All offices. */
+  officeLabel?: string;
 }
 
 /** Above this many columns a table is printed landscape (decision 2). */
 export const LANDSCAPE_ABOVE = 10;
+/** Group heading fill: the brand green at about 8 %. */
+const BRAND_TINT: Rgb = [234, 243, 239];
 export const MIN_FONT = 6.5;
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -83,7 +102,7 @@ export function footerLine(c: DocumentCompany): string {
  * columns' natural widths fit the body (text columns may wrap, so they count at most 45 mm), not below
  * 6.5 pt. Figures get a minimum width so they never wrap.
  */
-export function tableLayout(doc: Doc, columns: string[], rows: string[][], rightAlign: number[] = []) {
+export function tableLayout(doc: Doc, columns: string[], rows: ReportRow[], rightAlign: number[] = []) {
   const g = columns.length > LANDSCAPE_ABOVE ? LANDSCAPE : PORTRAIT;
   const avail = g.body.right - g.body.left;
   const pad = 2 * 1.4;
@@ -94,7 +113,8 @@ export function tableLayout(doc: Doc, columns: string[], rows: string[][], right
     return Math.max(...text.split('\n').map(t => doc.getTextWidth(t)));
   };
   // the few longest cells of each column are enough to find its widest one
-  const longest = columns.map((_, c) => rows.map(r => String(r[c] ?? '')).sort((a, b) => b.length - a.length).slice(0, 5));
+  const cells = rows.map(cellsOf).filter(r => r.length);
+  const longest = columns.map((_, c) => cells.map(r => String(r[c] ?? '')).sort((a, b) => b.length - a.length).slice(0, 5));
   const natural = (size: number) => columns.map((h, c) => {
     const cell = Math.max(0, ...longest[c].map(t => widthAt(t, size)));
     const head = widthAt(h, size, true);
@@ -105,10 +125,12 @@ export function tableLayout(doc: Doc, columns: string[], rows: string[][], right
   let fontSize: number = base;
   if (sum > avail) fontSize = Math.max(MIN_FONT, Math.floor((base * avail / sum) * 2) / 2);
   const columnStyles: Record<number, { minCellWidth: number }> = {};
+  // figures never wrap; when everything fits, their headings stay on one line too
+  const fitted = sum <= avail ? natural(base) : null;
   for (const c of rightAlign) {
     if (c >= columns.length) continue;
-    const cell = Math.max(0, ...longest[c].map(t => widthAt(t, fontSize)));
-    columnStyles[c] = { minCellWidth: Math.min(cell + pad, avail / 3) };
+    const cell = Math.max(0, ...longest[c].map(t => widthAt(t, fontSize))) + pad;
+    columnStyles[c] = { minCellWidth: Math.min(Math.max(cell, fitted?.[c] ?? 0), avail / 3) };
   }
   return { orientation: g.orientation, fontSize, columnStyles };
 }
@@ -163,7 +185,8 @@ export function buildTableReportPdf(r: TableReport, assets: ReportAssets): { doc
   if (r.subtitle) y = textBlock(a, [r.subtitle], left, y + 0.5, width, LAYOUT.font.body, 'bold');
   const filters = (r.filters ?? []).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}: ${v}`).join('   ·   ');
   const facts: Array<[string, string]> = [
-    ['Office', r.office ? `${r.office.name}${r.office.code ? ` (${r.office.code})` : ''}` : 'All offices'],
+    ...(r.facts ?? []).filter(([, v]) => v !== '' && v != null),
+    ['Office', r.officeLabel ?? (r.office ? `${r.office.name}${r.office.code ? ` (${r.office.code})` : ''}` : 'All offices')],
     [r.period && !('asOf' in r.period) && (r.period.from || r.period.to) ? 'Period' : 'As of', corner.replace(/^As of /, '')],
     ...(filters ? [['Filters', filters] as [string, string]] : []),
     ['Generated', `${r.generatedBy ? `by ${r.generatedBy} ` : ''}on ${printDate(today)} ${hm(now)}`],
@@ -175,7 +198,10 @@ export function buildTableReportPdf(r: TableReport, assets: ReportAssets): { doc
   const none = false as unknown as Rgb;
   a4Table(a, {
     head: [r.columns],
-    body: r.rows.length ? r.rows : [[{ content: 'No rows', colSpan: Math.max(r.columns.length, 1), styles: { halign: 'center', textColor: MUTED } }]],
+    body: r.rows.length ? r.rows.map(row => isGroup(row)
+      ? [{ content: row.group, colSpan: r.columns.length, styles: { fontStyle: 'bold', textColor: BRAND, fillColor: BRAND_TINT } }]
+      : isStrong(row) ? row.strong.map(c => ({ content: c, styles: { fontStyle: 'bold' } })) : row)
+      : [[{ content: 'No rows', colSpan: Math.max(r.columns.length, 1), styles: { halign: 'center', textColor: MUTED } }]],
     foot: r.totals ? [r.totals] : undefined,
     showFoot: 'lastPage',
     startY: y,
@@ -186,10 +212,19 @@ export function buildTableReportPdf(r: TableReport, assets: ReportAssets): { doc
     alternateRowStyles: { fillColor: none },
     numeric: rightAlign.filter(i => i < r.columns.length),
     columnStyles: layout.columnStyles,
-    didParseCell: cell => { if (cell.section === 'foot' && rightAlign.includes(cell.column.index)) cell.cell.styles.halign = 'right'; },
+    didParseCell: cell => {
+      if (cell.section === 'foot' && rightAlign.includes(cell.column.index)) cell.cell.styles.halign = 'right';
+      // strong rows: a rule above
+      if (cell.section === 'body') {
+        const row = r.rows[cell.row.index];
+        if (row && isStrong(row)) { cell.cell.styles.lineWidth = { top: 0.3, bottom: 0.15, left: 0.15, right: 0.15 }; }
+      }
+    },
   });
 
+  if (r.signatures) bankAndSignatures(a, (a.doc.lastAutoTable?.finalY ?? y) + 4, [], r.signatures);
+
   stampPages(a);
-  return { doc: a.doc, fileName: reportFileName(r.name, r.office, r.period, today) };
+  return { doc: a.doc, fileName: r.fileName ?? reportFileName(r.name, r.office, r.period, today) };
 }
 
