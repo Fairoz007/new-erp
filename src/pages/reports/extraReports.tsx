@@ -18,6 +18,9 @@ import { useOptionalOrg } from '../../context/OrgContext';
 import { useUI } from '../../context/UIContext';
 import { fetchPendingBills } from '../../services/finance';
 import { statementPrintData } from '../../lib/invoicePrint';
+import { PdfActions } from '../../components/common/PdfActions';
+import { documentOffice, tablePdfAction } from '../../utils/export';
+import { STATEMENT_NUMERIC, statementFileName, statementOfAccountColumns, statementOfAccountRows } from '../../lib/a4/statements';
 
 export interface ReportFilters { office: string; from: string; to: string }
 export interface ExtraReport { id: string; name: string; desc: string; group: string; render: React.FC<ReportFilters> }
@@ -89,7 +92,7 @@ const ExpiryReport: React.FC<ReportFilters> = f => {
 
 // ---------------------------------------------------------------- client / supplier statement
 const PartyStatement: React.FC<ReportFilters & { kind: 'Customer' | 'Supplier' }> = ({ kind, ...f }) => {
-  const { customers, suppliers, currency } = useFleet();
+  const { customers, suppliers, companies, currency } = useFleet();
   const parties = (kind === 'Customer' ? customers : suppliers).slice().sort((a, b) => a.name.localeCompare(b.name));
   const [partyId, setPartyId] = useState('');
   useEffect(() => { if (!parties.some(p => p.id === partyId)) setPartyId(parties[0]?.id ?? ''); }, [parties, partyId]);
@@ -110,11 +113,23 @@ const PartyStatement: React.FC<ReportFilters & { kind: 'Customer' | 'Supplier' }
   if (!q.data) return <div className="space-y-3">{picker}<Loading /></div>;
   const opening = q.data.opening_balance;
   const closing = q.data.closing_balance;
+  const party = parties.find(p => p.id === partyId) as ({ name: string; address?: string; vatNumber?: string } | undefined);
+  // Statement of account on the letterhead: the same opening, lines, running balance and closing as the table
+  const statementPdf = (print: boolean) => tablePdfAction(print, 'Statement_of_Account', 'Statement of Account',
+    statementOfAccountColumns(kind, currency),
+    statementOfAccountRows(opening, rows.map(r => ({ date: r.date, ref: r.ref, detail: r.detail, charge: r.charge, credit: r.credit, balance: r.balance })), closing, currency, f.from || undefined),
+    { rightAlign: STATEMENT_NUMERIC, period: { from: f.from || undefined, to: f.to || undefined },
+      office: f.office === 'all' ? null : documentOffice(companies.find(c => c.id === f.office)),
+      facts: [[kind === 'Customer' ? 'Client' : 'Supplier', party?.name ?? ''], ['Address', party?.address ?? ''], ['VATIN', party?.vatNumber ?? '']].filter(([, v]) => v) as [string, string][],
+      fileName: statementFileName(party?.name ?? '', f.to || todayYmd()) });
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         {picker}
-        {kind === 'Customer' && partyId && <PendingBillsButton partyId={partyId} office={f.office} />}
+        <div className="flex flex-wrap gap-2">
+          {kind === 'Customer' && partyId && <PendingBillsButton partyId={partyId} office={f.office} />}
+          {partyId && <PdfActions size="sm" printLabel="Print statement" run={statementPdf} />}
+        </div>
       </div>
       <Note>Approved invoices, credit and debit notes, and payments. Opening balance before {f.from || 'the start'}: <strong className="text-slate-200">{formatCurrency(opening, currency)}</strong>. Closing balance: <strong className="text-slate-200">{formatCurrency(closing, currency)}</strong> ({kind === 'Customer' ? 'owed by the client' : 'owed to the supplier'}).</Note>
       <ReportTable rows={rows} filename={`${kind === 'Customer' ? 'Client' : 'Supplier'}_Statement`} title={`${kind === 'Customer' ? 'Client' : 'Supplier'} statement: ${parties.find(p => p.id === partyId)?.name ?? ''}`} columns={[
