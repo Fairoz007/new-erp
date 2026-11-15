@@ -131,7 +131,9 @@ export async function fetchSetupChecklist(): Promise<ChecklistItem[]> {
 export interface TaxRate { id: string; name: string; rate: number; appliesTo: 'sales' | 'purchase' | 'both'; isDefault: boolean; active: boolean }
 export interface PaymentTerm { id: string; name: string; days: number; isDefault: boolean; active: boolean }
 export interface Unit { code: string; name: string; active: boolean }
-export interface DocumentFormat { docType: string; label: string; prefix: string; includeYear: boolean; includeOfficeCode: boolean; padding: number; scope: 'office' | 'organization' }
+export interface DocumentFormat { docType: string; label: string; prefix: string; includeYear: boolean; includeOfficeCode: boolean; padding: number; scope: 'office' | 'organization';
+  /** e.g. '{n}-FT-{yyyy}': when set it replaces prefix, year and office code (migration 20261115000100). */
+  pattern: string | null }
 export interface FeeSchedule { id: string; name: string; description: string; currency: string; validFrom: string; validTo: string; isDefault: boolean; active: boolean }
 export interface FeeItem { id: string; scheduleId: string; code: string; name: string; unitCode: string; rate: number; taxRateId: string; vehicleTypeId: string; glAccountCode: string }
 export interface VehicleType {
@@ -159,6 +161,7 @@ export const mapTerm = (r: any): PaymentTerm => ({ id: r.id, name: r.name, days:
 export const mapUnit = (r: any): Unit => ({ code: r.code, name: r.name, active: !!r.active });
 export const mapFormat = (r: any): DocumentFormat => ({
   docType: r.doc_type, label: r.label, prefix: r.prefix, includeYear: !!r.include_year, includeOfficeCode: !!r.include_office_code, padding: r.padding, scope: r.scope,
+  pattern: r.pattern ?? null,
 });
 export const mapSchedule = (r: any): FeeSchedule => ({
   id: r.id, name: r.name, description: s(r.description), currency: r.currency, validFrom: s(r.valid_from), validTo: s(r.valid_to), isDefault: !!r.is_default, active: !!r.active,

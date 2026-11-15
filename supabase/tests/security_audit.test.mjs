@@ -84,7 +84,7 @@ await seedFixtures(t.db);
 await check('preview_doc_number: refused for an office the user cannot access', async () => {
   const r = (await t.as(IDS.OTHER, `select preview_doc_number('sales_invoice', '${IDS.HO}') n`)).rows[0].n;
   assert(r === null, r); const own = (await t.as(IDS.FLEET, `select preview_doc_number('sales_invoice', '${IDS.HO}') n`)).rows[0].n;
-  assert(own && own.startsWith('INV'), 'own office ' + own);
+  assert(own && /^\d+-FT-\d{4}$/.test(own), 'own office ' + own);   // {n}-FT-{yyyy} since upgrade stage 9
   return `other office: null, own office: ${own}`;
 });
 await check('budget_total runs as the caller', async () => {

@@ -37,6 +37,14 @@ what is verified and what is not. One section per stage. Parts A, B and C of
   are not on the letterhead; only the letterhead numbers are used.
 - The website says "Available 24/7" in places and "Saturday to Thursday, 8:00 AM to 5:00 PM" on the
   contact page. Opening hours are not printed on any document, so nothing depends on it.
+- **Does the invoice number restart at 1 each January?** The app starts a new series per year
+  (`1-FT-2027` on 1 January 2027), because the year suffix is what keeps numbers apart and that is
+  the usual Tally setup; the two statements only show 2026 numbers (355–446), so this could not be
+  checked. If the owner wants the running number to continue (`447…` into 2027), change the series
+  key before 1 January 2027 (one line in `_doc_pattern_key`, plus a test). Recorded, not guessed silently.
+- **Debit notes on sales invoices** take the sales invoice series (`n-FT-yyyy`), as they took the
+  sales invoice prefix before; there is no separate debit-note format. Confirm with the accountant.
+
 
 ## Out of scope (would be new features)
 
@@ -374,3 +382,36 @@ entry" further down for what was set and when.
   cannot be read or deleted from another; a replaced office logo can be removed by an office editor;
   a Viewer cannot store logos; the organization logo needs settings:edit and is readable by every
   signed-in user; paths outside `<office>/<entity>/` are refused.
+
+---
+
+## Stage 9: Invoice numbering
+
+- Migration `20261115000100_invoice_number_pattern.sql` (pushed to the development project):
+  `document_formats.pattern` (tokens `{n}`, `{yyyy}`, `{yy}`, `{office}`; check constraint: exactly
+  one `{n}`, no other tokens, letters/digits/`-`/`/` only). A format with a pattern is numbered from
+  one row per resolved pattern (`{n}-FT-2026`) in `global_doc_sequences` (organization scope) or
+  `doc_sequences` (office scope). The row lock serialises two people saving at once, and a failed
+  save gives its number back, so the series has no gaps. The app never deletes invoices (they are
+  cancelled or credited), so no gap comes from the screens either.
+- `sales_invoice` is now `{n}-FT-{yyyy}`, scope organization, no padding; the 2026 series starts after
+  **446**, so the next number is **447-FT-2026** (checked on the live project: `preview_doc_number`
+  returns `447-FT-2026`). The year comes from the invoice date.
+- Unchanged: credit notes (`CN-HO-2026-0002` next on the live project), purchase bills, payments,
+  journals, vehicles and every other format; numbers already issued (the sample `INV-HO-2026-0001`
+  stays as it is). `trg_assign_doc_number` changed only in its invoices branch;
+  `preview_doc_number` keeps the office-access rule of `20261113003000_security_hardening.sql`.
+- Opening balances were stored as sales invoices and would have taken FT numbers (the first five
+  customer opening balances would have been 447–451-FT-2026). They now take their own numbers from a
+  new `opening_balance` format, `OB-<office>-<year>-0001`, through `doc_prefix` like every other type.
+- Settings → Universal settings → Document numbering shows the pattern and the real next number for
+  the sales invoice row instead of prefix/office/year controls that would no longer apply.
+- PGlite test `upgrade_invoice_numbers.test.mjs` (13 checks): format and starting point; preview
+  447-FT-2026; after 446 the next is 447-FT-2026; one series across offices; the year changes the
+  suffix (and a new year starts at 1); two invoices saved together get different numbers; a failed
+  save leaves no gap; a typed number that fits the pattern is kept and moves the series; other types
+  unchanged; issued numbers unchanged on edit; opening balances take OB numbers without touching the
+  FT series; no preview of another office; invalid patterns refused.
+- Older tests that pinned the `INV-…` sales format were updated to the new rule (platform, finance,
+  org setup, security audit, office numbers). Concurrency is shown with two rows in one statement
+  through the same locked row; PGlite has one connection, so two separate sessions were not run.

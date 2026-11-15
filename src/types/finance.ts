@@ -25,7 +25,7 @@ export interface InvoiceLineItem {
 
 export interface Invoice {
   id: string;
-  invoiceNumber: string; // e.g. "INV-2026-0038" or "PINV-2026-012"
+  invoiceNumber: string; // e.g. "447-FT-2026" (sales), "PINV-HO-2026-0012" (purchase), "CN-HO-2026-0001"
   invoiceType: InvoiceType; // Purchase from Supplier vs Sales to Customer
   companyId: string;
   companyName: string;

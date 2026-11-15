@@ -127,8 +127,22 @@ const DocumentFormats: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   const [drafts, setDrafts] = useState<Record<string, Partial<DocumentFormat>>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useNotice();
+  // patterned formats ({n}-FT-{yyyy}) show the real next number of their series
+  const [next, setNext] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let live = true;
+    for (const f of rows.filter(r => r.pattern)) {
+      org.previewDocNumber(f.docType, null).then(n => { if (live && n) setNext(x => ({ ...x, [f.docType]: n })); }).catch(() => undefined);
+    }
+    return () => { live = false; };
+  }, [rows]);
   const preview = (f: DocumentFormat) => {
     const d = { ...f, ...drafts[f.docType] };
+    if (f.pattern) {
+      if (!drafts[f.docType] && next[f.docType]) return `${next[f.docType]} (next)`;
+      const y = String(new Date().getFullYear());
+      return f.pattern.replace('{yyyy}', y).replace('{yy}', y.slice(2)).replace('{office}', 'HO').replace('{n}', '1'.padStart(Number(d.padding) || 1, '0'));
+    }
     return [d.prefix || '?', d.includeOfficeCode ? 'HO' : null, d.includeYear ? String(new Date().getFullYear()) : null, '1'.padStart(Number(d.padding) || 1, '0')]
       .filter(Boolean).join('-');
   };
@@ -165,9 +179,18 @@ const DocumentFormats: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
                 return (
                   <tr key={f.docType}>
                     <td className={tdCls}>{f.label}{f.scope === 'organization' && <span className="text-[10px] text-slate-400"> (organization-wide)</span>}</td>
-                    <td className={tdCls}><input aria-label={`${f.label} prefix`} className="w-20 h-8 rounded-lg border border-slate-700 px-2 text-xs uppercase" value={d.prefix} maxLength={8} disabled={readOnly} onChange={e => upd({ prefix: e.target.value.toUpperCase() })} /></td>
-                    <td className={tdCls}><input type="checkbox" aria-label="Include office code" className="w-4 h-4 accent-brand-500" checked={d.includeOfficeCode} disabled={readOnly || f.scope === 'organization'} onChange={e => upd({ includeOfficeCode: e.target.checked })} /></td>
-                    <td className={tdCls}><input type="checkbox" aria-label="Include year" className="w-4 h-4 accent-brand-500" checked={d.includeYear} disabled={readOnly} onChange={e => upd({ includeYear: e.target.checked })} /></td>
+                    {f.pattern ? (
+                      <td className={tdCls} colSpan={3}>
+                        <span className="font-mono text-slate-100">{f.pattern}</span>
+                        <span className="block text-2xs text-slate-400">Running number, then FT and the year of the invoice date; one series for all offices.</span>
+                      </td>
+                    ) : (
+                      <>
+                        <td className={tdCls}><input aria-label={`${f.label} prefix`} className="w-20 h-8 rounded-lg border border-slate-700 px-2 text-xs uppercase" value={d.prefix} maxLength={8} disabled={readOnly} onChange={e => upd({ prefix: e.target.value.toUpperCase() })} /></td>
+                        <td className={tdCls}><input type="checkbox" aria-label="Include office code" className="w-4 h-4 accent-brand-500" checked={d.includeOfficeCode} disabled={readOnly || f.scope === 'organization'} onChange={e => upd({ includeOfficeCode: e.target.checked })} /></td>
+                        <td className={tdCls}><input type="checkbox" aria-label="Include year" className="w-4 h-4 accent-brand-500" checked={d.includeYear} disabled={readOnly} onChange={e => upd({ includeYear: e.target.checked })} /></td>
+                      </>
+                    )}
                     <td className={tdCls}><input type="number" aria-label="Digits" min={1} max={9} className="w-16 h-8 rounded-lg border border-slate-700 px-2 text-xs" value={d.padding} disabled={readOnly} onChange={e => upd({ padding: Number(e.target.value) })} /></td>
                     <td className={`${tdCls} font-mono text-slate-100`}>{preview(f)}</td>
                     {!readOnly && <td className={`${tdCls} text-right`}><Button size="xs" variant={drafts[f.docType] ? 'primary' : 'outline'} disabled={!drafts[f.docType]} isLoading={busy === f.docType} onClick={() => void save(f)}>Save</Button></td>}

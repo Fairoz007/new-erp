@@ -90,7 +90,8 @@ await check('Super Admin adds tax rates and terms; one default each', async () =
 }, 'duplicate key');
 await check('Viewer cannot add tax rates', () => tx(VIEWER, `insert into tax_rates (name, rate) values ('x', 1)`), 'row-level security');
 await check('document formats can be edited but not deleted', async () => {
-  await tx(ADMIN, `update document_formats set prefix = 'SI', include_office_code = true where doc_type = 'sales_invoice'`);
+  // an admin can switch sales invoices from the {n}-FT-{yyyy} pattern (upgrade stage 9) back to prefix numbering
+  await tx(ADMIN, `update document_formats set prefix = 'SI', include_office_code = true, pattern = null, scope = 'office', padding = 4 where doc_type = 'sales_invoice'`);
   return as(ADMIN, `delete from document_formats where doc_type = 'sales_invoice'`);
 }, 'permission denied');
 await check('sales invoice numbers follow the edited format (prefix + office code + year)', async () => {

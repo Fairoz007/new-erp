@@ -21,10 +21,15 @@ await check('the first vehicle in two offices gets two different codes', async (
   assert(r.every(x => x.vehicle_code.includes(x.code)), JSON.stringify(r));
   return r.map(x => x.vehicle_code).join(', ');
 });
-await check('invoice numbers of two offices differ', async () => {
-  const a = (await asServer(`select public.preview_doc_number('sales_invoice', '${HO}') n`)).rows[0].n;
-  const b = (await asServer(`select public.preview_doc_number('sales_invoice', '${DQ}') n`)).rows[0].n;
-  assert(a !== b && a.includes('-HO-') && b.includes('-DQ-'), `${a} ${b}`); return `${a}, ${b}`;
+// Sales invoices are one organization-wide series ({n}-FT-{yyyy}, upgrade stage 9, see
+// upgrade_invoice_numbers.test.mjs); the office-scoped invoice documents still carry the office code.
+await check('purchase bill and credit note numbers of two offices differ', async () => {
+  for (const type of ['purchase_invoice', 'credit_note']) {
+    const a = (await asServer(`select public.preview_doc_number('${type}', '${HO}') n`)).rows[0].n;
+    const b = (await asServer(`select public.preview_doc_number('${type}', '${DQ}') n`)).rows[0].n;
+    assert(a !== b && a.includes('-HO-') && b.includes('-DQ-'), `${type}: ${a} ${b}`);
+  }
+  return 'PINV-HO / PINV-DQ, CN-HO / CN-DQ';
 });
 await check('a supplier bill raised from a maintenance record follows the format (office code)', async () => {
   await asServer(`insert into public.suppliers (id, supplier_code, name, supplier_type) values ('33333333-0000-0000-0000-000000000001', 'SUP-T1', 'Garage T', 'Garage');

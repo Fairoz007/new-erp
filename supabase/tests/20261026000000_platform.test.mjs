@@ -84,7 +84,8 @@ await check('maintenance MNT-YYYY-001, accident ACC-YYYY-001, expense EXP-YYYY-0
   assert(r.m === 'MNT-2024-001' && r.a === 'ACC-2024-001' && r.e === 'EXP-2024-0001', JSON.stringify(r));
   return JSON.stringify(r);
 });
-await check('invoices: PINV-/INV-/CN-YYYY-0001 by type, reconciliation REC-YYYY-001', async () => {
+// sales invoices: {n}-FT-{yyyy}, one series per year (upgrade stage 9, 20261115000100_invoice_number_pattern.sql)
+await check('invoices: PINV-/CN-YYYY-0001 and n-FT-YYYY by type, reconciliation REC-YYYY-001', async () => {
   await asServer(`
     insert into customers (id, customer_code, name, customer_type) values ('99999999-9999-9999-9999-999999999999', null, 'C', 'Corporate');
     insert into invoices (id, company_id, invoice_number, invoice_type, party_type, supplier_id, invoice_date, due_date)
@@ -97,7 +98,7 @@ await check('invoices: PINV-/INV-/CN-YYYY-0001 by type, reconciliation REC-YYYY-
       values ('${HO}', null, 'a0000000-0000-0000-0000-000000000001', '2-Way', 1, 0, 0, 0, 'Matched', '2023-04-04')`);
   const r = (await asServer(`select string_agg(invoice_number, ',' order by invoice_number) n from invoices where invoice_date between '2023-01-01' and '2023-12-31'`)).rows[0].n;
   const rec = await val(`select reconciliation_number from reconciliations where reconciled_date='2023-04-04'`);
-  assert(r === 'CN-2023-0001,INV-2023-0001,PINV-2023-0001' && rec === 'REC-2023-001', r + ' ' + rec);
+  assert(r === '1-FT-2023,CN-2023-0001,PINV-2023-0001' && rec === 'REC-2023-001', r + ' ' + rec);
   return r + ', ' + rec;
 });
 await check('fixed asset FA-001, depreciation DEP-YYYY-01, employee EMP-001, payroll PR-YYYY-MM', async () => {

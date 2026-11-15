@@ -316,7 +316,8 @@ await check('sales invoice: posted to AR / revenue / output VAT, customer paymen
   S1 = await val(FM, createSql({ company_id: HO, invoice_type: 'Sales', customer_id: CUS, invoice_date: '2026-10-05' },
     [{ description: 'Haulage', quantity: 4, unit_price: 250, tax_rate_percentage: 5, gl_account_code: '4000' }]));
   const r = await inv(S1);
-  if (!/^INV-2026-\d+$/.test(r.invoice_number) || r.approval_status !== 'Approved') throw new Error(r.invoice_number + r.approval_status);
+  // sales invoices are {n}-FT-{yyyy} since upgrade stage 9
+  if (!/^\d+-FT-2026$/.test(r.invoice_number) || r.approval_status !== 'Approved') throw new Error(r.invoice_number + r.approval_status);
   await tx(FM, `select record_payment('${S1}', 50, current_date, 'Cheque', '${BANK}')`);
   eq('bank', (await one(`select current_balance from public.v_bank_balances where id = '${BANK}'`)).current_balance, 4990);
   return r.invoice_number;
