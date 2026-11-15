@@ -159,6 +159,7 @@ browser checks before upload. Details and the deploy steps: `docs/OPERATIONS.md`
 - `AUDIT_REPORT.md`: audit findings, what was fixed, what was verified and what is still open.
 - `docs/PHASE_NOTES.md`: the defaults chosen in each phase and the items not verified.
 - `docs/FIX_AND_COMPLETE_PROMPT.md`: the brief.
+- `docs/UI_INSPECTION_PROMPT.md`: one-pass brief to inspect every screen and fix or remove controls that do nothing.
 - `docs/A4_PDF_PROMPT.md` and `docs/A4_PDF_NOTES.md`: the A4 letterhead format brief for every printed and downloaded document, and per stage what changed and what was checked.
 - `docs/UPGRADE_PROMPT.md` and `docs/UPGRADE_NOTES.md`: the UI, offices and invoice upgrade brief, and per stage what changed, what was decided and what is not verified.
 - `docs/ADVANCE_PROMPT.md` and `docs/ADVANCE_NOTES.md`: the production-hardening brief, and per phase what changed, how it was tested, the defaults chosen and what is not verified.
