@@ -1317,7 +1317,7 @@ export const QuickActionModals: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Oil Brand" value={oilForm.oilBrand} onChange={e => setOilForm({ ...oilForm, oilBrand: e.target.value })} />
             <Input label="Oil Grade" value={oilForm.oilGrade} onChange={e => setOilForm({ ...oilForm, oilGrade: e.target.value })} />
-            <Input label="Quantity (Litres)" type="number" step="0.1" value={oilForm.quantityLitres} onChange={e => setOilForm({ ...oilForm, quantityLitres: Number(e.target.value) })} />
+            <Input label="Quantity (Litres)" type="number" step="0.1" value={Number.isFinite(oilForm.quantityLitres) ? oilForm.quantityLitres : ''} onChange={e => setOilForm({ ...oilForm, quantityLitres: e.target.value === '' ? NaN : Number(e.target.value) })} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800">

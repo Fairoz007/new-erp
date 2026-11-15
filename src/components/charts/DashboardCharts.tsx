@@ -85,11 +85,12 @@ const kFormat = (val: number) => (Math.abs(val) >= 1000 ? `${val / 1000}k` : `${
 const ChartFigure: React.FC<{ label: string; columns: string[]; rows: (string | number)[][]; className?: string; children: React.ReactNode }> = ({ label, columns, rows, className, children }) => (
   <figure role="group" aria-label={label} className={className ?? 'h-[250px] w-full'}>
     <div aria-hidden="true" className="h-full w-full">{children}</div>
-    <table className="sr-only">
+    {/* the wrapper clips: a <table> ignores the 1px width of sr-only and would widen a phone page */}
+    <div className="sr-only"><table>
       <caption>{label}</caption>
       <thead><tr>{columns.map(c => <th key={c} scope="col">{c}</th>)}</tr></thead>
       <tbody>{rows.map((r, i) => <tr key={i}>{r.map((v, j) => j === 0 ? <th key={j} scope="row">{v}</th> : <td key={j}>{typeof v === 'number' ? v.toFixed(3) : v}</td>)}</tr>)}</tbody>
-    </table>
+    </table></div>
   </figure>
 );
 
@@ -151,8 +152,8 @@ export const ReferencePillBarChart: React.FC<{
 
   return (
     <figure role="group" aria-label="Operating spend per day, last 7 days" className="w-full flex flex-col justify-between h-[230px] pt-4">
-      <table className="sr-only"><caption>Operating spend per day, last 7 days</caption><thead><tr><th scope="col">Date</th><th scope="col">Amount</th></tr></thead>
-        <tbody>{days.map(d => <tr key={d.key}><th scope="row">{d.key}</th><td>{formatCurrency(d.amount, currency)}</td></tr>)}</tbody></table>
+      <div className="sr-only"><table><caption>Operating spend per day, last 7 days</caption><thead><tr><th scope="col">Date</th><th scope="col">Amount</th></tr></thead>
+        <tbody>{days.map(d => <tr key={d.key}><th scope="row">{d.key}</th><td>{formatCurrency(d.amount, currency)}</td></tr>)}</tbody></table></div>
       <div aria-hidden="true" className="flex items-end justify-between gap-2.5 h-[170px] px-2 sm:px-4">
         {days.map((item, index) => {
           const heightPercent = item.amount > 0 ? Math.max(6, Math.round((item.amount / max) * 100)) : 2;

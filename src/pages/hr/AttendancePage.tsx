@@ -28,7 +28,7 @@ const monthRange = (d: string) => {
   return { from: `${d.slice(0, 7)}-01`, to: `${d.slice(0, 7)}-${String(last).padStart(2, '0')}` };
 };
 const onRoll = (e: Employee, day: string) => e.joiningDate <= day && (!e.terminationDate || e.terminationDate >= day);
-const inputCls = 'bg-slate-850 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200 w-full';
+const inputCls = 'bg-slate-850 border border-slate-700 rounded-lg px-2 py-1 min-h-[40px] sm:min-h-0 text-xs text-slate-200 w-full';
 
 type Draft = { status: AttendanceStatus | ''; checkIn: string; checkOut: string; overtimeHours: number; notes: string };
 

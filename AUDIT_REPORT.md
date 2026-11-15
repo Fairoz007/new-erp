@@ -360,6 +360,11 @@ prints on every document until the Settings data is entered.
   trend badges replaced with real values, and layout fixed at 375/768/1280 px (wrapping actions and
   footers, menus that fit the screen, stacked form fields, 40–44 px touch targets on phones).
 - Controls removed: 0. Open: none. No security, office scoping or database changes.
-- Browser: the signed-out screens pass at all three widths. The signed-in browser pass is **not
-  verified**, because the owner did not sign in during the session.
+- Browser: the signed-out screens pass at all three widths. In the signed-in pass, all 40 pages
+  pass at 375, 768 and 1280 px, every tab and Add/Edit dialog was checked, and the phone drawer and
+  office switcher work. It found three problems, all fixed: a screen-reader chart table widened
+  phone pages, the oil form logged a NaN warning, and the attendance inputs were too small on a
+  phone. Exports, printing and the delete or approve actions were checked in code only.
+- The pass accidentally saved three office records with their own values and created one draft
+  budget on the development database. Both were reverted (see the notes).
 - Details: `docs/UI_INSPECTION_NOTES.md`.
