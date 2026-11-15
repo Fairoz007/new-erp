@@ -315,3 +315,28 @@ entry" further down for what was set and when.
   an Admin of Duqm can edit Duqm but not Head Office; logo files can be written only into the
   user's own office folder.
 - Note: Fleet Manager and Finance Manager roles have companies:edit in the shipped roles (unchanged).
+
+---
+
+## Stage 7: Office access screens
+
+- Setup Wizard step 5 and Users & Roles → Users (invite and edit) now ask one question, **Office
+  access**: **All offices** (every office, including offices added later) or **Chosen offices**
+  (one card per office with its logo/code badge, name, code and city; tick the office and choose
+  the role held there, or keep the organization role). This replaces the "Organization-wide access"
+  switch and the plain checkbox list; the data written is the same (`profiles.all_offices`,
+  `company_members` through `set_user_office_roles`, `create_invitation`).
+- Only a Super Admin can choose All offices; for others the option is shown greyed with the reason,
+  and a user who already has All offices cannot be moved off it by a non-Super Admin in the screen
+  (the database refuses granting; the screen is stricter and also keeps removal for a Super Admin).
+  Offices the signed-in user does not manage are shown greyed ("You do not manage users in this office").
+- New tab **Users & Roles → Access overview** (read-only): users × offices, each cell the role the
+  person holds in that office (office role, else organization role; "(all offices)" when it comes
+  from All offices; Super Admins in every office), "—" for no access. Phones get one card per user.
+  It reads only what RLS lets the signed-in user see.
+- No invitation was sent and no account was created during this work.
+- PGlite test `upgrade_office_access.test.mjs` (7 checks): a Super Admin can give All offices; an All
+  offices user sees an office created afterwards; Chosen offices users see only their offices (and
+  none of another office's vehicles); a per-office role applies in that office only; a non-Super
+  Admin can neither set All offices on a profile nor invite an All offices user; the memberships a
+  Duqm user can read are their own office's only.

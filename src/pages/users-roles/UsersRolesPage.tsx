@@ -6,11 +6,12 @@ import { Tabs } from '../../components/ui/Tabs';
 import { useAuth } from '../../context/AuthContext';
 import { UsersStep } from '../setup/steps/UsersStep';
 import { RolesEditor } from '../setup/RolesEditor';
+import { AccessOverview } from '../setup/OfficeAccess';
 import { PageHeader } from '../../components/ui/PageHeader';
 
 export const UsersRolesPage: React.FC = () => {
   const { hasPermission, users, roles } = useAuth();
-  const [tab, setTab] = useState<'users' | 'roles'>('users');
+  const [tab, setTab] = useState<'users' | 'access' | 'roles'>('users');
   const canEdit = hasPermission('edit', 'users-roles');
 
   return (
@@ -24,9 +25,9 @@ export const UsersRolesPage: React.FC = () => {
           </>
         }
       />
-      <Tabs variant="pills" activeTab={tab} onChange={id => setTab(id as 'users' | 'roles')}
-        tabs={[{ id: 'users', label: 'Users', count: users.length }, { id: 'roles', label: 'Roles & permissions', count: roles.length }]} />
-      {tab === 'users' ? <UsersStep /> : <RolesEditor />}
+      <Tabs variant="pills" activeTab={tab} onChange={id => setTab(id as 'users' | 'access' | 'roles')}
+        tabs={[{ id: 'users', label: 'Users', count: users.length }, { id: 'access', label: 'Access overview' }, { id: 'roles', label: 'Roles & permissions', count: roles.length }]} />
+      {tab === 'users' ? <UsersStep /> : tab === 'access' ? <AccessOverview /> : <RolesEditor />}
     </div>
   );
 };

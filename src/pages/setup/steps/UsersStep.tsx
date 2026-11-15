@@ -9,41 +9,10 @@ import { useAuth } from '../../../context/AuthContext';
 import * as auth from '../../../services/auth';
 import type { Invitation } from '../../../services/auth';
 import type { User } from '../../../types/system';
-import { LoadState, NoticeBar, Section, Toggle, errText, tableCls, tdCls, thCls, useNotice, useOffices } from '../shared';
+import { LoadState, NoticeBar, Section, errText, tableCls, tdCls, thCls, useNotice } from '../shared';
+import { OfficeAccessPicker, type Assign } from '../OfficeAccess';
 
-type Assign = { company_id: string; role_id: string | null };
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-// office checkboxes, each with an optional office-specific role
-const OfficeRoles: React.FC<{ value: Assign[]; onChange: (v: Assign[]) => void; disabled?: boolean; manageable: (id: string) => boolean }> = ({ value, onChange, disabled, manageable }) => {
-  const { offices } = useOffices();
-  const { roles } = useAuth();
-  return (
-    <div className="space-y-1.5">
-      {offices.length === 0 && <p className="text-xs text-slate-400">No offices yet (step 3).</p>}
-      {offices.map(o => {
-        const a = value.find(x => x.company_id === o.id);
-        const can = manageable(o.id) && !disabled;
-        return (
-          <div key={o.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <label className={`flex items-center gap-2 text-xs min-w-[180px] ${can ? 'cursor-pointer' : 'opacity-60'}`}>
-              <input type="checkbox" className="w-4 h-4 accent-brand-500" checked={!!a} disabled={!can}
-                onChange={e => onChange(e.target.checked ? [...value, { company_id: o.id, role_id: null }] : value.filter(x => x.company_id !== o.id))} />
-              {o.name} <span className="font-mono text-slate-400">{o.code}</span>
-            </label>
-            {a && (
-              <select aria-label={`Role in ${o.name}`} className="h-8 rounded-lg border border-slate-700 px-2 text-xs bg-white" value={a.role_id ?? ''} disabled={!can}
-                onChange={e => onChange(value.map(x => (x.company_id === o.id ? { ...x, role_id: e.target.value || null } : x)))}>
-                <option value="">Same as organization role</option>
-                {roles.filter(r => !r.isSuper).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   const { users, roles, memberships, currentUser, isSuperAdmin, hasPermission, roleById, refresh } = useAuth();
@@ -80,7 +49,7 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
     else if (users.some(u => u.email.toLowerCase() === form.email.trim().toLowerCase())) e.email = 'This person already has an account.';
     if (!form.roleId) e.roleId = 'Choose a role.';
     const isSuperRole = !!roleById(form.roleId)?.isSuper;
-    if (!form.allOffices && !isSuperRole && form.offices.length === 0) e.offices = 'Choose at least one office or give organization-wide access.';
+    if (!form.allOffices && !isSuperRole && form.offices.length === 0) e.offices = 'Choose at least one office, or All offices.';
     setErrors(e);
     if (Object.keys(e).length) return;
     setBusy(true);
@@ -159,10 +128,9 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
             </div>
             {!roleById(form.roleId)?.isSuper && (
               <>
-                <Toggle label="Organization-wide access (all offices, current and future)" checked={form.allOffices} disabled={!isSuperAdmin}
-                  onChange={v => setForm({ ...form, allOffices: v })} />
-                {!form.allOffices && <OfficeRoles value={form.offices} onChange={v => setForm({ ...form, offices: v })} manageable={manageable} />}
-                {errors.offices && <p className="text-xs text-rose-500">{errors.offices}</p>}
+                <OfficeAccessPicker allOffices={form.allOffices} onAllOffices={v => setForm({ ...form, allOffices: v })}
+                  offices={form.offices} onOffices={v => setForm({ ...form, offices: v })}
+                  manageable={manageable} canGrantAll={isSuperAdmin} error={errors.offices} />
               </>
             )}
             <div className="flex justify-end gap-2">
@@ -228,8 +196,9 @@ export const UsersStep: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
           </div>
           {!roleById(edit.roleId)?.isSuper && (
             <>
-              <Toggle label="Organization-wide access (all offices)" checked={edit.allOffices} disabled={!isSuperAdmin} onChange={v => setEdit({ ...edit, allOffices: v })} />
-              <OfficeRoles value={edit.offices} onChange={v => setEdit({ ...edit, offices: v })} manageable={manageable} />
+              <OfficeAccessPicker allOffices={edit.allOffices} onAllOffices={v => setEdit({ ...edit, allOffices: v })}
+                offices={edit.offices} onOffices={v => setEdit({ ...edit, offices: v })}
+                manageable={manageable} canGrantAll={isSuperAdmin} />
             </>
           )}
           <div className="flex justify-end gap-2">
