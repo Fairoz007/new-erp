@@ -259,3 +259,30 @@ entry" further down for what was set and when.
 - **Accessibility**: focus rings are solid brand green (≥ 3:1 against white), menus are `role="menu"`
   with `menuitemradio` and close with Escape, motion is limited to short transitions and stops under
   `prefers-reduced-motion` (global rule in `index.css`).
+
+---
+
+## Stage 5: Offices home screen
+
+- New page `offices` (the default page when the address has no `#page`), in the sidebar first and in
+  the header's office menu ("Offices overview"). No module permission: every signed-in user may open
+  it, and it shows only offices the user can reach (`companies` is already scoped by RLS).
+- One card per office: logo or code badge, name, code, city/address lines, an **Open in Maps** link
+  (`https://www.google.com/maps/search/?api=1&query=<address>`, new tab, `rel="noopener noreferrer"`)
+  shown only when the office has an address; status (Active / Inactive) from the office record.
+- Figures per card, each shown only when the user's role sees the same figure on its dashboards
+  (decision 7): vehicles active / off road (`vehicles` page), open work orders (`work-orders`),
+  documents expiring within the organization's alert days (`v_fleet_expiries`; vehicles or drivers),
+  receivables due (`invoice_summary.ar_open`; invoices view permission for that office), cash & bank
+  (sum of the office's bank account balances; accounting or financial statements), this month's
+  approved expenses (`expense_totals`, grouped by office; expenses).
+- The figures use the same queries as the dashboards, so the numbers agree; the arithmetic is one
+  pure function (`officeFigures` in `src/lib/offices.ts`) with unit tests (`offices.test.ts`, 5 tests:
+  address lines, Maps link encoding, no link without an address, one office's figures, the All
+  offices card sums only the offices the user can see).
+- **All offices** card for users who can see more than one office; clicking a card sets the office in
+  the header and opens the dashboard. A user who can reach one office only skips this screen once per
+  sign-in and lands on the dashboard (decision 5).
+- PGlite test `upgrade_office_figures.test.mjs` (5 checks): a Finance Manager of Duqm gets none of
+  Head Office's receivables, expenses, expiring documents, vehicles, work orders or bank balances.
+- Phones: one column; the card's buttons stay ≥ 40 px high.

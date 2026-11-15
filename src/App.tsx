@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { setErrorPage } from './lib/errorReporter';
 
 // Every page is a lazy chunk; the shell (layout, contexts) is all that loads before sign-in.
+const OfficesHomePage = lazy(() => import('./pages/offices/OfficesHomePage').then(m => ({ default: m.OfficesHomePage })));
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const PartyDetailPage = lazy(() => import('./pages/parties/PartyDetailPage').then(m => ({ default: m.PartyDetailPage })));
 const CompaniesPage = lazy(() => import('./pages/companies/CompaniesPage').then(m => ({ default: m.CompaniesPage })));
@@ -97,7 +98,7 @@ const PageRenderer: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold text-slate-100">Access Restricted</h2>
             <p className="text-xs text-slate-400 mt-1">
-              Your active role profile (<span className="font-semibold text-slate-200">{currentUser.role}</span>) does not have authorization to view or manage the requested section (<span className="font-mono text-indigo-600">#{currentPage}</span>).
+              Your role (<span className="font-semibold text-slate-200">{currentUser.role}</span>) cannot open this page (<span className="font-mono text-brand-600">{currentPage}</span>). Ask an administrator if you need it.
             </p>
           </div>
           <div className="pt-2 flex justify-center gap-2">
@@ -107,7 +108,7 @@ const PageRenderer: React.FC = () => {
               onClick={() => setCurrentPage('dashboard')}
               leftIcon={<ArrowLeft className="w-4 h-4" />}
             >
-              Return to Executive Dashboard
+              Back to the dashboard
             </Button>
           </div>
         </div>
@@ -119,6 +120,8 @@ const PageRenderer: React.FC = () => {
     <Suspense fallback={<PageSkeleton />}>
       {(() => {
         switch (currentPage) {
+          case 'offices':
+            return <OfficesHomePage />;
           case 'dashboard':
             return <DashboardPage />;
           case 'companies':
